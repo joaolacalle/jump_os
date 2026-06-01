@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUM OS — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050506;--panel:#0D0D10;--panel2:#121218;--panel3:#18181F;
+  --border:#1A1A22;--border2:#252530;
+  --green:#00E676;--gdim:rgba(0,230,118,.07);
+  --red:#FF4545;--rdim:rgba(255,69,69,.08);
+  --orange:#FF9F1C;--odim:rgba(255,159,28,.08);
+  --blue:#5C7CFA;--bdim:rgba(92,124,250,.08);
+  --purple:#9B5CF6;--pdim:rgba(155,92,246,.08);
+  --white:#FFF;--g1:#8A8A98;--g2:#4A4A56;--g3:#22222A;
+  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+}
+body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:300;flex-shrink:0;gap:12px}
+.tl{display:flex;align-items:center;gap:10px}
+.brand{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase}
+.brand span{color:var(--green)}
+.admin-pill{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:var(--bdim);color:var(--blue);border:1px solid rgba(92,124,250,.2);border-radius:12px;padding:3px 10px}
+.search-box{position:relative;flex:1;max-width:320px}
+.search-box input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:7px 12px 7px 32px;color:var(--white);font-size:12px;font-family:var(--font);outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:var(--blue)}
+.search-box input::placeholder{color:var(--g2)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--g2);pointer-events:none}
+.tr{display:flex;align-items:center;gap:8px}
+.clock{font-size:11px;color:var(--g2);font-family:var(--mono)}
+.notif{width:32px;height:32px;border-radius:8px;background:var(--panel2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;position:relative;transition:.15s}
+.notif:hover{border-color:var(--border)}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.logout{background:transparent;border:1px solid var(--border2);color:var(--g1);padding:6px 14px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:.15s}
+.logout:hover{border-color:var(--red);color:var(--red)}
+
+/* LAYOUT */
+.layout{display:flex;flex:1;min-height:0;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:186px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px 0;flex-shrink:0;overflow-y:auto}
+.s-sec{padding:0 8px 12px}
+.s-lbl{font-size:7px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);padding:0 8px;margin-bottom:5px}
+.ni{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;color:var(--g1);transition:.15s;margin-bottom:1px;position:relative;border:none;background:transparent;width:100%;text-align:left}
+.ni:hover{background:var(--panel2);color:var(--white)}
+.ni.active{background:var(--panel2);color:var(--white)}
+.ni.active::before{content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:2px;height:14px;background:var(--blue);border-radius:0 2px 2px 0}
+.ni-icon{width:14px;height:14px;text-align:center;font-size:11px;opacity:.75}
+.nb{margin-left:auto;font-size:8px;font-weight:900;border-radius:10px;padding:2px 5px}
+.nb-r{background:var(--rdim);color:var(--red);border:1px solid rgba(255,69,69,.2)}
+.nb-g{background:var(--gdim);color:var(--green);border:1px solid rgba(0,230,118,.2)}
+.nb-b{background:var(--bdim);color:var(--blue);border:1px solid rgba(92,124,250,.2)}
+.s-div{height:1px;background:var(--border);margin:2px 8px 10px}
+.s-foot{margin-top:auto;padding:0 8px 8px}
+.sys-card{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:10px}
+.sys-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:10px;color:var(--g1)}
+.sys-row:last-child{margin-bottom:0}
+.sdot{width:6px;height:6px;border-radius:50%}
+.dok{background:var(--green)}
+.dwarn{background:var(--orange)}
+.derr{background:var(--red)}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto}
+.main-inner{padding:22px 26px 60px}
+
+/* PAGE HEADER */
+.ph{margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pt{font-size:8px;font-weight:800;letter-spacing:4px;color:var(--blue);text-transform:uppercase;margin-bottom:4px;font-family:var(--mono)}
+.ph h1{font-size:20px;font-weight:900;letter-spacing:-.4px;text-transform:uppercase}
+.ha{display:flex;gap:7px;flex-shrink:0}
+
+/* SECTION LABEL */
+.sl{font-size:7px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--g2);margin-bottom:11px;display:flex;align-items:center;gap:8px}
+.sl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* BTNS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s}
+.btn-g{background:var(--green);color:#000}
+.btn-g:hover{opacity:.88}
+.btn-b{background:var(--blue);color:#fff}
+.btn-b:hover{opacity:.88}
+.btn-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
+.btn-o:hover{border-color:var(--white);color:var(--white)}
+.btn-sm{padding:6px 12px;font-size:8px}
+
+/* KPI GRID */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:.2s;cursor:default}
+.kpi:hover{border-color:var(--border2);transform:translateY(-1px)}
+.kpi-acc{position:absolute;bottom:0;left:0;right:0;height:2px;opacity:0;transition:.3s}
+.kpi:hover .kpi-acc{opacity:1}
+.kpi-lbl{font-size:7px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:7px}
+.kpi-val{font-size:21px;font-weight:900;letter-spacing:-1px;line-height:1;font-family:var(--mono)}
+.kv-g{color:var(--green)}
+.kv-o{color:var(--orange)}
+.kv-b{color:var(--blue)}
+.kv-r{color:var(--red)}
+.kpi-sub{font-size:9px;color:var(--g2);margin-top:4px}
+
+/* CHART */
+.chart-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chart-ttl{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g1)}
+.c-bars{display:flex;gap:8px;align-items:flex-end;height:72px}
+.c-bar-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.c-bar{width:100%;border-radius:3px 3px 0 0;transition:.5s;cursor:pointer;position:relative;min-height:3px}
+.c-bar:hover{filter:brightness(1.2)}
+.c-tip{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:var(--panel3);border:1px solid var(--border2);border-radius:5px;padding:2px 6px;font-size:9px;font-weight:700;white-space:nowrap;color:var(--white);opacity:0;transition:.15s;pointer-events:none;font-family:var(--mono)}
+.c-bar:hover .c-tip{opacity:1}
+.c-mo{font-size:8px;color:var(--g2);font-family:var(--mono)}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+
+/* TABLE */
+.tbl-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.tbl-toolbar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.fc{padding:5px 11px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--g2);transition:.15s}
+.fc.active{background:var(--bdim);color:var(--blue);border-color:rgba(92,124,250,.3)}
+.fc:hover{color:var(--white)}
+.tbl-acts{margin-left:auto;display:flex;gap:5px}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--panel2)}
+th{padding:8px 13px;font-size:7px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 13px;font-size:11px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--panel2)}
+.cn{font-weight:700;font-size:12px}
+.ch{font-size:9px;color:var(--g2);font-family:var(--mono)}
+.ce{font-size:9px;color:var(--g2)}
+.pp{font-size:7px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+.pp-b{background:var(--panel3);color:var(--g1)}
+.pp-p{background:var(--gdim);color:var(--green)}
+.pp-pr{background:var(--pdim);color:var(--purple)}
+.pp-t{background:var(--bdim);color:var(--blue)}
+.sp{font-size:7px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px}
+.sp-a{background:var(--gdim);color:var(--green)}
+.sp-tr{background:var(--odim);color:var(--orange)}
+.sp-ex{background:var(--rdim);color:var(--red)}
+.sp-ca{background:var(--panel3);color:var(--g1)}
+.sp-te{background:var(--bdim);color:var(--blue)}
+.sdot2{width:4px;height:4px;border-radius:50%;background:currentColor}
+.td-days{font-size:10px;font-weight:700;font-family:var(--mono)}
+.td-ok{color:var(--green)}
+.td-warn{color:var(--orange)}
+.td-crit{color:var(--red)}
+.act-btns{display:flex;gap:4px}
+.ab{padding:4px 9px;border-radius:5px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:none;transition:.15s;white-space:nowrap}
+.ab-e{background:var(--bdim);color:var(--blue)}
+.ab-e:hover{background:rgba(92,124,250,.2)}
+.ab-v{background:var(--panel2);color:var(--g1);border:1px solid var(--border2)}
+.ab-v:hover{color:var(--white)}
+.ab-em{background:var(--gdim);color:var(--green)}
+.ab-em:hover{background:rgba(0,230,118,.15)}
+.ab-c{background:var(--rdim);color:var(--red)}
+.ab-c:hover{background:rgba(255,69,69,.15)}
+.mrr-c{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green)}
+
+/* MINI PANELS */
+.mp{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+.mp-ttl{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:12px}
+.log-item{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.li-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.li-g{background:var(--gdim)}
+.li-b{background:var(--bdim)}
+.li-o{background:var(--odim)}
+.li-r{background:var(--rdim)}
+.li-txt{font-size:11px;line-height:1.5;flex:1}
+.li-time{font-size:9px;color:var(--g2);font-family:var(--mono);flex-shrink:0;margin-top:2px}
+.api-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.api-row:last-child{border-bottom:none}
+.api-name{font-size:11px;font-weight:600}
+.as{font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+.as-ok{background:var(--gdim);color:var(--green)}
+.as-warn{background:var(--odim);color:var(--orange)}
+.as-err{background:var(--rdim);color:var(--red)}
+.as-nd{background:var(--panel2);color:var(--g2)}
+.trial-item{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
+.trial-item:last-child{border-bottom:none}
+.ti-av{width:28px;height:28px;border-radius:50%;background:var(--green);color:#000;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ti-info{flex:1;min-width:0}
+.ti-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti-plan{font-size:9px;color:var(--g2)}
+.ti-days{font-size:10px;font-weight:800;font-family:var(--mono);flex-shrink:0}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
+.mo.open{opacity:1;pointer-events:all}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:14px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.mt{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
+.mc{background:var(--panel2);border:1px solid var(--border2);color:var(--g1);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.mc:hover{color:var(--white)}
+.mb{padding:18px 20px}
+.mf{margin-bottom:13px}
+.fl{font-size:7px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:6px;display:block}
+.fi,.fs,.fta{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:7px;padding:10px 12px;color:var(--white);font-family:var(--font);font-size:12px;outline:none;transition:border-color .2s}
+.fi:focus,.fs:focus,.fta:focus{border-color:var(--blue)}
+.fs option{background:var(--panel2)}
+.fta{resize:none;min-height:70px;line-height:1.6}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mfooter{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border)}
+.bm{flex:1;padding:10px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s}
+.bm-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
+.bm-o:hover{color:var(--white)}
+.bm-s{background:var(--green);color:#000}
+.bm-b{background:var(--blue);color:#fff}
+.bm-r{background:var(--red);color:#fff}
+
+/* TRIAL OPTIONS */
+.to-wrap{display:flex;gap:6px;flex-wrap:wrap}
+.to{padding:7px 13px;border-radius:7px;background:var(--panel2);border:1px solid var(--border2);color:var(--g1);font-size:10px;font-weight:700;cursor:pointer;transition:.15s}
+.to:hover{border-color:var(--blue);color:var(--blue)}
+.to.sel{background:var(--bdim);border-color:var(--blue);color:var(--blue)}
+
+/* CONFIRM */
+.confirm-panel{background:var(--rdim);border:1px solid rgba(255,69,69,.2);border-radius:8px;padding:12px;margin-top:10px;font-size:12px;color:var(--red);line-height:1.5;display:none}
+
+/* TOAST */
+.tc{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--panel);border:1px solid var(--border2);border-radius:9px;padding:10px 16px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;transform:translateX(110%);transition:.3s cubic-bezier(.34,1.56,.64,1);min-width:220px;max-width:320px}
+.toast.show{transform:translateX(0)}
+.toast.s{border-left:2px solid var(--green)}
+.toast.i{border-left:2px solid var(--blue)}
+.toast.w{border-left:2px solid var(--orange)}
+.toast.e{border-left:2px solid var(--red)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tl">
+    <div class="brand">JUM <span>OS</span></div>
+    <div class="admin-pill">ADMIN</div>
+  </div>
+  <div class="search-box">
+    <span class="search-icon">⌕</span>
+    <input type="text" placeholder="Buscar cliente, email, @handle..." oninput="doSearch(this.value)">
+  </div>
+  <div class="tr">
+    <div class="clock" id="clk">--:--:--</div>
+    <div class="notif" onclick="T('3 contas com ação necessária','w')">🔔<div class="notif-dot"></div></div>
+    <button class="logout" onclick="if(confirm('Sair do admin?'))location.href='login.html'">Sair</button>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="s-sec">
+    <div class="s-lbl">Painel</div>
+    <button class="ni active" onclick="S('ov',this)"><div class="ni-icon">▦</div>Visão Geral</button>
+    <button class="ni" onclick="S('rev',this)"><div class="ni-icon">▲</div>Receita MRR</button>
+  </div>
+  <div class="s-div"></div>
+  <div class="s-sec">
+    <div class="s-lbl">Clientes</div>
+    <button class="ni" onclick="openAdd()"><div class="ni-icon">+</div>Adicionar<div class="nb nb-g">novo</div></button>
+    <button class="ni" onclick="S('cl',this);filt('all')"><div class="ni-icon">◫</div>Todos<div class="nb nb-b" id="nb-all">1</div></button>
+    <button class="ni" onclick="S('cl',this);filt('ativo')"><div class="ni-icon">◉</div>Ativos<div class="nb nb-g" id="nb-at">0</div></button>
+    <button class="ni" onclick="S('cl',this);filt('trial')"><div class="ni-icon">⏳</div>Em Trial<div class="nb nb-r" id="nb-tr">0</div></button>
+    <button class="ni" onclick="S('cl',this);filt('expirado')"><div class="ni-icon">✕</div>Expirados</button>
+    <button class="ni" onclick="S('cl',this);filt('teste')"><div class="ni-icon">🧪</div>Testes<div class="nb nb-b" id="nb-te">1</div></button>
+  </div>
+  <div class="s-div"></div>
+  <div class="s-sec">
+    <div class="s-lbl">Sistema</div>
+    <button class="ni" onclick="S('logs',this)"><div class="ni-icon">◫</div>Logs 90d</button>
+    <button class="ni" onclick="S('apis',this)"><div class="ni-icon">◎</div>APIs & Status</button>
+    <button class="ni" onclick="S('em',this)"><div class="ni-icon">✉</div>Emails</button>
+    <button class="ni" onclick="S('cfg',this)"><div class="ni-icon">⊙</div>Configurações</button>
+  </div>
+  <div class="s-foot">
+    <div class="sys-card">
+      <div style="font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:8px">Sistema</div>
+      <div class="sys-row"><span>Vercel</span><div class="sdot dok"></div></div>
+      <div class="sys-row"><span>Supabase</span><div class="sdot dwarn" title="Não config."></div></div>
+      <div class="sys-row"><span>Stripe</span><div class="sdot dwarn" title="Modo teste"></div></div>
+      <div class="sys-row"><span>Meta API</span><div class="sdot dwarn" title="App Review pendente"></div></div>
+      <div class="sys-row"><span>Claude API</span><div class="sdot dwarn" title="Chave pendente"></div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+<div class="main-inner">
+
+<!-- ════════ VISÃO GERAL ════════ -->
+<div id="ov">
+  <div class="ph">
+    <div>
+      <div class="pt">↳ Painel administrativo</div>
+      <h1>Visão Geral</h1>
+    </div>
+    <div class="ha">
+      <button class="btn btn-o btn-sm" onclick="exportCSV()">↓ Exportar CSV</button>
+      <button class="btn btn-g btn-sm" onclick="openAdd()">+ Adicionar cliente</button>
+    </div>
+  </div>
+
+  <div class="sl">Métricas do sistema</div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-acc" style="background:var(--green)"></div><div class="kpi-lbl">Clientes ativos</div><div class="kpi-val kv-g" id="kv-at">0</div><div class="kpi-sub">assinantes pagos</div></div>
+    <div class="kpi"><div class="kpi-acc" style="background:var(--orange)"></div><div class="kpi-lbl">Em Trial</div><div class="kpi-val kv-o" id="kv-tr">0</div><div class="kpi-sub">período de teste</div></div>
+    <div class="kpi"><div class="kpi-acc" style="background:var(--green)"></div><div class="kpi-lbl">MRR</div><div class="kpi-val kv-g" id="kv-mrr">R$0</div><div class="kpi-sub">receita recorrente</div></div>
+    <div class="kpi"><div class="kpi-acc" style="background:var(--red)"></div><div class="kpi-lbl">Churn 30d</div><div class="kpi-val kv-r" id="kv-ch">0</div><div class="kpi-sub">cancelamentos</div></div>
+    <div class="kpi"><div class="kpi-acc" style="background:var(--blue)"></div><div class="kpi-lbl">Contas Teste</div><div class="kpi-val kv-b" id="kv-te">1</div><div class="kpi-sub">protótipos</div></div>
+    <div class="kpi"><div class="kpi-acc" style="background:var(--green)"></div><div class="kpi-lbl">Total contas</div><div class="kpi-val" id="kv-tot">1</div><div class="kpi-sub">desde o início</div></div>
+  </div>
+
+  <div class="sl">Receita mensal (MRR)</div>
+  <div class="chart-panel">
+    <div class="chart-head">
+      <div class="chart-ttl">Evolução do MRR — últimos 6 meses</div>
+      <div style="font-size:10px;color:var(--g2)">Atualizado em tempo real</div>
+    </div>
+    <div class="c-bars" id="mrr-bars"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px" id="mrr-lbls"></div>
+  </div>
+
+  <div class="g3">
+    <!-- Trial expirando -->
+    <div class="mp">
+      <div class="mp-ttl">⏳ Trials expirando</div>
+      <div id="trial-exp-list">
+        <div style="text-align:center;padding:20px;color:var(--g2);font-size:11px">Nenhum trial próximo do vencimento</div>
+      </div>
+    </div>
+    <!-- Atividade recente -->
+    <div class="mp" style="grid-column:span 2">
+      <div class="mp-ttl">📋 Atividade recente</div>
+      <div id="act-log">
+        <div class="log-item"><div class="li-icon li-g">✓</div><div class="li-txt"><strong>Conta criada:</strong> @joao_vittor — Plano Plus (teste interno)</div><div class="li-time">hoje 14h32</div></div>
+        <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>Agente de Identidade:</strong> OS_DATA gerado e aprovado</div><div class="li-time">hoje 14h38</div></div>
+        <div class="log-item"><div class="li-icon li-o">⚠</div><div class="li-txt"><strong>Alerta:</strong> Conta @joao_vittor é Criador — Agente de Publicação bloqueado</div><div class="li-time">hoje 14h42</div></div>
+        <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>Agente de Estratégia:</strong> Plano de junho gerado — 8 peças</div><div class="li-time">hoje 15h01</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ CLIENTES ════════ -->
+<div id="cl" style="display:none">
+  <div class="ph">
+    <div><div class="pt">↳ Gestão de clientes</div><h1>Clientes</h1></div>
+    <div class="ha">
+      <button class="btn btn-o btn-sm" onclick="exportCSV()">↓ CSV</button>
+      <button class="btn btn-g btn-sm" onclick="openAdd()">+ Adicionar</button>
+    </div>
+  </div>
+  <div class="tbl-panel">
+    <div class="tbl-toolbar">
+      <button class="fc active" onclick="filt('all',this)">Todos (<span id="c-all">1</span>)</button>
+      <button class="fc" onclick="filt('ativo',this)">Ativos (<span id="c-at">0</span>)</button>
+      <button class="fc" onclick="filt('trial',this)">Trial (<span id="c-tr">0</span>)</button>
+      <button class="fc" onclick="filt('expirado',this)">Expirados (<span id="c-ex">0</span>)</button>
+      <button class="fc" onclick="filt('cancelado',this)">Cancelados (<span id="c-ca">0</span>)</button>
+      <button class="fc" onclick="filt('teste',this)">Teste (<span id="c-te">1</span>)</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Plano</th>
+            <th>Status</th>
+            <th>Trial / Acesso</th>
+            <th>MRR</th>
+            <th>Cadastro</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="clients-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ LOGS ════════ -->
+<div id="logs" style="display:none">
+  <div class="ph">
+    <div><div class="pt">↳ Registro do sistema</div><h1>Logs — 90 Dias</h1></div>
+    <div class="ha"><button class="btn btn-o btn-sm" onclick="T('Exportando logs...','i')">↓ Exportar</button></div>
+  </div>
+  <div class="tbl-panel">
+    <div class="tbl-toolbar">
+      <button class="fc active">Todos</button>
+      <button class="fc" onclick="T('Filtrando erros...','i')">Erros</button>
+      <button class="fc" onclick="T('Filtrando pagamentos...','i')">Pagamentos</button>
+      <button class="fc" onclick="T('Filtrando agentes...','i')">Agentes</button>
+      <button class="fc" onclick="T('Filtrando segurança...','i')">Segurança</button>
+    </div>
+    <div style="padding:14px 18px" id="full-logs">
+      <div class="log-item"><div class="li-icon li-g">✓</div><div class="li-txt"><strong>conta_criada</strong> — @joao_vittor · Plano Plus · Status: teste interno · IP: 187.x.x.x</div><div class="li-time">31/05 14:32</div></div>
+      <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>agente_identidade</strong> — @joao_vittor · OS_DATA gerado · 5 blocos completados · Ficha aprovada</div><div class="li-time">31/05 14:38</div></div>
+      <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>agente_mercado</strong> — @joao_vittor · 4 concorrentes mapeados · Benchmarks: 1.2-2.8% engajamento</div><div class="li-time">31/05 14:41</div></div>
+      <div class="log-item"><div class="li-icon li-o">⚠</div><div class="li-txt"><strong>ruptura_detectada</strong> — @joao_vittor · Conta Criador · Agente de Publicação bloqueado · Alerta enviado na dashboard</div><div class="li-time">31/05 14:42</div></div>
+      <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>agente_diagnostico</strong> — @joao_vittor · 968 seguidores · Alcance 119% · Top post: 890 interações</div><div class="li-time">31/05 14:45</div></div>
+      <div class="log-item"><div class="li-icon li-b">⊙</div><div class="li-txt"><strong>agente_estrategia</strong> — @joao_vittor · Junho 2026 · 8 peças · 3 Reels, 4 Feeds, 1 VSL</div><div class="li-time">31/05 15:01</div></div>
+    </div>
+    <div style="padding:10px 18px;border-top:1px solid var(--border);font-size:10px;color:var(--g2)">Logs excluídos automaticamente após 90 dias de inatividade da conta associada.</div>
+  </div>
+</div>
+
+<!-- ════════ APIS ════════ -->
+<div id="apis" style="display:none">
+  <div class="ph">
+    <div><div class="pt">↳ Integrações</div><h1>APIs & Status</h1></div>
+    <div class="ha"><button class="btn btn-b btn-sm" onclick="T('Verificando APIs... configure .env primeiro','w')">↻ Verificar</button></div>
+  </div>
+  <div class="g2">
+    <div class="mp">
+      <div class="mp-ttl">Status das integrações</div>
+      <div class="api-row"><div class="api-name">Anthropic (Claude Sonnet)</div><div class="as as-nd">Não configurado</div></div>
+      <div class="api-row"><div class="api-name">Leonardo AI</div><div class="as as-nd">Não configurado</div></div>
+      <div class="api-row"><div class="api-name">Meta Graph API</div><div class="as as-warn">App Review pendente</div></div>
+      <div class="api-row"><div class="api-name">Stripe</div><div class="as as-warn">Modo teste</div></div>
+      <div class="api-row"><div class="api-name">Supabase</div><div class="as as-nd">Não configurado</div></div>
+      <div class="api-row"><div class="api-name">Resend (emails)</div><div class="as as-nd">Não configurado</div></div>
+      <div class="api-row"><div class="api-name">n8n (automações)</div><div class="as as-nd">Não configurado</div></div>
+    </div>
+    <div class="mp">
+      <div class="mp-ttl">Meta App — Permissões</div>
+      <div class="api-row"><div class="api-name">instagram_basic</div><div class="as as-warn">Padrão — pendente</div></div>
+      <div class="api-row"><div class="api-name">instagram_content_publish</div><div class="as as-nd">App Review</div></div>
+      <div class="api-row"><div class="api-name">instagram_manage_insights</div><div class="as as-nd">App Review</div></div>
+      <div class="api-row"><div class="api-name">pages_manage_posts</div><div class="as as-nd">App Review</div></div>
+      <div class="api-row"><div class="api-name">ads_management (Pro)</div><div class="as as-nd">App Review</div></div>
+      <div style="font-size:10px;color:var(--g2);margin-top:12px;line-height:1.6">App Review: 5-15 dias úteis após submissão em developers.facebook.com. Verificação de negócio obrigatória.</div>
+    </div>
+  </div>
+  <div class="mp">
+    <div class="mp-ttl">Variáveis de ambiente — checklist</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px">
+      <div id="env-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ EMAILS ════════ -->
+<div id="em" style="display:none">
+  <div class="ph">
+    <div><div class="pt">↳ Comunicação</div><h1>Emails</h1></div>
+    <div class="ha"><button class="btn btn-g btn-sm" onclick="openEmailMo()">✉ Enviar email</button></div>
+  </div>
+  <div class="g3" style="margin-bottom:14px">
+    <div class="mp" onclick="T('Preview do template','i')" style="cursor:pointer">
+      <div style="font-size:8px;font-weight:800;letter-spacing:2px;color:var(--green);margin-bottom:6px">AUTOMÁTICO</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px">Boas-vindas</div>
+      <div style="font-size:11px;color:var(--g1);line-height:1.5">Enviado após pagamento. Contém login e senha temporária.</div>
+    </div>
+    <div class="mp" onclick="T('Preview lembrete trial','i')" style="cursor:pointer">
+      <div style="font-size:8px;font-weight:800;letter-spacing:2px;color:var(--orange);margin-bottom:6px">AUTOMÁTICO</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px">Trial expirando (3d)</div>
+      <div style="font-size:11px;color:var(--g1);line-height:1.5">Lembrete 3 dias antes do trial acabar. Link de pagamento incluso.</div>
+    </div>
+    <div class="mp" onclick="openEmailMo()" style="cursor:pointer">
+      <div style="font-size:8px;font-weight:800;letter-spacing:2px;color:var(--blue);margin-bottom:6px">MANUAL</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px">Email personalizado</div>
+      <div style="font-size:11px;color:var(--g1);line-height:1.5">Enviar mensagem específica para 1 ou todos os clientes.</div>
+    </div>
+  </div>
+  <div class="mp"><div class="mp-ttl">Histórico de envios</div><div style="text-align:center;padding:24px;color:var(--g2);font-size:11px">Configure o Resend (resend.com) para ativar envios. Plano gratuito: 3.000 emails/mês.</div></div>
+</div>
+
+<!-- ════════ CONFIG ════════ -->
+<div id="cfg" style="display:none">
+  <div class="ph"><div><div class="pt">↳ Sistema</div><h1>Configurações</h1></div></div>
+  <div class="g2">
+    <div class="mp">
+      <div class="mp-ttl">Planos e preços</div>
+      <div class="api-row"><div class="api-name">Plano Básico</div><div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green)">R$99/mês</div></div>
+      <div class="api-row"><div class="api-name">Plano Plus</div><div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green)">R$199/mês</div></div>
+      <div class="api-row"><div class="api-name">Plano Pro</div><div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--purple)">R$399/mês (em breve)</div></div>
+      <button class="btn btn-o btn-sm" style="margin-top:12px;width:100%" onclick="T('Altere os preços no painel Stripe','i')">Editar no Stripe →</button>
+    </div>
+    <div class="mp">
+      <div class="mp-ttl">Regras de trial</div>
+      <div class="api-row"><div class="api-name">Garantia legal (CDC Art.49)</div><div style="font-size:11px;color:var(--green);font-weight:700">7 dias</div></div>
+      <div class="api-row"><div class="api-name">Trial padrão novos clientes</div><div style="font-size:11px;color:var(--orange);font-weight:700">7 dias</div></div>
+      <div class="api-row"><div class="api-name">Retenção de logs</div><div style="font-size:11px;font-weight:700">90 dias</div></div>
+      <div class="api-row"><div class="api-name">Sessão de login</div><div style="font-size:11px;font-weight:700">7 dias (renovável)</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ RECEITA ════════ -->
+<div id="rev" style="display:none">
+  <div class="ph"><div><div class="pt">↳ Financeiro</div><h1>Receita & MRR</h1></div></div>
+  <div class="g3">
+    <div class="kpi" style="background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:20px">
+      <div class="kpi-lbl">MRR atual</div><div class="kpi-val kv-g" id="rev-mrr">R$0</div><div class="kpi-sub">receita mensal recorrente</div>
+    </div>
+    <div class="kpi" style="background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:20px">
+      <div class="kpi-lbl">ARR projetado</div><div class="kpi-val kv-b" id="rev-arr">R$0</div><div class="kpi-sub">receita anual projetada</div>
+    </div>
+    <div class="kpi" style="background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:20px">
+      <div class="kpi-lbl">Ticket médio</div><div class="kpi-val" id="rev-ticket">—</div><div class="kpi-sub">por assinante ativo</div>
+    </div>
+  </div>
+  <div class="mp">
+    <div class="mp-ttl">Receita por plano</div>
+    <div id="rev-by-plan" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px">
+      <div style="text-align:center;padding:24px;color:var(--g2);font-size:11px;width:100%">Nenhum cliente pagante ainda. Adicione clientes para ver a distribuição.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main-inner -->
+</main>
+</div><!-- end layout -->
+
+<!-- MODAL: ADICIONAR CLIENTE -->
+<div class="mo" id="mo-add" onclick="if(event.target.id==='mo-add')closeM('mo-add')">
+  <div class="modal">
+    <div class="mh">
+      <div class="mt">Adicionar Cliente / Teste</div>
+      <button class="mc" onclick="closeM('mo-add')">✕</button>
+    </div>
+    <div class="mb">
+      <div class="fr">
+        <div class="mf"><label class="fl">Nome completo *</label><input class="fi" id="a-nome" placeholder="João Silva"></div>
+        <div class="mf"><label class="fl">@handle Instagram</label><input class="fi" id="a-handle" placeholder="@handle"></div>
+      </div>
+      <div class="mf"><label class="fl">Email *</label><input class="fi" id="a-email" type="email" placeholder="email@cliente.com"></div>
+      <div class="fr">
+        <div class="mf"><label class="fl">WhatsApp</label><input class="fi" id="a-wpp" type="tel" placeholder="(11) 99999-9999"></div>
+        <div class="mf"><label class="fl">Plano</label>
+          <select class="fs" id="a-plano">
+            <option value="basico">Básico — R$99/mês</option>
+            <option value="plus" selected>Plus — R$199/mês</option>
+            <option value="pro">Pro — R$399/mês</option>
+            <option value="teste">Conta de Teste (sem cobrança)</option>
+          </select>
+        </div>
+      </div>
+      <div class="mf">
+        <label class="fl">Período de trial / acesso</label>
+        <div class="to-wrap" id="add-to">
+          <div class="to" onclick="selT(this,'7','add-to')">7 dias</div>
+          <div class="to" onclick="selT(this,'15','add-to')">15 dias</div>
+          <div class="to sel" onclick="selT(this,'30','add-to')">30 dias</div>
+          <div class="to" onclick="selT(this,'indefinido','add-to')">Indeterminado</div>
+        </div>
+        <p style="font-size:10px;color:var(--g2);margin-top:7px;line-height:1.5">Após o período, acesso bloqueado até pagamento. Clientes que se cadastrarem pelo site têm 7 dias de garantia CDC (Art.49).</p>
+      </div>
+      <div class="mf"><label class="fl">Observação interna</label><input class="fi" id="a-obs" placeholder="Ex: indicado pelo João, conta de teste..."></div>
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-o" onclick="closeM('mo-add')">Cancelar</button>
+      <button class="bm bm-b" onclick="sendWelcome()">✉ Só email</button>
+      <button class="bm bm-s" onclick="addClient()">✓ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR CLIENTE -->
+<div class="mo" id="mo-edit" onclick="if(event.target.id==='mo-edit')closeM('mo-edit')">
+  <div class="modal">
+    <div class="mh">
+      <div class="mt" id="edit-ttl">Editar conta</div>
+      <button class="mc" onclick="closeM('mo-edit')">✕</button>
+    </div>
+    <div class="mb">
+      <div class="fr">
+        <div class="mf"><label class="fl">Nome</label><input class="fi" id="e-nome" placeholder="Nome completo"></div>
+        <div class="mf"><label class="fl">@handle</label><input class="fi" id="e-handle" placeholder="@handle"></div>
+      </div>
+      <div class="mf"><label class="fl">Email</label><input class="fi" id="e-email" type="email"></div>
+      <div class="fr">
+        <div class="mf"><label class="fl">Status da conta</label>
+          <select class="fs" id="e-status">
+            <option value="teste">Teste Interno</option>
+            <option value="trial">Trial Ativo</option>
+            <option value="ativo">Assinatura Ativa</option>
+            <option value="expirado">Expirado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+        <div class="mf"><label class="fl">Plano</label>
+          <select class="fs" id="e-plano">
+            <option value="basico">Básico — R$99/mês</option>
+            <option value="plus">Plus — R$199/mês</option>
+            <option value="pro">Pro — R$399/mês</option>
+            <option value="teste">Conta de Teste</option>
+          </select>
+        </div>
+      </div>
+      <div class="mf">
+        <label class="fl">Período de acesso</label>
+        <div class="to-wrap" id="edit-to">
+          <div class="to" onclick="selT(this,'7','edit-to')">7 dias</div>
+          <div class="to" onclick="selT(this,'15','edit-to')">15 dias</div>
+          <div class="to" onclick="selT(this,'30','edit-to')">30 dias</div>
+          <div class="to sel" onclick="selT(this,'indefinido','edit-to')">Indeterminado</div>
+        </div>
+      </div>
+      <div class="mf"><label class="fl">Nota interna</label><input class="fi" id="e-obs" placeholder="Observação..."></div>
+      <div id="confirm-cancel" class="confirm-panel">
+        ⚠ Cancelar a assinatura irá bloquear o acesso do cliente imediatamente e notificá-lo por email. Esta ação não pode ser desfeita automaticamente.
+      </div>
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-r" onclick="confirmCancel()" id="btn-cancel-acc">Cancelar conta</button>
+      <button class="bm bm-o" onclick="closeM('mo-edit')">Fechar</button>
+      <button class="bm bm-s" onclick="saveEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EMAIL MANUAL -->
+<div class="mo" id="mo-email" onclick="if(event.target.id==='mo-email')closeM('mo-email')">
+  <div class="modal">
+    <div class="mh">
+      <div class="mt">Enviar Email</div>
+      <button class="mc" onclick="closeM('mo-email')">✕</button>
+    </div>
+    <div class="mb">
+      <div class="mf"><label class="fl">Destinatário</label>
+        <select class="fs" id="em-dest">
+          <option>Todos os clientes ativos</option>
+          <option>Todos em trial</option>
+          <option>João Vittor (@joao_vittor)</option>
+        </select>
+      </div>
+      <div class="mf"><label class="fl">Assunto</label><input class="fi" id="em-sub" placeholder="Assunto do email..."></div>
+      <div class="mf"><label class="fl">Mensagem</label><textarea class="fta" id="em-msg" placeholder="Escreva a mensagem para o cliente..."></textarea></div>
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-o" onclick="closeM('mo-email')">Cancelar</button>
+      <button class="bm bm-s" onclick="T('Email enviado! Configure Resend primeiro','w');closeM('mo-email')">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="tc" id="tc"></div>
+
+<script>
+// ═══════════════════════════════════
+// DADOS
+// ═══════════════════════════════════
+let DB = [
+  { id:1, nome:'João Vittor', handle:'@joao_vittor', email:'joao@exemplo.com',
+    wpp:'(17) 99999-9999', plano:'teste', status:'teste',
+    trial:'indefinido', criado:'29/05/2026', mrr:0,
+    obs:'Conta protótipo — dono do sistema' }
+];
+let editId = null;
+let curFilt = 'all';
+
+// ═══════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════
+setInterval(()=>{
+  document.getElementById('clk').textContent =
+    new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
+
+// ═══════════════════════════════════
+// SECTIONS
+// ═══════════════════════════════════
+const SECS = ['ov','cl','logs','apis','em','cfg','rev'];
+function S(id, btn){
+  SECS.forEach(s=>{ const el=document.getElementById(s); if(el) el.style.display=s===id?'block':'none'; });
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='cl') renderTable();
+  if(id==='rev') updateRev();
+  if(id==='apis') renderEnvList();
+}
+
+// ═══════════════════════════════════
+// KPIs
+// ═══════════════════════════════════
+function updateKPIs(){
+  const at=DB.filter(c=>c.status==='ativo').length;
+  const tr=DB.filter(c=>c.status==='trial').length;
+  const te=DB.filter(c=>c.status==='teste').length;
+  const mrr=DB.filter(c=>c.status==='ativo').reduce((s,c)=>s+(c.mrr||0),0);
+  const ch=DB.filter(c=>c.status==='cancelado').length;
+  set('kv-at',at); set('kv-tr',tr); set('kv-mrr',mrr>0?`R$${mrr.toLocaleString('pt-BR')}`:'R$0');
+  set('kv-ch',ch); set('kv-te',te); set('kv-tot',DB.length);
+  set('nb-all',DB.length); set('nb-at',at); set('nb-tr',tr); set('nb-te',te);
+  set('c-all',DB.length); set('c-at',at); set('c-tr',tr);
+  set('c-ex',DB.filter(c=>c.status==='expirado').length);
+  set('c-ca',DB.filter(c=>c.status==='cancelado').length);
+  set('c-te',te);
+  renderChart();
+}
+function set(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+
+// ═══════════════════════════════════
+// CHART
+// ═══════════════════════════════════
+function renderChart(){
+  const months=['Jan','Fev','Mar','Abr','Mai','Jun'];
+  const vals=[0,0,0,0,0,DB.filter(c=>c.status==='ativo').reduce((s,c)=>s+(c.mrr||0),0)];
+  const max=Math.max(...vals,100);
+  const bars=document.getElementById('mrr-bars');
+  const lbls=document.getElementById('mrr-lbls');
+  if(!bars) return;
+  bars.innerHTML=months.map((m,i)=>{
+    const h=Math.max(Math.round((vals[i]/max)*100),3);
+    return `<div class="c-bar-w">
+      <div class="c-bar" style="height:${h}%;background:rgba(92,124,250,.${i===5?'3':'15'});border-top:2px solid var(--blue)">
+        <div class="c-tip">R$${vals[i].toLocaleString('pt-BR')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  lbls.innerHTML=months.map(m=>`<div class="c-mo">${m}</div>`).join('');
+}
+
+// ═══════════════════════════════════
+// TABLE
+// ═══════════════════════════════════
+function filt(f, btn){
+  curFilt=f;
+  if(btn){ document.querySelectorAll('.fc').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  renderTable();
+}
+
+function renderTable(){
+  const rows=curFilt==='all'?DB:DB.filter(c=>c.status===curFilt);
+  const tb=document.getElementById('clients-tbody');
+  if(!tb) return;
+  if(!rows.length){
+    tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--g2)">Nenhum cliente neste filtro.</td></tr>`;
+    return;
+  }
+  const MRR={'basico':99,'plus':199,'pro':399,'teste':0};
+  tb.innerHTML=rows.map(c=>{
+    const pc=c.plano==='plus'?'pp-p':c.plano==='pro'?'pp-pr':c.plano==='teste'?'pp-t':'pp-b';
+    const sc=`sp-${c.status}`;
+    const sl={ativo:'Ativo',trial:'Trial',expirado:'Expirado',cancelado:'Cancelado',teste:'Teste'}[c.status]||c.status;
+    const td=c.trial==='indefinido'
+      ?`<span class="td-days td-ok">Indeterminado</span>`
+      :`<span class="td-days td-warn">${c.trial}d</span>`;
+    const mrrD=c.mrr>0?`<span class="mrr-c">R$${c.mrr}</span>`:`<span style="color:var(--g2)">—</span>`;
+    return `<tr>
+      <td>
+        <div class="cn">${c.nome}</div>
+        <div class="ch">${c.handle||'—'}</div>
+        <div class="ce">${c.email}</div>
+      </td>
+      <td><span class="pp ${pc}">${c.plano.toUpperCase()}</span></td>
+      <td><span class="sp ${sc}"><div class="sdot2"></div>${sl}</span></td>
+      <td>${td}</td>
+      <td>${mrrD}</td>
+      <td style="font-size:10px;color:var(--g2);font-family:var(--mono)">${c.criado}</td>
+      <td>
+        <div class="act-btns">
+          <button class="ab ab-e" onclick="openEdit(${c.id})">Editar</button>
+          <button class="ab ab-v" onclick="location.href='admin-cliente-detalhe.html?id=${c.id}'">Ver</button>
+          <button class="ab ab-em" onclick="T('Email enviado para ${c.email}','s')">Email</button>
+          ${c.status!=='cancelado'?`<button class="ab ab-c" onclick="openEdit(${c.id})">Cancelar</button>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function doSearch(q){
+  if(!q){ curFilt='all'; renderTable(); updateKPIs(); return; }
+  const r=DB.filter(c=>
+    c.nome.toLowerCase().includes(q.toLowerCase())||
+    (c.handle||'').toLowerCase().includes(q.toLowerCase())||
+    (c.email||'').toLowerCase().includes(q.toLowerCase())
+  );
+  const tb=document.getElementById('clients-tbody');
+  if(!tb){ S('cl',null); setTimeout(()=>doSearch(q),100); return; }
+  S('cl',null);
+  if(!r.length){ tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--g2)">Sem resultados para "${q}"</td></tr>`; return; }
+  const saved=[...DB]; DB=r; renderTable(); DB=saved;
+}
+
+// ═══════════════════════════════════
+// TRIAL OPTIONS
+// ═══════════════════════════════════
+function selT(el,val,group){
+  document.querySelectorAll(`#${group} .to`).forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  el.dataset.val=val;
+}
+function getT(group){ return document.querySelector(`#${group} .sel`)?.dataset?.val||'30'; }
+
+// ═══════════════════════════════════
+// ADD CLIENT
+// ═══════════════════════════════════
+function openAdd(){ document.getElementById('mo-add').classList.add('open'); }
+function sendWelcome(){
+  const email=document.getElementById('a-email').value.trim();
+  if(!email){ T('Insira o email primeiro','w'); return; }
+  closeM('mo-add');
+  T(`Email de boas-vindas enviado para ${email}(configure Resend)`,'s');
+}
+
+function addClient(){
+  const nome=document.getElementById('a-nome').value.trim();
+  const email=document.getElementById('a-email').value.trim();
+  if(!nome||!email){ T('Nome e email são obrigatórios','w'); return; }
+  const plano=document.getElementById('a-plano').value;
+  const MRR={'basico':99,'plus':199,'pro':399,'teste':0};
+  const now=new Date().toLocaleDateString('pt-BR');
+  DB.push({
+    id:Date.now(), nome, email,
+    handle:document.getElementById('a-handle').value||'—',
+    wpp:document.getElementById('a-wpp').value,
+    plano, status:plano==='teste'?'teste':'trial',
+    trial:getT('add-to'), criado:now,
+    mrr:plano==='teste'?0:MRR[plano]||0,
+    obs:document.getElementById('a-obs').value
+  });
+  updateKPIs(); renderTable();
+  closeM('mo-add');
+  T(`Cliente ${nome} adicionado!`,'s');
+  // TODO: Supabase insert + Resend boas-vindas
+}
+
+// ═══════════════════════════════════
+// EDIT CLIENT
+// ═══════════════════════════════════
+function openEdit(id){
+  editId=id;
+  const c=DB.find(x=>x.id===id);
+  document.getElementById('edit-ttl').textContent=`Editar — ${c.nome}`;
+  document.getElementById('e-nome').value=c.nome;
+  document.getElementById('e-handle').value=c.handle||'';
+  document.getElementById('e-email').value=c.email;
+  document.getElementById('e-status').value=c.status;
+  document.getElementById('e-plano').value=c.plano;
+  document.getElementById('e-obs').value=c.obs||'';
+  document.getElementById('confirm-cancel').style.display='none';
+  // marcar trial correto
+  document.querySelectorAll('#edit-to .to').forEach(o=>{
+    o.classList.toggle('sel', (o.dataset.val||o.textContent.trim().replace(' dias',''))===c.trial);
+    if(!o.dataset.val) o.dataset.val=o.textContent.trim().replace(' dias','').toLowerCase();
+  });
+  document.getElementById('mo-edit').classList.add('open');
+}
+
+function saveEdit(){
+  if(!editId) return;
+  const MRR={'basico':99,'plus':199,'pro':399,'teste':0};
+  DB=DB.map(c=>{
+    if(c.id!==editId) return c;
+    const np=document.getElementById('e-plano').value;
+    return {...c,
+      nome:document.getElementById('e-nome').value,
+      handle:document.getElementById('e-handle').value,
+      email:document.getElementById('e-email').value,
+      status:document.getElementById('e-status').value,
+      plano:np,
+      trial:getT('edit-to'),
+      mrr:document.getElementById('e-status').value==='ativo'?(MRR[np]||0):0,
+      obs:document.getElementById('e-obs').value
+    };
+  });
+  updateKPIs(); renderTable();
+  closeM('mo-edit');
+  T('Conta atualizada!','s');
+}
+
+function confirmCancel(){
+  const panel=document.getElementById('confirm-cancel');
+  if(panel.style.display==='none'||!panel.style.display){
+    panel.style.display='block';
+    document.getElementById('btn-cancel-acc').textContent='⚠ Confirmar cancelamento';
+    document.getElementById('btn-cancel-acc').onclick=doCancelClient;
+  } else {
+    panel.style.display='none';
+    document.getElementById('btn-cancel-acc').textContent='Cancelar conta';
+    document.getElementById('btn-cancel-acc').onclick=confirmCancel;
+  }
+}
+
+function doCancelClient(){
+  DB=DB.map(c=>c.id===editId?{...c,status:'cancelado',mrr:0}:c);
+  updateKPIs(); renderTable();
+  closeM('mo-edit');
+  T('Assinatura cancelada. Cliente notificado.','i');
+}
+
+// ═══════════════════════════════════
+// EMAIL MODAL
+// ═══════════════════════════════════
+function openEmailMo(){ document.getElementById('mo-email').classList.add('open'); }
+
+// ═══════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════
+function exportCSV(){
+  const h=['Nome','Handle','Email','WhatsApp','Plano','Status','Trial','MRR','Cadastro','Obs'];
+  const rows=DB.map(c=>[c.nome,c.handle,c.email,c.wpp||'',c.plano,c.status,c.trial,c.mrr,c.criado,c.obs||'']);
+  const csv=[h,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);
+  a.download=`jum-os-clientes-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  T('CSV exportado com sucesso!','s');
+}
+
+// ═══════════════════════════════════
+// RECEITA
+// ═══════════════════════════════════
+function updateRev(){
+  const mrr=DB.filter(c=>c.status==='ativo').reduce((s,c)=>s+(c.mrr||0),0);
+  const at=DB.filter(c=>c.status==='ativo').length;
+  set('rev-mrr',mrr>0?`R$${mrr.toLocaleString('pt-BR')}`:'R$0');
+  set('rev-arr',mrr>0?`R$${(mrr*12).toLocaleString('pt-BR')}`:'R$0');
+  set('rev-ticket',at>0?`R$${Math.round(mrr/at)}`:'—');
+  const panel=document.getElementById('rev-by-plan');
+  if(!panel) return;
+  if(at===0){
+    panel.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:11px;width:100%">Nenhum cliente pagante ainda.</div>';
+    return;
+  }
+  const plans=[{k:'basico',l:'Básico',v:99,c:'var(--g1)'},{k:'plus',l:'Plus',v:199,c:'var(--green)'},{k:'pro',l:'Pro',v:399,c:'var(--purple)'}];
+  panel.innerHTML=plans.map(p=>{
+    const n=DB.filter(c=>c.status==='ativo'&&c.plano===p.k).length;
+    const m=n*p.v;
+    if(!n) return '';
+    return `<div style="background:var(--panel2);border:1px solid var(--border2);border-radius:9px;padding:16px;min-width:140px">
+      <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${p.c};margin-bottom:6px">${p.l}</div>
+      <div style="font-size:20px;font-weight:900;font-family:var(--mono);color:var(--green)">R$${m}</div>
+      <div style="font-size:10px;color:var(--g2);margin-top:4px">${n} cliente${n>1?'s':''} · R$${p.v}/mês</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// ENV LIST
+// ═══════════════════════════════════
+function renderEnvList(){
+  const envs=[
+    'ANTHROPIC_API_KEY','LEONARDO_API_KEY','SUPABASE_URL','SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_KEY','STRIPE_SECRET_KEY','STRIPE_PUBLISHABLE_KEY',
+    'STRIPE_WEBHOOK_SECRET','META_APP_ID','META_APP_SECRET','RESEND_API_KEY',
+    'ADMIN_EMAIL','NEXT_PUBLIC_SITE_URL'
+  ];
+  const el=document.getElementById('env-list');
+  if(!el) return;
+  el.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;width:100%;margin-top:4px';
+  el.innerHTML=envs.map(e=>`
+    <div style="background:var(--panel2);border:1px solid var(--border2);border-radius:7px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--g1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e}</div>
+      <div style="font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px;background:var(--rdim);color:var(--red);flex-shrink:0">pendente</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════
+// MODAL
+// ═══════════════════════════════════
+function closeM(id){ document.getElementById(id).classList.remove('open'); }
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function T(msg,type='i'){
+  const c=document.getElementById('tc');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  const col={s:'var(--green)',i:'var(--blue)',w:'var(--orange)',e:'var(--red)'};
+  const ico={s:'✓',i:'ℹ',w:'⚠',e:'✕'};
+  t.innerHTML=`<span style="color:${col[type]};font-weight:900;font-size:13px">${ico[type]}</span> ${msg}`;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),400)},3500);
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+updateKPIs();
+</script>
+</body>
+</html>

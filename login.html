@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUM OS — Entrar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;--green:#00E676;--green-dim:rgba(0,230,118,.07);--white:#FFF;--gray1:#9090A0;--gray2:#50505C;--red:#FF4545;--font:'Inter',sans-serif;--mono:'Space Mono',monospace}
+body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
+.page{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;position:relative;overflow:hidden}
+.bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,230,118,.05) 0%,transparent 70%);pointer-events:none}
+.bg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:50px 50px;opacity:.3;pointer-events:none}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;position:relative;overflow:hidden}
+.box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green)}
+.box-header{padding:32px 32px 24px;text-align:center}
+.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;margin-bottom:20px;display:block}
+.brand span{color:var(--green)}
+.box-title{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:6px}
+.box-sub{font-size:13px;color:var(--gray1)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 32px}
+.tab{flex:1;padding:12px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s;text-align:center}
+.tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* FORMS */
+.form-body{padding:28px 32px 32px}
+.form-panel{display:none}
+.form-panel.active{display:block}
+.field{margin-bottom:18px}
+.field-label{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gray2);margin-bottom:8px;display:block}
+.field-input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.field-input:focus{border-color:var(--green)}
+.field-input::placeholder{color:var(--gray2)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn-submit{width:100%;padding:14px;border-radius:9px;background:var(--green);color:#000;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-top:4px}
+.btn-submit:hover{opacity:.88}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed}
+.form-divider{text-align:center;font-size:11px;color:var(--gray2);margin:20px 0;position:relative}
+.form-divider::before,.form-divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border)}
+.form-divider::before{left:0}
+.form-divider::after{right:0}
+.form-footer{text-align:center;font-size:12px;color:var(--gray2);margin-top:20px}
+.form-footer a{color:var(--white);text-decoration:none;font-weight:600}
+.form-footer a:hover{color:var(--green)}
+.error-msg{background:rgba(255,69,69,.1);border:1px solid rgba(255,69,69,.3);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:16px;display:none}
+.error-msg.show{display:block}
+.success-msg{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--green);margin-bottom:16px;display:none}
+.success-msg.show{display:block}
+
+/* PLAN BADGE */
+.plan-selected{background:var(--green-dim);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:10px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.plan-sel-name{font-size:13px;font-weight:700}
+.plan-sel-price{font-size:12px;color:var(--gray1);margin-left:auto;font-family:var(--mono)}
+.plan-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+/* TERMS */
+.terms-check{display:flex;align-items:flex-start;gap:10px;margin:16px 0}
+.terms-check input{margin-top:2px;accent-color:var(--green);flex-shrink:0}
+.terms-check label{font-size:11px;color:var(--gray1);line-height:1.5}
+.terms-check a{color:var(--white)}
+
+/* ADMIN SECTION */
+.admin-note{background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#8fa8ff;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* FOOTER */
+.page-footer{padding:20px;text-align:center;font-size:11px;color:var(--gray2)}
+.page-footer a{color:var(--gray2);text-decoration:none}
+.page-footer a:hover{color:var(--white)}
+</style>
+
+<!-- Supabase JS — necessário para autenticação real -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+
+  <div class="box">
+    <div class="box-header">
+      <a href="home.html" class="brand">JUM <span>OS</span></a>
+      <div class="box-title">Acesse o sistema</div>
+      <div class="box-sub">Seu sistema de marketing com IA</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('entrar')">Entrar</div>
+      <div class="tab" onclick="switchTab('criar')">Criar conta</div>
+      <div class="tab" id="admin-tab" style="display:none" onclick="switchTab('admin')">Admin</div>
+    </div>
+
+    <div class="form-body">
+
+      <!-- ENTRAR -->
+      <div class="form-panel active" id="panel-entrar">
+        <div class="error-msg" id="login-error">Email ou senha incorretos.</div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input class="field-input" type="email" id="login-email" placeholder="seu@email.com">
+        </div>
+        <div class="field">
+          <label class="field-label">Senha</label>
+          <input class="field-input" type="password" id="login-senha" placeholder="••••••••">
+        </div>
+        <button class="btn-submit" onclick="doLogin()">Entrar no sistema →</button>
+        <div class="form-footer" style="margin-top:16px">
+          <a href="#">Esqueci minha senha</a>
+        </div>
+      </div>
+
+      <!-- CRIAR CONTA -->
+      <div class="form-panel" id="panel-criar">
+        <div id="plan-badge" class="plan-selected" style="display:none">
+          <div class="plan-dot"></div>
+          <div class="plan-sel-name" id="plan-badge-name">Plano Plus</div>
+          <div class="plan-sel-price" id="plan-badge-price">R$199/mês</div>
+        </div>
+        <div class="error-msg" id="signup-error"></div>
+        <div class="success-msg" id="signup-success">Conta criada! Verifique seu email.</div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Nome</label>
+            <input class="field-input" type="text" id="signup-nome" placeholder="João">
+          </div>
+          <div class="field">
+            <label class="field-label">Sobrenome</label>
+            <input class="field-input" type="text" id="signup-sobrenome" placeholder="Silva">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input class="field-input" type="email" id="signup-email" placeholder="seu@email.com">
+        </div>
+        <div class="field">
+          <label class="field-label">WhatsApp</label>
+          <input class="field-input" type="tel" id="signup-whatsapp" placeholder="(11) 99999-9999">
+        </div>
+        <div class="field">
+          <label class="field-label">Senha</label>
+          <input class="field-input" type="password" id="signup-senha" placeholder="mínimo 8 caracteres">
+        </div>
+        <div class="terms-check">
+          <input type="checkbox" id="terms-check">
+          <label for="terms-check">Li e aceito os <a href="#">Termos de uso</a> e a <a href="#">Política de privacidade</a>. Entendo que terei 7 dias para cancelar sem custo.</label>
+        </div>
+        <button class="btn-submit" onclick="doSignup()">Criar conta e começar →</button>
+        <div class="form-footer">
+          Já tem conta? <a onclick="switchTab('entrar')" style="cursor:pointer">Entrar</a>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div class="form-panel" id="panel-admin">
+        <div class="admin-note">🔒 Acesso restrito ao administrador do sistema.</div>
+        <div class="error-msg" id="admin-error">Credenciais inválidas.</div>
+        <div class="field">
+          <label class="field-label">Email admin</label>
+          <input class="field-input" type="email" id="admin-email" placeholder="admin@jumpos.com.br">
+        </div>
+        <div class="field">
+          <label class="field-label">Senha admin</label>
+          <input class="field-input" type="password" id="admin-senha" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label class="field-label">Código de acesso</label>
+          <input class="field-input" type="text" id="admin-code" placeholder="Código de 6 dígitos">
+        </div>
+        <button class="btn-submit" onclick="doAdminLogin()" style="background:#5C7CFA;color:#fff">Acessar painel admin →</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  <a href="home.html">← Voltar ao site</a> &nbsp;·&nbsp; 7 dias de garantia &nbsp;·&nbsp; Cancele quando quiser
+</div>
+
+<script>
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    const tabs=['entrar','criar','admin'];
+    el.classList.toggle('active',tabs[i]===t);
+  });
+  document.querySelectorAll('.form-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+}
+
+
+// Mostrar tab admin apenas se URL contiver ?admin=access
+if (new URLSearchParams(window.location.search).get('admin') === 'access') {
+  document.getElementById('admin-tab').style.display = 'flex';
+}
+// Detectar plano da URL
+const params=new URLSearchParams(window.location.search);
+const plano=params.get('plano');
+if(plano){
+  switchTab('criar');
+  const badge=document.getElementById('plan-badge');
+  const prices={basico:'R$99/mês',plus:'R$199/mês',pro:'R$399/mês'};
+  const names={basico:'Plano Básico',plus:'Plano Plus',pro:'Plano Pro'};
+  if(prices[plano]){
+    badge.style.display='flex';
+    document.getElementById('plan-badge-name').textContent=names[plano]||'';
+    document.getElementById('plan-badge-price').textContent=prices[plano]||'';
+  }
+}
+
+function doLogin(){
+  const email=document.getElementById('login-email').value;
+  const senha=document.getElementById('login-senha').value;
+  const err=document.getElementById('login-error');
+  err.classList.remove('show');
+  if(!email||!senha){err.textContent='Preencha todos os campos.';err.classList.add('show');return}
+  // TODO: Supabase Auth signIn
+  // Por agora: simular
+  if(email==='admin@jumpos.com.br'){window.location.href='admin.html';return}
+  window.location.href='dashboard-usuario.html';
+}
+
+function doSignup(){
+  const nome=document.getElementById('signup-nome').value;
+  const email=document.getElementById('signup-email').value;
+  const senha=document.getElementById('signup-senha').value;
+  const terms=document.getElementById('terms-check').checked;
+  const err=document.getElementById('signup-error');
+  err.classList.remove('show');
+  if(!nome||!email||!senha){err.textContent='Preencha todos os campos obrigatórios.';err.classList.add('show');return}
+  if(senha.length<8){err.textContent='A senha precisa ter pelo menos 8 caracteres.';err.classList.add('show');return}
+  if(!terms){err.textContent='Aceite os termos para continuar.';err.classList.add('show');return}
+  // TODO: Supabase Auth signUp + Stripe Checkout
+  window.location.href='checkout.html?plano='+(plano||'plus');
+}
+
+function doAdminLogin(){
+  const email=document.getElementById('admin-email').value;
+  const senha=document.getElementById('admin-senha').value;
+  const code=document.getElementById('admin-code').value;
+  const err=document.getElementById('admin-error');
+  err.classList.remove('show');
+  if(!email||!senha||!code){err.textContent='Preencha todos os campos.';err.classList.add('show');return}
+  // TODO: verificar role admin no Supabase + 2FA
+  window.location.href='admin.html';
+}
+</script>
+</body>
+</html>

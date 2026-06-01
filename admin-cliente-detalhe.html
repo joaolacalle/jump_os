@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUM OS — Admin: Cliente</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050506;--panel:#0D0D10;--panel2:#121218;--panel3:#18181F;
+  --border:#1A1A22;--border2:#252530;
+  --green:#00E676;--gdim:rgba(0,230,118,.07);
+  --red:#FF4545;--rdim:rgba(255,69,69,.08);
+  --orange:#FF9F1C;--odim:rgba(255,159,28,.08);
+  --blue:#5C7CFA;--bdim:rgba(92,124,250,.08);
+  --purple:#9B5CF6;
+  --white:#FFF;--g1:#8A8A98;--g2:#4A4A56;--g3:#22222A;
+  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+}
+body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:100}
+.tl{display:flex;align-items:center;gap:10px}
+.brand{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase}
+.brand span{color:var(--green)}
+.admin-pill{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:var(--bdim);color:var(--blue);border:1px solid rgba(92,124,250,.2);border-radius:12px;padding:3px 10px}
+.back-link{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--g1);text-decoration:none;transition:.2s}
+.back-link:hover{color:var(--white)}
+.tr{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s}
+.btn-g{background:var(--green);color:#000}
+.btn-g:hover{opacity:.88}
+.btn-r{background:var(--rdim);color:var(--red);border:1px solid rgba(255,69,69,.2)}
+.btn-r:hover{background:rgba(255,69,69,.15)}
+.btn-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
+.btn-o:hover{border-color:var(--white);color:var(--white)}
+.btn-b{background:var(--blue);color:#fff}
+.btn-b:hover{opacity:.88}
+
+/* LAYOUT */
+.page{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
+
+/* CLIENT HERO */
+.client-hero{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;display:flex;gap:24px;align-items:flex-start;position:relative;overflow:hidden}
+.client-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green)}
+.ch-avatar{width:56px;height:56px;border-radius:50%;background:var(--green);color:#000;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ch-info{flex:1}
+.ch-name{font-size:20px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px}
+.ch-handle{font-size:12px;color:var(--g2);font-family:var(--mono);margin-bottom:8px}
+.ch-meta{display:flex;gap:12px;flex-wrap:wrap}
+.ch-meta-item{font-size:11px;color:var(--g1);display:flex;align-items:center;gap:5px}
+.ch-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.status-pill{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:12px;display:inline-flex;align-items:center;gap:4px}
+.sp-ativo{background:var(--gdim);color:var(--green)}
+.sp-trial{background:var(--odim);color:var(--orange)}
+.sp-teste{background:var(--bdim);color:var(--blue)}
+.sp-expirado{background:var(--rdim);color:var(--red)}
+.sp-cancelado{background:var(--panel2);color:var(--g1)}
+.plan-pill{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:6px}
+.pp-plus{background:var(--gdim);color:var(--green)}
+.pp-basico{background:var(--panel2);color:var(--g1)}
+.pp-pro{background:rgba(155,92,246,.1);color:var(--purple)}
+.pp-teste{background:var(--bdim);color:var(--blue)}
+
+/* SECTION */
+.sl{font-size:8px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--g2);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.sl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:14px 15px}
+.kpi-l{font-size:7px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:7px}
+.kpi-v{font-size:20px;font-weight:900;letter-spacing:-.5px;font-family:var(--mono)}
+.kv-g{color:var(--green)}
+.kv-o{color:var(--orange)}
+.kv-b{color:var(--blue)}
+.kpi-s{font-size:9px;color:var(--g2);margin-top:3px}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px}
+
+/* CARDS */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px}
+.card-title{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:14px}
+
+/* OS_DATA */
+.os-item{padding:9px 0;border-bottom:1px solid var(--border);display:flex;gap:12px}
+.os-item:last-child{border-bottom:none}
+.os-key{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--g2);width:120px;flex-shrink:0;padding-top:2px}
+.os-val{font-size:12px;color:var(--white);line-height:1.5;flex:1}
+.os-val.mono{font-family:var(--mono);font-size:11px}
+.os-tag{display:inline-block;background:var(--panel2);border:1px solid var(--border2);border-radius:5px;padding:2px 8px;font-size:10px;margin:2px 2px 2px 0}
+
+/* PALETA */
+.palette-row{display:flex;gap:8px;margin-top:4px}
+.color-swatch{border-radius:7px;overflow:hidden;width:64px}
+.swatch-block{height:36px}
+.swatch-info{padding:4px 6px;background:var(--panel2);border-top:1px solid var(--border)}
+.swatch-hex{font-size:9px;font-family:var(--mono);color:var(--g1)}
+.swatch-pct{font-size:8px;color:var(--g2)}
+
+/* AGENTES STATUS */
+.agent-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+.agent-row:last-child{border-bottom:none}
+.ag-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.ag-g{background:var(--gdim)}
+.ag-b{background:var(--bdim)}
+.ag-o{background:var(--odim)}
+.ag-r{background:var(--rdim)}
+.ag-info{flex:1}
+.ag-name{font-size:12px;font-weight:700}
+.ag-time{font-size:9px;color:var(--g2);font-family:var(--mono);margin-top:2px}
+.ag-status{font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+.ags-ok{background:var(--gdim);color:var(--green)}
+.ags-pend{background:var(--odim);color:var(--orange)}
+.ags-block{background:var(--rdim);color:var(--red)}
+.ags-wait{background:var(--panel2);color:var(--g2)}
+
+/* CONTENT MINI CARDS */
+.content-mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cm-card{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;transition:.2s;cursor:pointer}
+.cm-card:hover{border-color:var(--border);transform:translateY(-1px)}
+.cm-img{height:72px;background:var(--panel3);display:flex;align-items:center;justify-content:center;font-size:20px;opacity:.4;position:relative}
+.cm-day{position:absolute;top:4px;left:4px;background:var(--green);color:#000;font-size:7px;font-weight:900;padding:2px 6px;border-radius:3px;font-family:var(--mono)}
+.cm-type{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;font-size:7px;font-weight:800;padding:2px 6px;border-radius:3px}
+.cm-info{padding:7px 8px}
+.cm-title{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.cm-status{font-size:8px;font-weight:800;letter-spacing:1px}
+.cm-pend{color:var(--orange)}
+.cm-aprov{color:var(--green)}
+
+/* METRICS */
+.met-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.met-row:last-child{border-bottom:none}
+.met-label{font-size:11px;font-weight:600;flex:1}
+.met-bar{height:4px;background:var(--border2);border-radius:2px;width:120px;overflow:hidden}
+.met-fill{height:100%;border-radius:2px;background:var(--green)}
+.met-val{font-size:11px;font-weight:700;font-family:var(--mono);width:50px;text-align:right;color:var(--green)}
+
+/* BILLING */
+.bill-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.bill-row:last-child{border-bottom:none}
+.bill-desc{font-size:12px;font-weight:600}
+.bill-date{font-size:10px;color:var(--g2);font-family:var(--mono);margin-top:2px}
+.bill-val{font-size:12px;font-weight:700;font-family:var(--mono)}
+.bill-ok{color:var(--green)}
+.bill-pend{color:var(--orange)}
+.bill-badge{font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+.bb-paid{background:var(--gdim);color:var(--green)}
+.bb-free{background:var(--bdim);color:var(--blue)}
+
+/* ALERT */
+.alert{background:var(--odim);border:1px solid rgba(255,159,28,.2);border-radius:9px;padding:12px 16px;margin-bottom:20px;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--orange)}
+.alert strong{font-weight:800}
+.alert-action{margin-left:auto;background:var(--orange);color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:.15s}
+.alert-action:hover{opacity:.88}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
+.mo.open{opacity:1;pointer-events:all}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:14px;width:460px;max-width:95vw;max-height:88vh;overflow-y:auto}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.mt-ttl{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
+.mc{background:var(--panel2);border:1px solid var(--border2);color:var(--g1);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.mc:hover{color:var(--white)}
+.mb{padding:18px 20px}
+.fl{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:6px;display:block;margin-top:12px}
+.fl:first-child{margin-top:0}
+.fi,.fs,.fta{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:7px;padding:10px 12px;color:var(--white);font-family:var(--font);font-size:12px;outline:none;transition:border-color .2s}
+.fi:focus,.fs:focus,.fta:focus{border-color:var(--green)}
+.fs option{background:var(--panel2)}
+.fta{resize:none;min-height:80px;line-height:1.6}
+.mfooter{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border)}
+.bm{flex:1;padding:10px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s}
+.bm-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
+.bm-o:hover{color:var(--white)}
+.bm-s{background:var(--green);color:#000}
+.bm-r{background:var(--red);color:#fff}
+.bm-b{background:var(--blue);color:#fff}
+
+/* TOAST */
+.tc{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--panel);border:1px solid var(--border2);border-radius:9px;padding:10px 16px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;transform:translateX(110%);transition:.3s cubic-bezier(.34,1.56,.64,1);min-width:220px}
+.toast.show{transform:translateX(0)}
+.toast.s{border-left:2px solid var(--green)}
+.toast.i{border-left:2px solid var(--blue)}
+.toast.w{border-left:2px solid var(--orange)}
+.toast.e{border-left:2px solid var(--red)}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tl">
+    <div class="brand">JUM <span>OS</span></div>
+    <div class="admin-pill">ADMIN</div>
+    <a href="admin.html" class="back-link">← Voltar ao painel</a>
+  </div>
+  <div class="tr">
+    <button class="btn btn-o" onclick="openEmailMo()">✉ Enviar email</button>
+    <button class="btn btn-b" onclick="T('Abrindo dashboard do cliente...','i')">👁 Ver como cliente</button>
+    <button class="btn btn-g" onclick="openEditMo()">✎ Editar conta</button>
+    <button class="btn btn-r" onclick="confirmCancel()">⊘ Cancelar conta</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ALERT RUPTURA -->
+  <div class="alert">
+    <span>⚠&nbsp;<strong>Atenção:</strong>&nbsp;Conta Instagram é do tipo Criador — Agente de Publicação bloqueado.</span>
+    <button class="alert-action" onclick="T('Guia enviado por email ao cliente','s')">Enviar guia ao cliente</button>
+  </div>
+
+  <!-- CLIENT HERO -->
+  <div class="client-hero">
+    <div class="ch-avatar" id="av-initials">JV</div>
+    <div class="ch-info">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div class="ch-name" id="c-nome">João Vittor</div>
+        <span class="plan-pill pp-teste" id="c-plan-pill">TESTE</span>
+        <span class="status-pill sp-teste" id="c-status-pill">Teste Interno</span>
+      </div>
+      <div class="ch-handle" id="c-handle">@joao_vittor</div>
+      <div class="ch-meta">
+        <div class="ch-meta-item">✉ <span id="c-email">joao@exemplo.com</span></div>
+        <div class="ch-meta-item">📱 <span id="c-wpp">(17) 99999-9999</span></div>
+        <div class="ch-meta-item">📅 Cadastro: <span id="c-criado">29/05/2026</span></div>
+        <div class="ch-meta-item">⏳ Acesso: <span id="c-trial" style="color:var(--blue);font-weight:700">Indeterminado</span></div>
+        <div class="ch-meta-item">💳 MRR: <span id="c-mrr" style="color:var(--green);font-weight:700">R$0</span></div>
+      </div>
+    </div>
+    <div class="ch-actions">
+      <div style="font-size:9px;color:var(--g2);text-align:center;margin-bottom:6px">Ações rápidas</div>
+      <button class="btn btn-g" onclick="T('Trial estendido em 30 dias','s')" style="width:100%">+ 30 dias</button>
+      <button class="btn btn-b" onclick="T('Notificação push enviada','s')" style="width:100%">🔔 Notificar</button>
+      <button class="btn btn-o" onclick="T('Senha resetada. Email enviado.','s')" style="width:100%">🔑 Resetar senha</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="sl">Métricas da conta</div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-l">Seguidores</div><div class="kpi-v">968</div><div class="kpi-s">@joao_vittor</div></div>
+    <div class="kpi"><div class="kpi-l">Alcance 30d</div><div class="kpi-v kv-g">1.157</div><div class="kpi-s">119% dos seguidores</div></div>
+    <div class="kpi"><div class="kpi-l">Posts gerados</div><div class="kpi-v kv-b">8</div><div class="kpi-s">Junho 2026</div></div>
+    <div class="kpi"><div class="kpi-l">Agentes ativos</div><div class="kpi-v kv-g">5/7</div><div class="kpi-s">2 bloqueados</div></div>
+    <div class="kpi"><div class="kpi-l">Tempo de uso</div><div class="kpi-v">3d</div><div class="kpi-s">desde o cadastro</div></div>
+  </div>
+
+  <!-- AGENTES + OS_DATA -->
+  <div class="g2">
+
+    <!-- STATUS DOS AGENTES -->
+    <div class="card">
+      <div class="card-title">Status dos Agentes</div>
+      <div class="agent-row">
+        <div class="ag-icon ag-g">🎨</div>
+        <div class="ag-info"><div class="ag-name">Agente de Identidade</div><div class="ag-time">31/05 14:38 · OS_DATA + Ficha aprovada</div></div>
+        <div class="ag-status ags-ok">Concluído</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-g">🔍</div>
+        <div class="ag-info"><div class="ag-name">Agente de Mercado</div><div class="ag-time">31/05 14:41 · 4 concorrentes analisados</div></div>
+        <div class="ag-status ags-ok">Concluído</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-g">📊</div>
+        <div class="ag-info"><div class="ag-name">Agente de Diagnóstico</div><div class="ag-time">31/05 14:45 · Perfil analisado</div></div>
+        <div class="ag-status ags-ok">Concluído</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-g">📋</div>
+        <div class="ag-info"><div class="ag-name">Agente de Estratégia</div><div class="ag-time">31/05 15:01 · 8 peças geradas</div></div>
+        <div class="ag-status ags-ok">Concluído</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-o">🖼</div>
+        <div class="ag-info"><div class="ag-name">Agente Criativo</div><div class="ag-time">Aguardando Leonardo API key</div></div>
+        <div class="ag-status ags-pend">Pendente</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-r">📅</div>
+        <div class="ag-info"><div class="ag-name">Agente de Publicação</div><div class="ag-time">Bloqueado — conta Criador</div></div>
+        <div class="ag-status ags-block">Bloqueado</div>
+      </div>
+      <div class="agent-row">
+        <div class="ag-icon ag-o">📢</div>
+        <div class="ag-info"><div class="ag-name">Agente de Tráfego</div><div class="ag-time">Disponível no plano Pro</div></div>
+        <div class="ag-status ags-wait">Indisponível</div>
+      </div>
+    </div>
+
+    <!-- OS_DATA -->
+    <div class="card">
+      <div class="card-title">OS_DATA — Identidade</div>
+      <div class="os-item"><div class="os-key">Marca</div><div class="os-val">João Vittor</div></div>
+      <div class="os-item"><div class="os-key">Segmento</div><div class="os-val">Consultoria de marketing para empreendedores + Agentes de IA</div></div>
+      <div class="os-item"><div class="os-key">Posição</div><div class="os-val">Empreendedor que fechou 3 negócios e desenvolveu o método que precisava</div></div>
+      <div class="os-item">
+        <div class="os-key">Tom de voz</div>
+        <div class="os-val">
+          <span class="os-tag">Complacente</span>
+          <span class="os-tag">Motivacional</span>
+          <span class="os-tag">Direto</span>
+        </div>
+      </div>
+      <div class="os-item">
+        <div class="os-key">Palavras</div>
+        <div class="os-val">
+          <span class="os-tag" style="color:var(--green)">Indispensável</span>
+          <span class="os-tag" style="color:var(--green)">Viável</span>
+          <span class="os-tag" style="color:var(--green)">Eficiente</span>
+        </div>
+      </div>
+      <div class="os-item">
+        <div class="os-key">Paleta</div>
+        <div class="os-val">
+          <div class="palette-row">
+            <div class="color-swatch">
+              <div class="swatch-block" style="background:#0B0B0C;border:1px solid #333"></div>
+              <div class="swatch-info"><div class="swatch-hex">#0B0B0C</div><div class="swatch-pct">85%</div></div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background:#FFFFFF;border:1px solid #ddd"></div>
+              <div class="swatch-info"><div class="swatch-hex">#FFFFFF</div><div class="swatch-pct">10%</div></div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background:#00E676"></div>
+              <div class="swatch-info"><div class="swatch-hex">#00E676</div><div class="swatch-pct">5%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="os-item"><div class="os-key">Atmosfera</div><div class="os-val">Impacto imediato — entra na cara, sem filtro</div></div>
+      <div class="os-item"><div class="os-key">Textura</div><div class="os-val">Concreto — bruto, urbano, resistente</div></div>
+      <div class="os-item"><div class="os-key">Originalidade</div><div class="os-val">Alta — 70%+ da história pessoal</div></div>
+      <div style="margin-top:10px">
+        <button class="btn btn-o" style="width:100%;justify-content:center;font-size:9px" onclick="T('Ficha técnica completa em breve','i')">Ver ficha técnica completa →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTEÚDO GERADO -->
+  <div class="sl">Conteúdo gerado — Junho 2026</div>
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-title" style="margin-bottom:0">8 peças planejadas · 0 publicadas · 3 aguardando aprovação</div>
+      <button class="btn btn-o" onclick="T('Abrindo visualização de conteúdo...','i')" style="font-size:8px;padding:5px 10px">Ver todos</button>
+    </div>
+    <div class="content-mini-grid">
+      <div class="cm-card">
+        <div class="cm-img">◈<div class="cm-day">03/06</div><div class="cm-type">FEED</div></div>
+        <div class="cm-info"><div class="cm-title">Fechei 3 negócios</div><div class="cm-status cm-pend">⏳ Pendente</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">▶<div class="cm-day">10/06</div><div class="cm-type">REEL</div></div>
+        <div class="cm-info"><div class="cm-title">Problema que nenhum consultor resolve</div><div class="cm-status cm-pend">⏳ Pendente</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">◧<div class="cm-day">17/06</div><div class="cm-type">CARROSSEL</div></div>
+        <div class="cm-info"><div class="cm-title">5 erros no tráfego pago</div><div class="cm-status cm-pend">⏳ Pendente</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">▶<div class="cm-day">24/06</div><div class="cm-type">REEL</div></div>
+        <div class="cm-info"><div class="cm-title">A reunião de marketing</div><div class="cm-status cm-aprov">✓ Aprovado</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">◧<div class="cm-day">25/06</div><div class="cm-type">CARROSSEL</div></div>
+        <div class="cm-info"><div class="cm-title">Script de posicionamento</div><div class="cm-status cm-aprov">✓ Aprovado</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">▶<div class="cm-day">27/06</div><div class="cm-type">REEL</div></div>
+        <div class="cm-info"><div class="cm-title">Seu Instagram não tem problema</div><div class="cm-status cm-aprov">✓ Aprovado</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">◈<div class="cm-day">28/06</div><div class="cm-type">FEED</div></div>
+        <div class="cm-info"><div class="cm-title">3 dias. Do Instagram ao cliente.</div><div class="cm-status cm-aprov">✓ Aprovado</div></div>
+      </div>
+      <div class="cm-card">
+        <div class="cm-img">▶<div class="cm-day">30/06</div><div class="cm-type">VSL</div></div>
+        <div class="cm-info"><div class="cm-title">Anúncio — Meta Ads frio</div><div class="cm-status cm-aprov">✓ Aprovado</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÉTRICAS + BILLING -->
+  <div class="g2">
+
+    <!-- MÉTRICAS INSTAGRAM -->
+    <div class="card">
+      <div class="card-title">Métricas do Instagram</div>
+      <div class="met-row">
+        <div class="met-label">Taxa de alcance</div>
+        <div class="met-bar"><div class="met-fill" style="width:100%"></div></div>
+        <div class="met-val">119%</div>
+      </div>
+      <div class="met-row">
+        <div class="met-label">Engajamento top post</div>
+        <div class="met-bar"><div class="met-fill" style="width:92%"></div></div>
+        <div class="met-val">92%</div>
+      </div>
+      <div class="met-row">
+        <div class="met-label">Crescimento mensal</div>
+        <div class="met-bar"><div class="met-fill" style="width:18%;background:var(--orange)"></div></div>
+        <div class="met-val" style="color:var(--orange)">1.8%</div>
+      </div>
+      <div class="met-row">
+        <div class="met-label">Frequência atual</div>
+        <div class="met-bar"><div class="met-fill" style="width:25%;background:var(--orange)"></div></div>
+        <div class="met-val" style="color:var(--orange)">3.3/m</div>
+      </div>
+      <div class="met-row">
+        <div class="met-label">Meta do sistema</div>
+        <div class="met-bar"><div class="met-fill" style="width:0%"></div></div>
+        <div class="met-val" style="color:var(--g2)">7/m</div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:var(--panel2);border-radius:7px;font-size:11px;color:var(--g1);line-height:1.6">
+        <strong style="color:var(--white)">Diagnóstico:</strong> Alcance excelente (119%). Principal gap: frequência de publicação abaixo do recomendado. Conta Criador bloqueando automação.
+      </div>
+    </div>
+
+    <!-- BILLING / HISTÓRICO FINANCEIRO -->
+    <div class="card">
+      <div class="card-title">Histórico Financeiro</div>
+      <div class="bill-row">
+        <div>
+          <div class="bill-desc">Conta de Teste Interna</div>
+          <div class="bill-date">Desde 29/05/2026 · Sem cobrança</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div class="bill-val" style="color:var(--blue)">R$0</div>
+          <div class="bill-badge bb-free">Gratuito</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--panel2);border-radius:8px">
+        <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:8px">Projeção</div>
+        <div style="font-size:11px;color:var(--g1);line-height:1.8">
+          Ao ativar assinatura: <span style="color:var(--green);font-weight:700">R$199/mês</span><br>
+          ARR projetado: <span style="color:var(--green);font-weight:700">R$2.388/ano</span>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-g" style="width:100%;justify-content:center" onclick="T('Link de pagamento enviado por email','s')">Enviar link de pagamento →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NOTES / OBSERVAÇÕES -->
+  <div class="card">
+    <div class="card-title">Observações internas</div>
+    <textarea class="fta" style="min-height:80px;margin-bottom:10px" id="obs-field">Conta protótipo Plus — dono do sistema. Usar para testar todos os agentes antes de lançar para clientes externos.</textarea>
+    <button class="btn btn-o" onclick="T('Observação salva!','s')">Salvar nota</button>
+  </div>
+
+</div><!-- end page -->
+
+<!-- MODAL: EDITAR -->
+<div class="mo" id="mo-edit" onclick="if(event.target.id==='mo-edit')closeM('mo-edit')">
+  <div class="modal">
+    <div class="mh"><div class="mt-ttl">Editar conta — João Vittor</div><button class="mc" onclick="closeM('mo-edit')">✕</button></div>
+    <div class="mb">
+      <label class="fl">Status</label>
+      <select class="fs">
+        <option>Teste Interno</option>
+        <option>Trial Ativo</option>
+        <option>Assinatura Ativa</option>
+        <option>Expirado</option>
+        <option>Cancelado</option>
+      </select>
+      <label class="fl">Plano</label>
+      <select class="fs">
+        <option>Básico — R$99/mês</option>
+        <option>Plus — R$199/mês</option>
+        <option>Pro — R$399/mês</option>
+        <option selected>Conta de Teste</option>
+      </select>
+      <label class="fl">Período de acesso</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div onclick="selT(this)" style="padding:7px 13px;border-radius:7px;background:var(--panel2);border:1px solid var(--border2);color:var(--g1);font-size:10px;font-weight:700;cursor:pointer">7 dias</div>
+        <div onclick="selT(this)" style="padding:7px 13px;border-radius:7px;background:var(--panel2);border:1px solid var(--border2);color:var(--g1);font-size:10px;font-weight:700;cursor:pointer">15 dias</div>
+        <div onclick="selT(this)" style="padding:7px 13px;border-radius:7px;background:var(--panel2);border:1px solid var(--border2);color:var(--g1);font-size:10px;font-weight:700;cursor:pointer">30 dias</div>
+        <div onclick="selT(this)" style="padding:7px 13px;border-radius:7px;background:var(--bdim);border:1px solid var(--blue);color:var(--blue);font-size:10px;font-weight:700;cursor:pointer">Indeterminado</div>
+      </div>
+      <label class="fl">Nota interna</label>
+      <textarea class="fta" placeholder="Observação sobre este cliente...">Conta protótipo Plus — dono do sistema.</textarea>
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-o" onclick="closeM('mo-edit')">Cancelar</button>
+      <button class="bm bm-s" onclick="T('Alterações salvas!','s');closeM('mo-edit')">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EMAIL -->
+<div class="mo" id="mo-email" onclick="if(event.target.id==='mo-email')closeM('mo-email')">
+  <div class="modal">
+    <div class="mh"><div class="mt-ttl">Email para João Vittor</div><button class="mc" onclick="closeM('mo-email')">✕</button></div>
+    <div class="mb">
+      <label class="fl">Para</label>
+      <input class="fi" value="joao@exemplo.com" readonly style="color:var(--g1)">
+      <label class="fl">Assunto</label>
+      <input class="fi" placeholder="Assunto do email...">
+      <label class="fl">Mensagem</label>
+      <textarea class="fta" placeholder="Escreva a mensagem..."></textarea>
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-o" onclick="closeM('mo-email')">Cancelar</button>
+      <button class="bm bm-s" onclick="T('Email enviado! (Configure Resend primeiro)','w');closeM('mo-email')">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR CANCELAMENTO -->
+<div class="mo" id="mo-cancel" onclick="if(event.target.id==='mo-cancel')closeM('mo-cancel')">
+  <div class="modal">
+    <div class="mh"><div class="mt-ttl">Cancelar conta</div><button class="mc" onclick="closeM('mo-cancel')">✕</button></div>
+    <div class="mb">
+      <div style="background:var(--rdim);border:1px solid rgba(255,69,69,.2);border-radius:9px;padding:16px;margin-bottom:14px;font-size:13px;color:var(--red);line-height:1.6">
+        <strong style="display:block;margin-bottom:6px">⚠ Atenção</strong>
+        Cancelar a conta de <strong>João Vittor</strong> irá:<br>
+        · Bloquear o acesso imediatamente<br>
+        · Notificar o cliente por email<br>
+        · Encerrar a assinatura Stripe (se ativa)<br>
+        · Arquivar os dados (mantidos por 90 dias)
+      </div>
+      <label class="fl">Digite "CONFIRMAR" para prosseguir</label>
+      <input class="fi" id="cancel-confirm-input" placeholder="CONFIRMAR">
+    </div>
+    <div class="mfooter">
+      <button class="bm bm-o" onclick="closeM('mo-cancel')">Cancelar</button>
+      <button class="bm bm-r" onclick="doCancelAccount()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<div class="tc" id="tc"></div>
+
+<script>
+function openEditMo(){ document.getElementById('mo-edit').classList.add('open') }
+function openEmailMo(){ document.getElementById('mo-email').classList.add('open') }
+function confirmCancel(){ document.getElementById('mo-cancel').classList.add('open') }
+function closeM(id){ document.getElementById(id).classList.remove('open') }
+
+function selT(el){
+  el.parentElement.querySelectorAll('div').forEach(d=>{
+    d.style.background='var(--panel2)';
+    d.style.borderColor='var(--border2)';
+    d.style.color='var(--g1)';
+  });
+  el.style.background='var(--bdim)';
+  el.style.borderColor='var(--blue)';
+  el.style.color='var(--blue)';
+}
+
+function doCancelAccount(){
+  const val = document.getElementById('cancel-confirm-input').value;
+  if(val !== 'CONFIRMAR'){ T('Digite CONFIRMAR para prosseguir','w'); return; }
+  closeM('mo-cancel');
+  T('Conta cancelada. Cliente notificado por email.','i');
+  setTimeout(()=>{ location.href='admin.html'; }, 1500);
+}
+
+function T(msg,type='i'){
+  const c=document.getElementById('tc');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  const col={s:'var(--green)',i:'var(--blue)',w:'var(--orange)',e:'var(--red)'};
+  const ico={s:'✓',i:'ℹ',w:'⚠',e:'✕'};
+  t.innerHTML=`<span style="color:${col[type]};font-weight:900;font-size:13px">${ico[type]}</span> ${msg}`;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),400)},3500);
+}
+
+// Carregar dados do cliente via URL param
+// TODO: const id = new URLSearchParams(location.search).get('id')
+// TODO: supabase.from('clientes').select('*').eq('id', id) → preencher campos
+</script>
+</body>
+</html>
