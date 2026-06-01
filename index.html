@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="0;url=home.html">
+<title>JUM OS</title>
+<style>
+  body{background:#050506;color:#fff;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .loading{text-align:center}
+  .brand{font-size:13px;font-weight:900;letter-spacing:6px;text-transform:uppercase;margin-bottom:16px;font-family:monospace}
+  .brand span{color:#00E676}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00E676;animation:pulse 1.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  p{font-size:12px;color:#555;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="loading">
+  <div class="brand">JUM <span>OS</span></div>
+  <div class="dot"></div>
+  <p>Carregando...</p>
+</div>
+<script>
+  // Redirecionamento imediato
+  window.location.replace('home.html');
+</script>
+</body>
+</html>
