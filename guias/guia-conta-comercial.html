@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUM OS — Guia: Conta Comercial</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;--green:#00E676;--green-dim:rgba(0,230,118,.07);--orange:#FF9F1C;--blue:#5C7CFA;--white:#FFF;--gray1:#9090A0;--gray2:#50505C;--font:'Inter',sans-serif;--mono:'Space Mono',monospace}
+body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh}
+.topbar{height:56px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.brand{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase;text-decoration:none;color:var(--white)}
+.brand span{color:var(--green)}
+.back-btn{font-size:12px;color:var(--gray1);text-decoration:none;display:flex;align-items:center;gap:6px;transition:.2s}
+.back-btn:hover{color:var(--white)}
+.page{max-width:720px;margin:0 auto;padding:48px 24px 80px}
+.page-tag{font-size:9px;font-weight:800;letter-spacing:4px;color:var(--green);text-transform:uppercase;margin-bottom:8px;font-family:var(--mono)}
+h1{font-size:28px;font-weight:900;letter-spacing:-.5px;text-transform:uppercase;margin-bottom:8px}
+.intro{font-size:15px;color:var(--gray1);line-height:1.7;margin-bottom:32px}
+/* ALERT */
+.alert{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:16px 20px;margin-bottom:32px;display:flex;gap:12px}
+.alert-icon{font-size:20px;flex-shrink:0}
+.alert-text{font-size:13px;color:var(--gray1);line-height:1.6}
+.alert-text strong{color:var(--green);display:block;margin-bottom:4px;font-size:14px}
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:0}
+.step-item{display:flex;gap:20px;padding:24px 0;border-bottom:1px solid var(--border);position:relative}
+.step-item:last-child{border-bottom:none}
+.step-num-wrap{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.step-num{width:40px;height:40px;border-radius:50%;background:var(--green);color:#000;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:var(--mono);flex-shrink:0}
+.step-line{width:1px;background:var(--border2);flex:1;margin:8px 0}
+.step-content{flex:1;padding-bottom:4px}
+.step-title{font-size:15px;font-weight:800;text-transform:uppercase;margin-bottom:8px;letter-spacing:-.2px}
+.step-desc{font-size:13px;color:var(--gray1);line-height:1.6;margin-bottom:12px}
+.step-path{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--white);font-family:var(--mono);display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.path-arrow{color:var(--gray2);margin:0 2px}
+.path-item{background:var(--panel);border:1px solid var(--border2);border-radius:5px;padding:3px 8px;font-size:11px;white-space:nowrap}
+.step-note{font-size:11px;color:var(--gray2);margin-top:8px;display:flex;align-items:flex-start;gap:6px}
+.step-note::before{content:'💡';font-size:12px;flex-shrink:0;margin-top:1px}
+/* FAQ */
+.faq-section{margin-top:48px}
+.faq-title{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:20px;color:var(--white)}
+.faq-item{border-bottom:1px solid var(--border);padding:16px 0;cursor:pointer}
+.faq-q{font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq-arrow{color:var(--green);transition:.2s;font-size:18px;flex-shrink:0}
+.faq-a{font-size:13px;color:var(--gray1);line-height:1.7;max-height:0;overflow:hidden;transition:.3s}
+.faq-item.open .faq-arrow{transform:rotate(45deg)}
+.faq-item.open .faq-a{max-height:200px;padding-top:12px}
+/* DONE */
+.done-section{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-radius:12px;padding:24px;margin-top:40px;text-align:center}
+.done-icon{font-size:40px;margin-bottom:12px}
+.done-title{font-size:16px;font-weight:800;text-transform:uppercase;margin-bottom:8px}
+.done-text{font-size:13px;color:var(--gray1);margin-bottom:20px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-decoration:none;transition:.15s}
+.btn-green{background:var(--green);color:#000}
+.btn-green:hover{opacity:.88}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="../home.html" class="brand">JUM <span>OS</span></a>
+  <a href="../dashboard-usuario.html" class="back-btn">← Voltar ao dashboard</a>
+</div>
+<div class="page">
+  <div class="page-tag">↳ Guia de configuração</div>
+  <h1>Ativar conta<br>Comercial</h1>
+  <p class="intro">Para que o Agente de Publicação consiga publicar automaticamente no seu Instagram, sua conta precisa ser do tipo <strong>Comercial</strong> (não Criador). A conversão é gratuita, leva 2 minutos e você não perde absolutamente nenhum seguidor.</p>
+
+  <div class="alert">
+    <div class="alert-icon">✅</div>
+    <div class="alert-text">
+      <strong>O que você não perde ao converter</strong>
+      Seguidores, postagens anteriores, histórico, métricas, Stories salvos, destaques e acesso a todas as funções de criação de conteúdo.
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-num-wrap"><div class="step-num">1</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <div class="step-title">Abra as configurações do Instagram</div>
+        <div class="step-desc">No seu perfil, toque nos três traços no canto superior direito, depois em "Configurações e privacidade".</div>
+        <div class="step-path">
+          <span class="path-item">📱 Perfil</span><span class="path-arrow">→</span>
+          <span class="path-item">☰ Menu</span><span class="path-arrow">→</span>
+          <span class="path-item">⚙ Config. e privacidade</span>
+        </div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num-wrap"><div class="step-num">2</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <div class="step-title">Acesse "Tipo de conta e ferramentas"</div>
+        <div class="step-desc">Role para baixo até encontrar a seção "Para profissionais" ou busque por "Tipo de conta".</div>
+        <div class="step-path">
+          <span class="path-item">⚙ Configurações</span><span class="path-arrow">→</span>
+          <span class="path-item">Tipo de conta e ferramentas</span>
+        </div>
+        <div class="step-note">Esta opção pode estar dentro de "Conta" dependendo da versão do seu aplicativo.</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num-wrap"><div class="step-num">3</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <div class="step-title">Clique em "Mudar para conta profissional"</div>
+        <div class="step-desc">Você verá duas opções: Criador e Comercial. Selecione <strong style="color:var(--green)">Comercial</strong>.</div>
+        <div class="step-path">
+          <span class="path-item">Tipo de conta</span><span class="path-arrow">→</span>
+          <span class="path-item">Conta profissional</span><span class="path-arrow">→</span>
+          <span class="path-item" style="color:var(--green)">✓ Comercial</span>
+        </div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num-wrap"><div class="step-num">4</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <div class="step-title">Escolha sua categoria</div>
+        <div class="step-desc">O Instagram perguntará qual categoria melhor descreve seu negócio. Escolha a mais próxima do seu nicho.</div>
+        <div class="step-path">
+          <span class="path-item">Consultor de negócios</span><span class="path-arrow">ou</span>
+          <span class="path-item">Serviços pessoais</span><span class="path-arrow">ou</span>
+          <span class="path-item">Sua categoria real</span>
+        </div>
+        <div class="step-note">A categoria não afeta o funcionamento do sistema. Escolha qualquer uma que faça sentido para você.</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num-wrap"><div class="step-num">5</div></div>
+      <div class="step-content">
+        <div class="step-title">Confirme e volte ao dashboard</div>
+        <div class="step-desc">Depois de confirmar a conversão, volte ao JUM OS. O sistema vai detectar automaticamente que sua conta agora é Comercial e ativar o Agente de Publicação.</div>
+        <div class="step-note">A detecção é automática. Não precisa fazer mais nada. Em até 5 minutos o alerta de conta Criador vai desaparecer do seu dashboard.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-section">
+    <div class="faq-title">Dúvidas frequentes</div>
+    <div class="faq-item" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Vou perder meus seguidores?<span class="faq-arrow">+</span></div>
+      <div class="faq-a">Não. Nenhum seguidor é perdido ao converter. Todas as métricas, publicações e Stories são mantidos integralmente.</div>
+    </div>
+    <div class="faq-item" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Meu perfil vai ficar diferente para quem me segue?<span class="faq-arrow">+</span></div>
+      <div class="faq-a">Visualmente, quase nada muda. A única diferença é que pode aparecer a categoria que você escolheu abaixo do nome no perfil. Você pode ocultar essa categoria nas configurações se preferir.</div>
+    </div>
+    <div class="faq-item" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Posso voltar para conta Criador depois?<span class="faq-arrow">+</span></div>
+      <div class="faq-a">Sim. Você pode converter de volta a qualquer momento. Mas ao fazer isso, o Agente de Publicação será desativado automaticamente até você converter novamente para Comercial.</div>
+    </div>
+    <div class="faq-item" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Conta Comercial tem algum custo?<span class="faq-arrow">+</span></div>
+      <div class="faq-a">Não. Conta Comercial no Instagram é completamente gratuita. Não há nenhum custo adicional do Meta para ter esse tipo de conta.</div>
+    </div>
+    <div class="faq-item" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Para o plano Básico também preciso converter?<span class="faq-arrow">+</span></div>
+      <div class="faq-a">Não obrigatoriamente. No plano Básico você baixa os criativos e agenda manualmente. Mas se quiser usar os insights completos de métricas no dashboard, a conta Comercial fornece dados mais ricos. Recomendamos converter em qualquer plano.</div>
+    </div>
+  </div>
+
+  <div class="done-section">
+    <div class="done-icon">🚀</div>
+    <div class="done-title">Já converteu?</div>
+    <div class="done-text">Volte ao dashboard — o sistema vai detectar automaticamente e ativar o Agente de Publicação para você.</div>
+    <a href="../dashboard-usuario.html" class="btn btn-green">→ Ir para o dashboard</a>
+  </div>
+</div>
+</body>
+</html>
