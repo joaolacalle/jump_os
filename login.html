@@ -97,6 +97,14 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
 
       <!-- ENTRAR -->
       <div class="form-panel active" id="panel-entrar">
+
+        <!-- DEMO — remover quando Supabase configurado -->
+        <div style="background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:9px;padding:12px 14px;margin-bottom:16px;font-size:11px;line-height:1.8;color:#8fa8ff">
+          <div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🔑 Modo de teste ativo</div>
+          <strong>Usuário:</strong> qualquer email + qualquer senha<br>
+          <strong>Admin:</strong> email com "admin" (ex: admin@teste.com)
+        </div>
+
         <div class="error-msg" id="login-error">Email ou senha incorretos.</div>
         <div class="field">
           <label class="field-label">Email</label>
@@ -211,15 +219,32 @@ if(plano){
 }
 
 function doLogin(){
-  const email=document.getElementById('login-email').value;
-  const senha=document.getElementById('login-senha').value;
-  const err=document.getElementById('login-error');
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const err   = document.getElementById('login-error');
+  const btn   = document.querySelector('#panel-entrar .btn-submit');
   err.classList.remove('show');
-  if(!email||!senha){err.textContent='Preencha todos os campos.';err.classList.add('show');return}
-  // TODO: Supabase Auth signIn
-  // Por agora: simular
-  if(email==='admin@jumpos.com.br'){window.location.href='admin.html';return}
-  window.location.href='dashboard-usuario.html';
+
+  if(!email || !senha){
+    err.textContent='Preencha email e senha.';
+    err.classList.add('show');
+    return;
+  }
+
+  // Loading visual
+  btn.textContent = 'Entrando...';
+  btn.disabled = true;
+
+  // ─── MODO SIMULAÇÃO (substituir por Supabase quando configurado) ───
+  setTimeout(() => {
+    // Admin: qualquer email que contenha "admin" OU a senha seja "admin123"
+    if(email.includes('admin') || senha === 'admin123'){
+      window.location.href = 'admin.html';
+    } else {
+      window.location.href = 'dashboard-usuario.html';
+    }
+  }, 600);
+  // ──────────────────────────────────────────────────────────────────
 }
 
 function doSignup(){
