@@ -2,77 +2,71 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JUM OS — Entrar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>JUMP OS — Entrar</title>
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;--green:#00E676;--green-dim:rgba(0,230,118,.07);--white:#FFF;--gray1:#9090A0;--gray2:#50505C;--red:#FF4545;--font:'Inter',sans-serif;--mono:'Space Mono',monospace}
+:root{--bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;--green:#00E676;--green-dim:rgba(0,230,118,.07);--white:#FFF;--gray1:#9090A0;--gray2:#50505C;--red:#FF4545;--blue:#5C7CFA;--font:'Inter',sans-serif;--mono:'Space Mono',monospace}
 body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
-.page{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;position:relative;overflow:hidden}
+.page{flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(20px,5vw,40px) 20px;position:relative;overflow:hidden}
 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,230,118,.05) 0%,transparent 70%);pointer-events:none}
 .bg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:50px 50px;opacity:.3;pointer-events:none}
-.box{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;position:relative;overflow:hidden}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;position:relative;overflow:hidden;z-index:1}
 .box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green)}
-.box-header{padding:32px 32px 24px;text-align:center}
-.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;margin-bottom:20px;display:block}
+.box-header{padding:clamp(24px,5vw,32px) clamp(20px,5vw,32px) 20px;text-align:center}
+.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;margin-bottom:20px;display:block;text-decoration:none;color:var(--white)}
 .brand span{color:var(--green)}
-.box-title{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:6px}
+.box-title{font-size:clamp(18px,3vw,22px);font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:6px}
 .box-sub{font-size:13px;color:var(--gray1)}
-
-/* TABS */
-.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 32px}
-.tab{flex:1;padding:12px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s;text-align:center}
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 clamp(20px,5vw,32px)}
+.tab{flex:1;padding:12px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s;text-align:center;background:none;border-top:none;border-left:none;border-right:none}
 .tab.active{color:var(--green);border-bottom-color:var(--green)}
-
-/* FORMS */
-.form-body{padding:28px 32px 32px}
+.form-body{padding:clamp(20px,4vw,28px) clamp(20px,5vw,32px) clamp(24px,5vw,32px)}
 .form-panel{display:none}
 .form-panel.active{display:block}
-.field{margin-bottom:18px}
-.field-label{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gray2);margin-bottom:8px;display:block}
-.field-input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.field{margin-bottom:16px}
+.field-label{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gray2);margin-bottom:7px;display:block}
+.field-input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font);font-size:14px;outline:none;transition:border-color .2s}
 .field-input:focus{border-color:var(--green)}
 .field-input::placeholder{color:var(--gray2)}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.btn-submit{width:100%;padding:14px;border-radius:9px;background:var(--green);color:#000;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-top:4px}
-.btn-submit:hover{opacity:.88}
-.btn-submit:disabled{opacity:.5;cursor:not-allowed}
-.form-divider{text-align:center;font-size:11px;color:var(--gray2);margin:20px 0;position:relative}
-.form-divider::before,.form-divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border)}
-.form-divider::before{left:0}
-.form-divider::after{right:0}
-.form-footer{text-align:center;font-size:12px;color:var(--gray2);margin-top:20px}
-.form-footer a{color:var(--white);text-decoration:none;font-weight:600}
-.form-footer a:hover{color:var(--green)}
-.error-msg{background:rgba(255,69,69,.1);border:1px solid rgba(255,69,69,.3);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:16px;display:none}
+.btn-submit{width:100%;padding:14px;border-radius:9px;background:var(--green);color:#000;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-top:4px;position:relative;overflow:hidden}
+.btn-submit:hover{opacity:.9}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed}
+.btn-loading{display:none;position:absolute;inset:0;background:var(--green);align-items:center;justify-content:center;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.form-divider{text-align:center;font-size:11px;color:var(--gray2);margin:18px 0;position:relative}
+.form-footer{text-align:center;font-size:12px;color:var(--gray2);margin-top:18px}
+.form-footer a,.form-footer span{color:var(--white);font-weight:600;cursor:pointer}
+.form-footer a:hover,.form-footer span:hover{color:var(--green)}
+.error-msg{background:rgba(255,69,69,.1);border:1px solid rgba(255,69,69,.3);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:14px;display:none}
 .error-msg.show{display:block}
-.success-msg{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--green);margin-bottom:16px;display:none}
+.success-msg{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--green);margin-bottom:14px;display:none;line-height:1.6}
 .success-msg.show{display:block}
-
-/* PLAN BADGE */
-.plan-selected{background:var(--green-dim);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:10px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
-.plan-sel-name{font-size:13px;font-weight:700}
-.plan-sel-price{font-size:12px;color:var(--gray1);margin-left:auto;font-family:var(--mono)}
-.plan-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
-
-/* TERMS */
-.terms-check{display:flex;align-items:flex-start;gap:10px;margin:16px 0}
-.terms-check input{margin-top:2px;accent-color:var(--green);flex-shrink:0}
+.terms-check{display:flex;align-items:flex-start;gap:10px;margin:14px 0}
+.terms-check input{margin-top:3px;accent-color:var(--green);flex-shrink:0;width:14px;height:14px}
 .terms-check label{font-size:11px;color:var(--gray1);line-height:1.5}
 .terms-check a{color:var(--white)}
-
-/* ADMIN SECTION */
-.admin-note{background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#8fa8ff;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-
-/* FOOTER */
-.page-footer{padding:20px;text-align:center;font-size:11px;color:var(--gray2)}
+.admin-note{background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#8fa8ff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+/* plan badge when coming from pricing */
+.plan-selected{background:var(--green-dim);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:none;align-items:center;gap:10px}
+.ps-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+.ps-name{font-size:13px;font-weight:700}
+.ps-price{font-size:12px;color:var(--gray1);margin-left:auto;font-family:var(--mono)}
+/* page footer */
+.page-footer{padding:16px;text-align:center;font-size:11px;color:var(--gray2)}
 .page-footer a{color:var(--gray2);text-decoration:none}
 .page-footer a:hover{color:var(--white)}
+@media(max-width:480px){
+  .box{border-radius:0;border-left:none;border-right:none;border-top:none}
+  .page{align-items:flex-start;padding-top:40px}
+  .field-row{grid-template-columns:1fr}
+}
 </style>
-
-<!-- Supabase JS — necessário para autenticação real -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -82,102 +76,100 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
 
   <div class="box">
     <div class="box-header">
-      <a href="home.html" class="brand">JUM <span>OS</span></a>
+      <a href="home.html" class="brand">JUMP <span>OS</span></a>
       <div class="box-title">Acesse o sistema</div>
       <div class="box-sub">Seu sistema de marketing com IA</div>
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('entrar')">Entrar</div>
-      <div class="tab" onclick="switchTab('criar')">Criar conta</div>
-      <div class="tab" id="admin-tab" style="display:none" onclick="switchTab('admin')">Admin</div>
+      <button class="tab active" onclick="switchTab('entrar')">Entrar</button>
+      <button class="tab" onclick="switchTab('criar')">Criar conta</button>
+      <button class="tab" onclick="switchTab('admin')">Admin</button>
     </div>
 
     <div class="form-body">
 
-      <!-- ENTRAR -->
+      <!-- ── ENTRAR ── -->
       <div class="form-panel active" id="panel-entrar">
-
-        <!-- DEMO — remover quando Supabase configurado -->
-        <div style="background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:9px;padding:12px 14px;margin-bottom:16px;font-size:11px;line-height:1.8;color:#8fa8ff">
-          <div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🔑 Modo de teste ativo</div>
-          <strong>Usuário:</strong> qualquer email + qualquer senha<br>
-          <strong>Admin:</strong> email com "admin" (ex: admin@teste.com)
-        </div>
-
-        <div class="error-msg" id="login-error">Email ou senha incorretos.</div>
+        <div class="error-msg" id="login-error"></div>
+        <div class="success-msg" id="login-success"></div>
         <div class="field">
           <label class="field-label">Email</label>
-          <input class="field-input" type="email" id="login-email" placeholder="seu@email.com">
+          <input class="field-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
         </div>
         <div class="field">
           <label class="field-label">Senha</label>
-          <input class="field-input" type="password" id="login-senha" placeholder="••••••••">
+          <input class="field-input" type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')doLogin()">
         </div>
-        <button class="btn-submit" onclick="doLogin()">Entrar no sistema →</button>
-        <div class="form-footer" style="margin-top:16px">
-          <a href="#">Esqueci minha senha</a>
+        <button class="btn-submit" id="btn-login" onclick="doLogin()">
+          <span id="login-label">Entrar no sistema →</span>
+          <div class="btn-loading" id="login-loading"><div class="spinner"></div><span>Entrando...</span></div>
+        </button>
+        <div class="form-footer" style="margin-top:14px">
+          <a onclick="showResetPass()">Esqueci minha senha</a>
         </div>
       </div>
 
-      <!-- CRIAR CONTA -->
+      <!-- ── CRIAR CONTA ── -->
       <div class="form-panel" id="panel-criar">
-        <div id="plan-badge" class="plan-selected" style="display:none">
-          <div class="plan-dot"></div>
-          <div class="plan-sel-name" id="plan-badge-name">Plano Plus</div>
-          <div class="plan-sel-price" id="plan-badge-price">R$199/mês</div>
+        <div id="plan-badge-signup" class="plan-selected">
+          <div class="ps-dot"></div>
+          <div class="ps-name" id="ps-name">Plano Plus</div>
+          <div class="ps-price" id="ps-price">R$199/mês</div>
         </div>
         <div class="error-msg" id="signup-error"></div>
-        <div class="success-msg" id="signup-success">Conta criada! Verifique seu email.</div>
+        <div class="success-msg" id="signup-success"></div>
         <div class="field-row">
           <div class="field">
-            <label class="field-label">Nome</label>
-            <input class="field-input" type="text" id="signup-nome" placeholder="João">
+            <label class="field-label">Nome *</label>
+            <input class="field-input" type="text" id="signup-nome" placeholder="João" autocomplete="given-name">
           </div>
           <div class="field">
             <label class="field-label">Sobrenome</label>
-            <input class="field-input" type="text" id="signup-sobrenome" placeholder="Silva">
+            <input class="field-input" type="text" id="signup-sobre" placeholder="Silva" autocomplete="family-name">
           </div>
         </div>
         <div class="field">
-          <label class="field-label">Email</label>
-          <input class="field-input" type="email" id="signup-email" placeholder="seu@email.com">
+          <label class="field-label">Email *</label>
+          <input class="field-input" type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email">
         </div>
         <div class="field">
           <label class="field-label">WhatsApp</label>
-          <input class="field-input" type="tel" id="signup-whatsapp" placeholder="(11) 99999-9999">
+          <input class="field-input" type="tel" id="signup-wpp" placeholder="(11) 99999-9999" autocomplete="tel">
         </div>
         <div class="field">
-          <label class="field-label">Senha</label>
-          <input class="field-input" type="password" id="signup-senha" placeholder="mínimo 8 caracteres">
+          <label class="field-label">Senha * (mínimo 8 caracteres)</label>
+          <input class="field-input" type="password" id="signup-senha" placeholder="crie uma senha forte" autocomplete="new-password">
         </div>
         <div class="terms-check">
           <input type="checkbox" id="terms-check">
-          <label for="terms-check">Li e aceito os <a href="#">Termos de uso</a> e a <a href="#">Política de privacidade</a>. Entendo que terei 7 dias para cancelar sem custo.</label>
+          <label for="terms-check">Li e aceito os <a href="termos.html" target="_blank">Termos de uso</a> e a <a href="privacidade.html" target="_blank">Política de privacidade</a>. Entendo que tenho 7 dias para cancelar sem custo (CDC Art. 49).</label>
         </div>
-        <button class="btn-submit" onclick="doSignup()">Criar conta e começar →</button>
-        <div class="form-footer">
-          Já tem conta? <a onclick="switchTab('entrar')" style="cursor:pointer">Entrar</a>
-        </div>
+        <button class="btn-submit" id="btn-signup" onclick="doSignup()">
+          <span id="signup-label">Criar conta →</span>
+          <div class="btn-loading" id="signup-loading"><div class="spinner"></div><span>Criando conta...</span></div>
+        </button>
+        <div class="form-footer">Já tem conta? <span onclick="switchTab('entrar')">Entrar</span></div>
       </div>
 
-      <!-- ADMIN -->
+      <!-- ── ADMIN ── -->
       <div class="form-panel" id="panel-admin">
-        <div class="admin-note">🔒 Acesso restrito ao administrador do sistema.</div>
-        <div class="error-msg" id="admin-error">Credenciais inválidas.</div>
+        <div class="admin-note">🔒 Acesso restrito ao administrador.</div>
+        <div class="error-msg" id="admin-error"></div>
         <div class="field">
           <label class="field-label">Email admin</label>
-          <input class="field-input" type="email" id="admin-email" placeholder="admin@jumpos.com.br">
+          <input class="field-input" type="email" id="admin-email" placeholder="seu@email.com" autocomplete="email">
         </div>
         <div class="field">
-          <label class="field-label">Senha admin</label>
-          <input class="field-input" type="password" id="admin-senha" placeholder="••••••••">
+          <label class="field-label">Senha</label>
+          <input class="field-input" type="password" id="admin-senha" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')doAdminLogin()">
         </div>
-        <div class="field">
-          <label class="field-label">Código de acesso</label>
-          <input class="field-input" type="text" id="admin-code" placeholder="Código de 6 dígitos">
-        </div>
-        <button class="btn-submit" onclick="doAdminLogin()" style="background:#5C7CFA;color:#fff">Acessar painel admin →</button>
+        <button class="btn-submit" id="btn-admin" onclick="doAdminLogin()" style="background:var(--blue);color:#fff">
+          <span id="admin-label">Acessar painel admin →</span>
+          <div class="btn-loading" id="admin-loading"><div class="spinner"></div><span>Verificando...</span></div>
+        </button>
       </div>
 
     </div>
@@ -185,91 +177,224 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
 </div>
 
 <div class="page-footer">
-  <a href="home.html">← Voltar ao site</a> &nbsp;·&nbsp; 7 dias de garantia &nbsp;·&nbsp; Cancele quando quiser
+  <a href="home.html">← Voltar ao site</a> &nbsp;·&nbsp;
+  <a href="termos.html">Termos</a> &nbsp;·&nbsp;
+  <a href="privacidade.html">Privacidade</a>
 </div>
 
 <script>
-function switchTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>{
-    const tabs=['entrar','criar','admin'];
-    el.classList.toggle('active',tabs[i]===t);
-  });
-  document.querySelectorAll('.form-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+t).classList.add('active');
-}
+// ═══════════════════════════════════════════════
+// SUPABASE — CONEXÃO REAL
+// ═══════════════════════════════════════════════
+const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
+const ADMIN_EMAIL  = 'jvittor@icloud.com';
 
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Mostrar tab admin apenas se URL contiver ?admin=access
-if (new URLSearchParams(window.location.search).get('admin') === 'access') {
-  document.getElementById('admin-tab').style.display = 'flex';
-}
-// Detectar plano da URL
-const params=new URLSearchParams(window.location.search);
-const plano=params.get('plano');
-if(plano){
-  switchTab('criar');
-  const badge=document.getElementById('plan-badge');
-  const prices={basico:'R$99/mês',plus:'R$199/mês',pro:'R$399/mês'};
-  const names={basico:'Plano Básico',plus:'Plano Plus',pro:'Plano Pro'};
-  if(prices[plano]){
-    badge.style.display='flex';
-    document.getElementById('plan-badge-name').textContent=names[plano]||'';
-    document.getElementById('plan-badge-price').textContent=prices[plano]||'';
+// Se já estiver logado, redireciona direto
+(async () => {
+  const { data: { session } } = await supa.auth.getSession();
+  if (session) {
+    const isAdmin = session.user.email === ADMIN_EMAIL;
+    window.location.href = isAdmin ? 'admin.html' : 'dashboard-usuario.html';
   }
+})();
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['entrar','criar','admin'][i] === t);
+  });
+  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + t).classList.add('active');
 }
 
-function doLogin(){
+// Detectar plano da URL
+const params = new URLSearchParams(window.location.search);
+const plano = params.get('plano');
+if (plano) {
+  switchTab('criar');
+  const badge = document.getElementById('plan-badge-signup');
+  const prices = { basico:'R$99/mês', plus:'R$199/mês', pro:'R$399/mês' };
+  const names  = { basico:'Plano Básico', plus:'Plano Plus', pro:'Plano Pro' };
+  badge.style.display = 'flex';
+  document.getElementById('ps-name').textContent  = names[plano]  || plano;
+  document.getElementById('ps-price').textContent = prices[plano] || '';
+}
+
+// ═══════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════
+async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const senha = document.getElementById('login-senha').value;
   const err   = document.getElementById('login-error');
-  const btn   = document.querySelector('#panel-entrar .btn-submit');
   err.classList.remove('show');
 
-  if(!email || !senha){
-    err.textContent='Preencha email e senha.';
+  if (!email || !senha) {
+    err.textContent = 'Preencha email e senha.';
     err.classList.add('show');
     return;
   }
 
-  // Loading visual
-  btn.textContent = 'Entrando...';
-  btn.disabled = true;
+  setLoading('login', true);
 
-  // ─── MODO SIMULAÇÃO (substituir por Supabase quando configurado) ───
-  setTimeout(() => {
-    // Admin: qualquer email que contenha "admin" OU a senha seja "admin123"
-    if(email.includes('admin') || senha === 'admin123'){
-      window.location.href = 'admin.html';
-    } else {
-      window.location.href = 'dashboard-usuario.html';
+  const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
+
+  if (error) {
+    setLoading('login', false);
+    err.textContent = error.message.includes('Invalid login')
+      ? 'Email ou senha incorretos.'
+      : error.message.includes('Email not confirmed')
+      ? 'Confirme seu email antes de entrar. Verifique sua caixa de entrada.'
+      : 'Erro ao entrar: ' + error.message;
+    err.classList.add('show');
+    return;
+  }
+
+  // Redirecionar baseado no email
+  const isAdmin = data.user.email === ADMIN_EMAIL;
+  window.location.href = isAdmin ? 'admin.html' : 'dashboard-usuario.html';
+}
+
+// ═══════════════════════════════════════════════
+// CRIAR CONTA
+// ═══════════════════════════════════════════════
+async function doSignup() {
+  const nome  = document.getElementById('signup-nome').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const senha = document.getElementById('signup-senha').value;
+  const wpp   = document.getElementById('signup-wpp').value.trim();
+  const terms = document.getElementById('terms-check').checked;
+  const err   = document.getElementById('signup-error');
+  const suc   = document.getElementById('signup-success');
+  err.classList.remove('show');
+  suc.classList.remove('show');
+
+  if (!nome || !email || !senha) {
+    err.textContent = 'Nome, email e senha são obrigatórios.';
+    err.classList.add('show');
+    return;
+  }
+  if (senha.length < 8) {
+    err.textContent = 'Senha precisa ter pelo menos 8 caracteres.';
+    err.classList.add('show');
+    return;
+  }
+  if (!terms) {
+    err.textContent = 'Aceite os termos para continuar.';
+    err.classList.add('show');
+    return;
+  }
+
+  setLoading('signup', true);
+
+  // 1. Criar usuário no Supabase Auth
+  const { data, error } = await supa.auth.signUp({
+    email,
+    password: senha,
+    options: {
+      data: { nome, whatsapp: wpp }
     }
-  }, 600);
-  // ──────────────────────────────────────────────────────────────────
+  });
+
+  if (error) {
+    setLoading('signup', false);
+    err.textContent = error.message.includes('already registered')
+      ? 'Este email já está cadastrado. Faça login.'
+      : 'Erro ao criar conta: ' + error.message;
+    err.classList.add('show');
+    return;
+  }
+
+  // 2. Inserir na tabela clientes
+  if (data.user) {
+    await supa.from('clientes').insert({
+      user_id: data.user.id,
+      nome: nome + ' ' + (document.getElementById('signup-sobre').value.trim() || ''),
+      plano: plano || 'plus',
+      status: 'trial',
+      trial_dias: 7
+    });
+  }
+
+  setLoading('signup', false);
+
+  // Verificar se precisa confirmar email
+  if (data.session) {
+    // Logado direto (email confirm desabilitado no Supabase)
+    window.location.href = `checkout.html?plano=${plano || 'plus'}`;
+  } else {
+    // Supabase pediu confirmação de email
+    suc.innerHTML = '✓ Conta criada! <strong>Confirme seu email</strong> para ativar. Verifique sua caixa de entrada (e o spam).';
+    suc.classList.add('show');
+  }
 }
 
-function doSignup(){
-  const nome=document.getElementById('signup-nome').value;
-  const email=document.getElementById('signup-email').value;
-  const senha=document.getElementById('signup-senha').value;
-  const terms=document.getElementById('terms-check').checked;
-  const err=document.getElementById('signup-error');
+// ═══════════════════════════════════════════════
+// LOGIN ADMIN
+// ═══════════════════════════════════════════════
+async function doAdminLogin() {
+  const email = document.getElementById('admin-email').value.trim();
+  const senha = document.getElementById('admin-senha').value;
+  const err   = document.getElementById('admin-error');
   err.classList.remove('show');
-  if(!nome||!email||!senha){err.textContent='Preencha todos os campos obrigatórios.';err.classList.add('show');return}
-  if(senha.length<8){err.textContent='A senha precisa ter pelo menos 8 caracteres.';err.classList.add('show');return}
-  if(!terms){err.textContent='Aceite os termos para continuar.';err.classList.add('show');return}
-  // TODO: Supabase Auth signUp + Stripe Checkout
-  window.location.href='checkout.html?plano='+(plano||'plus');
+
+  if (!email || !senha) {
+    err.textContent = 'Preencha todos os campos.';
+    err.classList.add('show');
+    return;
+  }
+
+  setLoading('admin', true);
+
+  const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
+
+  if (error || data.user?.email !== ADMIN_EMAIL) {
+    setLoading('admin', false);
+    await supa.auth.signOut();
+    err.textContent = 'Acesso negado. Verifique suas credenciais de admin.';
+    err.classList.add('show');
+    return;
+  }
+
+  window.location.href = 'admin.html';
 }
 
-function doAdminLogin(){
-  const email=document.getElementById('admin-email').value;
-  const senha=document.getElementById('admin-senha').value;
-  const code=document.getElementById('admin-code').value;
-  const err=document.getElementById('admin-error');
-  err.classList.remove('show');
-  if(!email||!senha||!code){err.textContent='Preencha todos os campos.';err.classList.add('show');return}
-  // TODO: verificar role admin no Supabase + 2FA
-  window.location.href='admin.html';
+// ═══════════════════════════════════════════════
+// RESET DE SENHA
+// ═══════════════════════════════════════════════
+async function showResetPass() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Digite seu email acima para resetar a senha.';
+    err.classList.add('show');
+    return;
+  }
+  const { error } = await supa.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/login.html'
+  });
+  const suc = document.getElementById('login-success');
+  suc.textContent = error
+    ? 'Erro ao enviar email de reset.'
+    : '✓ Email de reset enviado! Verifique sua caixa de entrada.';
+  suc.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════
+// LOADING HELPER
+// ═══════════════════════════════════════════════
+function setLoading(form, on) {
+  const btn     = document.getElementById('btn-' + form);
+  const label   = document.getElementById(form + '-label');
+  const loading = document.getElementById(form + '-loading');
+  btn.disabled        = on;
+  label.style.display = on ? 'none' : 'inline';
+  loading.style.display = on ? 'flex' : 'none';
 }
 </script>
 </body>
