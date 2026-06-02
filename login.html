@@ -66,6 +66,17 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
   .page{align-items:flex-start;padding-top:40px}
   .field-row{grid-template-columns:1fr}
 }
+
+.email-sent-screen{display:none;text-align:center;padding:clamp(24px,5vw,40px) clamp(20px,5vw,32px)}
+.es-icon{font-size:clamp(40px,8vw,56px);margin-bottom:16px}
+.es-title{font-size:clamp(18px,3vw,22px);font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:10px}
+.es-sub{font-size:clamp(13px,1.5vw,14px);color:var(--gray1);line-height:1.7;margin-bottom:20px}
+.es-email{display:inline-block;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:13px;color:var(--green);margin-bottom:20px}
+.es-note{font-size:11px;color:var(--gray2);line-height:1.6;margin-bottom:20px}
+.es-btn{width:100%;padding:13px;border-radius:8px;background:var(--green);color:#000;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-bottom:10px}
+.es-btn:hover{opacity:.88}
+.es-btn-o{background:transparent;border:1px solid var(--border2);color:var(--gray1)}
+.es-btn-o:hover{border-color:var(--white);color:var(--white)}
 </style>
 </head>
 <body>
@@ -323,14 +334,10 @@ async function doSignup() {
 
   setLoading('signup', false);
 
-  // Verificar se precisa confirmar email
   if (data.session) {
-    // Logado direto (email confirm desabilitado no Supabase)
     window.location.href = `checkout.html?plano=${plano || 'plus'}`;
   } else {
-    // Supabase pediu confirmação de email
-    suc.innerHTML = '✓ Conta criada! <strong>Confirme seu email</strong> para ativar. Verifique sua caixa de entrada (e o spam).';
-    suc.classList.add('show');
+    showEmailSent(email);
   }
 }
 
