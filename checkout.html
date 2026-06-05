@@ -3,375 +3,329 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JUMP OS — Pagamento Seguro</title>
+<title>JUMP OS — Assinar</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<!-- Stripe.js — carregado do servidor Stripe para máxima segurança -->
-<script src="https://js.stripe.com/v3/"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;--green:#00E676;--green-dim:rgba(0,230,118,.07);--red:#FF4545;--white:#FFF;--gray1:#9090A0;--gray2:#50505C;--font:'Inter',sans-serif;--mono:'Space Mono',monospace}
+:root{
+  --bg:#060607;--panel:#0F0F12;--panel2:#14141A;--border:#1E1E26;--border2:#2A2A35;
+  --green:#00E676;--gdim:rgba(0,230,118,.07);
+  --blue:#5C7CFA;--purple:#9B5CF6;
+  --white:#FFF;--g1:#9090A0;--g2:#50505C;
+  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+}
 body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
-.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
-.brand{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase}
+/* TOPBAR */
+.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,32px)}
+.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;text-decoration:none;color:var(--white)}
 .brand span{color:var(--green)}
-.secure-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray1)}
-.secure-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
-.page{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;gap:32px;max-width:960px;margin:0 auto;width:100%}
-@media(max-width:720px){.page{flex-direction:column}.order-summary{order:-1}}
-
-/* ORDER SUMMARY */
-.order-summary{width:340px;flex-shrink:0}
-@media(max-width:720px){.order-summary{width:100%}}
-.summary-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
-.summary-title{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gray2);margin-bottom:16px;font-family:var(--mono)}
-.plan-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.plan-row-name{font-size:15px;font-weight:900;text-transform:uppercase}
-.plan-row-price{font-size:20px;font-weight:900;font-family:var(--mono);color:var(--green)}
-.plan-period{font-size:11px;color:var(--gray2);margin-bottom:16px}
-.plan-divider{height:1px;background:var(--border);margin:16px 0}
-.feat-list{display:flex;flex-direction:column;gap:8px}
-.feat-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray1)}
-.feat-check{color:var(--green);font-weight:900;flex-shrink:0}
-.total-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
-.total-label{font-size:12px;color:var(--gray2)}
-.total-value{font-size:22px;font-weight:900;font-family:var(--mono)}
-
-/* GUARANTEE */
-.guarantee-card{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:16px;text-align:center}
-.guarantee-icon{font-size:24px;margin-bottom:8px}
-.guarantee-title{font-size:13px;font-weight:800;margin-bottom:4px;color:var(--green)}
-.guarantee-text{font-size:11px;color:var(--gray1);line-height:1.6}
-
+.secure{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g1)}
+.secure-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+/* PAGE */
+.page{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:clamp(24px,5vw,48px) 20px;gap:clamp(16px,3vw,32px);max-width:860px;margin:0 auto;width:100%}
+/* PLAN SELECTOR */
+.left{flex:1;min-width:0}
+.section-label{font-size:8px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--g2);margin-bottom:12px;font-family:var(--mono)}
+.plans-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.plan-opt{border:1px solid var(--border2);border-radius:10px;padding:16px 18px;cursor:pointer;transition:.2s;position:relative;background:var(--panel)}
+.plan-opt:hover{border-color:var(--border)}
+.plan-opt.selected{border-color:rgba(0,230,118,.5);background:rgba(0,230,118,.04)}
+.plan-opt.selected::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green);border-radius:10px 10px 0 0}
+.po-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.po-name{font-size:14px;font-weight:900;text-transform:uppercase}
+.po-price{font-size:20px;font-weight:900;font-family:var(--mono)}
+.plan-opt.selected .po-price{color:var(--green)}
+.po-period{font-size:11px;color:var(--g2)}
+.po-feats{font-size:12px;color:var(--g1);line-height:1.7}
+.po-radio{position:absolute;top:16px;right:16px;width:18px;height:18px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:.2s}
+.plan-opt.selected .po-radio{border-color:var(--green);background:var(--green)}
+.po-radio::after{content:'✓';font-size:10px;font-weight:900;color:#000;display:none}
+.plan-opt.selected .po-radio::after{display:block}
 /* FORM */
-.checkout-form{flex:1;min-width:0}
-.form-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:16px}
-.form-title{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
-.form-section-num{width:24px;height:24px;border-radius:50%;background:var(--green);color:#000;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--mono)}
-.field{margin-bottom:16px}
-.field-label{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gray2);margin-bottom:7px;display:block}
-.field-input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
-.field-input:focus{border-color:var(--green)}
-.field-input::placeholder{color:var(--gray2)}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-/* STRIPE ELEMENT */
-.stripe-element-wrap{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;transition:border-color .2s}
-.stripe-element-wrap.focused{border-color:var(--green)}
-#card-element{min-height:20px}
-.card-error{font-size:11px;color:var(--red);margin-top:8px;min-height:16px}
-
-/* PAYMENT BRANDS */
-.payment-brands{display:flex;align-items:center;gap:8px;margin-bottom:16px}
-.brand-badge{background:var(--panel2);border:1px solid var(--border2);border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;color:var(--gray1)}
-
-/* PIX */
-.pix-note{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.15);border-radius:8px;padding:12px;font-size:11px;color:var(--gray1);display:flex;align-items:center;gap:8px;margin-bottom:16px}
-
-/* SUBMIT */
-.btn-pay{width:100%;padding:16px;border-radius:9px;background:var(--green);color:#000;font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
-.btn-pay:hover{opacity:.9}
-.btn-pay:disabled{opacity:.6;cursor:not-allowed}
-.btn-pay-loading{display:none;position:absolute;inset:0;background:var(--green);align-items:center;justify-content:center;gap:8px}
-.spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .8s linear infinite}
+.form-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:clamp(18px,3vw,24px);margin-bottom:16px}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.fl{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:6px;display:block}
+.fi{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:11px 13px;color:var(--white);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--green)}
+.fi::placeholder{color:var(--g2)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* PAY BUTTON */
+.pay-btn{width:100%;padding:16px;border-radius:10px;background:var(--green);color:#000;font-size:14px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px}
+.pay-btn:hover{opacity:.9}
+.pay-btn:disabled{opacity:.55;cursor:not-allowed}
+.spinner{width:18px;height:18px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* SECURITY BADGE */
-.security-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:9px;flex-wrap:wrap}
-.sec-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray2)}
-.sec-icon{font-size:12px}
-
-/* LEGAL */
-.legal-text{font-size:10px;color:var(--gray2);line-height:1.7;text-align:center;padding:0 8px}
-.legal-text a{color:var(--gray1);text-decoration:underline}
-
+.err{background:rgba(255,69,69,.1);border:1px solid rgba(255,69,69,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#FF4545;margin-bottom:14px;display:none;line-height:1.5}
+.err.show{display:block}
+/* SECURITY */
+.security-row{display:flex;align-items:center;justify-content:center;gap:clamp(10px,2vw,20px);padding:14px;background:var(--panel);border:1px solid var(--border);border-radius:9px;flex-wrap:wrap;margin-top:12px}
+.sec-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--g2)}
+/* SUMMARY */
+.right{width:280px;flex-shrink:0}
+.summary-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:clamp(18px,3vw,24px);margin-bottom:14px;position:sticky;top:24px}
+.summary-plan-name{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:6px;font-family:var(--mono)}
+.summary-title{font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.summary-price{font-size:32px;font-weight:900;font-family:var(--mono);color:var(--green);line-height:1;margin:10px 0 4px}
+.summary-period{font-size:11px;color:var(--g2);margin-bottom:16px}
+.summary-divider{height:1px;background:var(--border);margin:14px 0}
+.summary-feat{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--g1);margin-bottom:8px;line-height:1.5}
+.sf-check{color:var(--green);font-weight:900;flex-shrink:0}
+.trial-badge{background:var(--gdim);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:10px 12px;text-align:center;margin-top:14px}
+.tb-title{font-size:13px;font-weight:800;color:var(--green);margin-bottom:4px}
+.tb-text{font-size:11px;color:var(--g1);line-height:1.5}
 /* SUCCESS */
-.success-screen{display:none;text-align:center;padding:40px 20px}
+.success-screen{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(40px,8vw,80px) 20px;max-width:500px;margin:0 auto;flex:1}
 .success-icon{font-size:64px;margin-bottom:24px}
-.success-title{font-size:28px;font-weight:900;text-transform:uppercase;margin-bottom:12px}
-.success-sub{font-size:15px;color:var(--gray1);line-height:1.7;margin-bottom:32px}
-.btn-dashboard{display:inline-block;background:var(--green);color:#000;padding:14px 32px;border-radius:9px;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-decoration:none;transition:.15s}
-.btn-dashboard:hover{opacity:.88}
-
-/* PLAN SELECTOR TABS */
-.plan-tabs{display:flex;background:var(--panel2);border:1px solid var(--border2);border-radius:9px;padding:4px;gap:4px;margin-bottom:20px}
-.plan-tab{flex:1;padding:9px;border-radius:7px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;background:transparent;color:var(--gray2)}
-.plan-tab.active{background:var(--panel);color:var(--white);border:1px solid var(--border2)}
+.success-title{font-size:clamp(22px,4vw,30px);font-weight:900;text-transform:uppercase;letter-spacing:-.5px;margin-bottom:12px}
+.success-sub{font-size:15px;color:var(--g1);line-height:1.7;margin-bottom:32px}
+.success-btn{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;padding:14px 32px;border-radius:10px;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;text-decoration:none;transition:.15s}
+.success-btn:hover{opacity:.88}
+/* STRIPE NOTE */
+.stripe-note{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--g2);margin-top:10px;justify-content:center}
+/* MOBILE */
+@media(max-width:680px){
+  .page{flex-direction:column}
+  .right{width:100%;order:-1}
+  .summary-card{position:static}
+  .field-row{grid-template-columns:1fr}
+  .plans-wrap{flex-direction:row}
+  .plan-opt{flex:1}
+}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="brand">JUMP <span>OS</span></div>
-  <div class="secure-badge"><div class="secure-dot"></div>Pagamento 100% seguro — Stripe</div>
+  <a href="home.html" class="brand">JUMP <span>OS</span></a>
+  <div class="secure"><div class="secure-dot"></div>Pagamento seguro — Stripe</div>
 </div>
 
 <!-- SUCCESS -->
-<div class="success-screen" id="success-screen">
+<div class="success-screen" id="success-screen" style="display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 20px;max-width:500px;margin:0 auto;flex:1">
   <div class="success-icon">✅</div>
   <div class="success-title">Pagamento confirmado!</div>
-  <div class="success-sub">Sua conta foi ativada. Os agentes estão entrando em operação agora.<br>Você receberá um email de confirmação em instantes.</div>
-  <a href="dashboard-usuario.html" class="btn-dashboard">→ Acessar meu dashboard</a>
+  <div class="success-sub">Sua assinatura foi ativada. Os agentes estão entrando em operação. Você receberá um email de confirmação em breve.</div>
+  <a href="dashboard-usuario.html" class="success-btn">→ Acessar meu dashboard</a>
 </div>
 
+<!-- CHECKOUT -->
 <div class="page" id="checkout-page">
 
-  <!-- ORDER SUMMARY -->
-  <div class="order-summary">
-    <div class="summary-card">
-      <div class="summary-title">Resumo do pedido</div>
+  <!-- ESQUERDA: SELEÇÃO DE PLANO + FORMULÁRIO -->
+  <div class="left">
 
-      <div class="plan-tabs">
-        <div class="plan-tab" onclick="switchPlan('basico',this)">Básico<br><span style="font-size:9px;font-weight:400">R$99/mês</span></div>
-        <div class="plan-tab active" onclick="switchPlan('plus',this)">Plus<br><span style="font-size:9px;font-weight:400">R$199/mês</span></div>
+    <div class="section-label">Escolha seu plano</div>
+    <div class="plans-wrap">
+
+      <!-- BÁSICO -->
+      <div class="plan-opt" id="opt-basico" onclick="selectPlan('basico')">
+        <div class="po-radio"></div>
+        <div class="po-top">
+          <div class="po-name">Básico</div>
+          <div class="po-price">R$99<span style="font-size:13px;font-weight:400;color:var(--g2)">/mês</span></div>
+        </div>
+        <div class="po-period">7 dias grátis para testar</div>
+        <div class="po-feats" style="margin-top:8px">5 agentes · Criativos gerados · Download manual</div>
       </div>
 
-      <div class="plan-row">
-        <div class="plan-row-name" id="plan-name">Plus</div>
-        <div class="plan-row-price" id="plan-price">R$199</div>
-      </div>
-      <div class="plan-period">/mês · cobrança recorrente</div>
-
-      <div class="feat-list" id="plan-features">
-        <div class="feat-item"><span class="feat-check">✓</span>7 Agentes de IA ativos</div>
-        <div class="feat-item"><span class="feat-check">✓</span>Estratégia mensal automática</div>
-        <div class="feat-item"><span class="feat-check">✓</span>Criativos gerados por IA</div>
-        <div class="feat-item"><span class="feat-check">✓</span>Aprovação simples na dashboard</div>
-        <div class="feat-item"><span class="feat-check">✓</span>Publicação automática via API</div>
-        <div class="feat-item"><span class="feat-check">✓</span>Relatório semanal de performance</div>
+      <!-- PLUS -->
+      <div class="plan-opt selected" id="opt-plus" onclick="selectPlan('plus')">
+        <div class="po-radio"></div>
+        <div class="po-top">
+          <div class="po-name">Plus ⭐</div>
+          <div class="po-price">R$199<span style="font-size:13px;font-weight:400;color:var(--g2)">/mês</span></div>
+        </div>
+        <div class="po-period">7 dias grátis · Mais popular</div>
+        <div class="po-feats" style="margin-top:8px">7 agentes · Publicação automática · Relatório semanal</div>
       </div>
 
-      <div class="total-row">
-        <div class="total-label">Total hoje</div>
-        <div class="total-value" id="total-value">R$199</div>
+      <!-- PRO — EM BREVE -->
+      <div class="plan-opt" id="opt-pro" style="opacity:.55;cursor:not-allowed;position:relative">
+        <div style="position:absolute;top:12px;right:12px;font-size:8px;font-weight:900;letter-spacing:2px;text-transform:uppercase;background:rgba(155,92,246,.15);color:#9B5CF6;border:1px solid rgba(155,92,246,.3);border-radius:10px;padding:3px 10px">Em breve</div>
+        <div class="po-top">
+          <div class="po-name" style="color:#9B5CF6">Pro</div>
+          <div class="po-price" style="color:#9B5CF6">R$399<span style="font-size:13px;font-weight:400;color:var(--g2)">/mês</span></div>
+        </div>
+        <div class="po-period">Lista de espera aberta</div>
+        <div class="po-feats" style="margin-top:8px">Tudo do Plus · Agente de Tráfego Pago · Meta Ads gerenciado por IA</div>
+        <div style="margin-top:10px">
+          <button onclick="event.stopPropagation();waitlistPro()" style="background:transparent;border:1px solid rgba(155,92,246,.3);color:#9B5CF6;border-radius:6px;padding:6px 14px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(155,92,246,.1)'" onmouseout="this.style.background='transparent'">
+            Entrar na lista →
+          </button>
+        </div>
       </div>
+
     </div>
 
-    <div class="guarantee-card">
-      <div class="guarantee-icon">🛡️</div>
-      <div class="guarantee-title">7 dias de garantia total</div>
-      <div class="guarantee-text">Se não gostar por qualquer motivo, cancele em até 7 dias e não pagará nada. Direito garantido pelo Código de Defesa do Consumidor — Art. 49 do CDC.</div>
-    </div>
-  </div>
-
-  <!-- FORM -->
-  <div class="checkout-form">
-
-    <!-- DADOS PESSOAIS -->
+    <div class="section-label">Seus dados</div>
     <div class="form-card">
-      <div class="form-title"><div class="form-section-num">1</div>Seus dados</div>
+      <div class="err" id="form-err"></div>
       <div class="field-row">
         <div class="field">
-          <label class="field-label">Nome</label>
-          <input class="field-input" type="text" id="nome" placeholder="João" required>
+          <label class="fl">Nome *</label>
+          <input class="fi" type="text" id="f-nome" placeholder="João" autocomplete="given-name">
         </div>
         <div class="field">
-          <label class="field-label">Sobrenome</label>
-          <input class="field-input" type="text" id="sobrenome" placeholder="Silva">
+          <label class="fl">Sobrenome</label>
+          <input class="fi" type="text" id="f-sobre" placeholder="Silva" autocomplete="family-name">
         </div>
       </div>
       <div class="field">
-        <label class="field-label">Email</label>
-        <input class="field-input" type="email" id="email" placeholder="seu@email.com" required>
-      </div>
-      <div class="field">
-        <label class="field-label">WhatsApp (para suporte)</label>
-        <input class="field-input" type="tel" id="whatsapp" placeholder="(11) 99999-9999">
-      </div>
-      <div class="field">
-        <label class="field-label">CPF (para nota fiscal)</label>
-        <input class="field-input" type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="formatCPF(this)">
+        <label class="fl">Email *</label>
+        <input class="fi" type="email" id="f-email" placeholder="seu@email.com" autocomplete="email">
       </div>
     </div>
 
-    <!-- PAGAMENTO -->
-    <div class="form-card">
-      <div class="form-title"><div class="form-section-num">2</div>Pagamento</div>
+    <button class="pay-btn" id="pay-btn" onclick="startCheckout()">
+      Continuar para o pagamento →
+    </button>
 
-      <div class="payment-brands">
-        <div class="brand-badge">VISA</div>
-        <div class="brand-badge">MASTERCARD</div>
-        <div class="brand-badge">ELO</div>
-        <div class="brand-badge">AMEX</div>
-        <div class="brand-badge" style="color:var(--green)">PIX</div>
-      </div>
-
-      <div class="pix-note">
-        💡 <span>Cartão de crédito — assinatura recorrente automática. PIX — disponível em breve.</span>
-      </div>
-
-      <div class="field">
-        <label class="field-label">Dados do cartão</label>
-        <div class="stripe-element-wrap" id="card-wrap">
-          <div id="card-element"></div>
-        </div>
-        <div class="card-error" id="card-error"></div>
-      </div>
-
-      <button class="btn-pay" id="pay-btn" onclick="processPayment()">
-        <span id="pay-label">→ Assinar por R$199/mês</span>
-        <div class="btn-pay-loading" id="pay-loading">
-          <div class="spinner"></div>
-          <span>Processando...</span>
-        </div>
-      </button>
-
+    <div class="stripe-note">
+      🔒 Você será redirecionado para o Stripe — pagamento 100% seguro
     </div>
 
-    <!-- SEGURANÇA -->
-    <div class="security-row">
-      <div class="sec-item"><span class="sec-icon">🔒</span>SSL 256-bit</div>
-      <div class="sec-item"><span class="sec-icon">🛡️</span>Stripe PCI-DSS</div>
-      <div class="sec-item"><span class="sec-icon">✓</span>Dados nunca armazenados</div>
-      <div class="sec-item"><span class="sec-icon">↩</span>7 dias de garantia</div>
+    <div class="security-row" style="margin-top:12px">
+      <div class="sec-item">🔒 SSL 256-bit</div>
+      <div class="sec-item">🛡️ Stripe PCI-DSS</div>
+      <div class="sec-item">↩ 7 dias de garantia</div>
+      <div class="sec-item">✕ Sem fidelidade</div>
     </div>
 
-    <br>
+  </div>
 
-    <div class="legal-text">
-      Ao assinar, você concorda com os <a href="#">Termos de uso</a> e a <a href="#">Política de privacidade</a>.
-      A cobrança de R$<span id="legal-price">199</span>/mês será realizada automaticamente até o cancelamento.
-      Você pode cancelar a qualquer momento na sua dashboard, sem multa.
-      Direito de arrependimento de 7 dias conforme Art. 49 do CDC (Lei nº 8.078/1990).
+  <!-- DIREITA: RESUMO -->
+  <div class="right">
+    <div class="summary-card">
+      <div class="summary-plan-name">Plano selecionado</div>
+      <div class="summary-title" id="sum-title">Plus</div>
+      <div class="summary-price" id="sum-price">R$199</div>
+      <div class="summary-period">/mês · cobrança recorrente</div>
+
+      <div class="summary-divider"></div>
+
+      <div id="sum-feats"></div>
+
+      <div class="trial-badge">
+        <div class="tb-title">🎁 7 dias grátis</div>
+        <div class="tb-text">Teste sem custo. Cancele antes do 7º dia e não pagará nada. Direito garantido pelo CDC Art. 49.</div>
+      </div>
     </div>
 
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:11px;color:var(--g1);line-height:1.6;text-align:center">
+      Cancele quando quiser · Sem multa · Sem fidelidade
+    </div>
   </div>
 
 </div>
 
 <script>
-// Stripe init — substitua pela sua chave pública real
-const stripe = Stripe('pk_live_51Tdy8KFirrEZk0ddQedGu6Joq58mxihg8i084pEycMXu8ce3slRnhj4n94JIZr9MAtUJhwzwxQ66KdxyizCmsQBl00J4UtZ4rv');
-const elements = stripe.elements({
-  appearance: {
-    theme: 'night',
-    variables: {
-      colorPrimary: '#00E676',
-      colorBackground: '#14141A',
-      colorText: '#FFFFFF',
-      colorDanger: '#FF4545',
-      borderRadius: '8px',
-    }
-  }
-});
-const cardElement = elements.create('card', {
-  style: {
-    base: {
-      color: '#FFFFFF',
-      fontFamily: "'Inter', sans-serif",
-      fontSize: '13px',
-      '::placeholder': { color: '#50505C' }
-    }
-  }
-});
-cardElement.mount('#card-element');
-cardElement.on('focus', ()=>document.getElementById('card-wrap').classList.add('focused'));
-cardElement.on('blur', ()=>document.getElementById('card-wrap').classList.remove('focused'));
-cardElement.on('change', e=>{
-  document.getElementById('card-error').textContent = e.error ? e.error.message : '';
-});
-
-// Planos
-const plans = {
+const PLANS = {
   basico: {
-    name: 'Básico', price: 'R$99', total: 'R$99', legalPrice: '99',
-    features: [
-      '5 Agentes de IA ativos','Estratégia mensal automática','Criativos gerados por IA','Dashboard de acompanhamento','Download manual dos criativos'
+    title: 'Básico',
+    price: 'R$99',
+    feats: [
+      'Agente de Identidade',
+      'Agente de Mercado',
+      'Agente de Diagnóstico',
+      'Agente de Estratégia',
+      'Agente Criativo',
+      'Download manual dos criativos',
+      'Dashboard completo',
     ]
   },
   plus: {
-    name: 'Plus', price: 'R$199', total: 'R$199', legalPrice: '199',
-    features: [
-      '7 Agentes de IA ativos','Estratégia mensal automática','Criativos gerados por IA','Aprovação simples na dashboard','Publicação automática via API','Relatório semanal de performance'
+    title: 'Plus',
+    price: 'R$199',
+    feats: [
+      'Tudo do Básico incluído',
+      'Agente de Publicação automática',
+      'Aprovação simples (1 clique)',
+      'Relatório semanal de performance',
+      'Histórico e otimização contínua',
     ]
   }
 };
 
 let currentPlan = 'plus';
 
-function switchPlan(plan, tab) {
-  currentPlan = plan;
-  document.querySelectorAll('.plan-tab').forEach(t=>t.classList.remove('active'));
-  tab.classList.add('active');
-  const p = plans[plan];
-  document.getElementById('plan-name').textContent = p.name;
-  document.getElementById('plan-price').textContent = p.price;
-  document.getElementById('total-value').textContent = p.total;
-  document.getElementById('legal-price').textContent = p.legalPrice;
-  document.getElementById('pay-label').textContent = `→ Assinar por ${p.price}/mês`;
-  const feats = document.getElementById('plan-features');
-  feats.innerHTML = p.features.map(f=>`<div class="feat-item"><span class="feat-check">✓</span>${f}</div>`).join('');
-}
-
 // Detectar plano da URL
-const params = new URLSearchParams(window.location.search);
+const params = new URLSearchParams(location.search);
 const planParam = params.get('plano');
-if (planParam === 'basico') {
-  document.querySelectorAll('.plan-tab')[0].click();
+if (planParam && PLANS[planParam]) selectPlan(planParam);
+else renderSummary();
+
+// Detectar retorno do Stripe
+if (params.get('payment') === 'success') {
+  document.getElementById('checkout-page').style.display = 'none';
+  document.getElementById('success-screen').style.display = 'flex';
+}
+if (params.get('cancelled') === 'true') {
+  const err = document.getElementById('form-err');
+  err.textContent = 'Pagamento cancelado. Tente novamente quando quiser.';
+  err.classList.add('show');
 }
 
-// CPF format
-function formatCPF(input) {
-  let v = input.value.replace(/\D/g,'');
-  if(v.length>11)v=v.slice(0,11);
-  v=v.replace(/(\d{3})(\d)/,'$1.$2')
-     .replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3')
-     .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4');
-  input.value=v;
+function waitlistPro() {
+  alert('Você entrou na lista de espera do plano Pro! Entraremos em contato quando lançar.');
 }
 
-async function processPayment() {
-  const errDiv = document.getElementById('card-error');
-  try {
+function selectPlan(plan) {
+  currentPlan = plan;
+  document.getElementById('opt-basico').classList.toggle('selected', plan === 'basico');
+  document.getElementById('opt-plus').classList.toggle('selected', plan === 'plus');
+  // Pro não é selecionável
+  renderSummary();
+}
+
+function renderSummary() {
+  const p = PLANS[currentPlan];
+  document.getElementById('sum-title').textContent = p.title;
+  document.getElementById('sum-price').textContent = p.price;
+  document.getElementById('sum-feats').innerHTML = p.feats.map(f =>
+    `<div class="summary-feat"><span class="sf-check">✓</span>${f}</div>`
+  ).join('');
+}
+
+async function startCheckout() {
+  const nome  = document.getElementById('f-nome').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const err   = document.getElementById('form-err');
+  err.classList.remove('show');
+
+  if (!nome)  { err.textContent = 'Digite seu nome.'; err.classList.add('show'); return; }
+  if (!email) { err.textContent = 'Digite seu email.'; err.classList.add('show'); return; }
+  if (!email.includes('@')) { err.textContent = 'Email inválido.'; err.classList.add('show'); return; }
+
   const btn = document.getElementById('pay-btn');
-  const label = document.getElementById('pay-label');
-  const loading = document.getElementById('pay-loading');
-  const errDiv = document.getElementById('card-error');
-
-  const email = document.getElementById('email').value;
-  const nome = document.getElementById('nome').value;
-  if (!email || !nome) { errDiv.textContent = 'Preencha nome e email.'; return; }
-
   btn.disabled = true;
-  label.style.display = 'none';
-  loading.style.display = 'flex';
-  errDiv.textContent = '';
+  btn.innerHTML = '<div class="spinner"></div><span>Redirecionando...</span>';
 
-  // TODO: Criar PaymentIntent no backend (Vercel Function)
-  // const res = await fetch('/api/create-payment-intent', {
-  //   method: 'POST',
-  //   headers: {'Content-Type':'application/json'},
-  //   body: JSON.stringify({ plan: currentPlan, email, name: nome })
-  // });
-  // const { clientSecret } = await res.json();
-  // const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-  //   payment_method: { card: cardElement, billing_details: { name: nome, email } }
-  // });
+  try {
+    const res = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plano: currentPlan,
+        email,
+        nome: nome + ' ' + (document.getElementById('f-sobre').value.trim() || '')
+      })
+    });
 
-  // Chamar Vercel Function para criar sessão Stripe
-  const email = document.getElementById('email').value;
-  const nome  = document.getElementById('nome').value;
+    const data = await res.json();
 
-  const res = await fetch('/api/create-checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plano: currentPlan, email, nome })
-  });
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || 'Erro ao criar sessão de pagamento');
+    }
 
-  const data = await res.json();
+    window.location.href = data.url;
 
-  if (!res.ok || !data.url) {
-    throw new Error(data.error || 'Erro ao criar sessão de pagamento');
-  }
-
-  // Redirecionar para o Stripe Checkout
-  window.location.href = data.url;
-
-  } catch (err) {
-    console.error('Erro no pagamento:', err);
-    errDiv.textContent = 'Erro: ' + err.message;
+  } catch(e) {
     btn.disabled = false;
-    label.style.display = 'inline';
-    loading.style.display = 'none';
+    btn.textContent = 'Continuar para o pagamento →';
+    err.textContent = 'Erro: ' + e.message + '. Tente novamente.';
+    err.classList.add('show');
+    console.error(e);
   }
 }
 </script>
