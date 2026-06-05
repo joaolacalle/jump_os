@@ -397,7 +397,7 @@ async function doSignup() {
       email,
       password: senha,
       options: {
-        emailRedirectTo: 'https://jum-os.vercel.app/login.html',
+        emailRedirectTo: 'https://jump-os-one.vercel.app/login.html',
         data: {
           nome: nome + (sobre ? ' ' + sobre : ''),
           whatsapp: wpp,
@@ -473,7 +473,7 @@ async function doResetPass() {
     return;
   }
   const { error } = await supa.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://jum-os.vercel.app/login.html'
+    redirectTo: 'https://jump-os-one.vercel.app/login.html'
   });
   if (error) {
     showErr('login', 'Erro ao enviar email de reset: ' + error.message);
