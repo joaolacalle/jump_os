@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JUM OS — Pagamento Seguro</title>
+<title>JUMP OS — Pagamento Seguro</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <!-- Stripe.js — carregado do servidor Stripe para máxima segurança -->
 <script src="https://js.stripe.com/v3/"></script>
@@ -101,7 +101,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
 <body>
 
 <div class="topbar">
-  <div class="brand">JUM <span>OS</span></div>
+  <div class="brand">JUMP <span>OS</span></div>
   <div class="secure-badge"><div class="secure-dot"></div>Pagamento 100% seguro — Stripe</div>
 </div>
 
@@ -240,7 +240,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:
 
 <script>
 // Stripe init — substitua pela sua chave pública real
-const stripe = Stripe('pk_test_SUBSTITUA_PELA_SUA_CHAVE_PUBLICA');
+const stripe = Stripe('pk_live_51Tdy8KFirrEZk0ddQedGu6Joq58mxihg8i084pEycMXu8ce3slRnhj4n94JIZr9MAtUJhwzwxQ66KdxyizCmsQBl00J4UtZ4rv');
 const elements = stripe.elements({
   appearance: {
     theme: 'night',
@@ -347,14 +347,28 @@ async function processPayment() {
   //   payment_method: { card: cardElement, billing_details: { name: nome, email } }
   // });
 
-  // SIMULAÇÃO (remover em produção):
-  setTimeout(() => {
-    document.getElementById('checkout-page').style.display = 'none';
-    document.getElementById('success-screen').style.display = 'block';
-  }, 2000);
+  // Chamar Vercel Function para criar sessão Stripe
+  const email = document.getElementById('email').value;
+  const nome  = document.getElementById('nome').value;
+
+  const res = await fetch('/api/create-checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plano: currentPlan, email, nome })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.url) {
+    throw new Error(data.error || 'Erro ao criar sessão de pagamento');
+  }
+
+  // Redirecionar para o Stripe Checkout
+  window.location.href = data.url;
+
   } catch (err) {
     console.error('Erro no pagamento:', err);
-    errDiv.textContent = 'Erro ao processar pagamento. Tente novamente.';
+    errDiv.textContent = 'Erro: ' + err.message;
     btn.disabled = false;
     label.style.display = 'inline';
     loading.style.display = 'none';
