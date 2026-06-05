@@ -34,8 +34,8 @@ module.exports = async (req, res) => {
         trial_period_days: 7,
         metadata: { plano, nome: nome || '' }
       },
-      success_url: `https://jum-os.vercel.app/dashboard-usuario.html?payment=success`,
-      cancel_url:  `https://jum-os.vercel.app/checkout.html?plano=${plano}&cancelled=true`,
+      success_url: `https://jump-os-one.vercel.app/dashboard-usuario.html?payment=success`,
+      cancel_url:  `https://jump-os-one.vercel.app/checkout.html?plano=${plano}&cancelled=true`,
       metadata: { plano, nome: nome || '', email: email || '' }
     });
 
