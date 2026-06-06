@@ -2,8 +2,8 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const PRICE_IDS = {
-  basico: 'price_1TdyWmFirrEZk0ddzLJq3Lcu',
-  plus:   'price_1TdyYvFirrEZk0dd4vlrwFoj',
+  basico: 'price_1TfPbFFirrEZk0ddSOfo3XmD',
+  plus:   'price_1TfPaoFirrEZk0ddL06e5wBi',
 };
 
 module.exports = async (req, res) => {
