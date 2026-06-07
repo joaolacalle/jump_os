@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Política de Privacidade</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060607;--panel:#0F0F12;--border:#1E1E26;--green:#00E676;--white:#fff;--g1:#9090A0;--g2:#50505C}
+body{background:var(--bg);color:var(--white);font-family:'Inter',sans-serif;line-height:1.7}
+.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,48px)}
+.brand{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase;text-decoration:none;color:var(--white)}
+.brand span{color:var(--green)}
+.back{font-size:12px;color:var(--g1);text-decoration:none}
+.back:hover{color:var(--white)}
+.page{max-width:740px;margin:0 auto;padding:clamp(40px,8vw,60px) clamp(20px,5vw,40px) 80px}
+.tag{font-size:9px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--green);margin-bottom:10px;font-family:'Space Mono',monospace}
+h1{font-size:clamp(26px,4vw,36px);font-weight:900;text-transform:uppercase;letter-spacing:-.5px;margin-bottom:8px}
+.updated{font-size:12px;color:var(--g2);margin-bottom:40px}
+h2{font-size:clamp(15px,2vw,18px);font-weight:800;text-transform:uppercase;margin:32px 0 12px;padding-top:8px;border-top:1px solid var(--border)}
+p{font-size:clamp(13px,1.5vw,15px);color:var(--g1);margin-bottom:14px}
+ul{list-style:none;margin-bottom:14px}
+ul li{font-size:clamp(13px,1.5vw,15px);color:var(--g1);padding:5px 0 5px 16px;position:relative}
+ul li::before{content:'→';position:absolute;left:0;color:var(--green);font-size:12px}
+strong{color:var(--white)}
+.highlight{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.15);border-radius:8px;padding:16px 20px;margin:20px 0}
+.highlight p{margin-bottom:0;color:var(--white)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="home.html" class="brand">JUMP <span>OS</span></a>
+  <a href="home.html" class="back">← Voltar</a>
+</div>
+<div class="page">
+  <div class="tag">Documento legal</div>
+  <h1>Política de Privacidade</h1>
+  <div class="updated">Última atualização: 1 de junho de 2026 · Em conformidade com a LGPD (Lei nº 13.709/2018)</div>
+
+  <div class="highlight">
+    <p>Esta política descreve como coletamos, usamos e protegemos seus dados pessoais. Levamos sua privacidade a sério e operamos em conformidade com a Lei Geral de Proteção de Dados (LGPD).</p>
+  </div>
+
+  <h2>1. Dados que Coletamos</h2>
+  <p><strong>Dados de cadastro:</strong></p>
+  <ul>
+    <li>Nome completo, e-mail, telefone/WhatsApp</li>
+    <li>CPF (apenas para emissão de nota fiscal)</li>
+    <li>Dados de pagamento (processados pelo Stripe — não armazenamos cartão)</li>
+  </ul>
+  <p><strong>Dados do negócio (fornecidos no check-in):</strong></p>
+  <ul>
+    <li>Informações sobre seu negócio, público-alvo e objetivos</li>
+    <li>Logotipo, fotos e materiais de marca enviados voluntariamente</li>
+  </ul>
+  <p><strong>Dados das redes sociais (mediante autorização):</strong></p>
+  <ul>
+    <li>Métricas públicas do Instagram (alcance, engajamento)</li>
+    <li>Acesso para publicação (somente após sua autorização via OAuth)</li>
+  </ul>
+  <p><strong>Dados de uso do sistema:</strong></p>
+  <ul>
+    <li>Logs de acesso, ações na plataforma, conteúdos aprovados/rejeitados</li>
+    <li>Preferências e configurações de conta</li>
+  </ul>
+
+  <h2>2. Como Usamos seus Dados</h2>
+  <ul>
+    <li>Para personalizar a estratégia e conteúdo gerado pelos agentes de IA</li>
+    <li>Para processar pagamentos e gerenciar sua assinatura</li>
+    <li>Para enviar comunicações relacionadas ao serviço (transacionais)</li>
+    <li>Para melhorar o sistema com dados agregados e anonimizados</li>
+    <li>Para cumprir obrigações legais e fiscais</li>
+  </ul>
+
+  <h2>3. Compartilhamento de Dados</h2>
+  <p>Seus dados pessoais identificáveis <strong>nunca são vendidos</strong>. Compartilhamos apenas com:</p>
+  <ul>
+    <li><strong>Stripe:</strong> processamento de pagamentos (certificação PCI-DSS)</li>
+    <li><strong>Supabase:</strong> armazenamento seguro de dados (servidores na UE/EUA)</li>
+    <li><strong>Anthropic / Leonardo AI:</strong> processamento de IA (dados anonimizados)</li>
+    <li><strong>Meta/Instagram:</strong> publicação automática (somente com sua autorização)</li>
+    <li><strong>Resend:</strong> envio de e-mails transacionais</li>
+  </ul>
+  <p>Todos os fornecedores são submetidos a avaliação de conformidade com LGPD/GDPR.</p>
+
+  <h2>4. Seus Direitos (LGPD Art. 18)</h2>
+  <ul>
+    <li><strong>Confirmação e acesso:</strong> saber quais dados temos sobre você</li>
+    <li><strong>Correção:</strong> atualizar dados incompletos ou incorretos</li>
+    <li><strong>Anonimização ou exclusão:</strong> solicitar remoção de dados desnecessários</li>
+    <li><strong>Portabilidade:</strong> exportar seus dados em formato estruturado</li>
+    <li><strong>Revogação do consentimento:</strong> retirar permissões a qualquer momento</li>
+    <li><strong>Oposição:</strong> se opor ao tratamento em casos previstos na lei</li>
+  </ul>
+  <p>Para exercer qualquer um desses direitos, envie e-mail para: <strong>privacidade@jumpos.com.br</strong></p>
+
+  <h2>5. Retenção de Dados</h2>
+  <ul>
+    <li>Dados de conta ativa: mantidos enquanto a assinatura estiver ativa</li>
+    <li>Após cancelamento: dados mantidos por 90 dias para eventual reativação</li>
+    <li>Após 90 dias: exclusão definitiva mediante solicitação ou automaticamente</li>
+    <li>Logs do sistema: excluídos automaticamente após 90 dias</li>
+    <li>Dados fiscais: mantidos pelo prazo legal de 5 anos (obrigação tributária)</li>
+  </ul>
+
+  <h2>6. Segurança</h2>
+  <ul>
+    <li>Transmissão criptografada via HTTPS/TLS em todas as comunicações</li>
+    <li>Senhas armazenadas com hash bcrypt (nunca em texto claro)</li>
+    <li>Acesso ao banco de dados restrito por Row Level Security (RLS)</li>
+    <li>Tokens de acesso ao Instagram armazenados criptografados</li>
+    <li>Autenticação de dois fatores disponível para conta admin</li>
+  </ul>
+
+  <h2>7. Cookies</h2>
+  <p>Usamos apenas cookies estritamente necessários para manter sua sessão logada. Não usamos cookies de rastreamento de terceiros para fins publicitários.</p>
+
+  <h2>8. Menores de Idade</h2>
+  <p>O JUMP OS não é destinado a menores de 18 anos. Não coletamos intencionalmente dados de crianças ou adolescentes. Se identificarmos tal situação, a conta será encerrada e os dados excluídos.</p>
+
+  <h2>9. Contato e DPO</h2>
+  <p>Responsável pelo tratamento de dados: João Vittor<br>
+  E-mail: <strong>privacidade@jumpos.com.br</strong><br>
+  Endereço: São José do Rio Preto, SP, Brasil</p>
+</div>
+<footer style="border-top:1px solid #1A2030;padding:24px;text-align:center;margin-top:40px"><div style="font-size:13px;color:#3A4A5A">JUMP OS · <a href="termos.html" style="color:#7888A0;text-decoration:none">Termos</a> · <a href="privacidade.html" style="color:#7888A0;text-decoration:none">Privacidade</a> · <a href="reembolso.html" style="color:#7888A0;text-decoration:none">Reembolso</a></div></footer></body>
+</html>
