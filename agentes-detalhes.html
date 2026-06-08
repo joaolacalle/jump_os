@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Como cada agente funciona</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:hidden}
+:root{
+  --ch:#141312;--ch2:#1C1A18;--ch3:#242220;
+  --g:#00E676;--g2:#00FF8A;--g3:#00C25A;
+  --glow:rgba(0,230,118,.18);
+  --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
+  --bd:rgba(245,242,236,.08);
+  --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
+}
+body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:17px;line-height:1.7;overflow-x:hidden}
+img{display:block;max-width:100%}a{text-decoration:none;color:inherit}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--ch)}::-webkit-scrollbar-thumb{background:var(--g)}
+
+/* Grain */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.028;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px 160px;mix-blend-mode:overlay}
+
+/* Topbar */
+.topbar{height:64px;background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,56px);position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)}
+.tb-logo{display:flex;align-items:center;gap:8px}
+.tb-logo img{height:32px;object-fit:contain}
+.tb-logo-t{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;color:var(--t1);display:none}
+.tb-logo-t span{color:var(--g)}
+.tb-back{font-size:13px;font-weight:600;color:var(--t2);transition:.2s;display:flex;align-items:center;gap:6px}
+.tb-back:hover{color:var(--g)}
+.tb-cta{padding:8px 20px;background:var(--g);border-radius:8px;font-size:13px;font-weight:800;color:#000;transition:.2s}
+.tb-cta:hover{background:var(--g2)}
+
+/* Page header */
+.page-header{padding:clamp(60px,10vw,100px) clamp(20px,5vw,56px) clamp(44px,7vw,70px);background:var(--ch);position:relative;overflow:hidden;text-align:center}
+.page-header::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(245,242,236,.06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.ph-glow{position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:600px;height:400px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,230,118,.1) 0%,transparent 65%);pointer-events:none}
+.ph-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:20px;padding:6px 14px;margin-bottom:24px;font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--g);position:relative;z-index:1}
+.ph-h{font-family:var(--D);font-size:clamp(44px,7vw,88px);text-transform:uppercase;line-height:.93;letter-spacing:.3px;margin-bottom:16px;position:relative;z-index:1}
+.ph-sub{font-size:clamp(16px,2vw,20px);color:var(--t2);line-height:1.75;max-width:620px;margin:0 auto;position:relative;z-index:1}
+
+/* Process strip */
+.process-strip{background:var(--ch2);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:clamp(28px,4vw,44px) clamp(20px,5vw,56px)}
+.ps-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(20px,3vw,36px)}
+.ps-step{text-align:center;position:relative}
+.ps-step:not(:last-child)::after{content:'→';position:absolute;top:18px;right:calc(-1 * clamp(10px,1.5vw,18px));color:rgba(0,230,118,.3);font-size:clamp(14px,2vw,18px)}
+.ps-num{width:40px;height:40px;border-radius:50%;background:rgba(0,230,118,.1);border:1.5px solid rgba(0,230,118,.3);display:flex;align-items:center;justify-content:center;font-family:var(--M);font-size:13px;font-weight:700;color:var(--g);margin:0 auto 12px}
+.ps-title{font-size:clamp(13px,1.6vw,15px);font-weight:800;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;color:var(--t1)}
+.ps-txt{font-size:clamp(11px,1.4vw,13px);color:var(--t2);line-height:1.6}
+
+/* Agent sections */
+.agents-wrap{max-width:1100px;margin:0 auto;padding:0 clamp(20px,5vw,56px)}
+/* Each agent block */
+.ag-block{padding:clamp(56px,9vw,88px) 0;border-bottom:1px solid var(--bd);position:relative}
+.ag-block:last-child{border-bottom:none}
+/* Number fundo */
+.ag-bg-num{position:absolute;right:-20px;top:50%;transform:translateY(-50%);font-family:var(--D);font-size:clamp(120px,18vw,200px);color:rgba(245,242,236,.02);line-height:1;pointer-events:none;user-select:none}
+.ag-grid{display:grid;grid-template-columns:300px 1fr;gap:clamp(40px,6vw,80px);align-items:start}
+/* Left col */
+.ag-left{position:sticky;top:80px}
+.ag-num{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--t3);margin-bottom:14px}
+.ag-ico-big{font-size:clamp(44px,6vw,64px);margin-bottom:18px}
+.ag-name-big{font-family:var(--D);font-size:clamp(32px,4.5vw,52px);letter-spacing:1px;text-transform:uppercase;line-height:1;margin-bottom:10px}
+.ag-plan-pill{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:5px 12px;font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:1px solid;margin-bottom:16px}
+.ag-headline{font-size:clamp(15px,1.8vw,17px);color:var(--t2);line-height:1.7;margin-bottom:20px}
+/* CTA mini */
+.ag-cta-mini{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);border-radius:8px;font-size:12px;font-weight:700;color:var(--g);letter-spacing:.5px;text-transform:uppercase;font-family:var(--M);transition:.2s}
+.ag-cta-mini:hover{background:rgba(0,230,118,.18)}
+/* Right col */
+.ag-right{}
+/* Operation cards */
+.op-list{display:flex;flex-direction:column;gap:clamp(14px,2vw,20px);margin-bottom:clamp(24px,4vw,36px)}
+.op-card{background:var(--ch2);border:1px solid var(--bd);border-radius:12px;padding:clamp(18px,2.5vw,26px);transition:.25s}
+.op-card:hover{border-color:rgba(0,230,118,.2);transform:translateX(4px)}
+.op-n{font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.op-title{font-size:clamp(15px,1.8vw,18px);font-weight:800;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;color:var(--t1)}
+.op-desc{font-size:clamp(13px,1.5vw,15px);color:var(--t2);line-height:1.65}
+.op-card:hover .op-title{color:var(--g)}
+/* Input/Output */
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,18px)}
+.io-box{background:rgba(0,0,0,.2);border:1px solid var(--bd);border-radius:10px;padding:clamp(14px,2vw,20px)}
+.io-lbl{font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+.io-in .io-lbl{color:rgba(255,100,100,.6)}.io-out .io-lbl{color:rgba(0,230,118,.6)}
+.io-item{font-size:clamp(12px,1.4vw,13px);color:var(--t2);padding:5px 0;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;gap:7px;line-height:1.4;font-family:var(--M)}
+.io-item:last-child{border-bottom:none}
+.io-in .io-item::before{content:'←';color:rgba(255,100,100,.5);flex-shrink:0;font-size:9px;margin-top:2px}
+.io-out .io-item::before{content:'→';color:var(--g);flex-shrink:0;font-size:9px;margin-top:2px;opacity:.7}
+/* Section divider label */
+.ag-section-lbl{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:clamp(16px,2.5vw,22px);display:flex;align-items:center;gap:10px}
+.ag-section-lbl::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+/* CTA final */
+.final-cta{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(56px,10vw,100px) clamp(20px,5vw,56px);text-align:center}
+.fc-h{font-family:var(--D);font-size:clamp(36px,6vw,72px);text-transform:uppercase;line-height:.93;margin-bottom:16px}
+.fc-h em{color:var(--g);font-style:normal}
+.fc-sub{font-size:clamp(15px,1.8vw,18px);color:var(--t2);margin-bottom:32px}
+.fc-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.fc-g{padding:14px 36px;background:var(--g);color:#000;border-radius:9px;font-size:15px;font-weight:800;transition:.2s}
+.fc-g:hover{background:var(--g2);transform:translateY(-2px)}
+.fc-o{padding:14px 36px;border:1px solid var(--bd);color:var(--t1);border-radius:9px;font-size:15px;font-weight:700;transition:.2s}
+.fc-o:hover{border-color:var(--g);color:var(--g)}
+
+.rv{opacity:0;transform:translateY(32px)}
+@media(max-width:800px){
+  .ag-grid{grid-template-columns:1fr}.ag-left{position:static}
+  .ps-inner{grid-template-columns:1fr 1fr}
+  .ps-step:nth-child(2)::after{display:none}
+  .io-grid{grid-template-columns:1fr}
+}
+@media(max-width:500px){.ps-inner{grid-template-columns:1fr}.ps-step::after{display:none!important}}
+</style>
+</head>
+<body>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-logo">
+    <img src="assets/logo-light.jpg" alt="JUMP OS" onerror="this.style.display='none';document.getElementById('tlt').style.display='block'">
+    <div class="tb-logo-t" id="tlt">JUMP <span>OS</span></div>
+  </div>
+  <a href="home.html" class="tb-back">← Voltar ao site</a>
+  <a href="login.html?plano=plus" class="tb-cta">Ativar agentes →</a>
+</div>
+
+<!-- HEADER -->
+<div class="page-header">
+  <div class="ph-glow"></div>
+  <div class="ph-tag">Sistema de 8 Agentes</div>
+  <h1 class="ph-h">Como cada<br>agente funciona.</h1>
+  <p class="ph-sub">Cada agente tem uma função específica, entradas e saídas claras. Juntos, formam um sistema completo de marketing.</p>
+</div>
+
+<!-- PROCESS FLOW -->
+<div class="process-strip">
+  <div class="ps-inner">
+    <div class="ps-step rv"><div class="ps-num">1</div><div class="ps-title">Check-in único</div><div class="ps-txt">Você conta sobre o negócio uma vez. O sistema cria o perfil completo.</div></div>
+    <div class="ps-step rv"><div class="ps-num">2</div><div class="ps-title">Diagnóstico automático</div><div class="ps-txt">Os agentes analisam seu Instagram e seus concorrentes.</div></div>
+    <div class="ps-step rv"><div class="ps-num">3</div><div class="ps-title">Geração de conteúdo</div><div class="ps-txt">Calendário, copies, criativos e roteiros prontos para aprovação.</div></div>
+    <div class="ps-step rv"><div class="ps-num">4</div><div class="ps-title">Publicação e relatório</div><div class="ps-txt">Aprovação com 1 clique. Publicação automática. Resultado monitorado.</div></div>
+  </div>
+</div>
+
+<!-- AGENTS DETAIL -->
+<div class="agents-wrap" id="agentes-detail">
+
+  <!-- AG 01 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">01</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 01</div>
+        <div class="ag-ico-big">🎨</div>
+        <div class="ag-name-big" style="color:var(--g)">Identidade</div>
+        <div class="ag-plan-pill" style="color:rgba(0,230,118,.8);border-color:rgba(0,230,118,.3);background:rgba(0,230,118,.07)">✦ Todos os planos</div>
+        <div class="ag-headline">Cria o DNA completo de comunicação da sua marca. Usado como referência por todos os outros agentes.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar agente →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Análise de negócio e público</div><div class="op-desc">O agente faz um check-in estruturado com perguntas sobre seu segmento, público-alvo, diferenciais e objetivos. Mapeia tudo que é relevante para a comunicação do seu negócio sem que você precise repetir nada nos próximos meses.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Geração de identidade visual e tom</div><div class="op-desc">Com base no check-in, define a paleta de cores ideal, o tom de voz (formal, descontraído, técnico, motivacional), as palavras que devem e não devem aparecer na sua comunicação. Cria um guia de identidade personalizado.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Definição do posicionamento único</div><div class="op-desc">Identifica o que torna seu negócio diferente de todos os concorrentes e transforma isso em um posicionamento claro — a frase que resume por que seu cliente deve escolher você. Base para toda a estratégia de conteúdo.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Você fornece</div><div class="io-item">Nome e segmento do negócio</div><div class="io-item">Público-alvo desejado</div><div class="io-item">Principais produtos/serviços</div><div class="io-item">Diferencial percebido</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Perfil de marca completo</div><div class="io-item">Paleta de cores definida</div><div class="io-item">Tom de voz documentado</div><div class="io-item">Posicionamento único</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 02 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">02</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 02</div>
+        <div class="ag-ico-big">🔍</div>
+        <div class="ag-name-big" style="color:rgba(0,212,255,.9)">Mercado</div>
+        <div class="ag-plan-pill" style="color:rgba(0,212,255,.8);border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.07)">✦ Todos os planos</div>
+        <div class="ag-headline">Analisa o que está funcionando no seu nicho e onde seus concorrentes estão deixando espaço.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar agente →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Mapeamento de concorrentes</div><div class="op-desc">Identifica os principais perfis que disputam atenção com você no Instagram. Analisa frequência de postagem, formatos usados, engajamento médio e posicionamento. Gera um mapa competitivo claro do seu nicho.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Análise de benchmarks</div><div class="op-desc">Compara seu desempenho atual com as médias do seu nicho. Identifica quais tipos de conteúdo geram mais resultado entre seus concorrentes diretos — e quais estão sendo ignorados.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Identificação de lacunas</div><div class="op-desc">Encontra os temas, formatos e abordagens que nenhum concorrente está explorando bem. Essas lacunas se tornam oportunidades de posicionamento exclusivo para o seu perfil.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Você fornece</div><div class="io-item">Perfil de identidade (Ag. 01)</div><div class="io-item">Principais concorrentes</div><div class="io-item">Nicho e localização</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Mapa de concorrência</div><div class="io-item">Benchmarks do nicho</div><div class="io-item">Lacunas identificadas</div><div class="io-item">Oportunidades de conteúdo</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 03 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">03</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 03</div>
+        <div class="ag-ico-big">📊</div>
+        <div class="ag-name-big" style="color:rgba(124,255,107,.9)">Diagnóstico</div>
+        <div class="ag-plan-pill" style="color:rgba(124,255,107,.8);border-color:rgba(124,255,107,.3);background:rgba(124,255,107,.06)">✦ Todos os planos</div>
+        <div class="ag-headline">Conecta no seu Instagram e analisa o que realmente está funcionando — dado real, não opinião.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar agente →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Métricas reais de alcance</div><div class="op-desc">Analisa seus posts dos últimos 90 dias. Identifica taxa de alcance real (seguidores que viram o post vs. total de seguidores), taxa de engajamento por formato, e quais posts geraram mais visitas ao perfil.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Identificação dos melhores horários</div><div class="op-desc">Cruza os dados de quando seu público está online com o desempenho histórico dos seus posts. Define uma janela de publicação personalizada — não uma regra genérica, mas baseada no comportamento real do seu público.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Formatos que convertem</div><div class="op-desc">Compara o desempenho entre Reels, carrosséis, posts estáticos e Stories. Identifica qual formato leva mais pessoas a clicar no link da bio, mandar DM ou salvar o conteúdo — as ações que antecipam clientes.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Você fornece</div><div class="io-item">Acesso à conta Instagram</div><div class="io-item">Período de análise desejado</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Relatório de alcance real</div><div class="io-item">Ranking de formatos</div><div class="io-item">Melhores horários</div><div class="io-item">Posts com maior conversão</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 04 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">04</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 04</div>
+        <div class="ag-ico-big">📋</div>
+        <div class="ag-name-big" style="color:var(--g)">Estratégia</div>
+        <div class="ag-plan-pill" style="color:rgba(0,230,118,.8);border-color:rgba(0,230,118,.3);background:rgba(0,230,118,.07)">✦ Todos os planos</div>
+        <div class="ag-headline">Transforma os dados de todos os agentes anteriores em um plano editorial mensal completo e pronto para executar.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar agente →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Calendário editorial do mês</div><div class="op-desc">Gera um calendário completo com as datas de postagem, o formato ideal para cada data, o pilar de conteúdo (autoridade, educação, entretenimento, oferta) e a chamada para ação específica de cada post.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Copies e legendas prontas</div><div class="op-desc">Escreve as legendas completas de cada post no tom de voz da sua marca. Inclui gancho inicial (hook), corpo do texto, CTA e sugestão de hashtags. Tudo personalizado — nada genérico.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Roteiros para Reels e VSL</div><div class="op-desc">Cria roteiros completos para vídeos curtos com estrutura de hook (primeiros 3 segundos), desenvolvimento e CTA final. Inclui sugestões de corte, texto na tela e trilha sonora ideal para cada conteúdo.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Agentes anteriores fornecem</div><div class="io-item">Perfil de identidade</div><div class="io-item">Lacunas de mercado</div><div class="io-item">Horários e formatos ideais</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Calendário do mês completo</div><div class="io-item">Copies e legendas prontas</div><div class="io-item">Roteiros de Reels e VSL</div><div class="io-item">Estratégia de hashtags</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 05 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">05</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 05</div>
+        <div class="ag-ico-big">🖼</div>
+        <div class="ag-name-big" style="color:rgba(64,255,191,.9)">Criativo</div>
+        <div class="ag-plan-pill" style="color:rgba(64,255,191,.8);border-color:rgba(64,255,191,.3);background:rgba(64,255,191,.06)">✦ Todos os planos</div>
+        <div class="ag-headline">Gera criativos visuais personalizados com a identidade visual da sua marca — não templates genéricos.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar agente →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Imagens com identidade visual</div><div class="op-desc">Cria os designs das imagens do feed usando as cores, tipografia e estilo definidos pelo Agente de Identidade. Cada imagem gerada segue o visual da sua marca — não parece feita em template.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Thumbnails e capas para Reels</div><div class="op-desc">Gera as capas dos Reels com texto chamativo, imagem de destaque e identidade visual consistente. A capa é o que determina se alguém vai clicar ou passar — o agente otimiza para clique.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Artes para carrossel e feed</div><div class="op-desc">Cria sequências de carrossel com hierarquia visual clara: capa chamativa, slides de conteúdo e slide final de CTA. Otimizado para salvar (métrica mais importante de engajamento profundo).</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">O agente recebe</div><div class="io-item">Identidade visual da marca</div><div class="io-item">Calendário e copies (Ag. 04)</div><div class="io-item">Fotos da marca (quando disponível)</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Imagens de feed prontas</div><div class="io-item">Capas de Reels</div><div class="io-item">Slides de carrossel</div><div class="io-item">Arquivos para download/publicação</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 06 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">06</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 06</div>
+        <div class="ag-ico-big">📅</div>
+        <div class="ag-name-big" style="color:rgba(0,191,160,.9)">Publicação</div>
+        <div class="ag-plan-pill" style="color:rgba(0,191,160,.8);border-color:rgba(0,191,160,.3);background:rgba(0,191,160,.07)">✦ Plano Plus</div>
+        <div class="ag-headline">Publica automaticamente no seu Instagram após sua aprovação — nos horários ideais para o seu público.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini">Ativar com Plus →</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Agendamento inteligente</div><div class="op-desc">Agenda cada post para o horário de maior alcance identificado pelo Agente de Diagnóstico. O agendamento considera o dia da semana, tipo de conteúdo e comportamento histórico do seu público específico.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Publicação automática via Meta API</div><div class="op-desc">Após sua aprovação com 1 clique, o sistema publica automaticamente no Instagram usando a API oficial da Meta. Feed, Reels e carrosséis — tudo publicado no horário certo, sem você precisar abrir o app.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Relatório de performance pós-post</div><div class="op-desc">48 horas após cada publicação, gera um relatório do desempenho: alcance, engajamento, cliques no perfil e DMs gerados. Usa esses dados para otimizar as próximas publicações automaticamente.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">O agente recebe</div><div class="io-item">Criativos aprovados (Ag. 05)</div><div class="io-item">Copies aprovadas (Ag. 04)</div><div class="io-item">Sua aprovação com 1 clique</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Post publicado no horário certo</div><div class="io-item">Confirmação de publicação</div><div class="io-item">Relatório de performance 48h</div><div class="io-item">Dados para próximo ciclo</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 07 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">07</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 07</div>
+        <div class="ag-ico-big">📢</div>
+        <div class="ag-name-big" style="color:rgba(168,85,247,.9)">Tráfego</div>
+        <div class="ag-plan-pill" style="color:rgba(168,85,247,.8);border-color:rgba(168,85,247,.3);background:rgba(168,85,247,.07)">✦ Plano Pro — Em breve</div>
+        <div class="ag-headline">Gerencia suas campanhas de Meta Ads com inteligência — 4 públicos simultâneos, otimização automática de budget.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini" style="opacity:.6;cursor:not-allowed">Em breve</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Estrutura de 4 públicos</div><div class="op-desc">Cria 4 conjuntos de anúncios simultâneos: público quente (seguidores e visitantes), público similar (lookalike), público por interesse e retargeting. Cada um com criativos e copies diferentes otimizados para seu estágio no funil.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Otimização automática de budget</div><div class="op-desc">Monitora o desempenho de cada conjunto de anúncios a cada 24 horas. Realoca budget automaticamente dos públicos com custo por resultado maior para os que estão performando melhor — maximizando cada real investido.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Relatório semanal de ROAS</div><div class="op-desc">Gera relatório semanal com retorno sobre investimento em anúncios (ROAS), custo por lead, custo por clique e projeção do mês. Inclui recomendações automáticas de ajuste baseadas no histórico.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Você fornece</div><div class="io-item">Budget mensal de anúncios</div><div class="io-item">Objetivo da campanha</div><div class="io-item">Criativos aprovados</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">4 campanhas ativas</div><div class="io-item">Otimização de budget diária</div><div class="io-item">Relatório semanal de ROAS</div><div class="io-item">Projeção e recomendações</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AG 08 -->
+  <div class="ag-block rv">
+    <div class="ag-bg-num">08</div>
+    <div class="ag-grid">
+      <div class="ag-left">
+        <div class="ag-num">AGENTE 08</div>
+        <div class="ag-ico-big">🎬</div>
+        <div class="ag-name-big" style="color:rgba(255,130,80,.9)">Editor de Vídeo</div>
+        <div class="ag-plan-pill" style="color:rgba(255,130,80,.8);border-color:rgba(255,130,80,.3);background:rgba(255,130,80,.07)">✦ Plano Pro — Em breve</div>
+        <div class="ag-headline">Edita automaticamente Reels e vídeos curtos — cortes dinâmicos, legendas, efeitos e otimização para cada plataforma.</div>
+        <a href="login.html?plano=plus" class="ag-cta-mini" style="opacity:.6;cursor:not-allowed">Em breve</a>
+      </div>
+      <div class="ag-right">
+        <div class="ag-section-lbl">3 Operações</div>
+        <div class="op-list">
+          <div class="op-card"><div class="op-n">OPERAÇÃO 01</div><div class="op-title">Corte e edição dinâmica</div><div class="op-desc">Recebe o vídeo bruto gravado por você e aplica cortes dinâmicos automáticos baseados no ritmo ideal para Reels. Remove silêncios, ajusta o timing das transições e garante que os primeiros 3 segundos prendam a atenção.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 02</div><div class="op-title">Legendas e efeitos automáticos</div><div class="op-desc">Transcreve o áudio e adiciona legendas animadas sincronizadas com a fala. Aplica textos na tela, emojis e efeitos visuais nos momentos-chave do roteiro. Tudo alinhado com a identidade visual da marca.</div></div>
+          <div class="op-card"><div class="op-n">OPERAÇÃO 03</div><div class="op-title">Exportação por plataforma</div><div class="op-desc">Exporta o mesmo vídeo em formatos otimizados para Instagram Reels (9:16, 30-90s), Stories (15s), TikTok e YouTube Shorts. Cada versão com cortes e proporções corretas para máximo alcance em cada plataforma.</div></div>
+        </div>
+        <div class="ag-section-lbl">Entradas e Saídas</div>
+        <div class="io-grid">
+          <div class="io-box io-in"><div class="io-lbl">Você fornece</div><div class="io-item">Vídeo bruto gravado</div><div class="io-item">Roteiro (Ag. 04)</div><div class="io-item">Identidade visual da marca</div></div>
+          <div class="io-box io-out"><div class="io-lbl">O agente entrega</div><div class="io-item">Reel editado e otimizado</div><div class="io-item">Versões para cada plataforma</div><div class="io-item">Legendas sincronizadas</div><div class="io-item">Thumbnail automática</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CTA FINAL -->
+<div class="final-cta">
+  <h2 class="fc-h rv">Pronto para<br>ativar os <em>agentes?</em></h2>
+  <p class="fc-sub rv">7 dias para testar. Se não gostar, cancele — e não paga nada.</p>
+  <div class="fc-btns rv">
+    <a href="login.html?plano=plus" class="fc-g">Ativar meu sistema →</a>
+    <a href="home.html" class="fc-o">Voltar ao site</a>
+  </div>
+</div>
+
+<script>
+gsap.registerPlugin(ScrollTrigger);
+gsap.utils.toArray('.rv').forEach(el=>{
+  gsap.to(el,{opacity:1,y:0,duration:.76,ease:'power3.out',
+    scrollTrigger:{trigger:el,start:'top 91%',once:true}});
+});
+</script>
+</body>
+</html>
