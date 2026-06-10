@@ -216,12 +216,12 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* ══ COVERFLOW CAROUSEL ══ */
 .car-head{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,60px);align-items:end;margin-bottom:clamp(44px,7vw,70px)}
 .car-wrap{position:relative;overflow:hidden;padding:20px 0 30px;min-height:clamp(520px,70vw,620px)}
-.car-track{display:flex;align-items:center;justify-content:center;position:relative;height:clamp(580px,72vw,650px)}
+.car-track{display:flex;align-items:center;justify-content:center;position:relative;height:clamp(520px,64vw,580px)}
 /* Each card */
 .car-card{
   position:absolute;
   width:clamp(240px,26vw,300px);
-  height:clamp(540px,68vw,600px);
+  height:clamp(480px,60vw,540px);
   background:#1E1C19;
   background-image:
     linear-gradient(145deg,rgba(var(--nr,0,230,118),.18) 0%,rgba(var(--nr,0,230,118),.06) 35%,transparent 65%),
@@ -264,9 +264,9 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
   transition:.2s;cursor:pointer;width:100%;
 }
 .cc-flip-btn:hover{background:rgba(var(--nr,0,230,118),.22)}
-.cc-benefit{font-size:clamp(14px,1.6vw,16px);color:var(--t1);line-height:1.6;margin:12px 0;font-style:italic;opacity:.92;flex:1}
-.cc-back-title{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(var(--nr,0,230,118),.8);margin-bottom:10px}
-.cc-tasks{list-style:none;display:flex;flex-direction:column;gap:7px;flex:1;overflow:hidden;margin-bottom:10px}
+.cc-benefit{font-size:clamp(12px,1.4vw,14px);color:var(--t1);line-height:1.5;margin:8px 0 12px;font-style:italic;opacity:.85;padding-bottom:10px;border-bottom:1px solid rgba(var(--nr,0,230,118),.15)}
+.cc-back-title{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(var(--nr,0,230,118),.75);margin-bottom:8px}
+.cc-tasks{list-style:none;display:flex;flex-direction:column;gap:7px}
 .cc-tasks li{font-size:clamp(12px,1.4vw,13px);color:var(--t2);display:flex;align-items:flex-start;gap:7px;line-height:1.45;font-family:var(--M)}
 .cc-tasks li::before{content:'→';color:var(--nc,var(--g));flex-shrink:0;font-size:9px;margin-top:2px;opacity:.7}
 .cc-flip-back{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:8px;margin-top:auto;font-size:clamp(11px,1.3vw,12px);font-weight:700;font-family:var(--M);letter-spacing:1px;color:var(--t3);background:rgba(0,0,0,.25);border:1px solid var(--bd);transition:.2s;cursor:pointer;width:100%;flex-shrink:0}
@@ -360,6 +360,28 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 
 
 /* ══ BENEFÍCIOS CAROUSEL ══ */
+
+
+/* ══ HERO BACKGROUND DINÂMICO ══ */
+/* Aurora blobs animados */
+.hero-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.aurora-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;will-change:transform}
+.ab-1{width:520px;height:520px;background:radial-gradient(circle,rgba(0,230,118,.16),transparent 65%);top:-15%;right:-5%;animation:ab1 16s ease-in-out infinite}
+.ab-2{width:420px;height:420px;background:radial-gradient(circle,rgba(0,150,255,.08),transparent 65%);bottom:-10%;left:-8%;animation:ab2 20s ease-in-out infinite}
+.ab-3{width:340px;height:340px;background:radial-gradient(circle,rgba(0,230,118,.1),transparent 65%);top:35%;left:30%;animation:ab3 24s ease-in-out infinite}
+@keyframes ab1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-60px,50px) scale(1.15)}66%{transform:translate(30px,-30px) scale(.92)}}
+@keyframes ab2{0%,100%{transform:translate(0,0) scale(1)}40%{transform:translate(70px,-40px) scale(1.1)}70%{transform:translate(-40px,30px) scale(.95)}}
+@keyframes ab3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,60px) scale(1.2)}}
+/* Linhas verticais flutuantes */
+.hero-lines{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.h-line{position:absolute;width:1px;background:linear-gradient(transparent,rgba(0,230,118,.25),transparent);animation:hline-rise linear infinite;will-change:transform}
+@keyframes hline-rise{0%{transform:translateY(110vh)}100%{transform:translateY(-110vh)}}
+/* Grid pulse */
+.hero::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(700px circle at var(--mx) var(--my), rgba(0,230,118,.08), transparent 40%);
+  transition:background .1s;
+}
 
 /* ══ BANNER ÚNICO ══ */
 .main-banner{
@@ -775,7 +797,12 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 
 <!-- HERO -->
 <section class="hero" id="inicio">
-  <div class="h-glow"></div><div class="h-glow2"></div>
+  <div class="hero-aurora">
+    <div class="aurora-blob ab-1"></div>
+    <div class="aurora-blob ab-2"></div>
+    <div class="aurora-blob ab-3"></div>
+  </div>
+  <div class="hero-lines" id="hero-lines"></div>
   <div class="h-wrap">
     <div>
       <div class="h-pill"><div class="h-dot"></div><div class="h-pill-t" id="hero-tw">Sistema ativo — 8 agentes operando agora</div></div>
@@ -1288,40 +1315,18 @@ AGENTS.forEach((ag,i)=>{
   c.style.cssText=`--nc:${ag.nc};--nr:${ag.nr}`;
   c.innerHTML=`
     <div class="cc-role">${ag.role}</div>
-    <div class="car-card-inner">
-      <div class="cc-front">
-        <div class="cc-id">AGENTE ${ag.id}</div>
-        <div class="cc-ico-svg">${AGENT_SVGS[i]}</div>
-        <div class="cc-name" style="color:${ag.nc}">${ag.name}</div>
-        <div class="cc-benefit">"${ag.benefit}"</div>
-        <button class="cc-flip-btn" style="--nc:${ag.nc};--nr:${ag.nr}" onclick="event.stopPropagation();flipAgent(${i})">Ver operações →</button>
-      </div>
-      <div class="cc-back" onclick="event.stopPropagation();flipAgent(${i})">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(var(--nr,0,230,118),.6)">AGENTE ${ag.id}</div>
-          <div style="font-family:var(--M);font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(var(--nr,0,230,118),.1);border:1px solid rgba(var(--nr,0,230,118),.25);border-radius:20px;padding:3px 9px;color:rgba(var(--nr,0,230,118),.8)">JUMP OS</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(var(--nr,0,230,118),.15)">
-          <div style="width:26px;height:26px;flex-shrink:0;opacity:.9;display:flex;align-items:center;justify-content:center">${AGENT_SVGS[i]}</div>
-          <div>
-            <div class="cc-name" style="color:${ag.nc};font-size:clamp(14px,1.8vw,17px);margin-bottom:1px">${ag.name}</div>
-            <div style="font-size:10px;color:var(--t3);font-family:var(--M);letter-spacing:1px;text-transform:uppercase">${ag.role}</div>
-          </div>
-        </div>
-        <div class="cc-back-title">5 tarefas que executo por você</div>
-        <ul class="cc-tasks" style="--nc:${ag.nc}">${ag.tasks.map(t=>`<li>${t}</li>`).join('')}</ul>
-        <button class="cc-flip-back" onclick="event.stopPropagation();flipAgent(${i})">← Voltar ao benefício</button>
-      </div>
-    </div>
+    <div class="cc-id">AGENTE ${ag.id}</div>
+    <div class="cc-ico-svg">${AGENT_SVGS[i]}</div>
+    <div class="cc-name" style="color:${ag.nc}">${ag.name}</div>
+    <div class="cc-benefit">"${ag.benefit}"</div>
+    <div class="cc-back-title" style="--nr:${ag.nr}">O que executo por você</div>
+    <ul class="cc-tasks" style="--nc:${ag.nc}">${ag.tasks.slice(0,4).map(t=>`<li>${t}</li>`).join('')}</ul>
   `;
   /* Click side cards */
-  c.addEventListener('click',(e)=>{
+  c.addEventListener('click',()=>{
     const pos=parseInt(c.getAttribute('data-pos'));
     if(pos===1){carMove(1);}
     else if(pos===-1){carMove(-1);}
-    else if(pos===0 && c.classList.contains('flipped') && !e.target.closest('.cc-flip-back')){
-      flipAgent(i);
-    }
   });
   track.appendChild(c);
   /* Dot */
@@ -1380,13 +1385,30 @@ document.addEventListener('keydown',e=>{
 });
 
 /* Auto */
-let auto=setInterval(()=>carMove(1),3600);
+let auto=setInterval(()=>carMove(1),2800);
 track.addEventListener('mouseenter',()=>clearInterval(auto));
 track.addEventListener('mouseleave',()=>{auto=setInterval(()=>carMove(1),4500)});
 
 
 
 /* ══ PLAN CARDS UPGRADE — nível agentes ══ */
+
+/* ══ HERO FLOATING LINES ══ */
+(function(){
+  const wrap=document.getElementById('hero-lines');
+  if(!wrap)return;
+  for(let i=0;i<14;i++){
+    const l=document.createElement('div');
+    l.className='h-line';
+    const left=Math.random()*100;
+    const height=60+Math.random()*180;
+    const dur=7+Math.random()*9;
+    const delay=Math.random()*10;
+    l.style.cssText=`left:${left}%;height:${height}px;animation-duration:${dur}s;animation-delay:-${delay}s;opacity:${.3+Math.random()*.5}`;
+    wrap.appendChild(l);
+  }
+})();
+
 /* ══ MAIN BANNER CYCLING ══ */
 (function(){
   const STATS=[
@@ -1438,12 +1460,6 @@ track.addEventListener('mouseleave',()=>{auto=setInterval(()=>carMove(1),4500)})
   }
   setInterval(()=>{si=(si+1)%STATS.length;updateBanner();},3200);
 })();
-
-/* ══ FLIP AGENTS ══ */
-function flipAgent(i){
-  const card=document.getElementById('cc'+i);
-  if(card)card.classList.toggle('flipped');
-}
 
 /* ══ FLIP PLANS ══ */
 function flipPlan(i){
