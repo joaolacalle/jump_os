@@ -2,491 +2,354 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Entrar</title>
+<meta name="description" content="Acesse o JUMP OS ou crie sua conta para ativar seus agentes de IA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{overflow-x:hidden}
 :root{
-  --bg:#060607;--panel:#0F0F12;--panel2:#14141A;
-  --border:#1E1E26;--border2:#2A2A35;
-  --green:#00E676;--gdim:rgba(0,230,118,.07);
-  --white:#FFF;--g1:#9090A0;--g2:#50505C;
-  --red:#FF4545;--blue:#5C7CFA;
-  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+  --ch:#141312;--ch2:#1C1A18;--ch3:#252220;
+  --g:#00E676;--g2:#00FF8A;
+  --glow:rgba(0,230,118,.18);
+  --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
+  --bd:rgba(245,242,236,.08);
+  --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
+  --mx:50%;--my:50%;
 }
-body{background:var(--bg);color:var(--white);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
-.page{flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(20px,5vw,40px) 20px;position:relative;overflow:hidden}
-.bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,230,118,.05) 0%,transparent 70%);pointer-events:none}
-.bg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:50px 50px;opacity:.3;pointer-events:none}
-.box{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;position:relative;overflow:hidden;z-index:1}
-.box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green)}
-.box-header{padding:clamp(24px,5vw,32px) clamp(20px,5vw,32px) 20px;text-align:center}
-.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;margin-bottom:20px;display:block;text-decoration:none;color:var(--white)}
-.brand span{color:var(--green)}
-.box-title{font-size:clamp(18px,3vw,22px);font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:6px}
-.box-sub{font-size:13px;color:var(--g1)}
-/* TABS */
-.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 clamp(20px,5vw,32px)}
-.tab{flex:1;padding:12px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--g2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s;text-align:center;background:none;border-top:none;border-left:none;border-right:none}
-.tab.active{color:var(--green);border-bottom-color:var(--green)}
-.form-body{padding:clamp(20px,4vw,28px) clamp(20px,5vw,32px) clamp(24px,5vw,32px)}
-.form-panel{display:none}
-.form-panel.active{display:block}
-/* FIELDS */
-.field{margin-bottom:16px}
-.field-label{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:7px;display:block}
-.field-input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font);font-size:14px;outline:none;transition:border-color .2s}
-.field-input:focus{border-color:var(--green)}
-.field-input::placeholder{color:var(--g2)}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-/* BUTTON */
-.btn-submit{width:100%;padding:14px;border-radius:9px;background:var(--green);color:#000;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
-.btn-submit:hover{opacity:.9}
-.btn-submit:disabled{opacity:.55;cursor:not-allowed}
-.spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* MESSAGES */
-.err{background:rgba(255,69,69,.1);border:1px solid rgba(255,69,69,.3);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:14px;display:none;line-height:1.5}
-.err.show{display:block}
-/* TERMS */
-.terms-wrap{display:flex;align-items:flex-start;gap:10px;margin:14px 0}
-.terms-wrap input{margin-top:3px;accent-color:var(--green);flex-shrink:0;width:14px;height:14px}
-.terms-wrap label{font-size:11px;color:var(--g1);line-height:1.5}
-.terms-wrap a{color:var(--white)}
-/* PLAN BADGE */
-.plan-badge-signup{background:var(--gdim);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:none;align-items:center;gap:10px}
-.pbs-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
-.pbs-name{font-size:13px;font-weight:700}
-.pbs-price{font-size:12px;color:var(--g1);margin-left:auto;font-family:var(--mono)}
-/* ADMIN NOTE */
-.admin-note{background:rgba(92,124,250,.08);border:1px solid rgba(92,124,250,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#8fa8ff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-/* FOOTER LINKS */
-.form-footer{text-align:center;font-size:12px;color:var(--g2);margin-top:16px}
-.form-footer span,.form-footer a{color:var(--white);font-weight:600;cursor:pointer}
-.form-footer span:hover,.form-footer a:hover{color:var(--green)}
-/* EMAIL SENT SCREEN */
-.email-sent{display:none;text-align:center;padding:clamp(24px,5vw,40px) clamp(20px,5vw,32px)}
-.es-icon{font-size:52px;margin-bottom:16px}
-.es-title{font-size:clamp(18px,3vw,22px);font-weight:900;text-transform:uppercase;letter-spacing:-.3px;margin-bottom:10px}
-.es-sub{font-size:14px;color:var(--g1);line-height:1.7;margin-bottom:12px}
-.es-email-badge{display:inline-block;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:13px;color:var(--green);margin-bottom:20px;word-break:break-all}
-.es-steps{background:var(--panel2);border:1px solid var(--border2);border-radius:9px;padding:14px;margin-bottom:20px;text-align:left}
-.es-steps-title{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:10px}
-.es-step{font-size:13px;color:var(--g1);padding:4px 0;display:flex;gap:8px;align-items:flex-start}
-.es-step-num{color:var(--green);font-weight:900;flex-shrink:0}
-.es-btn{width:100%;padding:13px;border-radius:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s;margin-bottom:8px}
-.es-btn-g{background:var(--green);color:#000}
-.es-btn-g:hover{opacity:.88}
-.es-btn-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
-.es-btn-o:hover{border-color:var(--white);color:var(--white)}
-.es-resend{font-size:11px;color:var(--g2);margin-top:4px}
-.es-resend span{color:var(--white);font-weight:600;cursor:pointer}
-.es-resend span:hover{color:var(--green)}
-/* FOOTER */
-.page-footer{padding:16px;text-align:center;font-size:11px;color:var(--g2)}
-.page-footer a{color:var(--g2);text-decoration:none}
-.page-footer a:hover{color:var(--white)}
-/* MOBILE */
-@media(max-width:480px){
-  .box{border-radius:0;border-left:none;border-right:none;border-top:none}
-  .page{align-items:flex-start;padding-top:40px}
-  .field-row{grid-template-columns:1fr}
+body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:17px;line-height:1.65;overflow-x:hidden;min-height:100vh}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;border:none;background:none;font-family:inherit}
+input{font-family:inherit;outline:none}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--ch)}::-webkit-scrollbar-thumb{background:var(--g)}
+
+/* GRAIN */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px 180px;mix-blend-mode:overlay}
+
+/* CURSOR */
+.cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:difference}
+.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(0,230,118,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s}
+.cur.big{width:20px;height:20px}
+.cur-r.big{border-color:var(--g);transform:translate(-50%,-50%) scale(1.7)}
+
+/* LAYOUT */
+.page{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative}
+/* LADO ESQUERDO — branding */
+.side{
+  position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;
+  padding:clamp(28px,4vw,48px);
+  background-color:#0A0908;
+  background-image:radial-gradient(rgba(245,242,236,.05) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+.side::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px circle at var(--mx) var(--my),rgba(0,230,118,.06),transparent 40%)}
+.side-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.sa-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5}
+.sab-1{width:440px;height:440px;background:radial-gradient(circle,rgba(0,230,118,.15),transparent 65%);top:-15%;right:-10%;animation:sab1 17s ease-in-out infinite}
+.sab-2{width:360px;height:360px;background:radial-gradient(circle,rgba(0,150,255,.07),transparent 65%);bottom:-12%;left:-8%;animation:sab2 21s ease-in-out infinite}
+@keyframes sab1{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,40px) scale(1.12)}}
+@keyframes sab2{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,-35px) scale(1.08)}}
+.side-logo{position:relative;z-index:1}
+.side-logo img{height:40px;object-fit:contain}
+.side-mid{position:relative;z-index:1}
+.side-h{font-family:'Oswald',var(--D);font-size:clamp(36px,4.5vw,60px);font-weight:700;text-transform:uppercase;line-height:1.06;margin-bottom:16px}
+.side-h em{font-style:normal;color:var(--g);text-shadow:0 0 40px rgba(0,230,118,.35)}
+.side-sub{font-size:clamp(15px,1.7vw,18px);color:var(--t2);line-height:1.7;max-width:420px}
+/* Agentes dots strip */
+.side-agents{position:relative;z-index:1;display:flex;flex-direction:column;gap:12px}
+.sa-row{display:flex;align-items:center;gap:10px}
+.sa-dot{width:8px;height:8px;border-radius:50%;animation:sa-pulse 2.4s infinite}
+@keyframes sa-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sa-txt{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+
+/* LADO DIREITO — form */
+.form-side{display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,48px);position:relative}
+.form-card{
+  width:100%;max-width:440px;
+  background:#1E1C19;
+  background-image:
+    linear-gradient(145deg,rgba(0,230,118,.1) 0%,rgba(0,230,118,.03) 35%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.02) 12px,rgba(0,230,118,.02) 13px);
+  border:1px solid rgba(0,230,118,.3);
+  border-radius:16px;
+  padding:clamp(28px,4vw,40px);
+  box-shadow:0 28px 70px rgba(0,0,0,.5),0 0 50px rgba(0,230,118,.05);
+}
+/* Plano badge */
+.plano-badge{display:none;align-items:center;gap:9px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:10px;padding:11px 15px;margin-bottom:22px}
+.plano-badge.show{display:flex}
+.pb-ico{font-size:18px}
+.pb-txt{font-size:13px;color:var(--t2)}
+.pb-txt strong{color:var(--g);font-weight:800}
+/* Tabs */
+.tabs{display:flex;gap:0;background:rgba(0,0,0,.3);border-radius:10px;padding:4px;margin-bottom:24px}
+.tab{flex:1;text-align:center;padding:11px;border-radius:8px;font-size:14px;font-weight:700;color:var(--t3);transition:.25s;cursor:pointer}
+.tab.a{background:var(--g);color:#000}
+/* Form */
+.f-title{font-family:'Oswald',var(--D);font-size:clamp(24px,3vw,32px);font-weight:700;text-transform:uppercase;line-height:1.1;margin-bottom:6px}
+.f-sub{font-size:14px;color:var(--t2);margin-bottom:24px}
+.f-group{margin-bottom:16px}
+.f-label{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin-bottom:7px;display:block}
+.f-input{
+  width:100%;padding:14px 16px;border-radius:9px;
+  background:rgba(0,0,0,.35);border:1.5px solid var(--bd);
+  color:var(--t1);font-size:15px;transition:.25s;
+}
+.f-input:focus{border-color:rgba(0,230,118,.5);box-shadow:0 0 0 3px rgba(0,230,118,.08)}
+.f-input::placeholder{color:var(--t3)}
+/* Botão principal */
+.f-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:15px;border-radius:9px;margin-top:8px;
+  background:var(--g);color:#000;font-size:15px;font-weight:800;
+  letter-spacing:.3px;transition:.25s;
+}
+.f-btn:hover{background:var(--g2);transform:translateY(-1px);box-shadow:0 10px 28px var(--glow)}
+.f-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* Mensagens */
+.f-msg{display:none;padding:13px 15px;border-radius:9px;font-size:13.5px;line-height:1.55;margin-top:14px}
+.f-msg.show{display:block}
+.f-msg.ok{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);color:var(--g)}
+.f-msg.err{background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:#FF8A8A}
+/* Links extra */
+.f-extra{text-align:center;margin-top:18px;font-size:13px;color:var(--t3)}
+.f-extra a{color:var(--g);font-weight:700;transition:.2s}
+.f-extra a:hover{color:var(--g2)}
+.f-forgot{display:block;text-align:right;font-size:12px;color:var(--t3);margin-top:8px;transition:.2s;font-family:var(--M)}
+.f-forgot:hover{color:var(--g)}
+/* Voltar */
+.back-link{position:absolute;top:clamp(20px,3vw,32px);right:clamp(20px,3vw,32px);font-size:13px;font-weight:600;color:var(--t3);transition:.2s;display:flex;align-items:center;gap:6px;z-index:2}
+.back-link:hover{color:var(--g)}
+/* Spinner */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{100%{transform:rotate(360deg)}}
+
+@media(max-width:880px){
+  .page{grid-template-columns:1fr}
+  .side{display:none}
+  .form-side{min-height:100vh;background-image:radial-gradient(rgba(245,242,236,.04) 1px,transparent 1px);background-size:28px 28px}
 }
 </style>
 </head>
 <body>
+<div class="grain"></div>
+<div class="cur" id="cur"></div>
+<div class="cur-r" id="cur-r"></div>
 
 <div class="page">
-  <div class="bg-glow"></div>
-  <div class="bg-grid"></div>
-
-  <div class="box">
-    <div class="box-header">
-      <a href="home.html" class="brand">JUMP <span>OS</span></a>
-      <div class="box-title">Acesse o sistema</div>
-      <div class="box-sub">Seu sistema de marketing com IA</div>
+  <!-- ESQUERDA -->
+  <div class="side">
+    <div class="side-aurora"><div class="sa-blob sab-1"></div><div class="sa-blob sab-2"></div></div>
+    <div class="side-logo"><a href="home.html"><img src="assets/logo.png" alt="JUMP OS"></a></div>
+    <div class="side-mid">
+      <h1 class="side-h">Seus agentes<br>estão <em>prontos.</em></h1>
+      <p class="side-sub">Entre na sua conta ou crie uma nova para ativar o sistema de marketing que trabalha por você.</p>
     </div>
-
-    <!-- TABS -->
-    <div class="tabs" id="tabs-bar">
-      <button class="tab active" onclick="switchTab('entrar')">Entrar</button>
-      <button class="tab" onclick="switchTab('criar')">Criar conta</button>
-      <button class="tab" onclick="switchTab('admin')">Admin</button>
+    <div class="side-agents">
+      <div class="sa-row"><div class="sa-dot" style="background:#00E676;box-shadow:0 0 8px #00E676"></div><div class="sa-txt">Identidade · Mercado · Diagnóstico</div></div>
+      <div class="sa-row"><div class="sa-dot" style="background:#00D4FF;box-shadow:0 0 8px #00D4FF;animation-delay:.4s"></div><div class="sa-txt">Estratégia · Criativo · Publicação</div></div>
+      <div class="sa-row"><div class="sa-dot" style="background:#A855F7;box-shadow:0 0 8px #A855F7;animation-delay:.8s"></div><div class="sa-txt">Tráfego · Editor de Vídeo</div></div>
     </div>
+  </div>
 
-    <div class="form-body">
-
-      <!-- ══ ENTRAR ══ -->
-      <div class="form-panel active" id="panel-entrar">
-        <div class="err" id="err-login"></div>
-        <div class="field">
-          <label class="field-label">Email</label>
-          <input class="field-input" type="email" id="login-email" placeholder="seu@email.com"
-            autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <div class="field">
-          <label class="field-label">Senha</label>
-          <input class="field-input" type="password" id="login-senha" placeholder="••••••••"
-            autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <button class="btn-submit" id="btn-login" onclick="doLogin()">
-          Entrar no sistema →
-        </button>
-        <div class="form-footer" style="margin-top:14px">
-          <a onclick="doResetPass()">Esqueci minha senha</a>
-        </div>
+  <!-- DIREITA -->
+  <div class="form-side">
+    <a href="home.html" class="back-link">← Voltar ao site</a>
+    <div class="form-card">
+      <!-- Badge do plano -->
+      <div class="plano-badge" id="plano-badge">
+        <span class="pb-ico">✦</span>
+        <span class="pb-txt">Você está ativando o plano <strong id="plano-nome">Plus</strong> — <span id="plano-preco">R$399,90/mês</span></span>
+      </div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab a" id="tab-login" onclick="switchTab('login')">Entrar</div>
+        <div class="tab" id="tab-signup" onclick="switchTab('signup')">Criar conta</div>
       </div>
 
-      <!-- ══ CRIAR CONTA ══ -->
-      <div class="form-panel" id="panel-criar">
-        <div class="plan-badge-signup" id="plan-badge-signup">
-          <div class="pbs-dot"></div>
-          <div class="pbs-name" id="pbs-name">Plano Plus</div>
-          <div class="pbs-price" id="pbs-price">R$199/mês</div>
+      <!-- FORM LOGIN -->
+      <div id="form-login">
+        <div class="f-title">Bem-vindo de volta</div>
+        <div class="f-sub">Acesse seu painel de agentes</div>
+        <div class="f-group">
+          <label class="f-label" for="login-email">E-mail</label>
+          <input class="f-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
         </div>
-        <div class="err" id="err-signup"></div>
-        <div class="field-row">
-          <div class="field">
-            <label class="field-label">Nome *</label>
-            <input class="field-input" type="text" id="signup-nome" placeholder="João" autocomplete="given-name">
-          </div>
-          <div class="field">
-            <label class="field-label">Sobrenome</label>
-            <input class="field-input" type="text" id="signup-sobre" placeholder="Silva" autocomplete="family-name">
-          </div>
+        <div class="f-group">
+          <label class="f-label" for="login-pass">Senha</label>
+          <input class="f-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+          <a href="#" class="f-forgot" onclick="forgotPass();return false">Esqueci minha senha</a>
         </div>
-        <div class="field">
-          <label class="field-label">Email *</label>
-          <input class="field-input" type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email">
-        </div>
-        <div class="field">
-          <label class="field-label">WhatsApp</label>
-          <input class="field-input" type="tel" id="signup-wpp" placeholder="(11) 99999-9999" autocomplete="tel">
-        </div>
-        <div class="field">
-          <label class="field-label">Senha * (mínimo 8 caracteres)</label>
-          <input class="field-input" type="password" id="signup-senha" placeholder="crie uma senha forte" autocomplete="new-password">
-        </div>
-        <div class="terms-wrap">
-          <input type="checkbox" id="terms-check">
-          <label for="terms-check">Li e aceito os <a href="termos.html" target="_blank">Termos de uso</a> e a <a href="privacidade.html" target="_blank">Política de privacidade</a>. Entendo que tenho 7 dias para cancelar sem custo (CDC Art. 49).</label>
-        </div>
-        <button class="btn-submit" id="btn-signup" onclick="doSignup()">
-          Criar minha conta →
-        </button>
-        <div class="form-footer">Já tem conta? <span onclick="switchTab('entrar')">Entrar</span></div>
+        <button class="f-btn" id="btn-login" onclick="doLogin()">Entrar →</button>
+        <div class="f-msg" id="msg-login"></div>
+        <div class="f-extra">Não tem conta? <a href="#" onclick="switchTab('signup');return false">Criar agora</a></div>
       </div>
 
-      <!-- ══ ADMIN ══ -->
-      <div class="form-panel" id="panel-admin">
-        <div class="admin-note">🔒 Acesso restrito ao administrador.</div>
-        <div class="err" id="err-admin"></div>
-        <div class="field">
-          <label class="field-label">Email admin</label>
-          <input class="field-input" type="email" id="admin-email" placeholder="seu@email.com"
-            autocomplete="email" onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <!-- FORM SIGNUP -->
+      <div id="form-signup" style="display:none">
+        <div class="f-title">Criar sua conta</div>
+        <div class="f-sub">7 dias grátis para testar — CDC Art. 49</div>
+        <div class="f-group">
+          <label class="f-label" for="signup-name">Nome completo</label>
+          <input class="f-input" type="text" id="signup-name" placeholder="Seu nome" autocomplete="name">
         </div>
-        <div class="field">
-          <label class="field-label">Senha</label>
-          <input class="field-input" type="password" id="admin-senha" placeholder="••••••••"
-            autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()">
+        <div class="f-group">
+          <label class="f-label" for="signup-email">E-mail</label>
+          <input class="f-input" type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email">
         </div>
-        <button class="btn-submit" id="btn-admin" onclick="doAdminLogin()" style="background:var(--blue);color:#fff">
-          Acessar painel admin →
-        </button>
+        <div class="f-group">
+          <label class="f-label" for="signup-pass">Senha (mín. 6 caracteres)</label>
+          <input class="f-input" type="password" id="signup-pass" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <button class="f-btn" id="btn-signup" onclick="doSignup()">Criar conta grátis →</button>
+        <div class="f-msg" id="msg-signup"></div>
+        <div class="f-extra">Já tem conta? <a href="#" onclick="switchTab('login');return false">Entrar</a></div>
       </div>
-
-      <!-- ══ TELA EMAIL ENVIADO ══ -->
-      <div class="email-sent" id="email-sent-screen">
-        <div class="es-icon">📬</div>
-        <div class="es-title">Confirme seu email</div>
-        <div class="es-sub">Enviamos um link de ativação para:</div>
-        <div class="es-email-badge" id="es-email-show">—</div>
-        <div class="es-steps">
-          <div class="es-steps-title">Próximos passos</div>
-          <div class="es-step"><span class="es-step-num">1.</span>Abra o email de confirmação</div>
-          <div class="es-step"><span class="es-step-num">2.</span>Clique em "Confirmar email e acessar"</div>
-          <div class="es-step"><span class="es-step-num">3.</span>Faça login com seu email e senha</div>
-        </div>
-        <div style="background:var(--panel2);border:1px solid var(--border2);border-radius:9px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--g1);line-height:1.7;text-align:center">
-          Acesse seu email e clique no link de confirmação que enviamos. Verifique também a pasta de <strong style="color:var(--white)">spam</strong>.
-        </div>
-        <button class="es-btn es-btn-o" onclick="voltarLogin()">
-          Já confirmei — fazer login
-        </button>
-        <div class="es-resend">
-          Não recebeu? <span onclick="reenviarEmail()">Reenviar email</span>
-        </div>
-      </div>
-
     </div>
   </div>
 </div>
 
-<div class="page-footer">
-  <a href="home.html">← Voltar ao site</a> &nbsp;·&nbsp;
-  <a href="termos.html">Termos</a> &nbsp;·&nbsp;
-  <a href="privacidade.html">Privacidade</a>
-</div>
-
 <script>
-// ═══════════════════════════════════════════
-// SUPABASE
-// ═══════════════════════════════════════════
-const SUPA_URL  = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
-const ADMIN_EMAIL = 'jvittor@icloud.com';
+/* ══ SUPABASE ══ */
+const SUPABASE_URL='https://fcdjzubdxikpvcqvalnt.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+/* ══ PLANO DA URL ══ */
+const params=new URLSearchParams(location.search);
+const plano=params.get('plano');
+const PLANOS={
+  basico:{nome:'Básico',preco:'R$129,90/mês'},
+  plus:{nome:'Plus',preco:'R$399,90/mês'},
+};
+if(plano&&PLANOS[plano]){
+  document.getElementById('plano-badge').classList.add('show');
+  document.getElementById('plano-nome').textContent=PLANOS[plano].nome;
+  document.getElementById('plano-preco').textContent=PLANOS[plano].preco;
+  switchTab('signup');
+}
 
-// Variável para reenvio de email
-let _pendingEmail = '';
+/* ══ TABS ══ */
+function switchTab(t){
+  document.getElementById('tab-login').classList.toggle('a',t==='login');
+  document.getElementById('tab-signup').classList.toggle('a',t==='signup');
+  document.getElementById('form-login').style.display=t==='login'?'block':'none';
+  document.getElementById('form-signup').style.display=t==='signup'?'block':'none';
+}
 
-// Redirecionar se já estiver logado
-(async function() {
-  try {
-    const { data: { session } } = await supa.auth.getSession();
-    if (session) {
-      window.location.href = session.user.email === ADMIN_EMAIL
-        ? 'admin.html' : 'dashboard-usuario.html';
-    }
-  } catch(e) { console.log('Sem sessão ativa'); }
+/* ══ MSG HELPER ══ */
+function showMsg(id,text,type){
+  const el=document.getElementById(id);
+  el.textContent=text;
+  el.className='f-msg show '+type;
+}
+function hideMsg(id){document.getElementById(id).className='f-msg'}
+
+/* ══ LOGIN ══ */
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  hideMsg('msg-login');
+  if(!email||!pass){showMsg('msg-login','Preencha e-mail e senha.','err');return}
+  const btn=document.getElementById('btn-login');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Entrando...';
+  try{
+    const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error)throw error;
+    showMsg('msg-login','✅ Login realizado! Redirecionando...','ok');
+    setTimeout(()=>{
+      location.href=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
+    },800);
+  }catch(e){
+    let msg='Erro ao entrar. Verifique seus dados.';
+    if(e.message&&e.message.includes('Invalid login'))msg='E-mail ou senha incorretos.';
+    if(e.message&&e.message.includes('Email not confirmed'))msg='Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.';
+    showMsg('msg-login',msg,'err');
+    btn.disabled=false;btn.innerHTML='Entrar →';
+  }
+}
+
+/* ══ SIGNUP ══ */
+async function doSignup(){
+  const name=document.getElementById('signup-name').value.trim();
+  const email=document.getElementById('signup-email').value.trim();
+  const pass=document.getElementById('signup-pass').value;
+  hideMsg('msg-signup');
+  if(!name||!email||!pass){showMsg('msg-signup','Preencha todos os campos.','err');return}
+  if(pass.length<6){showMsg('msg-signup','A senha precisa de no mínimo 6 caracteres.','err');return}
+  const btn=document.getElementById('btn-signup');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Criando conta...';
+  try{
+    const redirectUrl=plano
+      ?`${location.origin}/checkout.html?plano=${plano}`
+      :`${location.origin}/dashboard-usuario.html`;
+    const{data,error}=await sb.auth.signUp({
+      email,password:pass,
+      options:{data:{nome:name,plano:plano||'nenhum'},emailRedirectTo:redirectUrl}
+    });
+    if(error)throw error;
+    showMsg('msg-signup','✅ Conta criada! Enviamos um e-mail de confirmação para '+email+'. Clique no link para ativar e continuar.','ok');
+    btn.innerHTML='E-mail enviado ✓';
+  }catch(e){
+    let msg='Erro ao criar conta. Tente novamente.';
+    if(e.message&&e.message.includes('already registered'))msg='Este e-mail já está cadastrado. Tente entrar.';
+    if(e.message&&e.message.includes('rate limit'))msg='Muitas tentativas. Aguarde alguns minutos.';
+    showMsg('msg-signup',msg,'err');
+    btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+  }
+}
+
+/* ══ ESQUECI A SENHA ══ */
+async function forgotPass(){
+  const email=document.getElementById('login-email').value.trim();
+  if(!email){showMsg('msg-login','Digite seu e-mail no campo acima e clique novamente.','err');return}
+  try{
+    const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/login.html`});
+    if(error)throw error;
+    showMsg('msg-login','✅ E-mail de recuperação enviado para '+email,'ok');
+  }catch(e){
+    showMsg('msg-login','Erro ao enviar e-mail de recuperação.','err');
+  }
+}
+
+/* ══ ENTER PARA SUBMETER ══ */
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+document.getElementById('signup-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup()});
+
+/* ══ SE JÁ LOGADO, REDIRECIONAR ══ */
+(async()=>{
+  const{data}=await sb.auth.getSession();
+  if(data&&data.session){
+    location.href=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
+  }
 })();
 
-// ═══════════════════════════════════════════
-// TABS
-// ═══════════════════════════════════════════
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['entrar','criar','admin'][i] === t);
-  });
-  ['entrar','criar','admin'].forEach(id => {
-    const el = document.getElementById('panel-' + id);
-    if (el) el.classList.remove('active');
-  });
-  const panel = document.getElementById('panel-' + t);
-  if (panel) panel.classList.add('active');
-}
-
-// Detectar plano da URL
-const params = new URLSearchParams(window.location.search);
-const planoParam = params.get('plano');
-if (planoParam) {
-  switchTab('criar');
-  const badge = document.getElementById('plan-badge-signup');
-  badge.style.display = 'flex';
-  const prices = { basico:'R$99/mês', plus:'R$199/mês', pro:'R$399/mês' };
-  const names  = { basico:'Plano Básico', plus:'Plano Plus', pro:'Plano Pro' };
-  document.getElementById('pbs-name').textContent  = names[planoParam] || planoParam;
-  document.getElementById('pbs-price').textContent = prices[planoParam] || '';
-}
-
-// ═══════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════
-function showErr(id, msg) {
-  const el = document.getElementById('err-' + id);
-  el.textContent = msg;
-  el.classList.add('show');
-}
-function clearErr(id) {
-  document.getElementById('err-' + id).classList.remove('show');
-}
-function setLoading(btnId, loading, text) {
-  const btn = document.getElementById(btnId);
-  btn.disabled = loading;
-  if (loading) {
-    btn.innerHTML = '<div class="spinner"></div><span>Aguarde...</span>';
-  } else {
-    btn.textContent = text;
-  }
-}
-
-// ═══════════════════════════════════════════
-// TELA EMAIL ENVIADO
-// ═══════════════════════════════════════════
-function showEmailSent(email) {
-  _pendingEmail = email;
-  document.getElementById('tabs-bar').style.display = 'none';
-  ['entrar','criar','admin'].forEach(id => {
-    const el = document.getElementById('panel-' + id);
-    if (el) el.classList.remove('active');
-  });
-  document.getElementById('es-email-show').textContent = email;
-  document.getElementById('email-sent-screen').style.display = 'block';
-}
-
-function voltarLogin() {
-  document.getElementById('email-sent-screen').style.display = 'none';
-  document.getElementById('tabs-bar').style.display = 'flex';
-  switchTab('entrar');
-  const emailEl = document.getElementById('login-email');
-  if (emailEl && _pendingEmail) emailEl.value = _pendingEmail;
-}
-
-async function reenviarEmail() {
-  if (!_pendingEmail) return;
-  try {
-    const { error } = await supa.auth.resend({ type: 'signup', email: _pendingEmail });
-    alert(error ? 'Erro ao reenviar: ' + error.message : '✓ Email reenviado! Verifique sua caixa de entrada.');
-  } catch(e) {
-    alert('Erro ao reenviar email.');
-  }
-}
-
-// ═══════════════════════════════════════════
-// LOGIN
-// ═══════════════════════════════════════════
-async function doLogin() {
-  clearErr('login');
-  const email = document.getElementById('login-email').value.trim();
-  const senha = document.getElementById('login-senha').value;
-
-  if (!email || !senha) { showErr('login', 'Preencha email e senha.'); return; }
-
-  setLoading('btn-login', true, '');
-
-  try {
-    const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
-
-    if (error) {
-      setLoading('btn-login', false, 'Entrar no sistema →');
-      if (error.message.includes('Invalid login credentials')) {
-        showErr('login', 'Email ou senha incorretos.');
-      } else if (error.message.includes('Email not confirmed')) {
-        showErr('login', 'Confirme seu email antes de entrar. Verifique sua caixa de entrada.');
-      } else {
-        showErr('login', 'Erro: ' + error.message);
-      }
-      return;
-    }
-
-    window.location.href = data.user.email === ADMIN_EMAIL
-      ? 'admin.html' : 'dashboard-usuario.html';
-
-  } catch(e) {
-    setLoading('btn-login', false, 'Entrar no sistema →');
-    showErr('login', 'Erro de conexão. Tente novamente.');
-  }
-}
-
-// ═══════════════════════════════════════════
-// CRIAR CONTA
-// ═══════════════════════════════════════════
-async function doSignup() {
-  clearErr('signup');
-  const nome  = document.getElementById('signup-nome').value.trim();
-  const sobre = document.getElementById('signup-sobre').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const senha = document.getElementById('signup-senha').value;
-  const wpp   = document.getElementById('signup-wpp').value.trim();
-  const terms = document.getElementById('terms-check').checked;
-
-  if (!nome)          { showErr('signup', 'Digite seu nome.'); return; }
-  if (!email)         { showErr('signup', 'Digite seu email.'); return; }
-  if (!senha)         { showErr('signup', 'Crie uma senha.'); return; }
-  if (senha.length<8) { showErr('signup', 'Senha precisa ter pelo menos 8 caracteres.'); return; }
-  if (!terms)         { showErr('signup', 'Aceite os termos para continuar.'); return; }
-
-  setLoading('btn-signup', true, '');
-
-  try {
-    const { data, error } = await supa.auth.signUp({
-      email,
-      password: senha,
-      options: {
-        emailRedirectTo: 'https://jump-os-one.vercel.app/login.html',
-        data: {
-          nome: nome + (sobre ? ' ' + sobre : ''),
-          whatsapp: wpp,
-          plano: planoParam || 'plus'
-        }
-      }
-    });
-
-    setLoading('btn-signup', false, 'Criar minha conta →');
-
-    if (error) {
-      if (error.message.includes('already registered')) {
-        showErr('signup', 'Este email já está cadastrado. Faça login na aba "Entrar".');
-      } else {
-        showErr('signup', 'Erro ao criar conta: ' + error.message);
-      }
-      return;
-    }
-
-    // Conta criada — mostrar tela de confirmação
-    showEmailSent(email);
-
-  } catch(e) {
-    setLoading('btn-signup', false, 'Criar minha conta →');
-    showErr('signup', 'Erro de conexão. Tente novamente.');
-    console.error(e);
-  }
-}
-
-// ═══════════════════════════════════════════
-// ADMIN LOGIN
-// ═══════════════════════════════════════════
-async function doAdminLogin() {
-  clearErr('admin');
-  const email = document.getElementById('admin-email').value.trim();
-  const senha = document.getElementById('admin-senha').value;
-
-  if (!email || !senha) { showErr('admin', 'Preencha todos os campos.'); return; }
-
-  setLoading('btn-admin', true, '');
-
-  try {
-    const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
-
-    if (error || !data.user) {
-      setLoading('btn-admin', false, 'Acessar painel admin →');
-      showErr('admin', 'Credenciais inválidas.');
-      return;
-    }
-
-    if (data.user.email !== ADMIN_EMAIL) {
-      await supa.auth.signOut();
-      setLoading('btn-admin', false, 'Acessar painel admin →');
-      showErr('admin', 'Acesso negado. Este email não tem permissão de admin.');
-      return;
-    }
-
-    window.location.href = 'admin.html';
-
-  } catch(e) {
-    setLoading('btn-admin', false, 'Acessar painel admin →');
-    showErr('admin', 'Erro de conexão. Tente novamente.');
-  }
-}
-
-// ═══════════════════════════════════════════
-// RESET DE SENHA
-// ═══════════════════════════════════════════
-async function doResetPass() {
-  const email = document.getElementById('login-email').value.trim();
-  if (!email) {
-    showErr('login', 'Digite seu email acima para receber o link de reset.');
-    return;
-  }
-  const { error } = await supa.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://jump-os-one.vercel.app/login.html'
-  });
-  if (error) {
-    showErr('login', 'Erro ao enviar email de reset: ' + error.message);
-  } else {
-    clearErr('login');
-    const el = document.getElementById('err-login');
-    el.style.background = 'rgba(0,230,118,.08)';
-    el.style.borderColor = 'rgba(0,230,118,.25)';
-    el.style.color = 'var(--green)';
-    el.textContent = '✓ Email de reset enviado! Verifique sua caixa de entrada.';
-    el.classList.add('show');
-  }
-}
+/* ══ CURSOR ══ */
+const cur=document.getElementById('cur');
+const curR=document.getElementById('cur-r');
+let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  document.documentElement.style.setProperty('--mx',mx+'px');
+  document.documentElement.style.setProperty('--my',my+'px');
+});
+(function animC(){
+  cur.style.left=mx+'px';cur.style.top=my+'px';
+  rx+=(mx-rx)*.1;ry+=(my-ry)*.1;
+  curR.style.left=rx+'px';curR.style.top=ry+'px';
+  requestAnimationFrame(animC);
+})();
+document.querySelectorAll('a,button,.tab,input').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.classList.add('big');curR.classList.add('big')});
+  el.addEventListener('mouseleave',()=>{cur.classList.remove('big');curR.classList.remove('big')});
+});
+if(innerWidth<=768){cur.style.display='none';curR.style.display='none'}
 </script>
 </body>
 </html>
