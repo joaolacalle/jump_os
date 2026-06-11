@@ -120,6 +120,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .pay-msg{display:none;padding:13px 15px;border-radius:9px;font-size:13.5px;line-height:1.55;margin-top:14px}
 .pay-msg.show{display:block}
 .pay-msg.err{background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:#FF8A8A}
+.pp-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;font-family:var(--M);font-size:12px;color:var(--t2);letter-spacing:1px}
+.pp-loading.hide{display:none}
+#paypal-buttons{min-height:0;border-radius:10px;overflow:hidden}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{100%{transform:rotate(360deg)}}
 /* Loading state da página */
@@ -142,7 +145,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 
 <nav>
   <div class="nl"><a href="home.html"><img src="assets/logo.png" alt="JUMP OS"></a></div>
-  <div class="n-secure"><span class="lock">🔒</span> Pagamento seguro · Stripe</div>
+  <div class="n-secure"><span class="lock">🔒</span> Pagamento seguro · PayPal</div>
 </nav>
 
 <div class="page">
@@ -186,9 +189,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
         <div class="ur-email" id="user-email">carregando...</div>
         <span class="ur-change" onclick="logout()">Trocar</span>
       </div>
-      <button class="pay-btn" id="pay-btn" onclick="goCheckout()">Ir para pagamento →</button>
-      <div class="pay-secure"><span class="lock">🔒</span> Criptografia SSL · Stripe</div>
-      <div class="pay-note">Você será redirecionado ao ambiente seguro do Stripe.<br>Primeiros 7 dias sem cobrança.</div>
+      <!-- Botões PayPal renderizados aqui (pagamento sem sair do site) -->
+      <div id="paypal-buttons"></div>
+      <div class="pp-loading" id="pp-loading"><span class="spinner" style="border-color:rgba(0,230,118,.2);border-top-color:var(--g)"></span> Carregando pagamento seguro...</div>
+      <!-- Fallback: se o SDK não carregar, usa o redirect -->
+      <button class="pay-btn" id="pay-btn" onclick="goCheckout()" style="display:none">Ir para pagamento →</button>
+      <div class="pay-secure"><span class="lock">🔒</span> Pagamento seguro · PayPal</div>
+      <div class="pay-note">Pague sem sair do site — cartão ou conta PayPal.<br>Primeiros 7 dias sem cobrança.</div>
       <div class="pay-msg" id="pay-msg"></div>
     </div>
   </div>
@@ -248,6 +255,7 @@ function switchPlan(){
   plano=plano==='plus'?'basico':'plus';
   history.replaceState(null,'',`checkout.html?plano=${plano}`);
   renderPlan();
+  if(window.paypal&&ppConfig)renderPayPalButtons();
 }
 
 /* ══ AUTH GUARD ══ */
@@ -264,6 +272,7 @@ function switchPlan(){
     renderPlan();
     document.getElementById('loading').classList.remove('show');
     document.getElementById('content').style.display='grid';
+    initPayPal();
   }catch(e){
     location.href=`login.html?plano=${plano}`;
   }
@@ -274,7 +283,50 @@ async function logout(){
   location.href=`login.html?plano=${plano}`;
 }
 
-/* ══ CHECKOUT STRIPE ══ */
+/* ══ PAYPAL SDK — pagamento dentro do site ══ */
+let ppConfig=null;
+async function initPayPal(){
+  try{
+    const r=await fetch('/api/paypal-config');
+    ppConfig=await r.json();
+    if(!ppConfig.clientId)throw new Error('config vazia');
+    const s=document.createElement('script');
+    s.src=`https://www.paypal.com/sdk/js?client-id=${ppConfig.clientId}&vault=true&intent=subscription&locale=pt_BR`;
+    s.onload=renderPayPalButtons;
+    s.onerror=showFallback;
+    document.head.appendChild(s);
+  }catch(e){showFallback()}
+}
+function showFallback(){
+  document.getElementById('pp-loading').classList.add('hide');
+  document.getElementById('pay-btn').style.display='flex';
+}
+function renderPayPalButtons(){
+  const wrap=document.getElementById('paypal-buttons');
+  wrap.innerHTML='';
+  document.getElementById('pp-loading').classList.add('hide');
+  if(!window.paypal||!ppConfig.plans[plano]){showFallback();return}
+  window.paypal.Buttons({
+    style:{layout:'vertical',color:'black',shape:'rect',label:'subscribe',height:50},
+    createSubscription:(data,actions)=>actions.subscription.create({
+      plan_id:ppConfig.plans[plano],
+      custom_id:JSON.stringify({userId:userId||'',plano}),
+      subscriber:{email_address:userEmail||undefined},
+      application_context:{brand_name:'JUMP OS',locale:'pt-BR',shipping_preference:'NO_SHIPPING'}
+    }),
+    onApprove:(data)=>{
+      location.href=`dashboard-usuario.html?pagamento=sucesso&sub=${data.subscriptionID}`;
+    },
+    onError:()=>{
+      const msg=document.getElementById('pay-msg');
+      msg.textContent='Não foi possível concluir. Tente novamente ou use o botão alternativo.';
+      msg.className='pay-msg show err';
+      showFallback();
+    }
+  }).render('#paypal-buttons');
+}
+
+/* ══ CHECKOUT FALLBACK (redirect via API) ══ */
 async function goCheckout(){
   const btn=document.getElementById('pay-btn');
   const msg=document.getElementById('pay-msg');
