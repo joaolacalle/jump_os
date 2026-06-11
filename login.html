@@ -235,6 +235,22 @@ if(plano&&PLANOS[plano]){
   switchTab('signup');
 }
 
+/* ══ ROTEAMENTO POR PAPEL: admin → admin | supervisor → supervisor | usuario → painel/checkout ══ */
+async function goByRole(session){
+  let dest=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
+  try{
+    const{data:c}=await sb.from('clientes').select('role,bloqueado').eq('id',session.user.id).single();
+    if(c&&c.bloqueado){
+      await sb.auth.signOut();
+      showMsg('msg-login','Esta conta está bloqueada. Fale com seu supervisor ou suporte.','err');
+      return;
+    }
+    if(c&&c.role==='admin')dest='dashboard-admin.html';
+    else if(c&&c.role==='supervisor')dest='dashboard-supervisor.html';
+  }catch(e){}
+  location.href=dest;
+}
+
 /* ══ TABS ══ */
 function switchTab(t){
   document.getElementById('tab-login').classList.toggle('a',t==='login');
@@ -263,9 +279,7 @@ async function doLogin(){
     const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
     if(error)throw error;
     showMsg('msg-login','✅ Login realizado! Redirecionando...','ok');
-    setTimeout(()=>{
-      location.href=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
-    },800);
+    setTimeout(()=>goByRole(data.session),600);
   }catch(e){
     let msg='Erro ao entrar. Verifique seus dados.';
     if(e.message&&e.message.includes('Invalid login'))msg='E-mail ou senha incorretos.';
@@ -325,9 +339,7 @@ document.getElementById('signup-pass').addEventListener('keydown',e=>{if(e.key==
 /* ══ SE JÁ LOGADO, REDIRECIONAR ══ */
 (async()=>{
   const{data}=await sb.auth.getSession();
-  if(data&&data.session){
-    location.href=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
-  }
+  if(data&&data.session){goByRole(data.session)}
 })();
 
 /* ══ CURSOR ══ */
