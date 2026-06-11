@@ -1,288 +1,270 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Painel</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{overflow-x:hidden}
-:root{
-  --ch:#141312;--ch2:#1C1A18;--ch3:#252220;
-  --g:#00E676;--g2:#00FF8A;
-  --glow:rgba(0,230,118,.18);
-  --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
-  --bd:rgba(245,242,236,.08);
-  --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
-}
-body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:16px;line-height:1.6;overflow-x:hidden;min-height:100vh}
-a{text-decoration:none;color:inherit}
-button{cursor:pointer;border:none;background:none;font-family:inherit}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--ch)}::-webkit-scrollbar-thumb{background:var(--g)}
-
-.grain{position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.03;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size:180px 180px;mix-blend-mode:overlay}
-
-/* LAYOUT */
-.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-/* SIDEBAR */
-.sidebar{background:#0F0E0D;border-right:1px solid var(--bd);padding:22px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.sb-logo{padding:0 8px 22px;border-bottom:1px solid var(--bd);margin-bottom:18px}
-.sb-logo img{height:32px;object-fit:contain}
-.sb-nav{display:flex;flex-direction:column;gap:3px;flex:1}
-.sb-link{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:9px;font-size:14px;font-weight:600;color:var(--t2);transition:.2s}
-.sb-link:hover{background:rgba(245,242,236,.04);color:var(--t1)}
-.sb-link.a{background:rgba(0,230,118,.1);color:var(--g);border:1px solid rgba(0,230,118,.2)}
-.sb-ico{font-size:16px;width:20px;text-align:center}
-.sb-foot{border-top:1px solid var(--bd);padding-top:14px;display:flex;flex-direction:column;gap:3px}
-.sb-user{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;background:rgba(0,0,0,.25)}
-.sb-avatar{width:30px;height:30px;border-radius:50%;background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--g);flex-shrink:0}
-.sb-email{font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--M)}
-.sb-out{padding:9px 12px;font-size:12px;color:var(--t3);text-align:left;transition:.2s;font-family:var(--M);letter-spacing:1px}
-.sb-out:hover{color:#FF8A8A}
-
-/* MAIN */
-.main{padding:clamp(22px,3.5vw,40px);position:relative}
-/* Banner sucesso */
-.suc-banner{display:none;align-items:center;gap:12px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:12px;padding:15px 18px;margin-bottom:22px}
-.suc-banner.show{display:flex}
-.suc-ico{font-size:22px}
-.suc-t{font-size:14px;color:var(--t1);line-height:1.5}
-.suc-t strong{color:var(--g)}
-.suc-x{margin-left:auto;color:var(--t3);font-size:18px;flex-shrink:0}
-.suc-x:hover{color:var(--t1)}
-/* Header */
-.hd{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:clamp(22px,3.5vw,34px)}
-.hd-hello{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
-.hd-h{font-family:'Oswald',var(--D);font-size:clamp(28px,4.5vw,44px);font-weight:700;text-transform:uppercase;line-height:1.05}
-.hd-h em{font-style:normal;color:var(--g)}
-/* Status pill do plano */
-.plan-pill{display:flex;align-items:center;gap:10px;background:#1E1C19;border:1px solid rgba(0,230,118,.3);border-radius:12px;padding:12px 18px}
-.pp-dot{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:pdot 2.2s infinite}
-@keyframes pdot{0%,100%{opacity:1}50%{opacity:.4}}
-.pp-info{display:flex;flex-direction:column}
-.pp-plan{font-family:var(--D);font-size:18px;letter-spacing:1px;text-transform:uppercase;color:var(--g);line-height:1}
-.pp-status{font-family:var(--M);font-size:10px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
-/* Stats row */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:clamp(22px,3.5vw,32px)}
-.stat{background:#1E1C19;border:1px solid var(--bd);border-radius:12px;padding:16px 18px}
-.st-n{font-family:var(--M);font-size:clamp(22px,3vw,30px);font-weight:700;color:var(--g);line-height:1}
-.st-l{font-size:11px;color:var(--t3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:5px}
-/* Seção */
-.sec-lbl{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:14px;display:flex;align-items:center;gap:10px}
-.sec-lbl::after{content:'';flex:1;height:1px;background:var(--bd)}
-/* GRID DE AGENTES */
-.ag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:clamp(24px,4vw,36px)}
-.agc{
-  background:#1E1C19;
-  background-image:linear-gradient(145deg,rgba(var(--nr,0,230,118),.14) 0%,rgba(var(--nr,0,230,118),.04) 40%,transparent 65%);
-  border:1px solid rgba(var(--nr,0,230,118),.35);
-  border-radius:12px;padding:18px;position:relative;
-  transition:transform .3s,box-shadow .3s;cursor:pointer;overflow:hidden;
-}
-.agc:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.4),0 0 30px rgba(var(--nr,0,230,118),.08)}
-.agc.locked{opacity:.45;cursor:default}
-.agc.locked:hover{transform:none;box-shadow:none}
-.agc-status{position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%}
-.agc-status.on{background:var(--g);box-shadow:0 0 6px var(--g)}
-.agc-status.off{background:var(--t3)}
-.agc-ico{font-size:24px;margin-bottom:10px}
-.agc-name{font-family:var(--D);font-size:18px;letter-spacing:.5px;text-transform:uppercase;color:var(--nc,var(--g));line-height:1;margin-bottom:5px}
-.agc-role{font-size:10px;color:var(--t3);font-family:var(--M);letter-spacing:1px;text-transform:uppercase}
-.agc-lock{position:absolute;bottom:12px;right:12px;font-size:11px;font-family:var(--M);color:var(--t3)}
-/* AÇÕES RÁPIDAS */
-.acts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.act{background:#1E1C19;border:1px solid var(--bd);border-radius:12px;padding:18px;transition:.25s;display:flex;flex-direction:column;gap:8px}
-.act:hover{border-color:rgba(0,230,118,.35);transform:translateY(-3px)}
-.act-ico{font-size:22px}
-.act-t{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--t1)}
-.act-b{font-size:12px;color:var(--t2);line-height:1.5}
-.act-go{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--g);text-transform:uppercase;margin-top:auto}
-/* Loading */
-.loading{position:fixed;inset:0;background:var(--ch);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:500}
-.loading.hide{display:none}
-.ld-spin{width:40px;height:40px;border:3px solid var(--bd);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{100%{transform:rotate(360deg)}}
-.ld-t{font-family:var(--M);font-size:12px;color:var(--t2);letter-spacing:2px;text-transform:uppercase}
-/* Mobile */
-.mob-top{display:none}
-@media(max-width:920px){
-  .app{grid-template-columns:1fr}
-  .sidebar{display:none}
-  .mob-top{display:flex;align-items:center;justify-content:space-between;padding:14px clamp(16px,4vw,24px);background:#0F0E0D;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:100}
-  .mob-top img{height:28px}
-  .mob-out{font-family:var(--M);font-size:11px;color:var(--t3);letter-spacing:1px}
-  .stats{grid-template-columns:1fr 1fr}
-  .ag-grid{grid-template-columns:1fr 1fr}
-  .acts{grid-template-columns:1fr 1fr}
-}
-@media(max-width:480px){.ag-grid{grid-template-columns:1fr 1fr}.acts{grid-template-columns:1fr}}
+/* específicos desta página */
+.conn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
+.conn{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:15px 17px}
+.conn.ok{border-color:rgba(0,230,118,.35)}
+.conn-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:rgba(0,0,0,.3)}
+.conn-t{font-size:14px;font-weight:800;color:var(--t1)}
+.conn-s{font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+.conn-s.on{color:var(--g)}.conn-s.off{color:var(--t3)}
+.conn .btn{margin-left:auto;flex-shrink:0}
+.ads-pro{background:var(--card);background-image:linear-gradient(145deg,rgba(168,85,247,.12) 0%,transparent 60%);border:1px solid rgba(168,85,247,.35);border-radius:12px;padding:17px;margin-top:12px}
+.ads-pro-h{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.ads-pro-t{font-family:var(--D);font-size:17px;letter-spacing:1px;text-transform:uppercase;color:var(--pu)}
+.agc{background:var(--card);background-image:linear-gradient(145deg,rgba(var(--nr,0,230,118),.13) 0%,transparent 60%);border:1px solid rgba(var(--nr,0,230,118),.32);border-radius:12px;padding:15px;position:relative;transition:.25s;display:block}
+.agc:hover{transform:translateY(-3px)}
+.agc.locked{opacity:.42;pointer-events:none}
+.agc-ico{font-size:21px;margin-bottom:8px}
+.agc-name{font-family:var(--D);font-size:16px;letter-spacing:.5px;text-transform:uppercase;color:var(--nc,var(--g));line-height:1}
+.agc-lock{position:absolute;top:11px;right:11px;font-size:10px;font-family:var(--M);color:var(--t3)}
+.ag-grid8{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.acts4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.act{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;transition:.22s;display:flex;flex-direction:column;gap:6px}
+.act:hover{border-color:rgba(0,230,118,.35);transform:translateY(-2px)}
+.act-t{font-size:13.5px;font-weight:800;text-transform:uppercase;color:var(--t1)}
+.act-b{font-size:11.5px;color:var(--t2);line-height:1.45}
+.act-go{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:var(--g);text-transform:uppercase;margin-top:auto}
+@media(max-width:920px){.conn-row{grid-template-columns:1fr}.ag-grid8,.acts4{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <div class="grain"></div>
-
-<div class="loading" id="loading">
-  <div class="ld-spin"></div>
-  <div class="ld-t">Carregando seu painel...</div>
-</div>
-
-<div class="mob-top">
-  <img src="assets/logo.png" alt="JUMP OS">
-  <button class="mob-out" onclick="doLogout()">Sair</button>
-</div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando painel...</div></div>
+<div class="mob-top"><img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button></div>
 
 <div class="app">
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sb-logo"><img src="assets/logo.png" alt="JUMP OS"></div>
-    <nav class="sb-nav">
-      <a href="dashboard-usuario.html" class="sb-link a"><span class="sb-ico">◈</span>Painel</a>
-      <a href="agentes.html" class="sb-link"><span class="sb-ico">🤖</span>Meus agentes</a>
-      <a href="calendario.html" class="sb-link"><span class="sb-ico">📅</span>Calendário</a>
-      <a href="aprovar.html" class="sb-link"><span class="sb-ico">✓</span>Aprovações</a>
-      <a href="historico.html" class="sb-link"><span class="sb-ico">🕘</span>Histórico</a>
-      <a href="configuracoes.html" class="sb-link"><span class="sb-ico">⚙</span>Configurações</a>
-    </nav>
-    <div class="sb-foot">
-      <div class="sb-user">
-        <div class="sb-avatar" id="sb-avatar">J</div>
-        <div class="sb-email" id="sb-email">...</div>
-      </div>
-      <button class="sb-out" onclick="doLogout()">→ Sair da conta</button>
-    </div>
-  </aside>
+<aside class="sidebar">
+  <div class="sb-logo"><img src="assets/logo.png" alt="JUMP OS"></div>
+  <nav class="sb-nav">
+    <a href="dashboard-usuario.html" class="sb-link a"><span class="sb-ico">◈</span>Painel</a>
+    <a href="agentes.html" class="sb-link"><span class="sb-ico">🤖</span>Meus agentes</a>
+    <a href="calendario.html" class="sb-link"><span class="sb-ico">📅</span>Calendário</a>
+    <a href="aprovar.html" class="sb-link"><span class="sb-ico">✓</span>Aprovações</a>
+    <a href="historico.html" class="sb-link"><span class="sb-ico">🕘</span>Histórico</a>
+    <a href="conectar-conta.html" class="sb-link"><span class="sb-ico">🔗</span>Conexões</a>
+    <a href="configuracoes.html" class="sb-link"><span class="sb-ico">⚙</span>Configurações</a>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user"><div class="sb-avatar" id="sb-avatar">·</div><div class="sb-email" id="sb-email">...</div></div>
+    <button class="sb-out" onclick="JUMP.logout()">→ Sair da conta</button>
+  </div>
+</aside>
 
-  <!-- MAIN -->
-  <main class="main">
-    <!-- Banner pagamento sucesso -->
-    <div class="suc-banner" id="suc-banner">
-      <span class="suc-ico">🎉</span>
-      <div class="suc-t"><strong>Pagamento confirmado!</strong> Seus agentes estão sendo ativados. Comece pelo check-in com o Agente de Identidade.</div>
-      <button class="suc-x" onclick="this.parentElement.classList.remove('show')">✕</button>
-    </div>
+<main class="main">
+  <div id="imp-banner" style="display:none" class="imp-banner">👁 <span>Visualizando como <strong id="imp-email"></strong></span><a href="#" id="imp-back" class="btn btn-o btn-sm" style="margin-left:auto">← Voltar ao meu painel</a></div>
 
-    <!-- Header -->
-    <div class="hd">
-      <div>
-        <div class="hd-hello" id="hd-hello">Bem-vindo de volta</div>
-        <h1 class="hd-h">Seu sistema está<br><em id="hd-status">operando.</em></h1>
-      </div>
-      <div class="plan-pill">
-        <div class="pp-dot"></div>
-        <div class="pp-info">
-          <div class="pp-plan" id="pp-plan">—</div>
-          <div class="pp-status" id="pp-status">verificando...</div>
-        </div>
-      </div>
+  <div class="hd">
+    <div>
+      <div class="hd-hello" id="hd-hello">Bem-vindo</div>
+      <h1 class="hd-h">Seu sistema está<br><em id="hd-status">operando.</em></h1>
     </div>
+    <div class="pill pill-g" style="padding:10px 16px"><span class="dot"></span><span id="pp-plan">—</span></div>
+  </div>
 
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat"><div class="st-n" id="st-agents">—</div><div class="st-l">Agentes ativos</div></div>
-      <div class="stat"><div class="st-n" id="st-pending">0</div><div class="st-l">Aguardando aprovação</div></div>
-      <div class="stat"><div class="st-n" id="st-posts">0</div><div class="st-l">Posts este mês</div></div>
-      <div class="stat"><div class="st-n">24h</div><div class="st-l">Sistema operando</div></div>
+  <!-- RECADOS -->
+  <div id="recados-wrap" style="display:none">
+    <div class="sec-lbl" style="margin-top:0">Recados e alertas</div>
+    <div id="recados"></div>
+  </div>
+
+  <!-- CONEXÕES -->
+  <div class="sec-lbl">Contas conectadas</div>
+  <div class="conn-row">
+    <div class="conn" id="conn-ig">
+      <div class="conn-ico">📸</div>
+      <div><div class="conn-t">Instagram</div><div class="conn-s off" id="ig-status">Não conectado</div></div>
+      <a href="conectar-conta.html" class="btn btn-g btn-sm" id="ig-btn">Conectar →</a>
     </div>
-
-    <!-- Agentes -->
-    <div class="sec-lbl">Seus agentes</div>
-    <div class="ag-grid" id="ag-grid"></div>
-
-    <!-- Ações -->
-    <div class="sec-lbl">Ações rápidas</div>
-    <div class="acts">
-      <a href="agentes.html" class="act"><span class="act-ico">💬</span><div class="act-t">Falar com agentes</div><div class="act-b">Check-in, pedidos de roteiro e ajustes de estratégia.</div><div class="act-go">Abrir chat →</div></a>
-      <a href="calendario.html" class="act"><span class="act-ico">📅</span><div class="act-t">Ver calendário</div><div class="act-b">Plano editorial do mês com datas e formatos.</div><div class="act-go">Abrir →</div></a>
-      <a href="aprovar.html" class="act"><span class="act-ico">✓</span><div class="act-t">Aprovar conteúdo</div><div class="act-b">Revise e aprove com 1 clique antes de publicar.</div><div class="act-go">Revisar →</div></a>
-      <a href="historico.html" class="act"><span class="act-ico">📊</span><div class="act-t">Resultados</div><div class="act-b">Histórico de posts e relatórios de performance.</div><div class="act-go">Ver →</div></a>
+    <div class="conn" id="conn-ads">
+      <div class="conn-ico">📢</div>
+      <div><div class="conn-t">Meta Ads</div><div class="conn-s off" id="ads-status">Não conectado</div></div>
+      <a href="conectar-conta.html#ads" class="btn btn-o btn-sm" id="ads-btn">Conectar →</a>
     </div>
-  </main>
+  </div>
+
+  <!-- INSTAGRAM STATS — flip -->
+  <div class="sec-lbl">Instagram — últimos 30 dias <span class="lbl-act" onclick="JUMP.toast('Toque em um card para ver a explicação')">ⓘ toque para detalhes</span></div>
+  <div class="fs-grid" id="ig-stats"></div>
+
+  <!-- ADS STATS — flip -->
+  <div class="sec-lbl">Meta Ads — resultados</div>
+  <div class="fs-grid" id="ads-stats"></div>
+  <!-- Sugestões do Agente de Tráfego (Pro) -->
+  <div class="ads-pro" id="ads-pro" style="display:none">
+    <div class="ads-pro-h"><span style="font-size:18px">📢</span><div class="ads-pro-t">Sugestões do Agente de Tráfego</div><span class="pill pill-p" style="margin-left:auto">Pro</span></div>
+    <div id="traf-sugestoes"></div>
+  </div>
+  <div class="card" id="ads-upsell" style="display:none;margin-top:12px;border-color:rgba(168,85,247,.25)">
+    <div style="font-size:13px;color:var(--t2);line-height:1.6">🔒 <strong style="color:var(--pu)">Gestão e correção de tráfego pelo Agente</strong> — sugestões de otimização, realocação de budget e direção de correção estão disponíveis no <strong>plano Pro</strong>. Seu plano atual mostra o resumo dos resultados.</div>
+  </div>
+
+  <!-- AGENTES -->
+  <div class="sec-lbl">Seus agentes</div>
+  <div class="ag-grid8" id="ag-grid"></div>
+
+  <!-- AÇÕES -->
+  <div class="sec-lbl">Ações rápidas</div>
+  <div class="acts4">
+    <a href="agentes.html" class="act"><span>💬</span><div class="act-t">Falar com agentes</div><div class="act-b">Check-in, roteiros e estratégia.</div><div class="act-go">Abrir →</div></a>
+    <a href="calendario.html" class="act"><span>📅</span><div class="act-t">Calendário</div><div class="act-b">Plano editorial do mês.</div><div class="act-go">Abrir →</div></a>
+    <a href="aprovar.html" class="act"><span>✓</span><div class="act-t">Aprovar conteúdo</div><div class="act-b">Revise antes de publicar.</div><div class="act-go">Revisar →</div></a>
+    <a href="historico.html" class="act"><span>📊</span><div class="act-t">Resultados</div><div class="act-b">Relatórios de performance.</div><div class="act-go">Ver →</div></a>
+  </div>
+</main>
 </div>
 
+<script src="assets/jump-core.js"></script>
 <script>
-/* ══ SUPABASE ══ */
-const SUPABASE_URL='https://fcdjzubdxikpvcqvalnt.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
 const AGENTS=[
-  {ico:'🎨',name:'Identidade',role:'Agente de Identidade',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:'basico'},
-  {ico:'🔍',name:'Mercado',role:'Agente de Mercado',nc:'rgba(0,212,255,.9)',nr:'0,212,255',min:'basico'},
-  {ico:'📊',name:'Diagnóstico',role:'Agente de Diagnóstico',nc:'rgba(124,255,107,.9)',nr:'124,255,107',min:'basico'},
-  {ico:'📋',name:'Estratégia',role:'Agente de Estratégia',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:'basico'},
-  {ico:'🖼',name:'Criativo',role:'Agente Criativo',nc:'rgba(64,255,191,.9)',nr:'64,255,191',min:'basico'},
-  {ico:'📅',name:'Publicação',role:'Agente de Publicação',nc:'rgba(0,191,160,.9)',nr:'0,191,160',min:'plus'},
-  {ico:'📢',name:'Tráfego',role:'Agente de Tráfego',nc:'rgba(168,85,247,.8)',nr:'168,85,247',min:'pro'},
-  {ico:'🎬',name:'Editor Vídeo',role:'Agente de Vídeo',nc:'rgba(255,130,80,.8)',nr:'255,130,80',min:'pro'},
+  {ico:'🎨',n:'Identidade',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:1},
+  {ico:'🔍',n:'Mercado',nc:'rgba(0,212,255,.9)',nr:'0,212,255',min:1},
+  {ico:'📊',n:'Diagnóstico',nc:'rgba(124,255,107,.9)',nr:'124,255,107',min:1},
+  {ico:'📋',n:'Estratégia',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:1},
+  {ico:'🖼',n:'Criativo',nc:'rgba(64,255,191,.9)',nr:'64,255,191',min:1},
+  {ico:'📅',n:'Publicação',nc:'rgba(0,191,160,.9)',nr:'0,191,160',min:2},
+  {ico:'📢',n:'Tráfego',nc:'rgba(168,85,247,.8)',nr:'168,85,247',min:3},
+  {ico:'🎬',n:'Editor Vídeo',nc:'rgba(255,130,80,.8)',nr:'255,130,80',min:3},
 ];
-const PLAN_LEVEL={basico:1,plus:2,pro:3};
-const PLAN_COUNT={basico:5,plus:6,pro:8};
+const LV={basico:1,plus:2,pro:3};
 
-/* ══ AUTH + DADOS ══ */
+function flipCard(id,nr,num,lbl,backT,backX){
+  return `<div class="fs" style="--nr:${nr}" onclick="this.classList.toggle('flip')">
+    <div class="fs-in">
+      <div class="fs-f"><div class="fs-n">${num}</div><div class="fs-l">${lbl}</div><div class="fs-hint">↻ detalhes</div></div>
+      <div class="fs-b"><div class="fs-bt">${backT}</div><div class="fs-bx">${backX}</div></div>
+    </div></div>`;
+}
+
 (async()=>{
   try{
-    const{data:sess}=await sb.auth.getSession();
-    if(!sess||!sess.session){location.href='login.html';return}
-    const user=sess.session.user;
-    const email=user.email;
-    const nome=(user.user_metadata&&user.user_metadata.nome)||email.split('@')[0];
+    const ctx=await JUMP.guard();
+    let{user,cliente}=ctx;
+    let viewing=null;
 
-    document.getElementById('sb-email').textContent=email;
-    document.getElementById('sb-avatar').textContent=nome.charAt(0).toUpperCase();
-    document.getElementById('hd-hello').textContent='Bem-vindo, '+nome.split(' ')[0];
-
-    /* Banner sucesso de pagamento */
+    /* IMPERSONATE: ?ver=ID (supervisor/admin via RLS) */
     const params=new URLSearchParams(location.search);
-    if(params.get('pagamento')==='sucesso'){
-      document.getElementById('suc-banner').classList.add('show');
-      history.replaceState(null,'','dashboard-usuario.html');
+    const ver=params.get('ver');
+    if(ver&&ver!==user.id&&(ctx.role==='supervisor'||ctx.role==='admin')){
+      const{data:alvo}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
+      if(alvo){
+        viewing=alvo;cliente=alvo;
+        document.getElementById('imp-banner').style.display='flex';
+        document.getElementById('imp-email').textContent=alvo.email||ver;
+        document.getElementById('imp-back').href=ctx.role==='admin'?'dashboard-admin.html':'dashboard-supervisor.html';
+      }
+    }
+    JUMP.setUser(viewing||cliente,viewing?{email:viewing.email,user_metadata:{nome:viewing.nome}}:user);
+
+    const plano=cliente.plano||'basico';
+    const level=LV[plano]||1;
+    document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
+    document.getElementById('hd-status').textContent=(cliente.status==='ativo')?'operando.':'aguardando ativação.';
+    const uid=viewing?viewing.id:user.id;
+
+    /* Banner pagamento */
+    if(params.get('pagamento')==='sucesso'){JUMP.toast('🎉 Pagamento confirmado! Agentes em ativação.');history.replaceState(null,'','dashboard-usuario.html')}
+
+    /* CONEXÕES */
+    let igOn=false,adsOn=false;
+    try{
+      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',uid);
+      (cc||[]).forEach(c=>{
+        if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta'))igOn=true;
+        if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
+      });
+    }catch(e){}
+    if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm'}
+    if(adsOn){document.getElementById('ads-status').textContent='● Conectado';document.getElementById('ads-status').className='conn-s on';document.getElementById('conn-ads').classList.add('ok');document.getElementById('ads-btn').textContent='Gerenciar';document.getElementById('ads-btn').className='btn btn-o btn-sm'}
+
+    /* MÉTRICAS — zeros quando não conectado; dados reais de `metricas` quando houver */
+    let m={alcance:0,seguidores:0,engaj:0,posts:0,investido:0,roas:0,cpl:0,cliques:0};
+    try{
+      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).order('created_at',{ascending:false}).limit(1);
+      if(mt&&mt[0])m=Object.assign(m,mt[0]);
+    }catch(e){}
+
+    document.getElementById('ig-stats').innerHTML=
+      flipCard('a','0,230,118',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
+      flipCard('b','0,212,255',JUMP.fmtNum(m.seguidores),'Seguidores','Crescimento',igOn?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
+      flipCard('c','124,255,107',(m.engaj||0)+'%','Engajamento','Taxa de engajamento',igOn?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
+      flipCard('d','64,255,191',JUMP.fmtNum(m.posts),'Posts no mês','Frequência',igOn?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
+
+    const adsBack=level>=3
+      ?['Investimento total no período. O Agente de Tráfego realoca o budget diariamente entre os 4 públicos.','Retorno sobre investimento. Abaixo de 2x o Agente sugere correção de criativo ou público.','Custo por lead. O Agente compara com o benchmark do nicho e ajusta as campanhas.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
+      :['Total investido em anúncios no período. Resultado consolidado das suas campanhas.','ROAS = retorno sobre o valor investido. Ex: 3x significa R$3 de retorno por R$1 investido.','Custo por lead captado. Quanto menor, mais eficiente está a campanha.','Total de cliques nos seus anúncios no período.'];
+    document.getElementById('ads-stats').innerHTML=
+      flipCard('e','0,230,118',JUMP.fmtBRL(m.investido),'Investido','O que significa',adsOn?adsBack[0]:'Conecte o Meta Ads para acompanhar o investimento.')+
+      flipCard('f','0,212,255',(m.roas||0)+'x','ROAS','O que significa',adsOn?adsBack[1]:'Sem conta de anúncios conectada.')+
+      flipCard('g','168,85,247',JUMP.fmtBRL(m.cpl),'Custo por lead','O que significa',adsOn?adsBack[2]:'Valor zerado até a conexão.')+
+      flipCard('h','255,130,80',JUMP.fmtNum(m.cliques),'Cliques','O que significa',adsOn?adsBack[3]:'Conecte para medir os cliques reais.');
+
+    /* PRO: sugestões do tráfego | Básico/Plus: upsell */
+    if(level>=3){
+      document.getElementById('ads-pro').style.display='block';
+      let sugs=[];
+      try{
+        const{data:s}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('tipo','trafego_sugestao').eq('resolvido',false).order('created_at',{ascending:false}).limit(5);
+        sugs=s||[];
+      }catch(e){}
+      const tw=document.getElementById('traf-sugestoes');
+      if(!sugs.length){tw.innerHTML='<div style="font-size:12.5px;color:var(--t3);font-family:var(--M)">Nenhuma sugestão pendente — campanhas dentro dos parâmetros.</div>'}
+      else{
+        tw.innerHTML=sugs.map(s=>`<div class="rec rec-traf"><span class="rec-ico">⚡</span><div style="flex:1"><div class="rec-t">${JUMP.esc(s.titulo)}</div><div class="rec-b">${JUMP.esc(s.mensagem)}</div><div class="rec-acts"><button class="btn btn-g btn-sm" onclick="resolverSug('${s.id}',true)">✓ Aprovar correção</button><button class="btn btn-o btn-sm" onclick="resolverSug('${s.id}',false)">Recusar</button></div></div></div>`).join('');
+      }
+    }else{
+      document.getElementById('ads-upsell').style.display='block';
     }
 
-    /* Buscar dados do cliente (RLS: só a própria linha) */
-    let plano='basico',status='ativo';
+    /* RECADOS: bugs/alertas + aprovações a vencer (1 dia) */
+    let recs=[];
     try{
-      const{data:cli}=await sb.from('clientes').select('plano,status').eq('id',user.id).single();
-      if(cli){plano=cli.plano||plano;status=cli.status||status}
-    }catch(e){/* trigger pode não ter coluna ainda — usa defaults */}
+      const{data:r}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('lido',false).neq('tipo','trafego_sugestao').order('created_at',{ascending:false}).limit(8);
+      recs=r||[];
+    }catch(e){}
+    try{
+      const limite=new Date(Date.now()+864e5).toISOString();
+      const{data:venc}=await JUMP.sb.from('conteudos').select('id,titulo,prazo').eq('user_id',uid).eq('status','pendente').lte('prazo',limite);
+      (venc||[]).forEach(v=>recs.unshift({tipo:'urgente',titulo:'Aprovação vence em menos de 24h',mensagem:(v.titulo||'Conteúdo')+' aguarda sua aprovação para ser publicado no prazo.',_link:'aprovar.html'}));
+    }catch(e){}
+    if(recs.length){
+      document.getElementById('recados-wrap').style.display='block';
+      const map={bug:['rec-warn','🐛'],alerta:['rec-warn','⚠️'],urgente:['rec-urgent','⏰'],info:['rec-info','💡']};
+      document.getElementById('recados').innerHTML=recs.map((r,i)=>{
+        const[cls,ico]=map[r.tipo]||map.info;
+        return `<div class="rec ${cls}"><span class="rec-ico">${ico}</span><div style="flex:1"><div class="rec-t">${JUMP.esc(r.titulo)}</div><div class="rec-b">${JUMP.esc(r.mensagem)}</div>${r._link?'<div class="rec-acts"><a href="'+r._link+'" class="btn btn-g btn-sm">Resolver agora →</a></div>':''}</div>${r.id?'<button class="rec-x" onclick="lerRecado(\''+r.id+'\',this)">✕</button>':''}</div>`;
+      }).join('');
+    }
 
-    const level=PLAN_LEVEL[plano]||1;
-    document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
-    document.getElementById('pp-status').textContent=status==='ativo'?'● assinatura ativa':status;
-    document.getElementById('st-agents').textContent=PLAN_COUNT[plano]||5;
-    document.getElementById('hd-status').textContent=status==='ativo'?'operando.':'aguardando ativação.';
+    /* AGENTES com lock */
+    document.getElementById('ag-grid').innerHTML=AGENTS.map(a=>{
+      const un=a.min<=level;
+      return `<a href="${un?'agentes.html?agente='+encodeURIComponent(a.n.toLowerCase()):'#'}" class="agc${un?'':' locked'}" style="--nc:${a.nc};--nr:${a.nr}">
+        ${un?'':'<span class="agc-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
+        <div class="agc-ico">${a.ico}</div><div class="agc-name">${a.n}</div></a>`;
+    }).join('');
 
-    /* Render agentes */
-    const grid=document.getElementById('ag-grid');
-    AGENTS.forEach(ag=>{
-      const unlocked=PLAN_LEVEL[ag.min]<=level;
-      const el=document.createElement(unlocked?'a':'div');
-      el.className='agc'+(unlocked?'':' locked');
-      el.style.cssText=`--nc:${ag.nc};--nr:${ag.nr}`;
-      if(unlocked)el.href='agentes.html?agente='+encodeURIComponent(ag.name.toLowerCase());
-      el.innerHTML=`
-        <div class="agc-status ${unlocked?'on':'off'}"></div>
-        <div class="agc-ico">${ag.ico}</div>
-        <div class="agc-name">${ag.name}</div>
-        <div class="agc-role">${ag.role}</div>
-        ${unlocked?'':'<div class="agc-lock">🔒 '+(ag.min==='plus'?'Plus':'Pro')+'</div>'}
-      `;
-      grid.appendChild(el);
-    });
-
+    window._ctx=ctx;
     document.getElementById('loading').classList.add('hide');
-  }catch(e){
-    location.href='login.html';
-  }
+  }catch(e){if(e.message!=='no-session'&&e.message!=='no-role')console.error(e)}
 })();
 
-async function doLogout(){
-  await sb.auth.signOut();
-  location.href='home.html';
+async function lerRecado(id,btn){
+  try{await JUMP.sb.from('recados').update({lido:true}).eq('id',id);btn.closest('.rec').remove()}catch(e){JUMP.toast('Erro ao marcar','err')}
+}
+async function resolverSug(id,aprovado){
+  try{
+    await JUMP.sb.from('recados').update({resolvido:true,lido:true,resposta:aprovado?'aprovado':'recusado'}).eq('id',id);
+    JUMP.toast(aprovado?'✓ Correção aprovada — o Agente de Tráfego vai aplicar.':'Sugestão recusada.');
+    setTimeout(()=>location.reload(),900);
+  }catch(e){JUMP.toast('Erro na operação','err')}
 }
 </script>
 </body>

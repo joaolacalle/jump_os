@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Supervisor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.top-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.search{flex:1;min-width:220px}
+.vaga-pill{font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t2)}
+.vaga-pill strong{color:var(--g)}
+.u-cell{display:flex;flex-direction:column;gap:2px}
+.u-mail{font-family:var(--M);font-size:11px;color:var(--t3)}
+.sel-mini{padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.35);border:1px solid var(--bd);font-size:12px;color:var(--t1)}
+.sel-mini option{background:var(--ch2)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando gestão...</div></div>
+<div class="mob-top"><img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button></div>
+
+<div class="app" style="grid-template-columns:1fr">
+<main class="main" style="max-width:1280px;margin:0 auto;width:100%">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div class="hd" style="margin:0">
+      <div>
+        <div class="hd-hello">Painel Supervisor</div>
+        <h1 class="hd-h">Gestão de <em>contas.</em></h1>
+      </div>
+    </div>
+    <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+      <a href="dashboard-usuario.html" class="btn btn-o btn-sm">👤 Minha conta usuário</a>
+      <button class="sb-out" style="padding:8px 12px" onclick="JUMP.logout()">→ Sair</button>
+    </div>
+  </div>
+  <div id="imp-banner" style="display:none" class="imp-banner">🛡 <span>Administrando o supervisor <strong id="imp-email"></strong></span><a href="dashboard-admin.html" class="btn btn-o btn-sm" style="margin-left:auto">← Voltar ao admin</a></div>
+
+  <!-- STATS -->
+  <div class="stats" style="margin-top:18px">
+    <div class="stat"><div class="st-n" id="st-usadas">0/0</div><div class="st-l">Contas usadas</div></div>
+    <div class="stat"><div class="st-n" id="st-ativos">0</div><div class="st-l">Ativos</div></div>
+    <div class="stat"><div class="st-n" id="st-bloq">0</div><div class="st-l">Bloqueados</div></div>
+    <div class="stat"><div class="st-n" id="st-cortesia">0</div><div class="st-l">Em cortesia</div></div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="top-row" style="margin-top:18px">
+    <input class="f-input search" id="search" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderTable()">
+    <span class="vaga-pill">Vagas: <strong id="vagas-txt">—</strong></span>
+    <button class="btn btn-g" id="btn-criar" onclick="abrirCriar()">+ Criar conta de usuário</button>
+  </div>
+
+  <!-- TABELA -->
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Usuário</th><th>Plano</th><th>Status</th><th>Cortesia</th><th>Uso (tokens · imagens)</th><th>Ações</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="6" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</main>
+</div>
+
+<!-- MODAL CRIAR/EDITAR -->
+<div class="modal-bg" id="modal-user">
+  <div class="modal">
+    <div class="modal-t" id="mu-title">Criar conta de usuário</div>
+    <input type="hidden" id="mu-id">
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Nome completo</label><input class="f-input" id="mu-nome"></div>
+      <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="mu-email" type="email"></div>
+    </div>
+    <div class="f-row" id="mu-senha-row">
+      <div class="f-group"><label class="f-label">Senha inicial</label><input class="f-input" id="mu-senha" placeholder="mín. 6 caracteres"></div>
+      <div class="f-group"><label class="f-label">Plano</label>
+        <select class="f-select" id="mu-plano"><option value="basico">Básico</option><option value="plus" selected>Plus</option><option value="pro">Pro</option></select>
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Período de cortesia (sem cobrança)</label>
+      <select class="f-select" id="mu-cortesia">
+        <option value="">Sem cortesia (assinatura normal)</option>
+        <option value="7">7 dias</option><option value="30">30 dias</option>
+        <option value="60">60 dias</option><option value="ilimitado">Ilimitado</option>
+      </select>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="mu-tel"></div>
+      <div class="f-group"><label class="f-label">CPF</label><input class="f-input" id="mu-cpf"></div>
+    </div>
+    <div class="f-group"><label class="f-label">Endereço</label><input class="f-input" id="mu-end"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fecharModal('modal-user')">Cancelar</button>
+      <button class="btn btn-g" id="mu-save" onclick="salvarUser()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIMITES -->
+<div class="modal-bg" id="modal-lim">
+  <div class="modal">
+    <div class="modal-t">Limites de uso</div>
+    <input type="hidden" id="ml-id">
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Imagens / mês</label><input class="f-input" id="ml-img" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Vídeos / mês</label><input class="f-input" id="ml-vid" type="number" min="0"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Sugestões de tráfego / mês</label><input class="f-input" id="ml-traf" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Tokens / mês</label><input class="f-input" id="ml-tok" type="number" min="0"></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fecharModal('modal-lim')">Cancelar</button>
+      <button class="btn btn-g" onclick="salvarLimites()">Salvar limites</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null,USERS=[],SUPID=null,LIMITE=0;
+
+(async()=>{
+  try{
+    CTX=await JUMP.guard(['supervisor','admin']);
+    SUPID=CTX.user.id;
+    /* Admin administrando um supervisor específico: ?ver=SUP_ID */
+    const ver=new URLSearchParams(location.search).get('ver');
+    if(ver&&CTX.role==='admin'){
+      const{data:s}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
+      if(s){SUPID=s.id;LIMITE=s.limite_contas||0;
+        document.getElementById('imp-banner').style.display='flex';
+        document.getElementById('imp-email').textContent=s.email||ver;}
+    }else{LIMITE=CTX.cliente.limite_contas||0}
+    await carregar();
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+
+async function carregar(){
+  const{data}=await JUMP.sb.from('clientes').select('*').eq('supervisor_id',SUPID).order('created_at',{ascending:false});
+  USERS=data||[];
+  const ativos=USERS.filter(u=>!u.bloqueado).length;
+  const bloq=USERS.filter(u=>u.bloqueado).length;
+  const cort=USERS.filter(u=>u.cortesia_ate).length;
+  document.getElementById('st-usadas').textContent=USERS.length+'/'+(LIMITE||'∞');
+  document.getElementById('st-ativos').textContent=ativos;
+  document.getElementById('st-bloq').textContent=bloq;
+  document.getElementById('st-cortesia').textContent=cort;
+  const vagas=LIMITE?Math.max(0,LIMITE-USERS.length):'∞';
+  document.getElementById('vagas-txt').textContent=vagas+' disponíveis';
+  document.getElementById('btn-criar').disabled=(LIMITE&&USERS.length>=LIMITE);
+  renderTable();
+}
+
+function barHtml(uso,lim){
+  const pct=lim?Math.min(100,Math.round((uso/lim)*100)):0;
+  const cls=pct>=95?'full':pct>=75?'warn':'';
+  return `<div class="bar"><div class="bar-f ${cls}" style="width:${pct}%"></div></div><div class="bar-l">${JUMP.fmtNum(uso)} / ${JUMP.fmtNum(lim)}</div>`;
+}
+
+function renderTable(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const rows=USERS.filter(u=>!q||(u.nome||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
+  const tb=document.getElementById('tbody');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum usuário. Clique em "+ Criar conta".</td></tr>';return}
+  tb.innerHTML=rows.map(u=>{
+    const lim=u.limites||{},uso=u.uso||{};
+    const cort=u.cortesia_ate?(u.cortesia_ate==='ilimitado'||new Date(u.cortesia_ate).getFullYear()>2090?'Ilimitada':('até '+new Date(u.cortesia_ate).toLocaleDateString('pt-BR'))):'—';
+    return `<tr>
+      <td><div class="u-cell"><strong>${JUMP.esc(u.nome||'—')}</strong><span class="u-mail">${JUMP.esc(u.email||'')}</span></div></td>
+      <td><select class="sel-mini" onchange="setPlano('${u.id}',this.value)">
+        <option value="basico"${u.plano==='basico'?' selected':''}>Básico</option>
+        <option value="plus"${u.plano==='plus'?' selected':''}>Plus</option>
+        <option value="pro"${u.plano==='pro'?' selected':''}>Pro</option></select></td>
+      <td>${u.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
+      <td style="font-family:var(--M);font-size:11px">${cort}</td>
+      <td>${barHtml(uso.tokens||0,lim.tokens||0)}${barHtml(uso.imagens||0,lim.imagens||0)}</td>
+      <td><div class="td-acts">
+        <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
+        <button class="btn btn-o btn-sm" onclick="abrirEditar('${u.id}')">Editar</button>
+        <button class="btn btn-o btn-sm" onclick="abrirLimites('${u.id}')">Limites</button>
+        <button class="btn btn-o btn-sm" onclick="resetSenha('${u.id}')">Reset senha</button>
+        <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+/* ── MODAIS ── */
+function abrirCriar(){
+  document.getElementById('mu-title').textContent='Criar conta de usuário';
+  document.getElementById('mu-id').value='';
+  ['mu-nome','mu-email','mu-senha','mu-tel','mu-cpf','mu-end'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('mu-senha-row').style.display='grid';
+  document.getElementById('modal-user').classList.add('show');
+}
+function abrirEditar(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  document.getElementById('mu-title').textContent='Editar usuário';
+  document.getElementById('mu-id').value=id;
+  document.getElementById('mu-nome').value=u.nome||'';
+  document.getElementById('mu-email').value=u.email||'';
+  document.getElementById('mu-tel').value=u.telefone||'';
+  document.getElementById('mu-cpf').value=u.cpf||'';
+  document.getElementById('mu-end').value=u.endereco||'';
+  document.getElementById('mu-cortesia').value='';
+  document.getElementById('mu-senha-row').style.display='none';
+  document.getElementById('modal-user').classList.add('show');
+}
+function fecharModal(id){document.getElementById(id).classList.remove('show')}
+
+async function salvarUser(){
+  const id=document.getElementById('mu-id').value;
+  const payload={
+    nome:document.getElementById('mu-nome').value.trim(),
+    email:document.getElementById('mu-email').value.trim(),
+    telefone:document.getElementById('mu-tel').value.trim(),
+    cpf:document.getElementById('mu-cpf').value.trim(),
+    endereco:document.getElementById('mu-end').value.trim(),
+    cortesia:document.getElementById('mu-cortesia').value,
+    supervisor_id:SUPID,
+  };
+  const btn=document.getElementById('mu-save');btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  try{
+    if(id){await JUMP.api('update_user',{user_id:id,...payload},CTX.token)}
+    else{
+      payload.senha=document.getElementById('mu-senha').value;
+      payload.plano=document.getElementById('mu-plano').value;
+      if(!payload.nome||!payload.email||payload.senha.length<6)throw new Error('Preencha nome, e-mail e senha (mín. 6).');
+      await JUMP.api('create_user',payload,CTX.token);
+    }
+    JUMP.toast('✓ Salvo com sucesso');fecharModal('modal-user');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+  btn.disabled=false;btn.textContent='Salvar';
+}
+
+function abrirLimites(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const l=u.limites||{};
+  document.getElementById('ml-id').value=id;
+  document.getElementById('ml-img').value=l.imagens??100;
+  document.getElementById('ml-vid').value=l.videos??20;
+  document.getElementById('ml-traf').value=l.trafego_sugestoes??10;
+  document.getElementById('ml-tok').value=l.tokens??1000000;
+  document.getElementById('modal-lim').classList.add('show');
+}
+async function salvarLimites(){
+  const id=document.getElementById('ml-id').value;
+  try{
+    await JUMP.api('set_limits',{user_id:id,limites:{
+      imagens:+document.getElementById('ml-img').value||0,
+      videos:+document.getElementById('ml-vid').value||0,
+      trafego_sugestoes:+document.getElementById('ml-traf').value||0,
+      tokens:+document.getElementById('ml-tok').value||0,
+    }},CTX.token);
+    JUMP.toast('✓ Limites atualizados');fecharModal('modal-lim');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+
+async function setPlano(id,plano){
+  try{await JUMP.api('set_plan',{user_id:id,plano},CTX.token);JUMP.toast('✓ Plano alterado para '+plano)}
+  catch(e){JUMP.toast(e.message,'err');carregar()}
+}
+async function toggleBloq(id,bloquear){
+  if(bloquear&&!confirm('Bloquear este usuário? Ele perde o acesso imediatamente.'))return;
+  try{await JUMP.api('block_user',{user_id:id,bloqueado:bloquear},CTX.token);JUMP.toast(bloquear?'Usuário bloqueado':'Usuário desbloqueado');await carregar()}
+  catch(e){JUMP.toast(e.message,'err')}
+}
+async function resetSenha(id){
+  try{
+    const d=await JUMP.api('reset_password',{user_id:id},CTX.token);
+    if(d.link){await navigator.clipboard.writeText(d.link).catch(()=>{});prompt('Link de redefinição (copiado):',d.link)}
+    else JUMP.toast('✓ E-mail de redefinição enviado');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+</script>
+</body>
+</html>

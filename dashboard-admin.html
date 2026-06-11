@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.transmute{display:flex;gap:10px;flex-wrap:wrap;background:var(--card);background-image:linear-gradient(145deg,rgba(168,85,247,.1) 0%,transparent 60%);border:1px solid rgba(168,85,247,.35);border-radius:12px;padding:15px 17px;margin-bottom:18px;align-items:center}
+.tm-t{font-family:var(--D);font-size:16px;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-right:6px}
+.u-cell{display:flex;flex-direction:column;gap:2px}
+.u-mail{font-family:var(--M);font-size:11px;color:var(--t3)}
+.num-mini{width:74px;padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.35);border:1px solid var(--bd);font-size:12.5px;color:var(--t1);font-family:var(--M)}
+.bk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bk-card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.bk-t{font-size:13.5px;font-weight:800;text-transform:uppercase;color:var(--t1);display:flex;align-items:center;gap:8px}
+.bk-b{font-size:12px;color:var(--t2);line-height:1.5}
+.links-fast{display:flex;gap:8px;flex-wrap:wrap}
+.lf{font-family:var(--M);font-size:11px;padding:7px 12px;border:1px solid var(--bd);border-radius:7px;color:var(--t2);transition:.2s}
+.lf:hover{border-color:var(--g);color:var(--g)}
+.log-line{font-family:var(--M);font-size:11px;color:var(--t2);padding:7px 0;border-bottom:1px solid var(--bd);display:flex;gap:10px}
+.log-line:last-child{border:none}
+.log-time{color:var(--t3);flex-shrink:0}
+@media(max-width:920px){.bk-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando admin...</div></div>
+<div class="mob-top"><img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button></div>
+
+<div class="app" style="grid-template-columns:1fr">
+<main class="main" style="max-width:1280px;margin:0 auto;width:100%">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+    <div class="hd" style="margin:0">
+      <div>
+        <div class="hd-hello">Painel Admin</div>
+        <h1 class="hd-h">Gestão do <em>sistema.</em></h1>
+      </div>
+    </div>
+    <button class="sb-out" style="padding:8px 12px" onclick="JUMP.logout()">→ Sair</button>
+  </div>
+
+  <!-- TRANSMUTAR -->
+  <div class="transmute">
+    <span class="tm-t">⇄ Acessar como:</span>
+    <a href="dashboard-usuario.html" class="btn btn-o btn-sm">👤 Minha conta usuário</a>
+    <a href="dashboard-supervisor.html" class="btn btn-o btn-sm">🛡 Meu painel supervisor</a>
+    <span style="font-size:11.5px;color:var(--t3);font-family:var(--M)">— para painéis de outros supervisores use "Administrar →" na tabela</span>
+  </div>
+
+  <!-- STATS GLOBAIS -->
+  <div class="stats">
+    <div class="stat"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div></div>
+    <div class="stat"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div></div>
+    <div class="stat"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div></div>
+    <div class="stat"><div class="st-n" id="st-bloq">0</div><div class="st-l">Bloqueados</div></div>
+  </div>
+
+  <!-- SUPERVISORES -->
+  <div class="sec-lbl">Supervisores <span class="lbl-act" onclick="abrirCriarSup()">+ criar supervisor</span></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Supervisor</th><th>Limite de contas</th><th>Contas usadas</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="tbody-sup"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- BACKEND -->
+  <div class="sec-lbl">Gestão do backend</div>
+  <div class="bk-grid">
+    <div class="bk-card">
+      <div class="bk-t">📣 Recado global</div>
+      <div class="bk-b">Envia um aviso para todos os usuários do sistema (aparece no painel de recados).</div>
+      <select class="f-select" id="bc-tipo" style="margin-top:2px"><option value="info">💡 Informativo</option><option value="alerta">⚠️ Alerta</option><option value="urgente">⏰ Urgente</option></select>
+      <input class="f-input" id="bc-titulo" placeholder="Título do recado">
+      <textarea class="f-textarea" id="bc-msg" rows="2" placeholder="Mensagem..."></textarea>
+      <button class="btn btn-g btn-sm" onclick="broadcast()">Enviar para todos →</button>
+    </div>
+    <div class="bk-card">
+      <div class="bk-t">🕘 Atividade recente</div>
+      <div class="bk-b">Últimos eventos registrados no sistema.</div>
+      <div id="logs" style="max-height:180px;overflow:auto"><div class="log-line"><span>Sem registros ainda.</span></div></div>
+    </div>
+    <div class="bk-card">
+      <div class="bk-t">⚡ Acesso rápido</div>
+      <div class="bk-b">Painéis externos da operação.</div>
+      <div class="links-fast">
+        <a class="lf" href="https://supabase.com/dashboard/project/fcdjzubdxikpvcqvalnt" target="_blank" rel="noopener">Supabase</a>
+        <a class="lf" href="https://vercel.com/dashboard" target="_blank" rel="noopener">Vercel</a>
+        <a class="lf" href="https://www.paypal.com/billing/plans" target="_blank" rel="noopener">PayPal Planos</a>
+        <a class="lf" href="https://resend.com/emails" target="_blank" rel="noopener">Resend</a>
+        <a class="lf" href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div class="bk-b" style="margin-top:6px">Status do sistema: <span style="color:var(--g);font-weight:800">● Operacional</span></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- MODAL CRIAR SUPERVISOR -->
+<div class="modal-bg" id="modal-sup">
+  <div class="modal">
+    <div class="modal-t">Criar supervisor</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="ms-nome"></div>
+      <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="ms-email" type="email"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Senha inicial</label><input class="f-input" id="ms-senha" placeholder="mín. 6 caracteres"></div>
+      <div class="f-group"><label class="f-label">Limite de contas</label><input class="f-input" id="ms-limite" type="number" min="1" value="10"></div>
+    </div>
+    <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="ms-tel"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="document.getElementById('modal-sup').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-g" id="ms-save" onclick="criarSup()">Criar supervisor</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVISO -->
+<div class="modal-bg" id="modal-aviso">
+  <div class="modal">
+    <div class="modal-t">Enviar aviso</div>
+    <input type="hidden" id="ma-id">
+    <div class="f-group"><label class="f-label">Título</label><input class="f-input" id="ma-titulo"></div>
+    <div class="f-group"><label class="f-label">Mensagem</label><textarea class="f-textarea" id="ma-msg" rows="3"></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="document.getElementById('modal-aviso').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-g" onclick="enviarAviso()">Enviar aviso →</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null,SUPS=[];
+
+(async()=>{
+  try{
+    CTX=await JUMP.guard(['admin']);
+    await carregar();
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+
+async function carregar(){
+  const{data:todos}=await JUMP.sb.from('clientes').select('*');
+  const all=todos||[];
+  SUPS=all.filter(c=>c.role==='supervisor');
+  const users=all.filter(c=>c.role!=='admin');
+  document.getElementById('st-sups').textContent=SUPS.length;
+  document.getElementById('st-users').textContent=users.length;
+  document.getElementById('st-ativos').textContent=all.filter(c=>c.status==='ativo'&&!c.bloqueado).length;
+  document.getElementById('st-bloq').textContent=all.filter(c=>c.bloqueado).length;
+
+  const tb=document.getElementById('tbody-sup');
+  if(!SUPS.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum supervisor. Clique em "+ criar supervisor".</td></tr>'}
+  else{
+    tb.innerHTML=SUPS.map(s=>{
+      const usadas=all.filter(c=>c.supervisor_id===s.id).length;
+      return `<tr>
+        <td><div class="u-cell"><strong>${JUMP.esc(s.nome||'—')}</strong><span class="u-mail">${JUMP.esc(s.email||'')}</span></div></td>
+        <td><input class="num-mini" type="number" min="0" value="${s.limite_contas||0}" onchange="setLimite('${s.id}',this.value)"></td>
+        <td style="font-family:var(--M)">${usadas} de ${s.limite_contas||0}</td>
+        <td>${s.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
+        <td><div class="td-acts">
+          <a class="btn btn-o btn-sm" href="dashboard-supervisor.html?ver=${s.id}">Administrar →</a>
+          <button class="btn btn-o btn-sm" onclick="abrirAviso('${s.id}')">Enviar aviso</button>
+          <button class="btn ${s.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${s.id}',${!s.bloqueado})">${s.bloqueado?'Desbloquear':'Bloquear'}</button>
+        </div></td></tr>`;
+    }).join('');
+  }
+
+  /* Logs */
+  try{
+    const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(12);
+    if(logs&&logs.length){
+      document.getElementById('logs').innerHTML=logs.map(l=>
+        `<div class="log-line"><span class="log-time">${new Date(l.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${JUMP.esc(l.acao||l.evento||'')}</span></div>`).join('');
+    }
+  }catch(e){}
+}
+
+function abrirCriarSup(){
+  ['ms-nome','ms-email','ms-senha','ms-tel'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('ms-limite').value=10;
+  document.getElementById('modal-sup').classList.add('show');
+}
+async function criarSup(){
+  const btn=document.getElementById('ms-save');
+  const payload={
+    nome:document.getElementById('ms-nome').value.trim(),
+    email:document.getElementById('ms-email').value.trim(),
+    senha:document.getElementById('ms-senha').value,
+    telefone:document.getElementById('ms-tel').value.trim(),
+    limite_contas:+document.getElementById('ms-limite').value||10,
+    role:'supervisor',
+  };
+  if(!payload.nome||!payload.email||payload.senha.length<6){JUMP.toast('Preencha nome, e-mail e senha (mín. 6).','err');return}
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  try{
+    await JUMP.api('create_supervisor',payload,CTX.token);
+    JUMP.toast('✓ Supervisor criado');
+    document.getElementById('modal-sup').classList.remove('show');
+    await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+  btn.disabled=false;btn.textContent='Criar supervisor';
+}
+
+async function setLimite(id,val){
+  try{await JUMP.api('set_limite_contas',{user_id:id,limite_contas:+val||0},CTX.token);JUMP.toast('✓ Limite atualizado')}
+  catch(e){JUMP.toast(e.message,'err');carregar()}
+}
+async function toggleBloq(id,bloquear){
+  if(bloquear&&!confirm('Bloquear este supervisor? Ele e o acesso de gestão dele param imediatamente.'))return;
+  try{await JUMP.api('block_user',{user_id:id,bloqueado:bloquear},CTX.token);JUMP.toast(bloquear?'Supervisor bloqueado':'Supervisor desbloqueado');await carregar()}
+  catch(e){JUMP.toast(e.message,'err')}
+}
+function abrirAviso(id){
+  document.getElementById('ma-id').value=id;
+  document.getElementById('ma-titulo').value='';document.getElementById('ma-msg').value='';
+  document.getElementById('modal-aviso').classList.add('show');
+}
+async function enviarAviso(){
+  const id=document.getElementById('ma-id').value;
+  const titulo=document.getElementById('ma-titulo').value.trim();
+  const mensagem=document.getElementById('ma-msg').value.trim();
+  if(!titulo||!mensagem){JUMP.toast('Preencha título e mensagem.','err');return}
+  try{
+    await JUMP.api('send_recado',{user_id:id,tipo:'alerta',titulo,mensagem},CTX.token);
+    JUMP.toast('✓ Aviso enviado');
+    document.getElementById('modal-aviso').classList.remove('show');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+async function broadcast(){
+  const titulo=document.getElementById('bc-titulo').value.trim();
+  const mensagem=document.getElementById('bc-msg').value.trim();
+  const tipo=document.getElementById('bc-tipo').value;
+  if(!titulo||!mensagem){JUMP.toast('Preencha título e mensagem.','err');return}
+  if(!confirm('Enviar este recado para TODOS os usuários do sistema?'))return;
+  try{
+    const d=await JUMP.api('broadcast',{tipo,titulo,mensagem},CTX.token);
+    JUMP.toast('✓ Recado enviado para '+(d.count||'todos')+' usuários');
+    document.getElementById('bc-titulo').value='';document.getElementById('bc-msg').value='';
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+</script>
+</body>
+</html>

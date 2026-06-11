@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Conectar contas</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.wrap{max-width:760px;margin:0 auto}
+.step{display:flex;gap:15px;padding:17px 0;border-bottom:1px solid var(--bd)}
+.step:last-child{border:none}
+.step-n{width:34px;height:34px;border-radius:50%;background:rgba(0,230,118,.1);border:1.5px solid rgba(0,230,118,.3);display:flex;align-items:center;justify-content:center;font-family:var(--M);font-size:13px;font-weight:700;color:var(--g);flex-shrink:0}
+.step-t{font-size:15px;font-weight:800;color:var(--t1);margin-bottom:4px}
+.step-b{font-size:13.5px;color:var(--t2);line-height:1.65}
+.step-b a{color:var(--g);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.sec-box{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-radius:12px;padding:17px;margin:16px 0}
+.sec-i{display:flex;gap:10px;font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:9px}
+.sec-i:last-child{margin-bottom:0}
+.sec-i strong{color:var(--t1)}
+.not-box{background:rgba(255,107,107,.05);border:1px solid rgba(255,107,107,.22);border-radius:12px;padding:15px;font-size:13px;color:var(--t2);line-height:1.65;margin:14px 0}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando...</div></div>
+<div class="mob-top"><img src="assets/logo.png" alt="JUMP OS"><a class="mob-out" href="dashboard-usuario.html">← Painel</a></div>
+
+<div class="app" style="grid-template-columns:1fr">
+<main class="main">
+<div class="wrap">
+  <a href="dashboard-usuario.html" style="font-size:13px;color:var(--t3)">← Voltar ao painel</a>
+  <div class="hd" style="margin-top:14px">
+    <div>
+      <div class="hd-hello">Conexões</div>
+      <h1 class="hd-h">Conectar suas <em>contas.</em></h1>
+    </div>
+  </div>
+
+  <!-- SEGURANÇA -->
+  <div class="sec-box">
+    <div class="sec-i">🔒 <span><strong>Conexão oficial pela Meta.</strong> Você autoriza direto no Facebook — sua senha nunca passa pelo JUMP OS e nunca é armazenada.</span></div>
+    <div class="sec-i">👁 <span><strong>O que acessamos:</strong> métricas do perfil, publicação de conteúdo aprovado por você e dados das suas campanhas de anúncios.</span></div>
+    <div class="sec-i">🚫 <span><strong>O que NUNCA acessamos:</strong> mensagens privadas (DMs), sua senha, dados de outros perfis ou qualquer ação sem a sua aprovação.</span></div>
+    <div class="sec-i">↩️ <span><strong>Revogável a qualquer momento</strong> — pelo painel aqui ou direto nas configurações do Facebook. LGPD: seus dados são tratados conforme nossa <a href="privacidade.html" style="color:var(--g)">Política de Privacidade</a>.</span></div>
+  </div>
+
+  <!-- INSTAGRAM -->
+  <div class="sec-lbl">📸 Instagram — passo a passo</div>
+  <div class="card">
+    <div class="step"><div class="step-n">1</div><div><div class="step-t">Tenha uma conta comercial ou de criador</div><div class="step-b">Conta pessoal não permite conexão. Não sabe converter? <a href="guias/guia-conta-comercial.html">Siga nosso guia de 2 minutos →</a></div></div></div>
+    <div class="step"><div class="step-n">2</div><div><div class="step-t">Vincule a uma Página do Facebook</div><div class="step-b">A Meta exige que o Instagram comercial esteja vinculado a uma Página. O guia acima também mostra como fazer.</div></div></div>
+    <div class="step"><div class="step-n">3</div><div><div class="step-t">Clique em conectar e autorize</div><div class="step-b">Você será levado à tela oficial do Facebook, faz login lá e autoriza o JUMP OS. Leva menos de 1 minuto.</div></div></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-g" id="btn-ig" onclick="conectar('instagram')">Conectar Instagram →</button>
+      <span class="pill" id="ig-pill" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- META ADS -->
+  <div class="sec-lbl" id="ads">📢 Meta Ads — passo a passo</div>
+  <div class="card">
+    <div class="step"><div class="step-n">1</div><div><div class="step-t">Tenha uma conta de anúncios ativa</div><div class="step-b">Criada no Gerenciador de Negócios da Meta (business.facebook.com), com forma de pagamento configurada.</div></div></div>
+    <div class="step"><div class="step-n">2</div><div><div class="step-t">Conecte com o mesmo Facebook</div><div class="step-b">Use o mesmo login da etapa do Instagram — o sistema identifica suas contas de anúncio automaticamente.</div></div></div>
+    <div class="step"><div class="step-n">3</div><div><div class="step-t">Escolha a conta de anúncios</div><div class="step-b">Se tiver mais de uma, você seleciona qual o JUMP OS deve acompanhar. <strong>Nenhuma campanha é alterada sem sua aprovação.</strong></div></div></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-g" id="btn-ads" onclick="conectar('ads')">Conectar Meta Ads →</button>
+      <span class="pill" id="ads-pill" style="display:none"></span>
+    </div>
+  </div>
+
+  <div class="not-box" id="meta-pending" style="display:none">
+    ⏳ <strong style="color:var(--t1)">Conexão em aprovação final pela Meta.</strong> Nosso aplicativo está nas últimas etapas do App Review oficial. Assim que aprovado, o botão acima ativa na hora — você será avisado no painel de recados.
+  </div>
+
+  <!-- DESCONECTAR -->
+  <div class="sec-lbl">Gerenciar conexões ativas</div>
+  <div class="card" id="conexoes-ativas"><div style="font-size:13px;color:var(--t3);font-family:var(--M)">Nenhuma conexão ativa no momento.</div></div>
+</div>
+</main>
+</div>
+
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null;
+(async()=>{
+  try{
+    CTX=await JUMP.guard();
+    /* Conexões existentes */
+    try{
+      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.user.id);
+      if(cc&&cc.length){
+        document.getElementById('conexoes-ativas').innerHTML=cc.map(c=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)">
+            <span style="font-size:18px">${(c.tipo||'').includes('ads')?'📢':'📸'}</span>
+            <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(c.nome||c.tipo||'Conta')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--g)">● conectado</div></div>
+            <button class="btn btn-r btn-sm" onclick="desconectar('${c.id}')">Desconectar</button>
+          </div>`).join('');
+        cc.forEach(c=>{
+          const ig=(c.tipo||'').includes('insta');
+          const pill=document.getElementById(ig?'ig-pill':'ads-pill');
+          const btn=document.getElementById(ig?'btn-ig':'btn-ads');
+          if(pill){pill.style.display='inline-flex';pill.className='pill pill-g';pill.textContent='● Conectado'}
+          if(btn){btn.textContent='Reconectar';btn.className='btn btn-o'}
+        });
+      }
+    }catch(e){}
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+
+async function conectar(tipo){
+  const btn=document.getElementById(tipo==='instagram'?'btn-ig':'btn-ads');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo Meta...';
+  try{
+    /* Endpoint OAuth — disponível após aprovação do App Review da Meta */
+    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&uid='+CTX.user.id);
+    if(r.ok){const d=await r.json();if(d.url){location.href=d.url;return}}
+    throw new Error('pending');
+  }catch(e){
+    document.getElementById('meta-pending').style.display='block';
+    document.getElementById('meta-pending').scrollIntoView({behavior:'smooth',block:'center'});
+    btn.disabled=false;btn.innerHTML=tipo==='instagram'?'Conectar Instagram →':'Conectar Meta Ads →';
+  }
+}
+async function desconectar(id){
+  if(!confirm('Desconectar esta conta? Os agentes param de acessar os dados imediatamente.'))return;
+  try{await JUMP.sb.from('contas_conectadas').delete().eq('id',id);JUMP.toast('Conta desconectada.');setTimeout(()=>location.reload(),800)}
+  catch(e){JUMP.toast('Erro ao desconectar','err')}
+}
+</script>
+</body>
+</html>
