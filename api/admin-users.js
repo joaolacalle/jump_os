@@ -193,6 +193,25 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, count: rows.length });
     }
 
+    if (action === 'transfer_user') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin transfere contas' });
+      const { user_id, novo_supervisor_id } = req.body;
+      if (!user_id || !novo_supervisor_id) return res.status(400).json({ error: 'Dados incompletos' });
+      const [dest] = await sbGet(`clientes?id=eq.${novo_supervisor_id}&select=id,role,limite_contas,email`);
+      if (!dest || (dest.role !== 'supervisor' && dest.role !== 'admin')) {
+        return res.status(400).json({ error: 'Destino não é um supervisor válido' });
+      }
+      if (dest.limite_contas) {
+        const atuais = await sbGet(`clientes?supervisor_id=eq.${novo_supervisor_id}&select=id`);
+        if (atuais.length >= dest.limite_contas) {
+          return res.status(400).json({ error: `Supervisor de destino sem vagas (${atuais.length}/${dest.limite_contas})` });
+        }
+      }
+      await sbPatch(`clientes?id=eq.${user_id}`, { supervisor_id: novo_supervisor_id });
+      await sbInsert('logs', { acao: `Transferência: usuário ${user_id} → supervisor ${dest.email}`, user_id: requester.id }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(400).json({ error: 'Ação desconhecida' });
   } catch (err) {
     console.error('admin-users error:', err.message);
