@@ -17,10 +17,24 @@ window.JUMP=(function(){
     const role=cliente.role||'usuario';
     if(roles&&!roles.includes(role)){location.href='dashboard-usuario.html';throw new Error('no-role')}
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
+    if(role==='supervisor'||role==='admin')injectRoleBar(role);
     return{user,cliente,role,token:data.session.access_token};
   }
 
   async function logout(){await sb.auth.signOut();location.href='home.html'}
+
+  /* Barra fixa de troca de perfil — ida E volta entre admin/supervisor/usuário */
+  function injectRoleBar(role){
+    if(document.querySelector('.role-bar'))return;
+    const p=(location.pathname.split('/').pop()||'').split('?')[0];
+    const items=[];
+    if(role==='admin')items.push(['dashboard-admin.html','👑','Admin']);
+    items.push(['dashboard-supervisor.html','🛡','Supervisor']);
+    items.push(['dashboard-usuario.html','👤','Usuário']);
+    const bar=document.createElement('div');bar.className='role-bar';
+    bar.innerHTML=items.map(i=>`<a class="rb-link${p===i[0]?' on':''}" href="${i[0]}">${i[1]} ${i[2]}</a>`).join('');
+    document.body.appendChild(bar);
+  }
 
   function toast(msg,type){
     let t=document.getElementById('jump-toast');

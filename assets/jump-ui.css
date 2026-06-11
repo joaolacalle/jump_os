@@ -143,3 +143,16 @@ td strong{color:var(--t1)}
   .f-row{grid-template-columns:1fr}
 }
 @media(max-width:480px){.stats,.fs-grid{grid-template-columns:1fr 1fr}}
+
+/* ROLE SWITCHER — caminho de ida e volta entre perfis */
+.role-bar{position:fixed;bottom:20px;left:20px;z-index:300;display:flex;gap:4px;background:rgba(15,14,13,.96);border:1px solid rgba(168,85,247,.4);border-radius:30px;padding:5px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.rb-link{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:20px;color:var(--t3);transition:.2s;display:flex;align-items:center;gap:5px}
+.rb-link:hover{color:var(--t1)}
+.rb-link.on{background:rgba(168,85,247,.18);color:var(--pu);border:1px solid rgba(168,85,247,.45)}
+/* TABS DE PÁGINA */
+.ptabs{display:flex;gap:6px;border-bottom:1px solid var(--bd);margin-bottom:20px;flex-wrap:wrap}
+.ptab{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:11px 16px;color:var(--t3);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;margin-bottom:-1px}
+.ptab:hover{color:var(--t1)}
+.ptab.on{color:var(--g);border-bottom-color:var(--g)}
+.tabpane{display:none}.tabpane.on{display:block}
+@media(max-width:920px){.role-bar{bottom:14px;left:14px}}
