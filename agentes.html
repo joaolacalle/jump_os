@@ -192,17 +192,39 @@ async function enviar(){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
       body:JSON.stringify({agente:AG,mensagem:txt})
     });
-    const d=await r.json();
+    const raw=await r.text();
+    let d;
+    try{d=JSON.parse(raw)}catch(_){
+      throw new Error('A resposta demorou mais que o normal e foi interrompida. Envie novamente — geralmente funciona na segunda tentativa.');
+    }
     ty.remove();
-    if(!r.ok)throw new Error(d.error||'Erro no agente');
-    addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
-    if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
-    if(d.tokens!==undefined)atualizarUso(d.tokens);
+    if(!r.ok){
+      if(d&&d.limite){limiteMsg()}
+      else addMsg('a','⚠️ '+(d.error||'Erro no agente'));
+    }else{
+      addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
+      if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
+      if(d.tokens!==undefined)atualizarUso(d.tokens);
+    }
   }catch(e){
     ty.remove();
     addMsg('a','⚠️ '+e.message);
   }
   BUSY=false;document.getElementById('send').disabled=false;inp.focus();
+}
+function limiteMsg(){
+  const w=document.getElementById('msgs');
+  const d=document.createElement('div');d.className='msg a';
+  d.innerHTML='🚦 <b>Seu limite mensal de uso foi atingido.</b><br>Solicite um aumento ao seu gestor — ele recebe o pedido na hora, direto no painel dele.<br><button class="btn btn-g btn-sm" style="margin-top:9px" onclick="solicitarTokens(this)">Solicitar aumento →</button>';
+  w.appendChild(d);w.scrollTop=w.scrollHeight;
+}
+async function solicitarTokens(btn){
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    await JUMP.api('request_tokens',{},CTX.token);
+    btn.textContent='✓ Solicitação enviada';
+    JUMP.toast('Seu gestor foi avisado e pode liberar mais uso.');
+  }catch(e){btn.disabled=false;btn.textContent='Solicitar aumento →';JUMP.toast(e.message,'err')}
 }
 function atualizarUso(tk){
   const lim=Number((CTX.cliente.limites||{}).tokens||1000000);
