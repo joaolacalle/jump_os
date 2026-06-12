@@ -22,6 +22,11 @@
 .log-line{font-family:var(--M);font-size:11px;color:var(--t2);padding:7px 0;border-bottom:1px solid var(--bd);display:flex;gap:10px}
 .log-line:last-child{border:none}
 .log-time{color:var(--t3);flex-shrink:0}
+.stat-btn{cursor:pointer;transition:.22s;position:relative}
+.stat-btn:hover{border-color:rgba(0,230,118,.4);transform:translateY(-2px)}
+.st-go{font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--g);margin-top:7px;opacity:.7}
+.gst-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.gst-row:last-child{border:none}
 .top-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .search{flex:1;min-width:200px}
 @media(max-width:920px){.bk-grid{grid-template-columns:1fr}}
@@ -46,10 +51,10 @@
 
   <!-- STATS GLOBAIS -->
   <div class="stats">
-    <div class="stat"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div></div>
-    <div class="stat"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div></div>
-    <div class="stat"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div></div>
-    <div class="stat"><div class="st-n" id="st-bloq">0</div><div class="st-l">Bloqueados</div></div>
+    <div class="stat stat-btn" onclick="trocarTab('sups')"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div><div class="st-go">Gerir →</div></div>
+    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('')"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div><div class="st-go">Gerir →</div></div>
+    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('ativo')"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div><div class="st-go">Ver ativos →</div></div>
+    <div class="stat stat-btn" onclick="abrirGestao('bloqueados')"><div class="st-n" id="st-bloq" style="color:var(--red)">0</div><div class="st-l">Bloqueados</div><div class="st-go">Painel rápido →</div></div>
   </div>
 
   <!-- TABS -->
@@ -77,8 +82,14 @@
   <div class="tabpane" id="pane-users">
     <div class="top-row">
       <input class="f-input search" id="search-user" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderUsers()">
-      <select class="f-select" id="filtro-sup" style="max-width:240px" onchange="renderUsers()">
+      <select class="f-select" id="filtro-sup" style="max-width:220px" onchange="renderUsers()">
         <option value="">Todos os supervisores</option>
+      </select>
+      <select class="f-select" id="filtro-status" style="max-width:170px" onchange="renderUsers()">
+        <option value="">Todos os status</option>
+        <option value="ativo">Ativos</option>
+        <option value="bloqueado">Bloqueados</option>
+        <option value="cortesia">Em cortesia</option>
       </select>
     </div>
     <div class="tbl-wrap">
@@ -155,6 +166,27 @@
       <button class="btn btn-o" onclick="fechar('modal-transf')">Cancelar</button>
       <button class="btn btn-g" onclick="confirmarTransf()">Transferir →</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL GESTÃO RÁPIDA -->
+<div class="modal-bg" id="modal-gestao">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-t">Gestão rápida de contas</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <select class="f-select" id="g-tipo" style="flex:1;min-width:140px" onchange="renderGestao()">
+        <option value="">Supervisores + Usuários</option>
+        <option value="supervisor">Só supervisores</option>
+        <option value="usuario">Só usuários</option>
+      </select>
+      <select class="f-select" id="g-status" style="flex:1;min-width:140px" onchange="renderGestao()">
+        <option value="">Todos os status</option>
+        <option value="bloqueado">Bloqueados</option>
+        <option value="ativo">Ativos</option>
+      </select>
+    </div>
+    <div id="g-lista" style="max-height:52vh;overflow:auto"></div>
+    <div class="modal-acts"><button class="btn btn-o" onclick="fechar('modal-gestao')" style="flex:1">Fechar</button></div>
   </div>
 </div>
 
@@ -239,7 +271,15 @@ function renderSups(){
 function renderUsers(){
   const q=(document.getElementById('search-user').value||'').toLowerCase();
   const fs=document.getElementById('filtro-sup').value;
-  const rows=USERS.filter(u=>(!q||(u.nome||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q))&&(!fs||u.supervisor_id===fs));
+  const st=document.getElementById('filtro-status').value;
+  const rows=USERS.filter(u=>{
+    if(q&&!((u.nome||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)))return false;
+    if(fs&&u.supervisor_id!==fs)return false;
+    if(st==='ativo'&&(u.bloqueado||u.status!=='ativo'))return false;
+    if(st==='bloqueado'&&!u.bloqueado)return false;
+    if(st==='cortesia'&&!u.cortesia_ate)return false;
+    return true;
+  });
   const tb=document.getElementById('tbody-user');
   if(!rows.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum usuário encontrado.</td></tr>';return}
   tb.innerHTML=rows.map(u=>`<tr>
@@ -255,6 +295,44 @@ function renderUsers(){
       <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
       <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
     </div></td></tr>`).join('');
+}
+
+
+function setFiltroStatus(v){document.getElementById('filtro-status').value=v;renderUsers()}
+
+/* ── PAINEL DE GESTÃO RÁPIDA (popup) ── */
+function abrirGestao(pre){
+  document.getElementById('g-tipo').value='';
+  document.getElementById('g-status').value=pre==='bloqueados'?'bloqueado':'';
+  renderGestao();
+  document.getElementById('modal-gestao').classList.add('show');
+}
+function renderGestao(){
+  const t=document.getElementById('g-tipo').value;
+  const s=document.getElementById('g-status').value;
+  const rows=ALL.filter(c=>{
+    if(c.role==='admin')return false;
+    if(t&&c.role!==t)return false;
+    if(s==='bloqueado'&&!c.bloqueado)return false;
+    if(s==='ativo'&&(c.bloqueado||c.status!=='ativo'))return false;
+    return true;
+  });
+  const w=document.getElementById('g-lista');
+  if(!rows.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:20px">Nenhuma conta neste filtro.</div>';return}
+  w.innerHTML=rows.map(c=>`<div class="gst-row">
+    <span style="font-size:15px">${c.role==='supervisor'?'🛡':'👤'}</span>
+    <div style="flex:1;min-width:0"><strong style="font-size:13px">${JUMP.esc(c.nome||'—')}</strong><div class="u-mail">${JUMP.esc(c.email||'')}${c.role==='usuario'?' · sup: '+JUMP.esc(supNome(c.supervisor_id)):''}</div></div>
+    ${c.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}
+    <button class="btn ${c.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="gestaoBloq('${c.id}',${!c.bloqueado})">${c.bloqueado?'Desbloquear':'Bloquear'}</button>
+    <a class="btn btn-o btn-sm" href="${c.role==='supervisor'?'dashboard-supervisor.html?ver='+c.id:'dashboard-usuario.html?ver='+c.id}">Painel →</a>
+  </div>`).join('');
+}
+async function gestaoBloq(id,bloquear){
+  try{
+    await JUMP.api('block_user',{user_id:id,bloqueado:bloquear},CTX.token);
+    JUMP.toast(bloquear?'Conta bloqueada':'Conta desbloqueada');
+    await carregar();renderGestao();
+  }catch(e){JUMP.toast(e.message,'err')}
 }
 
 /* ── TRANSFERIR ── */

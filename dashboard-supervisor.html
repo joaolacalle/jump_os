@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+.stat-btn{cursor:pointer;transition:.22s}
+.stat-btn:hover{border-color:rgba(0,230,118,.4);transform:translateY(-2px)}
+.stat-btn.fon{border-color:var(--g);box-shadow:0 0 0 1px rgba(0,230,118,.3)}
+.st-go{font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--g);margin-top:7px;opacity:.7}
 .top-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .search{flex:1;min-width:220px}
 .vaga-pill{font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t2)}
@@ -40,16 +44,16 @@
 
   <!-- STATS -->
   <div class="stats" style="margin-top:18px">
-    <div class="stat"><div class="st-n" id="st-usadas">0/0</div><div class="st-l">Contas usadas</div></div>
-    <div class="stat"><div class="st-n" id="st-ativos">0</div><div class="st-l">Ativos</div></div>
-    <div class="stat"><div class="st-n" id="st-bloq">0</div><div class="st-l">Bloqueados</div></div>
-    <div class="stat"><div class="st-n" id="st-cortesia">0</div><div class="st-l">Em cortesia</div></div>
+    <div class="stat stat-btn" id="sb-todos" onclick="setFiltro('')"><div class="st-n" id="st-usadas">0/0</div><div class="st-l">Contas usadas</div><div class="st-go">Ver todas →</div></div>
+    <div class="stat stat-btn" id="sb-ativo" onclick="setFiltro('ativo')"><div class="st-n" id="st-ativos">0</div><div class="st-l">Ativos</div><div class="st-go">Filtrar →</div></div>
+    <div class="stat stat-btn" id="sb-bloqueado" onclick="setFiltro('bloqueado')"><div class="st-n" id="st-bloq" style="color:var(--red)">0</div><div class="st-l">Bloqueados</div><div class="st-go">Filtrar →</div></div>
+    <div class="stat stat-btn" id="sb-cortesia" onclick="setFiltro('cortesia')"><div class="st-n" id="st-cortesia" style="color:var(--yel)">0</div><div class="st-l">Em cortesia</div><div class="st-go">Filtrar →</div></div>
   </div>
 
   <!-- AÇÕES -->
   <div class="top-row" style="margin-top:18px">
     <input class="f-input search" id="search" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderTable()">
-    <span class="vaga-pill">Vagas: <strong id="vagas-txt">—</strong></span>
+    <span class="vaga-pill">Vagas: <strong id="vagas-txt">—</strong> <span style="opacity:.55">· limite definido pelo admin</span></span>
     <button class="btn btn-g" id="btn-criar" onclick="abrirCriar()">+ Criar conta de usuário</button>
   </div>
 
@@ -160,9 +164,24 @@ function barHtml(uso,lim){
   return `<div class="bar"><div class="bar-f ${cls}" style="width:${pct}%"></div></div><div class="bar-l">${JUMP.fmtNum(uso)} / ${JUMP.fmtNum(lim)}</div>`;
 }
 
+let FILTRO='';
+function setFiltro(v){
+  FILTRO=v;
+  ['todos','ativo','bloqueado','cortesia'].forEach(x=>{
+    const el=document.getElementById('sb-'+(x==='todos'?'todos':x));
+    if(el)el.classList.toggle('fon',(v===''&&x==='todos')||v===x);
+  });
+  renderTable();
+}
 function renderTable(){
   const q=(document.getElementById('search').value||'').toLowerCase();
-  const rows=USERS.filter(u=>!q||(u.nome||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
+  const rows=USERS.filter(u=>{
+    if(q&&!((u.nome||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)))return false;
+    if(FILTRO==='ativo'&&(u.bloqueado||u.status!=='ativo'))return false;
+    if(FILTRO==='bloqueado'&&!u.bloqueado)return false;
+    if(FILTRO==='cortesia'&&!u.cortesia_ate)return false;
+    return true;
+  });
   const tb=document.getElementById('tbody');
   if(!rows.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum usuário. Clique em "+ Criar conta".</td></tr>';return}
   tb.innerHTML=rows.map(u=>{
