@@ -1,5 +1,7 @@
 // api/agente-chat.js — Chat com os agentes + auto-aprendizado de nicho
 // ENV: SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY, AGENT_MODEL (opcional)
+
+
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
@@ -40,7 +42,7 @@ REGRAS DO JUMP OS:
 <memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
 (uma tag por aprendizado, no máximo 3 por resposta; não repita memórias já listadas)`;
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
@@ -69,19 +71,27 @@ module.exports = async (req, res) => {
       const need=NIVEL[agente]===2?'Plus':'Pro';
       return res.status(403).json({error:`Este agente faz parte do plano ${need}.`});
     }
-    const uso=cli.uso||{}, lim=cli.limites||{};
+    const mesAtual=new Date().toISOString().slice(0,7);
+    let uso=cli.uso||{};
+    if(uso.mes!==mesAtual){
+      uso={tokens:0,imagens:0,videos:0,trafego_sugestoes:0,mes:mesAtual};
+      await sbPatch(`clientes?id=eq.${user.id}`,{uso});
+    }
+    const lim=cli.limites||{};
     if(lim.tokens&&Number(uso.tokens||0)>=Number(lim.tokens)){
-      return res.status(403).json({error:'Limite mensal de uso atingido. Fale com seu supervisor ou suporte.'});
+      return res.status(403).json({error:'Limite mensal de uso atingido.',limite:true});
     }
 
     // Memórias (agente + globais)
-    const mems=await sbGet(`memorias?user_id=eq.${user.id}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
+    let mems=await sbGet(`memorias?user_id=eq.${user.id}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
+    if(!Array.isArray(mems))mems=[];
     const memTxt=(mems||[]).length
       ? 'MEMÓRIAS SOBRE ESTE CLIENTE:\n'+(mems||[]).map(m=>`- ${m.chave}: ${m.valor}`).join('\n')
       : 'MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
 
     // Histórico recente
-    const hist=await sbGet(`chat_mensagens?user_id=eq.${user.id}&agente=eq.${agente}&order=created_at.desc&limit=12&select=role,conteudo`);
+    let hist=await sbGet(`chat_mensagens?user_id=eq.${user.id}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
+    if(!Array.isArray(hist))hist=[];
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
     messages.push({role:'user',content:mensagem});
 
@@ -91,7 +101,7 @@ module.exports = async (req, res) => {
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-      body:JSON.stringify({model:MODEL(),max_tokens:1400,system,messages}),
+      body:JSON.stringify({model:MODEL(),max_tokens:1100,system,messages}),
     });
     const data=await aRes.json();
     if(!aRes.ok){
@@ -106,9 +116,9 @@ module.exports = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.chave&&o.valor)novas.push(o)}catch(e){}
       return '';
     });
-    for(const m of novas.slice(0,3)){
-      await sbUpsert('memorias',{user_id:user.id,agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
-    }
+    const memWrites=novas.slice(0,3).map(m=>
+      sbUpsert('memorias',{user_id:user.id,agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()})
+    );
 
     // Check-in concluído (agente identidade)
     let checkin=false;
@@ -120,14 +130,22 @@ module.exports = async (req, res) => {
     }
     texto=texto.trim();
 
-    // Persistir conversa + uso
-    await sbInsert('chat_mensagens',[
-      {user_id:user.id,agente,role:'user',conteudo:mensagem},
-      {user_id:user.id,agente,role:'assistant',conteudo:texto},
-    ]);
+    // Persistir tudo em paralelo (memórias + conversa + uso)
     const gastos=((data.usage&&(data.usage.input_tokens+data.usage.output_tokens))||800);
     const novoUso=Object.assign({},uso,{tokens:Number(uso.tokens||0)+gastos});
-    await sbPatch(`clientes?id=eq.${user.id}`,{uso:novoUso});
+    const limTok=Number(lim.tokens||0);
+    if(limTok&&!uso.avisado80&&novoUso.tokens>=limTok*0.8){
+      novoUso.avisado80=true;
+      memWrites.push(sbInsert('recados',{user_id:user.id,tipo:'alerta',titulo:'80% do uso mensal atingido',mensagem:'Você já usou 80% dos seus tokens do mês. Se precisar de mais, solicite o aumento ao seu gestor direto pelo chat dos agentes.',lido:false,resolvido:false}));
+    }
+    await Promise.all([
+      ...memWrites,
+      sbInsert('chat_mensagens',[
+        {user_id:user.id,agente,role:'user',conteudo:mensagem},
+        {user_id:user.id,agente,role:'assistant',conteudo:texto},
+      ]),
+      sbPatch(`clientes?id=eq.${user.id}`,{uso:novoUso}),
+    ]);
 
     return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens});
   } catch(err){
@@ -135,3 +153,6 @@ module.exports = async (req, res) => {
     return res.status(500).json({error:'Erro interno do agente'});
   }
 };
+
+module.exports = handler;
+module.exports.config = { maxDuration: 60 };

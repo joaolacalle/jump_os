@@ -60,6 +60,34 @@ module.exports = async (req, res) => {
     // 2. Papel do solicitante
     const [me] = await sbGet(`clientes?id=eq.${requester.id}&select=*`);
     const role = (me && me.role) || 'usuario';
+    const { action: act0 } = req.body || {};
+
+    // Solicitação de aumento de tokens — aberta a qualquer usuário autenticado
+    if (act0 === 'request_tokens') {
+      if (!me) return res.status(404).json({ error: 'Conta não encontrada' });
+      // anti-spam: 1 solicitação pendente por vez
+      const pend = await sbGet(`recados?tipo=eq.solicitacao_tokens&resposta=eq.${requester.id}&resolvido=eq.false&select=id`);
+      if (Array.isArray(pend) && pend.length) {
+        return res.status(400).json({ error: 'Você já tem uma solicitação aguardando o gestor.' });
+      }
+      let destinos = [];
+      if (me.supervisor_id) destinos = [me.supervisor_id];
+      else {
+        const adms = await sbGet(`clientes?role=eq.admin&select=id`);
+        destinos = (Array.isArray(adms) ? adms : []).map(a => a.id);
+      }
+      if (!destinos.length) return res.status(400).json({ error: 'Nenhum gestor encontrado. Fale com o suporte.' });
+      const uso = (me.uso || {}).tokens || 0, lim = (me.limites || {}).tokens || 0;
+      const rows = destinos.map(d => ({
+        user_id: d, tipo: 'solicitacao_tokens',
+        titulo: `Solicitação de tokens — ${me.nome || me.email}`,
+        mensagem: `${me.email} atingiu o limite mensal (${uso}/${lim} tokens) e pede aumento.`,
+        resposta: requester.id, lido: false, resolvido: false,
+      }));
+      await sbInsert('recados', rows);
+      return res.status(200).json({ ok: true });
+    }
+
     if (role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
