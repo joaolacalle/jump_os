@@ -86,6 +86,17 @@ let CTX=null;
 (async()=>{
   try{
     CTX=await JUMP.guard();
+    /* Retorno do OAuth da Meta */
+    const p=new URLSearchParams(location.search);
+    if(p.get('conectado')){
+      JUMP.toast('✓ '+(p.get('conectado')==='ads'?'Meta Ads conectado!':'Instagram conectado!')+' Os agentes já podem trabalhar com os dados reais.');
+      history.replaceState(null,'','conectar-conta.html');
+    }
+    if(p.get('erro')){
+      const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada na sua conta.',sem_instagram_vinculado:'Sua Página existe, mas não tem Instagram comercial vinculado — siga o passo 2 do guia.',sem_conta_ads:'Nenhuma conta de anúncios encontrada.',token:'Falha na autorização. Tente novamente.',interno:'Erro inesperado. Tente novamente em instantes.'};
+      JUMP.toast(ERROS[p.get('erro')]||'Erro na conexão.','err');
+      history.replaceState(null,'','conectar-conta.html');
+    }
     /* Conexões existentes */
     try{
       const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.user.id);
