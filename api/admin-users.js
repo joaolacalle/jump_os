@@ -87,10 +87,18 @@ module.exports = async (req, res) => {
       }
       // Vagas do supervisor
       if (novoRole === 'usuario' && !isAdmin) {
-        const meus = await sbGet(`clientes?supervisor_id=eq.${requester.id}&select=id`);
+        const meus = await sbGet(`clientes?supervisor_id=eq.${requester.id}&select=id,plano`);
         const limite = (me && me.limite_contas) || 0;
         if (limite && meus.length >= limite) {
           return res.status(400).json({ error: `Limite de ${limite} contas atingido` });
+        }
+        const cotas = (me && me.cotas) || {};
+        const p = plano || 'plus';
+        if (cotas[p] !== undefined && cotas[p] !== null && Number(cotas[p]) > 0) {
+          const doPlano = meus.filter(u => u.plano === p).length;
+          if (doPlano >= Number(cotas[p])) {
+            return res.status(400).json({ error: `Cota de contas ${p} esgotada (${doPlano}/${cotas[p]})` });
+          }
         }
       }
       // Cria no Auth (e-mail já confirmado — conta criada pelo gestor)
@@ -132,6 +140,15 @@ module.exports = async (req, res) => {
       const { user_id, plano } = req.body;
       if (!['basico', 'plus', 'pro'].includes(plano)) return res.status(400).json({ error: 'Plano inválido' });
       await assertScope(user_id);
+      if (!isAdmin) {
+        const cotas = (me && me.cotas) || {};
+        if (cotas[plano] !== undefined && cotas[plano] !== null && Number(cotas[plano]) > 0) {
+          const meus = await sbGet(`clientes?supervisor_id=eq.${requester.id}&plano=eq.${plano}&id=neq.${user_id}&select=id`);
+          if (meus.length >= Number(cotas[plano])) {
+            return res.status(400).json({ error: `Cota de contas ${plano} esgotada (${meus.length}/${cotas[plano]})` });
+          }
+        }
+      }
       await sbPatch(`clientes?id=eq.${user_id}`, { plano });
       return res.status(200).json({ ok: true });
     }
@@ -209,6 +226,35 @@ module.exports = async (req, res) => {
       }
       await sbPatch(`clientes?id=eq.${user_id}`, { supervisor_id: novo_supervisor_id });
       await sbInsert('logs', { acao: `Transferência: usuário ${user_id} → supervisor ${dest.email}`, user_id: requester.id }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'set_password') {
+      const { user_id, senha } = req.body;
+      if (!senha || senha.length < 6) return res.status(400).json({ error: 'Senha precisa de 6+ caracteres' });
+      await assertScope(user_id);
+      await authAdmin(`users/${user_id}`, 'PUT', { password: senha });
+      await sbInsert('logs', { acao: `Senha redefinida para ${user_id}`, user_id: requester.id }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'delete_user') {
+      const { user_id } = req.body;
+      await assertScope(user_id);
+      const [t] = await sbGet(`clientes?id=eq.${user_id}&select=role,email`);
+      if (t && t.role === 'admin') return res.status(403).json({ error: 'Não é possível excluir um admin' });
+      if (t && t.role === 'supervisor' && !isAdmin) return res.status(403).json({ error: 'Apenas admin exclui supervisores' });
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user_id}`, { method: 'DELETE', headers: H() });
+      await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
+      await authAdmin(`users/${user_id}`, 'DELETE');
+      await sbInsert('logs', { acao: `Conta excluída: ${(t && t.email) || user_id}`, user_id: requester.id }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'set_cotas') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin define cotas' });
+      const { user_id, cotas } = req.body;
+      await sbPatch(`clientes?id=eq.${user_id}`, { cotas });
       return res.status(200).json({ ok: true });
     }
 
