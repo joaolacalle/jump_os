@@ -50,6 +50,12 @@
     <div class="stat stat-btn" id="sb-cortesia" onclick="setFiltro('cortesia')"><div class="st-n" id="st-cortesia" style="color:var(--yel)">0</div><div class="st-l">Em cortesia</div><div class="st-go">Filtrar →</div></div>
   </div>
 
+  <!-- SOLICITAÇÕES DE TOKENS -->
+  <div class="card" id="solic-box" style="display:none;margin-top:14px;border-color:rgba(255,209,102,.4)">
+    <div class="sec-lbl" style="margin-top:0">🪙 Solicitações de aumento de uso</div>
+    <div id="solic-list"></div>
+  </div>
+
   <!-- AÇÕES -->
   <div class="top-row" style="margin-top:18px">
     <input class="f-input search" id="search" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderTable()">
@@ -176,8 +182,28 @@ async function carregar(){
   document.getElementById('cotas-txt').textContent=ctxt?('('+ctxt+')'):'';
   document.getElementById('btn-criar').disabled=(LIMITE&&USERS.length>=LIMITE);
   renderTable();
+  carregarSolic();
 }
 
+async function carregarSolic(){
+  try{
+    const{data}=await JUMP.sb.from('recados').select('*').eq('user_id',SUPID).eq('tipo','solicitacao_tokens').eq('resolvido',false).order('created_at',{ascending:false});
+    const box=document.getElementById('solic-box');
+    if(!data||!data.length){box.style.display='none';return}
+    box.style.display='block';
+    document.getElementById('solic-list').innerHTML=data.map(r=>`
+      <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap">
+        <span style="font-size:16px">🪙</span>
+        <div style="flex:1;min-width:200px"><strong style="font-size:13px">${JUMP.esc(r.titulo)}</strong><div style="font-size:12px;color:var(--t2)">${JUMP.esc(r.mensagem)}</div></div>
+        ${r.resposta?`<button class="btn btn-g btn-sm" onclick="atenderSolic('${r.id}','${r.resposta}')">Atender → limites</button>`:''}
+        <button class="btn btn-o btn-sm" onclick="resolverSolic('${r.id}')">Concluir</button>
+      </div>`).join('');
+  }catch(e){}
+}
+function atenderSolic(rid,uid){window._solicRid=rid;abrirLimites(uid)}
+async function resolverSolic(id){
+  try{await JUMP.sb.from('recados').update({resolvido:true,lido:true}).eq('id',id);JUMP.toast('Solicitação concluída');carregarSolic()}catch(e){}
+}
 function barHtml(uso,lim){
   const pct=lim?Math.min(100,Math.round((uso/lim)*100)):0;
   const cls=pct>=95?'full':pct>=75?'warn':'';
@@ -294,7 +320,9 @@ async function salvarLimites(){
       trafego_sugestoes:+document.getElementById('ml-traf').value||0,
       tokens:+document.getElementById('ml-tok').value||0,
     }},CTX.token);
-    JUMP.toast('✓ Limites atualizados');fecharModal('modal-lim');await carregar();
+    JUMP.toast('✓ Limites atualizados');fecharModal('modal-lim');
+    if(window._solicRid){resolverSolic(window._solicRid);window._solicRid=null}
+    await carregar();
   }catch(e){JUMP.toast(e.message,'err')}
 }
 

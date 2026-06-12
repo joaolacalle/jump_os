@@ -80,6 +80,10 @@
 
   <!-- TAB TODOS OS USUÁRIOS -->
   <div class="tabpane" id="pane-users">
+    <div class="card" id="solic-box" style="display:none;margin-bottom:14px;border-color:rgba(255,209,102,.4)">
+      <div class="sec-lbl" style="margin-top:0">🪙 Solicitações de aumento de uso (visão global)</div>
+      <div id="solic-list"></div>
+    </div>
     <div class="top-row">
       <input class="f-input search" id="search-user" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderUsers()">
       <select class="f-select" id="filtro-sup" style="max-width:220px" onchange="renderUsers()">
@@ -268,7 +272,7 @@ async function carregar(){
   /* filtro de supervisores */
   const f=document.getElementById('filtro-sup');
   f.innerHTML='<option value="">Todos os supervisores</option>'+SUPS.map(s=>`<option value="${s.id}">${JUMP.esc(s.nome||s.email)}</option>`).join('');
-  renderSups();renderUsers();
+  renderSups();renderUsers();carregarSolicAdm();
   /* logs */
   try{
     const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(12);
@@ -372,6 +376,24 @@ async function gestaoBloq(id,bloquear){
 }
 
 
+async function carregarSolicAdm(){
+  try{
+    const{data}=await JUMP.sb.from('recados').select('*').eq('tipo','solicitacao_tokens').eq('resolvido',false).order('created_at',{ascending:false}).limit(20);
+    const box=document.getElementById('solic-box');
+    if(!data||!data.length){box.style.display='none';return}
+    box.style.display='block';
+    document.getElementById('solic-list').innerHTML=data.map(r=>`
+      <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap">
+        <span style="font-size:16px">🪙</span>
+        <div style="flex:1;min-width:200px"><strong style="font-size:13px">${JUMP.esc(r.titulo)}</strong><div style="font-size:12px;color:var(--t2)">${JUMP.esc(r.mensagem)}</div></div>
+        ${r.resposta?`<a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${r.resposta}">Painel →</a>`:''}
+        <button class="btn btn-o btn-sm" onclick="resolverSolicAdm('${r.id}')">Concluir</button>
+      </div>`).join('');
+  }catch(e){}
+}
+async function resolverSolicAdm(id){
+  try{await JUMP.sb.from('recados').update({resolvido:true,lido:true}).eq('id',id);JUMP.toast('Concluída');carregarSolicAdm()}catch(e){}
+}
 function abrirCotas(id){
   const s=ALL.find(x=>x.id===id);if(!s)return;
   const co=s.cotas||{};
