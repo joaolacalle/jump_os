@@ -1,911 +1,232 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JUMP OS — Agentes</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Meus agentes</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#060607;--panel:#0F0F12;--panel2:#14141A;--panel3:#18181F;
-  --border:#1E1E26;--border2:#2A2A35;
-  --cp:#00E676;--cdim:rgba(0,230,118,.07);--cglow:rgba(0,230,118,.14);
-  --red:#FF4545;--orange:#FF9F1C;--blue:#5C7CFA;--purple:#9B5CF6;
-  --white:#FFF;--g1:#9090A0;--g2:#50505C;
-  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+.chat-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 170px);min-height:480px}
+.ag-list{display:flex;flex-direction:column;gap:7px;overflow:auto;padding-right:3px}
+.ag-it{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:11px;background:var(--card);border:1px solid var(--bd);cursor:pointer;transition:.2s}
+.ag-it:hover{border-color:rgba(var(--g-rgb),.35)}
+.ag-it.on{border-color:var(--g);background:rgba(var(--g-rgb),.07)}
+.ag-it.locked{opacity:.42;cursor:default}
+.ag-it-ico{font-size:17px}
+.ag-it-n{font-size:13px;font-weight:800;color:var(--t1);line-height:1.15}
+.ag-it-r{font-family:var(--M);font-size:9px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase}
+.ag-lock{margin-left:auto;font-size:10px;font-family:var(--M);color:var(--t3)}
+/* CHAT */
+.chat-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.chat-top{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--bd)}
+.ct-ico{width:36px;height:36px;border-radius:10px;background:rgba(var(--g-rgb),.12);border:1px solid rgba(var(--g-rgb),.3);display:flex;align-items:center;justify-content:center;font-size:17px}
+.ct-n{font-family:var(--D);font-size:17px;letter-spacing:.5px;text-transform:uppercase;color:var(--g);line-height:1}
+.ct-s{font-family:var(--M);font-size:9.5px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:2px;display:flex;align-items:center;gap:5px}
+.mem-btn{margin-left:auto;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1px;padding:7px 12px;border-radius:18px;border:1px solid rgba(var(--g-rgb),.3);color:var(--g);cursor:pointer;transition:.2s}
+.mem-btn:hover{background:rgba(var(--g-rgb),.1)}
+.chat-msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:11px}
+.msg{max-width:78%;padding:11px 14px;border-radius:13px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
+.msg.u{align-self:flex-end;background:rgba(var(--g-rgb),.14);border:1px solid rgba(var(--g-rgb),.25);color:var(--t1);border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:rgba(0,0,0,.22);border:1px solid var(--bd);color:var(--t1);border-bottom-left-radius:4px}
+[data-theme="light"] .msg.a{background:rgba(0,0,0,.05)}
+.msg-meta{font-family:var(--M);font-size:8.5px;color:var(--t3);margin-top:6px;letter-spacing:1px;text-transform:uppercase}
+.typing{align-self:flex-start;display:flex;gap:5px;padding:13px 16px}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--g);animation:ty 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
+@keyframes ty{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.chat-in{display:flex;gap:9px;padding:13px;border-top:1px solid var(--bd)}
+.chat-in textarea{flex:1;resize:none;padding:12px 14px;border-radius:11px;background:rgba(0,0,0,.3);border:1.5px solid var(--bd);font-size:14px;line-height:1.5;max-height:120px}
+[data-theme="light"] .chat-in textarea{background:rgba(0,0,0,.04)}
+.chat-in textarea:focus{border-color:rgba(var(--g-rgb),.5)}
+.send-btn{align-self:flex-end;width:46px;height:46px;border-radius:11px;background:var(--g);color:#000;font-size:17px;font-weight:900;transition:.2s;flex-shrink:0}
+.send-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px var(--glow)}
+.send-btn:disabled{opacity:.45;transform:none}
+.empty-chat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:24px;text-align:center}
+.ec-ico{font-size:38px}
+.ec-t{font-family:var(--D);font-size:21px;letter-spacing:1px;text-transform:uppercase;color:var(--t1)}
+.ec-b{font-size:13px;color:var(--t3);max-width:380px;line-height:1.6}
+.sug-chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.chip{font-size:12px;font-weight:700;padding:8px 13px;border-radius:18px;border:1px solid rgba(var(--g-rgb),.3);color:var(--g);cursor:pointer;transition:.2s}
+.chip:hover{background:rgba(var(--g-rgb),.1)}
+/* Painel memórias */
+.mem-pane{display:none;border-bottom:1px solid var(--bd);padding:13px 16px;background:rgba(var(--g-rgb),.04);max-height:190px;overflow:auto}
+.mem-pane.show{display:block}
+.mem-it{font-size:12px;color:var(--t2);padding:5px 0;border-bottom:1px solid var(--bd);display:flex;gap:8px}
+.mem-it:last-child{border:none}
+.mem-k{font-family:var(--M);font-size:10px;color:var(--g);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;margin-top:1px}
+@media(max-width:920px){
+  .chat-layout{grid-template-columns:1fr;height:auto}
+  .ag-list{flex-direction:row;overflow-x:auto;padding-bottom:6px}
+  .ag-it{min-width:150px;flex-shrink:0}
+  .chat-card{height:calc(100vh - 290px);min-height:420px}
 }
-body{background:var(--bg);color:var(--white);font-family:var(--font);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:15px}
-
-/* TOPBAR */
-.topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(14px,2vw,20px);flex-shrink:0;gap:10px;z-index:100}
-.tl{display:flex;align-items:center;gap:10px}
-.brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase}
-.brand span{color:var(--cp)}
-.back-link{font-size:12px;color:var(--g1);text-decoration:none;display:flex;align-items:center;gap:5px;transition:.2s}
-.back-link:hover{color:var(--white)}
-.tr{display:flex;align-items:center;gap:8px}
-.api-status{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:4px 11px;border-radius:12px;cursor:pointer;transition:.2s;border:none;font-family:var(--mono)}
-.api-ok{background:var(--cdim);color:var(--cp);border:1px solid rgba(0,230,118,.2)}
-.api-warn{background:rgba(255,159,28,.1);color:var(--orange);border:1px solid rgba(255,159,28,.2)}
-
-/* LAYOUT 3 COLUNAS */
-.layout{display:flex;flex:1;min-height:0;overflow:hidden}
-
-/* ── COL 1: LISTA DE AGENTES ── */
-.agents-list{width:220px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
-.al-header{padding:14px 14px 10px;border-bottom:1px solid var(--border)}
-.al-title{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);font-family:var(--mono)}
-.agent-item{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;transition:.2s;border-bottom:1px solid var(--border);position:relative}
-.agent-item:hover{background:var(--panel2)}
-.agent-item.active{background:var(--panel2)}
-.agent-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cp)}
-.ai-emoji{font-size:18px;flex-shrink:0;width:32px;text-align:center}
-.ai-info{flex:1;min-width:0}
-.ai-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
-.ai-sub{font-size:9px;color:var(--g2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ai-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.st-done{background:var(--cp)}
-.st-active{background:var(--orange);animation:pulse 1.5s infinite}
-.st-wait{background:var(--border2)}
-.st-lock{background:var(--g2)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-/* Lock overlay */
-.agent-item.locked{opacity:.5;cursor:not-allowed}
-.lock-icon{font-size:10px;color:var(--g2)}
-
-/* ── COL 2: CHAT ── */
-.chat-col{flex:1;display:flex;flex-direction:column;min-width:0}
-
-/* CHAT HEADER */
-.chat-header{padding:clamp(12px,2vw,16px) clamp(14px,2.5vw,20px);background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-shrink:0}
-.ch-emoji{font-size:clamp(22px,3vw,28px);width:44px;height:44px;background:var(--panel2);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.ch-info{flex:1;min-width:0}
-.ch-name{font-size:clamp(14px,2vw,16px);font-weight:800;text-transform:uppercase;letter-spacing:-.3px}
-.ch-desc{font-size:clamp(11px,1.5vw,12px);color:var(--g1);margin-top:2px}
-.ch-badge{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:3px 10px;border-radius:10px;flex-shrink:0}
-.cb-done{background:var(--cdim);color:var(--cp);border:1px solid rgba(0,230,118,.2)}
-.cb-active{background:rgba(255,159,28,.1);color:var(--orange);border:1px solid rgba(255,159,28,.2)}
-.cb-wait{background:var(--panel2);color:var(--g2);border:1px solid var(--border2)}
-
-/* MESSAGES */
-.messages{flex:1;overflow-y:auto;padding:clamp(14px,2vw,20px);display:flex;flex-direction:column;gap:14px}
-.msg{display:flex;gap:10px;max-width:82%}
-.msg-agent{align-self:flex-start}
-.msg-user{align-self:flex-end;flex-direction:row-reverse}
-.msg-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
-.ma-agent{background:var(--panel2);border:1px solid var(--border2)}
-.ma-user{background:var(--cp);color:#000;font-size:11px;font-weight:900}
-.msg-bubble{border-radius:12px;padding:clamp(10px,1.5vw,14px) clamp(12px,2vw,16px);line-height:1.65;font-size:clamp(13px,1.5vw,14px)}
-.mb-agent{background:var(--panel);border:1px solid var(--border);border-radius:12px 12px 12px 4px}
-.mb-user{background:var(--panel2);border:1px solid var(--border2);border-radius:12px 12px 4px 12px;color:var(--white)}
-.msg-time{font-size:9px;color:var(--g2);margin-top:5px;font-family:var(--mono)}
-.msg-user .msg-time{text-align:right}
-/* Typing indicator */
-.typing{display:flex;align-items:center;gap:4px;padding:12px 16px;background:var(--panel);border:1px solid var(--border);border-radius:12px 12px 12px 4px;width:fit-content}
-.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--g1);animation:typing-anim 1.2s infinite}
-.typing-dot:nth-child(2){animation-delay:.2s}
-.typing-dot:nth-child(3){animation-delay:.4s}
-@keyframes typing-anim{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
-/* Formatação das mensagens do agente */
-.mb-agent strong{color:var(--white);font-weight:700}
-.mb-agent em{color:var(--cp);font-style:normal}
-.mb-agent code{background:var(--panel2);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:11px;color:var(--cp)}
-.mb-agent ul{list-style:none;margin:8px 0}
-.mb-agent ul li{padding:3px 0 3px 14px;position:relative;color:var(--g1);font-size:13px}
-.mb-agent ul li::before{content:'→';position:absolute;left:0;color:var(--cp);font-size:11px}
-.mb-agent .agent-output{background:var(--panel2);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:12px;margin-top:10px;font-size:12px}
-.mb-agent .agent-output-title{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--cp);margin-bottom:8px;font-family:var(--mono)}
-/* Chips de ação */
-.msg-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.msg-action-btn{padding:5px 12px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--g1);transition:.2s}
-.msg-action-btn:hover{border-color:var(--cp);color:var(--cp)}
-.msg-action-btn.primary{background:var(--cp);color:#000;border-color:var(--cp)}
-
-/* INPUT */
-.chat-input-area{padding:clamp(10px,1.5vw,14px) clamp(14px,2.5vw,20px);background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
-.input-wrap{display:flex;gap:8px;align-items:flex-end;background:var(--panel2);border:1px solid var(--border2);border-radius:12px;padding:8px 8px 8px 14px;transition:border-color .2s}
-.input-wrap:focus-within{border-color:var(--cp)}
-.chat-textarea{flex:1;background:transparent;border:none;outline:none;color:var(--white);font-family:var(--font);font-size:clamp(13px,1.5vw,14px);resize:none;max-height:120px;min-height:24px;line-height:1.5}
-.chat-textarea::placeholder{color:var(--g2)}
-.send-btn{width:36px;height:36px;border-radius:8px;background:var(--cp);color:#000;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:.15s}
-.send-btn:hover{opacity:.88}
-.send-btn:disabled{opacity:.4;cursor:not-allowed}
-.input-hint{font-size:10px;color:var(--g2);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.quick-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-.quick-btn{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--g1);transition:.2s;white-space:nowrap}
-.quick-btn:hover{border-color:var(--cp);color:var(--cp)}
-
-/* ── COL 3: CONTEXTO ── */
-.context-col{width:240px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
-.ctx-header{padding:14px;border-bottom:1px solid var(--border)}
-.ctx-title{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2)}
-.ctx-section{padding:14px;border-bottom:1px solid var(--border)}
-.ctx-sec-title{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:10px}
-.ctx-item{font-size:11px;color:var(--g1);padding:5px 0;display:flex;justify-content:space-between;gap:6px;border-bottom:1px solid var(--border);line-height:1.4}
-.ctx-item:last-child{border-bottom:none}
-.ctx-val{font-weight:700;color:var(--white);text-align:right;flex-shrink:0;font-family:var(--mono);font-size:10px}
-.ctx-output{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;color:var(--g1);line-height:1.6;margin-top:8px}
-.ctx-btn{display:block;width:100%;padding:8px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:none;transition:.15s;margin-top:8px;text-align:center}
-.ctx-btn-g{background:var(--cp);color:#000}
-.ctx-btn-g:hover{opacity:.88}
-.ctx-btn-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
-.ctx-btn-o:hover{border-color:var(--white);color:var(--white)}
-/* Progress list */
-.progress-list{padding:14px}
-.pl-title{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:10px}
-.pl-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:11px;color:var(--g1)}
-.pl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.pld-done{background:var(--cp)}
-.pld-active{background:var(--orange)}
-.pld-wait{background:var(--border2)}
-
-/* MODAL API KEY */
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
-.mo.open{opacity:1;pointer-events:all}
-.modal{background:var(--panel);border:1px solid var(--border2);border-radius:14px;width:480px;max-width:95vw}
-.mh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
-.mt{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
-.mc{background:var(--panel2);border:1px solid var(--border2);color:var(--g1);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
-.mb-pad{padding:20px}
-.fl{font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:7px;display:block;margin-top:14px}
-.fl:first-child{margin-top:0}
-.fi{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:7px;padding:10px 12px;color:var(--white);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s}
-.fi:focus{border-color:var(--cp)}
-.mf{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border)}
-.bm{flex:1;padding:10px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;transition:.15s}
-.bm-o{background:transparent;border:1px solid var(--border2);color:var(--g1)}
-.bm-s{background:var(--cp);color:#000}
-
-/* TOAST */
-.tc{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--panel);border:1px solid var(--border2);border-radius:9px;padding:10px 16px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;transform:translateX(110%);transition:.3s cubic-bezier(.34,1.56,.64,1);min-width:220px}
-.toast.show{transform:translateX(0)}
-.toast.s{border-left:2px solid var(--cp)}
-.toast.i{border-left:2px solid var(--blue)}
-.toast.w{border-left:2px solid var(--orange)}
-
-/* RESPONSIVO */
-@media(max-width:900px){.context-col{display:none}}
-@media(max-width:640px){.agents-list{width:56px}.ai-info{display:none}.ai-emoji{width:28px}}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
 </style>
 </head>
 <body>
-
-<header class="topbar">
-  <div class="tl">
-    <div class="brand">JUMP <span>OS</span></div>
-    <a href="dashboard-usuario.html" class="back-link">← Dashboard</a>
-  </div>
-  <div class="tr">
-    <button class="api-status api-warn" id="api-status-btn" onclick="openApiModal()">
-      ⚡ Configurar API
-    </button>
-  </div>
-</header>
-
-<div class="layout">
-
-  <!-- COL 1: LISTA DE AGENTES -->
-  <div class="agents-list">
-    <div class="al-header">
-      <div class="al-title">Seus agentes</div>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Acordando os agentes...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd" style="margin-bottom:16px">
+    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1></div>
+    <div style="min-width:170px">
+      <div class="bar"><div class="bar-f" id="tok-bar" style="width:0%"></div></div>
+      <div class="bar-l" id="tok-txt">uso do mês</div>
     </div>
-    <div id="agents-nav"></div>
   </div>
-
-  <!-- COL 2: CHAT -->
-  <div class="chat-col">
-    <div class="chat-header" id="chat-header">
-      <div class="ch-emoji" id="ch-emoji">🎨</div>
-      <div class="ch-info">
-        <div class="ch-name" id="ch-name">Agente de Identidade</div>
-        <div class="ch-desc" id="ch-desc">Cria o DNA de comunicação da sua marca</div>
+  <div class="chat-layout">
+    <div class="ag-list" id="ag-list"></div>
+    <div class="chat-card">
+      <div class="chat-top">
+        <div class="ct-ico" id="ct-ico">🤖</div>
+        <div><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
+        <button class="mem-btn" id="mem-btn" onclick="toggleMem()" style="display:none">🧠 O que aprendi</button>
       </div>
-      <div class="ch-badge cb-done" id="ch-badge">✓ Concluído</div>
-    </div>
-
-    <div class="messages" id="messages"></div>
-
-    <div class="chat-input-area">
-      <div class="input-wrap">
-        <textarea class="chat-textarea" id="chat-input" placeholder="Digite sua mensagem para o agente..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-        <button class="send-btn" id="send-btn" onclick="sendMessage()">→</button>
+      <div class="mem-pane" id="mem-pane"></div>
+      <div class="chat-msgs" id="msgs">
+        <div class="empty-chat" id="empty">
+          <div class="ec-ico">👈</div>
+          <div class="ec-t">Escolha um agente</div>
+          <div class="ec-b">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
+        </div>
       </div>
-      <div class="quick-btns" id="quick-btns"></div>
-      <div class="input-hint">
-        <span>Enter para enviar · Shift+Enter para nova linha</span>
+      <div class="chat-in">
+        <textarea id="inp" rows="1" placeholder="Escreva sua mensagem..." disabled></textarea>
+        <button class="send-btn" id="send" onclick="enviar()" disabled>➤</button>
       </div>
     </div>
   </div>
-
-  <!-- COL 3: CONTEXTO -->
-  <div class="context-col">
-    <div class="ctx-header">
-      <div class="ctx-title">Contexto ativo</div>
-    </div>
-    <div class="ctx-section">
-      <div class="ctx-sec-title">Dados do perfil</div>
-      <div class="ctx-item"><span>Marca</span><span class="ctx-val">João Vittor</span></div>
-      <div class="ctx-item"><span>Handle</span><span class="ctx-val">@joao_vittor</span></div>
-      <div class="ctx-item"><span>Seguidores</span><span class="ctx-val">968</span></div>
-      <div class="ctx-item"><span>Plano</span><span class="ctx-val">Plus</span></div>
-    </div>
-    <div class="ctx-section" id="ctx-output-section">
-      <div class="ctx-sec-title">Último output</div>
-      <div class="ctx-output" id="ctx-output">Converse com o agente para ver o resultado aqui.</div>
-      <button class="ctx-btn ctx-btn-o" onclick="copyOutput()">Copiar output</button>
-      <button class="ctx-btn ctx-btn-g" onclick="saveOutput()">Salvar no sistema</button>
-    </div>
-    <div class="progress-list">
-      <div class="pl-title">Progresso do onboarding</div>
-      <div id="progress-list"></div>
-    </div>
-  </div>
-
+</main>
 </div>
-
-<!-- MODAL: API KEY -->
-<div class="mo" id="mo-api" onclick="if(event.target.id==='mo-api')closeApiModal()">
-  <div class="modal">
-    <div class="mh">
-      <div class="mt">Configurar chave da API</div>
-      <button class="mc" onclick="closeApiModal()">✕</button>
-    </div>
-    <div class="mb-pad">
-      <label class="fl">Anthropic API Key</label>
-      <input class="fi" type="password" id="api-key-input" placeholder="sk-ant-api03-...">
-      <p style="font-size:11px;color:var(--g2);margin-top:8px;line-height:1.6">
-        Obtenha sua chave em <strong style="color:var(--white)">console.anthropic.com</strong> → API Keys → Create Key.<br>
-        A chave fica salva apenas neste dispositivo (localStorage). Nunca é enviada a terceiros.
-      </p>
-      <div style="background:rgba(255,159,28,.07);border:1px solid rgba(255,159,28,.2);border-radius:8px;padding:12px;margin-top:12px;font-size:11px;color:var(--orange);line-height:1.6">
-        <strong>⚠ Modo de desenvolvimento:</strong> para produção, a chave deve ficar em variável de ambiente no servidor (Vercel), nunca no browser. Este modo é apenas para testes.
-      </div>
-    </div>
-    <div class="mf">
-      <button class="bm bm-o" onclick="closeApiModal()">Cancelar</button>
-      <button class="bm bm-s" onclick="saveApiKey()">Salvar e testar →</button>
-    </div>
-  </div>
-</div>
-
-<div class="tc" id="tc"></div>
-
+<script src="assets/jump-core.js"></script>
 <script>
-// ═══════════════════════════════════════════
-// CONFIGURAÇÃO DOS AGENTES
-// ═══════════════════════════════════════════
-const AGENTS = [
-  {
-    id: 'identidade',
-    emoji: '🎨',
-    name: 'Agente de Identidade',
-    sub: 'Branding e OS_DATA',
-    status: 'done',
-    desc: 'Cria o DNA de comunicação da sua marca — paleta, tom, posicionamento.',
-    systemPrompt: `Você é o Agente de Identidade do sistema JUMP OS. Sua função é conduzir o check-in de onboarding do cliente e criar o OS_DATA — o documento de identidade da marca.
-
-Regras de comportamento:
-- Seja direto e eficiente. Faça uma pergunta de cada vez.
-- Após coletar todas as informações, gere o OS_DATA completo em formato estruturado.
-- Tom: profissional, consultivo, empático.
-- Sempre responda em português brasileiro.
-
-Sequência do check-in:
-1. Confirmar nome da marca e handle do Instagram
-2. Qual o produto/serviço principal e seus diferenciais
-3. Quem é o público-alvo (idade, faturamento, dor principal)
-4. Qual o tom de voz da marca (formal/informal, sério/divertido)
-5. Quais palavras descrevem a marca (3 palavras)
-6. Qual a história do fundador que pode ser usada como autoridade
-
-Ao final, gere o OS_DATA completo e formatado.`,
-    quickReplies: ['Quero refazer o check-in', 'Ver meu OS_DATA atual', 'Ajustar tom de voz', 'Mudar posicionamento'],
-    welcomeMsg: 'Olá! Sou o Agente de Identidade. Seu check-in já foi concluído e seu OS_DATA está salvo no sistema.\n\nPosso te ajudar a **revisar ou ajustar** qualquer parte da sua identidade de marca. O que deseja?'
-  },
-  {
-    id: 'mercado',
-    emoji: '🔍',
-    name: 'Agente de Mercado',
-    sub: 'Análise competitiva',
-    status: 'done',
-    desc: 'Mapeia concorrentes, benchmarks e oportunidades do seu nicho.',
-    systemPrompt: `Você é o Agente de Mercado do sistema JUMP OS. Analisa o mercado, concorrentes e benchmarks para o cliente.
-
-Você tem acesso ao OS_DATA do cliente. Use essas informações para dar respostas personalizadas.
-
-Funções:
-- Analisar concorrentes específicos quando solicitado
-- Identificar benchmarks de engajamento do nicho
-- Encontrar oportunidades de posicionamento
-- Comparar estratégias de conteúdo
-
-Sempre responda em português brasileiro. Seja específico e baseie-se em dados reais.`,
-    quickReplies: ['Analisar meus concorrentes', 'Qual o benchmark do meu nicho?', 'Lacunas de posicionamento', 'O que os top contas estão fazendo?'],
-    welcomeMsg: 'Sou o Agente de Mercado. Faço análise de concorrentes, benchmarks e oportunidades no seu nicho.\n\nO que você quer investigar?'
-  },
-  {
-    id: 'diagnostico',
-    emoji: '📊',
-    name: 'Agente de Diagnóstico',
-    sub: 'Análise do Instagram',
-    status: 'done',
-    desc: 'Analisa métricas reais do seu Instagram e identifica oportunidades.',
-    systemPrompt: `Você é o Agente de Diagnóstico do JUMP OS. Analisa as métricas do Instagram do cliente e gera insights acionáveis.
-
-Dados disponíveis do @joao_vittor:
-- Seguidores: 968
-- Alcance 30d: 1.157 (119% dos seguidores)
-- Posts totais: 20
-- Frequência: 3.3 posts/mês
-- Top post: Reel "Método JUMP" — 890 interações
-- Tipo de conta: Criador (precisa converter para Comercial)
-
-Forneça análises detalhadas, identifique padrões e sugira melhorias específicas baseadas nos dados.
-Sempre responda em português brasileiro.`,
-    quickReplies: ['Analisar meu perfil', 'Por que meu alcance está baixo?', 'Qual o meu melhor horário?', 'Como aumentar seguidores?'],
-    welcomeMsg: 'Sou o Agente de Diagnóstico. Tenho acesso às métricas do seu Instagram.\n\n**Resumo atual:** 968 seguidores, alcance de 119% (excelente), frequência de 3.3 posts/mês (abaixo do ideal).\n\nO que você quer analisar em detalhe?'
-  },
-  {
-    id: 'estrategia',
-    emoji: '📋',
-    name: 'Agente de Estratégia',
-    sub: 'Plano mensal de conteúdo',
-    status: 'active',
-    desc: 'Gera o calendário editorial, copies e roteiros para o mês.',
-    systemPrompt: `Você é o Agente de Estratégia do sistema JUMP OS. Gera planejamentos mensais de conteúdo para Instagram.
-
-OS_DATA do cliente (@joao_vittor):
-- Marca: João Vittor
-- Nicho: Consultoria de marketing para empreendedores + Sistema de IA (JUMP OS)
-- Posicionamento: Empreendedor que fechou 3 negócios e desenvolveu o método que precisava
-- Público: Empreendedor 25-45 anos, fatura 10k-30k, faz marketing por necessidade
-- Tom: Complacente (viveu a dor), motivacional, direto. NUNCA: venda de curso, IA genérica
-- Palavras da marca: Indispensável · Viável · Eficiente
-- Keywords de DM: JUMP, MÉTODO, DIAGNOSTICO, ERROS, SCRIPT
-
-Ao gerar o plano mensal, inclua:
-1. Objetivo do mês
-2. Tema central
-3. Calendário com data, formato, título, copy resumida e keyword de DM
-4. Distribuição de pilares (Autoridade/Educação/Entretenimento/Oferta)
-
-Formatos disponíveis: Feed (5 slides), Reel (45s), Carrossel, VSL (Anúncio)
-Meta de frequência: 7-8 posts por mês
-
-Sempre responda em português brasileiro. Seja específico e personalizável.`,
-    quickReplies: ['Gerar plano de julho', 'Gerar plano do próximo mês', 'Criar uma copy para Reel', 'Criar roteiro de VSL', 'Sugerir tema para carrossel'],
-    welcomeMsg: 'Sou o Agente de Estratégia. Estou pronto para gerar seu plano de conteúdo.\n\n**Status atual:** Junho 2026 planejado — 8 peças geradas.\n\nQuer que eu gere o plano do próximo mês, crie uma copy específica ou sugira temas?'
-  },
-  {
-    id: 'criativo',
-    emoji: '🖼',
-    name: 'Agente Criativo',
-    sub: 'Geração de imagens',
-    status: 'wait',
-    desc: 'Gera criativos visuais personalizados via Leonardo AI.',
-    systemPrompt: `Você é o Agente Criativo do JUMP OS. Gera prompts otimizados para criação de imagens via Leonardo AI.
-
-VISUAL_SYSTEM do cliente (@joao_vittor):
-- Estilo: "Dark urbano de alto impacto"
-- Paleta: Preto profundo #0B0B0C (85%), Branco #FFFFFF (10%), Verde #00E676 (5%)
-- Tipografia: Bebas Neue/Anton para headlines + Montserrat Bold para corpo
-- Atmosfera: Concreto — bruto, urbano, resistente
-- Luz: lateral dura 45°, rim light verde
-- PROIBIDO: vermelho, laranja, gradientes, estilo Canva
-
-Para cada criativo, gere:
-1. Prompt completo para Leonardo AI (inglês, detalhado)
-2. Elementos visuais recomendados
-3. Copy para sobrepor na imagem
-4. Configurações sugeridas (init_strength, guidance_scale)
-
-Sempre responda em português, mas os prompts devem ser em inglês.`,
-    quickReplies: ['Criar prompt para feed', 'Criar thumbnail de Reel', 'Gerar variações de capa', 'Criar prompt para carrossel'],
-    welcomeMsg: 'Sou o Agente Criativo. Gero prompts otimizados para o Leonardo AI com a sua identidade visual.\n\n⚠ **Atenção:** Para gerar imagens reais, você precisa configurar a chave do Leonardo AI.\n\nMas posso gerar os prompts agora para você usar diretamente no site do Leonardo. Quer começar?'
-  },
-  {
-    id: 'publicacao',
-    emoji: '📅',
-    name: 'Agente de Publicação',
-    sub: 'Agendamento automático',
-    status: 'wait',
-    desc: 'Agenda e publica automaticamente no seu Instagram.',
-    systemPrompt: `Você é o Agente de Publicação do JUMP OS. Responsável pelo agendamento automático de conteúdo no Instagram via Meta Graph API.
-
-Status atual:
-- Conta @joao_vittor: Tipo Criador (publicação automática BLOQUEADA)
-- Solução: converter para conta Comercial (2 minutos, gratuito)
-- Meta App: aguardando App Review (5-15 dias úteis)
-
-Você pode ajudar o usuário a:
-1. Entender o processo de conversão para Comercial
-2. Planejar a sequência de publicações
-3. Otimizar horários baseado em dados
-4. Configurar as permissões necessárias
-
-Quando a conta for Comercial e o App Review aprovado, você executará:
-- Humanização dos horários (±7-20 minutos do horário base)
-- Upload via Media Container API
-- Publicação automática no horário correto
-- Coleta de métricas 48h após publicação
-
-Sempre responda em português brasileiro.`,
-    quickReplies: ['Como converter para Comercial?', 'Status do App Review', 'Melhor horário para postar', 'Ver posts agendados'],
-    welcomeMsg: '**⚠ Atenção:** Para ativar a publicação automática, dois passos são necessários:\n\n1. **Converter sua conta para Comercial** (2 minutos, gratuito)\n2. **Aprovação do App Review da Meta** (5-15 dias — já em andamento)\n\nO que você quer fazer?'
-  },
-  {
-    id: 'trafego',
-    emoji: '📢',
-    name: 'Agente de Tráfego',
-    sub: 'Meta Ads — Plano Pro',
-    status: 'lock',
-    desc: 'Gerencia campanhas de Meta Ads com 4 públicos simultâneos.',
-    systemPrompt: '',
-    quickReplies: [],
-    welcomeMsg: '🔒 O Agente de Tráfego está disponível apenas no **Plano Pro** (R$399/mês).\n\nEle gerencia 4 campanhas de Meta Ads simultaneamente, otimiza budget diariamente e gera relatório de ROAS semanal.\n\nQuer entrar na lista de espera do plano Pro?'
-  }
+let CTX=null,AG=null,BUSY=false;
+const LV={basico:1,plus:2,pro:3};
+const AGS=[
+  {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
+  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,sug:['Analise meu concorrente @perfil','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
+  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
+  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  {id:'trafego',ico:'📢',n:'Tráfego',r:'Meta Ads',min:3,sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?']},
+  {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
-
-// ═══════════════════════════════════════════
-// SUPABASE
-// ═══════════════════════════════════════════
-const SUPA_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
-const supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-
-// ═══════════════════════════════════════════
-// ESTADO
-// ═══════════════════════════════════════════
-let currentAgent = AGENTS[3]; // Estratégia por padrão
-let conversations = {};
-let isTyping = false;
-let API_KEY = localStorage.getItem('jump_api_key') || '';
-let currentUserId = null;
-let currentUserData = null;
-let osData = null;
-
-// ═══════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════
-async function init(){
-  // Verificar sessão
-  const { data: { session } } = await supa.auth.getSession();
-  if (!session) { window.location.href = 'login.html'; return; }
-  
-  currentUserId = session.user.id;
-
-  // Carregar dados do usuário
-  const { data: cliente } = await supa
-    .from('clientes')
-    .select('*')
-    .eq('user_id', currentUserId)
-    .single();
-  
-  if (cliente) {
-    currentUserData = cliente;
-    // Atualizar nome e avatar
-    const nome = cliente.nome || session.user.email;
-    const initials = nome.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-    document.querySelector('.user-name') && (document.querySelector('.user-name').textContent = nome.split(' ')[0]);
-  }
-
-  // Carregar OS_DATA
-  const { data: os } = await supa
-    .from('os_data')
-    .select('*')
-    .eq('user_id', currentUserId)
-    .single();
-  if (os) osData = os;
-
-  // Carregar histórico de conversas do banco
-  await loadConversationsFromDB();
-
-  renderAgentsList();
-  renderProgressList();
-  loadAgent(currentAgent);
-  checkApiStatus();
-}
-
-// Carregar conversas salvas no Supabase
-async function loadConversationsFromDB() {
-  const { data: convs } = await supa
-    .from('conversas')
-    .select('*, mensagens(*)')
-    .eq('user_id', currentUserId)
-    .order('atualizado_em', { ascending: false });
-
-  if (!convs) return;
-
-  convs.forEach(conv => {
-    const msgs = (conv.mensagens || [])
-      .sort((a,b) => new Date(a.criado_em) - new Date(b.criado_em))
-      .map(m => ({ role: m.role, content: m.conteudo, ts: new Date(m.criado_em).getTime() }));
-    if (msgs.length > 0) conversations[conv.agente_id] = msgs;
-  });
-}
-
-// Salvar mensagem no Supabase
-async function saveMessageToDB(agenteId, role, content) {
-  if (!currentUserId) return;
-  try {
-    // Buscar ou criar conversa
-    let { data: conv } = await supa
-      .from('conversas')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .eq('agente_id', agenteId)
-      .single();
-
-    if (!conv) {
-      const { data: newConv } = await supa
-        .from('conversas')
-        .insert({ user_id: currentUserId, agente_id: agenteId, titulo: agenteId })
-        .select()
-        .single();
-      conv = newConv;
-    }
-
-    if (!conv) return;
-
-    // Salvar mensagem
-    await supa.from('mensagens').insert({
-      conversa_id: conv.id,
-      user_id: currentUserId,
-      role,
-      conteudo: content
-    });
-
-    // Atualizar timestamp da conversa
-    await supa.from('conversas')
-      .update({ atualizado_em: new Date().toISOString() })
-      .eq('id', conv.id);
-
-  } catch(e) {
-    console.error('Erro ao salvar mensagem:', e.message);
-  }
-}
-
-function checkApiStatus(){
-  const btn = document.getElementById('api-status-btn');
-  if(API_KEY && API_KEY.startsWith('sk-ant')){
-    btn.className = 'api-status api-ok';
-    btn.textContent = '✓ API Conectada';
-  } else {
-    btn.className = 'api-status api-warn';
-    btn.textContent = '⚡ Configurar API';
-  }
-}
-
-// ═══════════════════════════════════════════
-// RENDER AGENTS LIST
-// ═══════════════════════════════════════════
-function renderAgentsList(){
-  const nav = document.getElementById('agents-nav');
-  nav.innerHTML = AGENTS.map(a => `
-    <div class="agent-item ${a.id === currentAgent.id ? 'active' : ''} ${a.status === 'lock' ? 'locked' : ''}"
-         onclick="${a.status === 'lock' ? 'loadAgent(AGENTS[6])' : `loadAgent(AGENTS.find(x=>x.id==='${a.id}'))`}">
-      <div class="ai-emoji">${a.emoji}</div>
-      <div class="ai-info">
-        <div class="ai-name">${a.name}</div>
-        <div class="ai-sub">${a.sub}</div>
-      </div>
-      ${a.status === 'lock' ? '<div class="lock-icon">🔒</div>' : `<div class="ai-status st-${a.status === 'done' ? 'done' : a.status === 'active' ? 'active' : 'wait'}"></div>`}
-    </div>`).join('');
-}
-
-function renderProgressList(){
-  const list = document.getElementById('progress-list');
-  list.innerHTML = AGENTS.map(a => `
-    <div class="pl-item">
-      <div class="pl-dot pld-${a.status === 'done' ? 'done' : a.status === 'active' ? 'active' : 'wait'}"></div>
-      <span>${a.name.replace('Agente de ','').replace('Agente ','')}</span>
-    </div>`).join('');
-}
-
-// ═══════════════════════════════════════════
-// LOAD AGENT
-// ═══════════════════════════════════════════
-function loadAgent(agent){
-  currentAgent = agent;
-
-  // Atualizar header
-  document.getElementById('ch-emoji').textContent = agent.emoji;
-  document.getElementById('ch-name').textContent = agent.name;
-  document.getElementById('ch-desc').textContent = agent.desc;
-
-  const badge = document.getElementById('ch-badge');
-  const badgeMap = { done: ['cb-done','✓ Concluído'], active: ['cb-active','→ Ativo'], wait: ['cb-wait','⏳ Aguardando'], lock: ['cb-wait','🔒 Pro'] };
-  badge.className = 'ch-badge ' + badgeMap[agent.status][0];
-  badge.textContent = badgeMap[agent.status][1];
-
-  // Carregar mensagens
-  renderMessages(agent.id);
-
-  // Quick replies
-  const qb = document.getElementById('quick-btns');
-  qb.innerHTML = agent.quickReplies.map(q =>
-    `<button class="quick-btn" onclick="sendQuick('${q}')">${q}</button>`
-  ).join('');
-
-  // Atualizar lista
-  renderAgentsList();
-
-  // Se não há conversa, mostrar mensagem de boas-vindas
-  if(!conversations[agent.id] || conversations[agent.id].length === 0){
-    if(agent.welcomeMsg){
-      addAgentMessage(agent.id, agent.welcomeMsg, false);
-    }
-  }
-}
-
-// ═══════════════════════════════════════════
-// MESSAGES
-// ═══════════════════════════════════════════
-function renderMessages(agentId){
-  const container = document.getElementById('messages');
-  const msgs = conversations[agentId] || [];
-  container.innerHTML = msgs.map(m => renderMsg(m)).join('');
-  scrollToBottom();
-}
-
-function renderMsg(m){
-  const time = new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  if(m.role === 'user'){
-    return `<div class="msg msg-user">
-      <div class="msg-bubble mb-user">${escHtml(m.content)}</div>
-      <div class="msg-avatar ma-user">Eu</div>
+(async()=>{
+  try{
+    JUMP.sidebar('agentes');
+    CTX=await JUMP.guard();
+    JUMP.setUser(CTX.cliente,CTX.user);
+    renderList();
+    atualizarUso(Number((CTX.cliente.uso||{}).tokens||0));
+    const q=new URLSearchParams(location.search).get('agente');
+    if(q){const m=AGS.find(a=>q.toLowerCase().includes(a.id)||a.n.toLowerCase()===q.toLowerCase());if(m)selecionar(m.id)}
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+function nivel(){return LV[CTX.cliente.plano]||1}
+function renderList(){
+  document.getElementById('ag-list').innerHTML=AGS.map(a=>{
+    const ok=a.min<=nivel();
+    return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" ${ok?`onclick="selecionar('${a.id}')"`:''}>
+      <span class="ag-it-ico">${a.ico}</span>
+      <div><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${a.r}</div></div>
+      ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
-  }
-  return `<div class="msg msg-agent">
-    <div class="msg-avatar ma-agent">${currentAgent.emoji}</div>
-    <div>
-      <div class="msg-bubble mb-agent">${formatAgentMsg(m.content)}</div>
-      <div class="msg-time">${time}</div>
-    </div>
-  </div>`;
+  }).join('');
 }
-
-function formatAgentMsg(text){
-  return text
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/`(.+?)`/g,'<code>$1</code>')
-    .replace(/\n\n/g,'</p><p>')
-    .replace(/\n/g,'<br>')
-    .replace(/^/,'<p>').replace(/$/, '</p>');
-}
-
-function escHtml(t){
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-}
-
-function addAgentMessage(agentId, content, save=true){
-  if(!conversations[agentId]) conversations[agentId] = [];
-  const msg = { role:'agent', content, ts: Date.now() };
-  if(save) conversations[agentId].push(msg);
-  else conversations[agentId] = [msg, ...conversations[agentId].filter(m=>m!==msg)];
-  renderMessages(agentId);
-  updateContextOutput(content);
-  if(save) saveMessageToDB(agentId, 'assistant', content);
-}
-
-function addUserMessage(agentId, content){
-  if(!conversations[agentId]) conversations[agentId] = [];
-  conversations[agentId].push({ role:'user', content, ts: Date.now() });
-  renderMessages(agentId);
-  saveMessageToDB(agentId, 'user', content);
-}
-
-function scrollToBottom(){
-  const c = document.getElementById('messages');
-  c.scrollTop = c.scrollHeight;
-}
-
-function showTyping(){
-  const c = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'msg msg-agent';
-  div.id = 'typing-indicator';
-  div.innerHTML = `
-    <div class="msg-avatar ma-agent">${currentAgent.emoji}</div>
-    <div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
-  c.appendChild(div);
-  scrollToBottom();
-}
-
-function hideTyping(){
-  document.getElementById('typing-indicator')?.remove();
-}
-
-// ═══════════════════════════════════════════
-// SEND MESSAGE
-// ═══════════════════════════════════════════
-async function sendMessage(){
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if(!text || isTyping) return;
-  input.value = '';
-  autoResize(input);
-  addUserMessage(currentAgent.id, text);
-  await callAgent(text);
-}
-
-function sendQuick(text){
-  document.getElementById('chat-input').value = text;
-  sendMessage();
-}
-
-function handleKey(e){
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
-}
-
-function autoResize(el){
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-// ═══════════════════════════════════════════
-// ANTHROPIC API
-// ═══════════════════════════════════════════
-async function callAgent(userMessage){
-  isTyping = true;
-  document.getElementById('send-btn').disabled = true;
-  showTyping();
-
-  // Se não tem API key, resposta simulada
-  if(!API_KEY || !API_KEY.startsWith('sk-ant')){
-    await delay(1200);
-    hideTyping();
-    const simResp = getSimulatedResponse(currentAgent.id, userMessage);
-    addAgentMessage(currentAgent.id, simResp);
-    isTyping = false;
-    document.getElementById('send-btn').disabled = false;
-    T('⚠ Resposta simulada — configure a API Key para usar o agente real','w');
-    return;
-  }
-
-  // Injetar OS_DATA no system prompt se disponível
-  let systemPrompt = currentAgent.systemPrompt;
-  if (osData && currentAgent.id !== 'identidade') {
-    systemPrompt += `\n\nOS_DATA DO CLIENTE:\nMarca: ${osData.nome_marca || ''}\nHandle: ${osData.handle_instagram || ''}\nSegmento: ${osData.segmento || ''}\nPosicionamento: ${osData.posicionamento || ''}\nTom: ${osData.tom_de_voz || ''}\nPalavras-chave: ${(osData.palavras_chave||[]).join(', ')}`;
-  }
-
-  // Construir histórico para o contexto
-  const history = (conversations[currentAgent.id] || [])
-    .filter(m => m.role !== 'agent' || m.content !== currentAgent.welcomeMsg)
-    .slice(-10)
-    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
-
-  // Garantir que termine com user message
-  if(history[history.length-1]?.role !== 'user'){
-    history.push({ role:'user', content: userMessage });
-  }
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: history
-      })
-    });
-
-    if(!res.ok){
-      const err = await res.json();
-      throw new Error(err.error?.message || `HTTP ${res.status}`);
+async function selecionar(id){
+  AG=id;renderList();
+  const a=AGS.find(x=>x.id===id);
+  document.getElementById('ct-ico').textContent=a.ico;
+  document.getElementById('ct-n').textContent='Agente de '+a.n;
+  document.getElementById('mem-btn').style.display='inline-block';
+  document.getElementById('mem-pane').classList.remove('show');
+  document.getElementById('inp').disabled=false;
+  document.getElementById('send').disabled=false;
+  const w=document.getElementById('msgs');
+  w.innerHTML='';
+  /* histórico */
+  try{
+    const{data}=await JUMP.sb.from('chat_mensagens').select('role,conteudo,created_at').eq('user_id',CTX.user.id).eq('agente',id).order('created_at',{ascending:true}).limit(60);
+    if(data&&data.length){
+      data.forEach(m=>addMsg(m.role==='user'?'u':'a',m.conteudo));
+    }else{
+      w.innerHTML=`<div class="empty-chat">
+        <div class="ec-ico">${a.ico}</div>
+        <div class="ec-t">Agente de ${a.n}</div>
+        <div class="ec-b">${id==='identidade'?'Comece pelo check-in: eu conheço seu negócio uma vez e todos os agentes aprendem junto.':'Pronto para trabalhar no seu nicho. O que precisa?'}</div>
+        <div class="sug-chips">${a.sug.map(s=>`<span class="chip" onclick="usarChip(this)">${s}</span>`).join('')}</div>
+      </div>`;
     }
-
-    const data = await res.json();
-    hideTyping();
-    const reply = data.content[0].text;
-    addAgentMessage(currentAgent.id, reply);
-
-  } catch(err){
-    hideTyping();
-    addAgentMessage(currentAgent.id, `⚠ **Erro ao conectar com o agente:** ${err.message}\n\nVerifique se a API Key está correta e tente novamente.`);
-    T('Erro na API — verifique a chave','w');
-  }
-
-  isTyping = false;
-  document.getElementById('send-btn').disabled = false;
+  }catch(e){}
+  w.scrollTop=w.scrollHeight;
+  document.getElementById('inp').focus();
 }
-
-// ═══════════════════════════════════════════
-// RESPOSTAS SIMULADAS (sem API key)
-// ═══════════════════════════════════════════
-function getSimulatedResponse(agentId, msg){
-  const responses = {
-    identidade: `Seu OS_DATA está salvo e ativo. Aqui está um resumo:\n\n**Marca:** João Vittor\n**Posicionamento:** Empreendedor que viveu o problema e criou a solução\n**Tom:** Complacente, motivacional, direto\n**Palavras:** Indispensável · Viável · Eficiente\n\nQuer ajustar algum elemento da sua identidade?`,
-    mercado: `Com base no seu nicho (marketing para empreendedores), os benchmarks são:\n\n→ Taxa de engajamento média: 1.2% a 2.8%\n→ Seu desempenho: acima da média com 119% de alcance\n→ Oportunidade: poucos criadores no nicho usam storytelling de fracasso como autoridade\n\nVocê está ocupando um espaço diferenciado. Quer uma análise de concorrentes específicos?`,
-    diagnostico: `Análise do seu perfil @joao_vittor:\n\n**Pontos fortes:**\n→ Alcance 119% — excelente (média do nicho: 30-60%)\n→ Reel do JUMP: 890 interações em conta pequena = alta relevância\n\n**Pontos de atenção:**\n→ Frequência: 3.3 posts/mês vs meta de 7-8\n→ Conta Criador bloqueando dados avançados\n\n**Recomendação:** aumentar frequência é a alavanca mais rápida de crescimento dado o alcance excelente.`,
-    estrategia: `Com base no seu OS_DATA, aqui está o plano para **Julho 2026**:\n\n**Tema central:** "O sistema que nenhuma agência entrega"\n\n**Calendário:**\n→ 01/07 (Feed) — Por que você ainda paga agência?\n→ 08/07 (Reel) — O dia que eu percebi o gargalo real\n→ 15/07 (Carrossel) — 4 indicadores que seu marketing não funciona\n→ 22/07 (Reel) — Antes e depois: sem sistema vs com sistema\n→ 29/07 (Feed) — CTA: diagnóstico gratuito\n\nQuero detalhar alguma peça específica?`,
-    criativo: `Para o **Feed "Por que você ainda paga agência?"**, aqui está o prompt para Leonardo AI:\n\n\`Dark urban portrait of João Vittor standing against concrete wall, harsh 45-degree side lighting, green rim light (#00E676), all black outfit, serious expression, high contrast, grainy 35mm film texture, bold typography overlay "POR QUE VOCÊ AINDA PAGA AGÊNCIA?" in Bebas Neue font, 1080x1080px, dark urban style, no gradients\`\n\nConfigurações: guidance_scale 8, init_strength 0.6, steps 35\n\nQuer que eu gere prompts para as outras peças do mês?`,
-    publicacao: `Para ativar a publicação automática, siga estes passos:\n\n**1. Converter para Comercial (2 minutos):**\nInstagram → Configurações → Tipo de conta → Conta Profissional → Comercial\n\n**2. App Review da Meta:**\nJá solicitado. Prazo: 5-15 dias úteis\n\n**Enquanto aguarda**, posso ajudar a planejar os horários otimizados para sua audiência. Seus dados indicam que **quintas às 19h** geram 40% mais alcance.\n\nQuer que eu organize o calendário com horários humanizados?`,
-    trafego: `O Agente de Tráfego está disponível no **Plano Pro** (R$399/mês).\n\nEle gerencia:\n→ 4 campanhas Meta Ads simultâneas\n→ Otimização automática de budget\n→ Relatório de ROAS semanal\n→ Escalonamento automático dos criativos vencedores\n\nQuer entrar na lista de espera?`
-  };
-  return responses[agentId] || 'Entendido. Posso te ajudar com isso. Poderia me dar mais detalhes?';
+function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
+function addMsg(cls,txt,meta){
+  const w=document.getElementById('msgs');
+  const e=document.getElementById('empty');if(e)e.remove();
+  const d=document.createElement('div');
+  d.className='msg '+cls;
+  d.textContent=txt;
+  if(meta){const m=document.createElement('div');m.className='msg-meta';m.textContent=meta;d.appendChild(m)}
+  w.appendChild(d);w.scrollTop=w.scrollHeight;
+  return d;
 }
-
-// ═══════════════════════════════════════════
-// CONTEXT OUTPUT
-// ═══════════════════════════════════════════
-function updateContextOutput(content){
-  const el = document.getElementById('ctx-output');
-  // Mostrar os últimos 200 chars do output
-  const clean = content.replace(/\*\*|##|\*/g,'').trim();
-  el.textContent = clean.length > 200 ? clean.slice(0,200)+'...' : clean;
-}
-
-function copyOutput(){
-  const text = document.getElementById('ctx-output').textContent;
-  navigator.clipboard?.writeText(text).then(()=>T('Copiado!','s')).catch(()=>T('Copie manualmente','w'));
-}
-
-function saveOutput(){
-  T('Output salvo no sistema! (Disponível com Supabase configurado)','s');
-}
-
-// ═══════════════════════════════════════════
-// API KEY MODAL
-// ═══════════════════════════════════════════
-function openApiModal(){
-  document.getElementById('api-key-input').value = API_KEY;
-  document.getElementById('mo-api').classList.add('open');
-}
-
-function closeApiModal(){ document.getElementById('mo-api').classList.remove('open'); }
-
-async function saveApiKey(){
-  const key = document.getElementById('api-key-input').value.trim();
-  if(!key){ T('Insira a chave','w'); return; }
-  API_KEY = key;
-  localStorage.setItem('jump_api_key', key);
-  closeApiModal();
-  checkApiStatus();
-  T('Chave salva! Testando conexão...','i');
-
-  // Testar a chave
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function enviar(){
+  if(BUSY||!AG)return;
+  const inp=document.getElementById('inp');
+  const txt=inp.value.trim();
+  if(!txt)return;
+  BUSY=true;inp.value='';inp.style.height='auto';
+  document.getElementById('send').disabled=true;
+  addMsg('u',txt);
+  const w=document.getElementById('msgs');
+  const ty=document.createElement('div');ty.className='typing';ty.innerHTML='<span></span><span></span><span></span>';
+  w.appendChild(ty);w.scrollTop=w.scrollHeight;
+  try{
+    const r=await fetch('/api/agente-chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:10,messages:[{role:'user',content:'oi'}]})
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({agente:AG,mensagem:txt})
     });
-    if(res.ok){ T('✓ API conectada com sucesso!','s'); checkApiStatus(); }
-    else { T('Chave inválida — verifique e tente novamente','w'); }
-  } catch(e){ T('Erro ao testar — salvo mesmo assim','w'); }
+    const d=await r.json();
+    ty.remove();
+    if(!r.ok)throw new Error(d.error||'Erro no agente');
+    addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
+    if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
+    if(d.tokens!==undefined)atualizarUso(d.tokens);
+  }catch(e){
+    ty.remove();
+    addMsg('a','⚠️ '+e.message);
+  }
+  BUSY=false;document.getElementById('send').disabled=false;inp.focus();
 }
-
-// ═══════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════
-function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function T(msg,type='i'){
-  const c=document.getElementById('tc');
-  const t=document.createElement('div');
-  t.className=`toast ${type}`;
-  const col={s:'var(--cp)',i:'var(--blue)',w:'var(--orange)'};
-  const ico={s:'✓',i:'ℹ',w:'⚠'};
-  t.innerHTML=`<span style="color:${col[type]};font-weight:900;font-size:13px">${ico[type]}</span> ${msg}`;
-  c.appendChild(t);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
-  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),400)},4000);
+function atualizarUso(tk){
+  const lim=Number((CTX.cliente.limites||{}).tokens||1000000);
+  const pct=Math.min(100,Math.round((tk/lim)*100));
+  const bar=document.getElementById('tok-bar');
+  bar.style.width=pct+'%';
+  bar.className='bar-f'+(pct>=95?' full':pct>=75?' warn':'');
+  document.getElementById('tok-txt').textContent=JUMP.fmtNum(tk)+' / '+JUMP.fmtNum(lim)+' tokens no mês';
 }
-
-// INIT
-init();
+async function toggleMem(){
+  const p=document.getElementById('mem-pane');
+  if(p.classList.contains('show')){p.classList.remove('show');return}
+  try{
+    const{data}=await JUMP.sb.from('memorias').select('chave,valor,agente').eq('user_id',CTX.user.id).or(`agente.eq.${AG},agente.eq.global`).order('updated_at',{ascending:false}).limit(30);
+    p.innerHTML=(data&&data.length)
+      ?data.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('')
+      :'<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Ainda não aprendi nada — me conta sobre seu negócio!</div>';
+    p.classList.add('show');
+  }catch(e){}
+}
+/* textarea auto-grow + Enter envia */
+const inp=document.getElementById('inp');
+inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(120,inp.scrollHeight)+'px'});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}});
 </script>
 </body>
 </html>
