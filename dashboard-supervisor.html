@@ -53,7 +53,7 @@
   <!-- AÇÕES -->
   <div class="top-row" style="margin-top:18px">
     <input class="f-input search" id="search" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderTable()">
-    <span class="vaga-pill">Vagas: <strong id="vagas-txt">—</strong> <span style="opacity:.55">· limite definido pelo admin</span></span>
+    <span class="vaga-pill" id="vagas-pill">Vagas: <strong id="vagas-txt">—</strong> <span id="cotas-txt" style="opacity:.7"></span> <span style="opacity:.55">· definido pelo admin</span></span>
     <button class="btn btn-g" id="btn-criar" onclick="abrirCriar()">+ Criar conta de usuário</button>
   </div>
 
@@ -121,6 +121,20 @@
   </div>
 </div>
 
+<!-- MODAL SENHA -->
+<div class="modal-bg" id="modal-pass">
+  <div class="modal">
+    <div class="modal-t">Definir nova senha</div>
+    <input type="hidden" id="mp-id">
+    <div class="f-group"><label class="f-label">Nova senha do usuário</label><input class="f-input" id="mp-senha" placeholder="mín. 6 caracteres"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fecharModal('modal-pass')">Cancelar</button>
+      <button class="btn btn-o" onclick="linkReset()">Gerar link de troca</button>
+      <button class="btn btn-g" onclick="salvarSenha()">Salvar senha</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null,USERS=[],SUPID=null,LIMITE=0;
@@ -133,10 +147,10 @@ let CTX=null,USERS=[],SUPID=null,LIMITE=0;
     const ver=new URLSearchParams(location.search).get('ver');
     if(ver&&CTX.role==='admin'){
       const{data:s}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
-      if(s){SUPID=s.id;LIMITE=s.limite_contas||0;
+      if(s){SUPID=s.id;LIMITE=s.limite_contas||0;window._supCotas=s.cotas||{};
         document.getElementById('imp-banner').style.display='flex';
         document.getElementById('imp-email').textContent=s.email||ver;}
-    }else{LIMITE=CTX.cliente.limite_contas||0}
+    }else{LIMITE=CTX.cliente.limite_contas||0;window._supCotas=CTX.cliente.cotas||{}}
     await carregar();
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
@@ -154,6 +168,12 @@ async function carregar(){
   document.getElementById('st-cortesia').textContent=cort;
   const vagas=LIMITE?Math.max(0,LIMITE-USERS.length):'∞';
   document.getElementById('vagas-txt').textContent=vagas+' disponíveis';
+  const COTAS=(window._supCotas)||{};
+  const ctxt=['basico','plus','pro'].filter(p=>Number(COTAS[p])>0).map(p=>{
+    const usadas=USERS.filter(u=>u.plano===p).length;
+    return p.charAt(0).toUpperCase()+p.slice(1)+' '+usadas+'/'+COTAS[p];
+  }).join(' · ');
+  document.getElementById('cotas-txt').textContent=ctxt?('('+ctxt+')'):'';
   document.getElementById('btn-criar').disabled=(LIMITE&&USERS.length>=LIMITE);
   renderTable();
 }
@@ -200,8 +220,9 @@ function renderTable(){
         <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
         <button class="btn btn-o btn-sm" onclick="abrirEditar('${u.id}')">Editar</button>
         <button class="btn btn-o btn-sm" onclick="abrirLimites('${u.id}')">Limites</button>
-        <button class="btn btn-o btn-sm" onclick="resetSenha('${u.id}')">Reset senha</button>
+        <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
         <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
+        <button class="btn btn-r btn-sm" onclick="excluirUser('${u.id}','${JUMP.esc(u.email||'')}')">🗑</button>
       </div></td></tr>`;
   }).join('');
 }
@@ -286,11 +307,34 @@ async function toggleBloq(id,bloquear){
   try{await JUMP.api('block_user',{user_id:id,bloqueado:bloquear},CTX.token);JUMP.toast(bloquear?'Usuário bloqueado':'Usuário desbloqueado');await carregar()}
   catch(e){JUMP.toast(e.message,'err')}
 }
-async function resetSenha(id){
+function abrirSenha(id){
+  document.getElementById('mp-id').value=id;
+  document.getElementById('mp-senha').value='';
+  document.getElementById('modal-pass').classList.add('show');
+}
+async function salvarSenha(){
+  const id=document.getElementById('mp-id').value;
+  const senha=document.getElementById('mp-senha').value;
+  if(senha.length<6){JUMP.toast('Senha precisa de 6+ caracteres','err');return}
+  try{
+    await JUMP.api('set_password',{user_id:id,senha},CTX.token);
+    JUMP.toast('✓ Nova senha definida');fecharModal('modal-pass');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+async function linkReset(){
+  const id=document.getElementById('mp-id').value;
   try{
     const d=await JUMP.api('reset_password',{user_id:id},CTX.token);
     if(d.link){await navigator.clipboard.writeText(d.link).catch(()=>{});prompt('Link de redefinição (copiado):',d.link)}
-    else JUMP.toast('✓ E-mail de redefinição enviado');
+    fecharModal('modal-pass');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+async function excluirUser(id,email){
+  if(!confirm('EXCLUIR a conta '+email+'?\n\nIsso apaga o login e os dados de gestão. Não pode ser desfeito.'))return;
+  if(prompt('Digite EXCLUIR para confirmar:')!=='EXCLUIR'){JUMP.toast('Exclusão cancelada');return}
+  try{
+    await JUMP.api('delete_user',{user_id:id},CTX.token);
+    JUMP.toast('Conta excluída');await carregar();
   }catch(e){JUMP.toast(e.message,'err')}
 }
 </script>

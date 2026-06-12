@@ -190,6 +190,37 @@
   </div>
 </div>
 
+<!-- MODAL COTAS -->
+<div class="modal-bg" id="modal-cotas">
+  <div class="modal">
+    <div class="modal-t">Cotas de plano do supervisor</div>
+    <input type="hidden" id="mc-id">
+    <div class="bk-b" style="margin-bottom:10px">Quantas contas de cada plano este supervisor pode usar. 0 = sem limite específico (vale o limite total).</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Contas Básico</label><input class="f-input" id="mc-basico" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Contas Plus</label><input class="f-input" id="mc-plus" type="number" min="0"></div>
+    </div>
+    <div class="f-group"><label class="f-label">Contas Pro</label><input class="f-input" id="mc-pro" type="number" min="0"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-cotas')">Cancelar</button>
+      <button class="btn btn-g" onclick="salvarCotas()">Salvar cotas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SENHA -->
+<div class="modal-bg" id="modal-pass">
+  <div class="modal">
+    <div class="modal-t">Definir nova senha</div>
+    <input type="hidden" id="mp-id">
+    <div class="f-group"><label class="f-label">Nova senha</label><input class="f-input" id="mp-senha" placeholder="mín. 6 caracteres"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-pass')">Cancelar</button>
+      <button class="btn btn-g" onclick="salvarSenha()">Salvar senha</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AVISO -->
 <div class="modal-bg" id="modal-aviso">
   <div class="modal">
@@ -262,7 +293,10 @@ function renderSups(){
       <td>${s.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
       <td><div class="td-acts">
         <a class="btn btn-o btn-sm" href="dashboard-supervisor.html?ver=${s.id}">Administrar →</a>
+        <button class="btn btn-o btn-sm" onclick="abrirCotas('${s.id}')">Cotas de plano</button>
         <button class="btn btn-o btn-sm" onclick="abrirAviso('${s.id}')">Enviar aviso</button>
+        <button class="btn btn-o btn-sm" onclick="abrirSenha('${s.id}')">Senha</button>
+        <button class="btn btn-r btn-sm" onclick="excluirConta('${s.id}','${JUMP.esc(s.email||'')}')">🗑</button>
         <button class="btn ${s.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${s.id}',${!s.bloqueado})">${s.bloqueado?'Desbloquear':'Bloquear'}</button>
       </div></td></tr>`;
   }).join('');
@@ -292,8 +326,10 @@ function renderUsers(){
     <td>${u.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
     <td><div class="td-acts">
       <button class="btn btn-o btn-sm" onclick="abrirTransf('${u.id}')">⇄ Transferir</button>
-      <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
+      <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Painel →</a>
+      <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
       <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
+      <button class="btn btn-r btn-sm" onclick="excluirConta('${u.id}','${JUMP.esc(u.email||'')}')">🗑</button>
     </div></td></tr>`).join('');
 }
 
@@ -335,6 +371,45 @@ async function gestaoBloq(id,bloquear){
   }catch(e){JUMP.toast(e.message,'err')}
 }
 
+
+function abrirCotas(id){
+  const s=ALL.find(x=>x.id===id);if(!s)return;
+  const co=s.cotas||{};
+  document.getElementById('mc-id').value=id;
+  document.getElementById('mc-basico').value=co.basico||0;
+  document.getElementById('mc-plus').value=co.plus||0;
+  document.getElementById('mc-pro').value=co.pro||0;
+  document.getElementById('modal-cotas').classList.add('show');
+}
+async function salvarCotas(){
+  const id=document.getElementById('mc-id').value;
+  try{
+    await JUMP.api('set_cotas',{user_id:id,cotas:{
+      basico:+document.getElementById('mc-basico').value||0,
+      plus:+document.getElementById('mc-plus').value||0,
+      pro:+document.getElementById('mc-pro').value||0,
+    }},CTX.token);
+    JUMP.toast('✓ Cotas salvas');fechar('modal-cotas');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+function abrirSenha(id){
+  document.getElementById('mp-id').value=id;
+  document.getElementById('mp-senha').value='';
+  document.getElementById('modal-pass').classList.add('show');
+}
+async function salvarSenha(){
+  const id=document.getElementById('mp-id').value;
+  const senha=document.getElementById('mp-senha').value;
+  if(senha.length<6){JUMP.toast('Senha precisa de 6+ caracteres','err');return}
+  try{await JUMP.api('set_password',{user_id:id,senha},CTX.token);JUMP.toast('✓ Senha definida');fechar('modal-pass')}
+  catch(e){JUMP.toast(e.message,'err')}
+}
+async function excluirConta(id,email){
+  if(!confirm('EXCLUIR a conta '+email+'?\n\nApaga login e dados de gestão. Irreversível.'))return;
+  if(prompt('Digite EXCLUIR para confirmar:')!=='EXCLUIR'){JUMP.toast('Cancelado');return}
+  try{await JUMP.api('delete_user',{user_id:id},CTX.token);JUMP.toast('Conta excluída');await carregar()}
+  catch(e){JUMP.toast(e.message,'err')}
+}
 /* ── TRANSFERIR ── */
 function abrirTransf(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Configurações</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:920px){.cfg-grid{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando configurações...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd"><div><div class="hd-hello">Configurações</div><h1 class="hd-h">Sua conta, seu <em>estilo.</em></h1></div></div>
+  <div class="cfg-grid">
+    <!-- TEMA -->
+    <div class="card">
+      <div class="sec-lbl" style="margin-top:0">🎨 Aparência do painel</div>
+      <div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:10px">O Agente de Identidade define as cores da sua marca após o check-in — e você pode personalizar quando quiser. As mudanças aplicam em todo o painel na hora.</div>
+      <div class="cp-row">
+        <label class="cp-sw"><input type="color" id="c1" value="#00E676" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor principal</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Botões, destaques e gráficos</div></div>
+      </div>
+      <div class="cp-row">
+        <label class="cp-sw"><input type="color" id="c2" value="#00D4FF" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor secundária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Informações e apoio</div></div>
+      </div>
+      <div class="cp-row">
+        <label class="cp-sw"><input type="color" id="c3" value="#A855F7" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Recursos Pro e detalhes</div></div>
+      </div>
+      <div style="margin:14px 0 10px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Fundo</div>
+      <div class="bg-tg">
+        <div class="bg-opt on" id="bg-escuro" onclick="setBg('escuro')">🌙 Escuro</div>
+        <div class="bg-opt" id="bg-claro" onclick="setBg('claro')">☀️ Claro</div>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:16px">
+        <button class="btn btn-o btn-sm" style="flex:1" onclick="restaurar()">Restaurar padrão</button>
+        <button class="btn btn-g btn-sm" style="flex:1" onclick="salvarTema()">Salvar tema</button>
+      </div>
+    </div>
+    <!-- CONTA -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="sec-lbl" style="margin-top:0">👤 Dados da conta</div>
+        <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cfg-nome"></div>
+        <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="cfg-tel"></div>
+        <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="cfg-email" disabled style="opacity:.55"></div>
+        <button class="btn btn-g btn-sm" onclick="salvarDados()">Salvar dados</button>
+      </div>
+      <div class="card">
+        <div class="sec-lbl" style="margin-top:0">🔒 Senha</div>
+        <div class="f-group"><label class="f-label">Nova senha</label><input class="f-input" type="password" id="cfg-senha" placeholder="mín. 6 caracteres"></div>
+        <button class="btn btn-o btn-sm" onclick="trocarSenha()">Alterar senha</button>
+      </div>
+      <div class="card">
+        <div class="sec-lbl" style="margin-top:0">✦ Assinatura</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="pill pill-g" id="cfg-plano">—</span>
+          <span style="font-family:var(--M);font-size:11px;color:var(--t3)" id="cfg-status"></span>
+        </div>
+        <div style="font-size:12px;color:var(--t3);margin-top:10px;line-height:1.6">Para mudar de plano ou cancelar, fale com o suporte ou seu supervisor.</div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null,BG='escuro';
+const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',bg:'escuro'};
+(async()=>{
+  try{
+    JUMP.sidebar('config');
+    CTX=await JUMP.guard();
+    JUMP.setUser(CTX.cliente,CTX.user);
+    const t=CTX.cliente.tema||PADRAO;
+    document.getElementById('c1').value=t.c1||PADRAO.c1;
+    document.getElementById('c2').value=t.c2||PADRAO.c2;
+    document.getElementById('c3').value=t.c3||PADRAO.c3;
+    setBg(t.bg||'escuro',true);
+    document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
+    document.getElementById('cfg-tel').value=CTX.cliente.telefone||'';
+    document.getElementById('cfg-email').value=CTX.user.email||'';
+    const p=CTX.cliente.plano||'basico';
+    document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
+    document.getElementById('cfg-status').textContent=CTX.cliente.cortesia_ate?'cortesia ativa':(CTX.cliente.status||'');
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+function temaAtual(){
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,bg:BG};
+}
+function preview(){JUMP.applyTheme(temaAtual())}
+function setBg(v,skip){
+  BG=v;
+  document.getElementById('bg-escuro').classList.toggle('on',v==='escuro');
+  document.getElementById('bg-claro').classList.toggle('on',v==='claro');
+  if(!skip)preview();
+}
+function restaurar(){
+  document.getElementById('c1').value=PADRAO.c1;
+  document.getElementById('c2').value=PADRAO.c2;
+  document.getElementById('c3').value=PADRAO.c3;
+  setBg('escuro',true);
+  JUMP.applyTheme(PADRAO);
+  JUMP.toast('Padrão JUMP restaurado — clique em Salvar para manter.');
+}
+async function salvarTema(){
+  const t=temaAtual();
+  try{
+    await JUMP.sb.from('clientes').update({tema:t}).eq('id',CTX.user.id);
+    JUMP.applyTheme(t);
+    JUMP.toast('✓ Tema salvo em todo o painel');
+  }catch(e){JUMP.toast('Erro ao salvar tema','err')}
+}
+async function salvarDados(){
+  try{
+    await JUMP.sb.from('clientes').update({
+      nome:document.getElementById('cfg-nome').value.trim(),
+      telefone:document.getElementById('cfg-tel').value.trim(),
+    }).eq('id',CTX.user.id);
+    JUMP.toast('✓ Dados salvos');
+  }catch(e){JUMP.toast('Erro ao salvar','err')}
+}
+async function trocarSenha(){
+  const s=document.getElementById('cfg-senha').value;
+  if(s.length<6){JUMP.toast('Senha precisa de 6+ caracteres','err');return}
+  try{
+    const{error}=await JUMP.sb.auth.updateUser({password:s});
+    if(error)throw error;
+    document.getElementById('cfg-senha').value='';
+    JUMP.toast('✓ Senha alterada');
+  }catch(e){JUMP.toast('Erro ao alterar senha','err')}
+}
+</script>
+</body>
+</html>

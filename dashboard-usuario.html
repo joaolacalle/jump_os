@@ -49,6 +49,7 @@
     <a href="calendario.html" class="sb-link"><span class="sb-ico">📅</span>Calendário</a>
     <a href="aprovar.html" class="sb-link"><span class="sb-ico">✓</span>Aprovações</a>
     <a href="historico.html" class="sb-link"><span class="sb-ico">🕘</span>Histórico</a>
+    <a href="upload.html" class="sb-link"><span class="sb-ico">🖼</span>Meus arquivos</a>
     <a href="conectar-conta.html" class="sb-link"><span class="sb-ico">🔗</span>Conexões</a>
     <a href="configuracoes.html" class="sb-link"><span class="sb-ico">⚙</span>Configurações</a>
   </nav>
@@ -67,6 +68,15 @@
       <h1 class="hd-h">Seu sistema está<br><em id="hd-status">operando.</em></h1>
     </div>
     <div class="pill pill-g" style="padding:10px 16px"><span class="dot"></span><span id="pp-plan">—</span></div>
+  </div>
+
+  <!-- PRIMEIROS PASSOS / TAREFAS -->
+  <div class="tasks-box" id="tasks-box" style="display:none">
+    <div class="tasks-h">
+      <div class="tasks-t">🚀 Ative seu sistema</div>
+      <div class="tasks-prog" id="tasks-prog">0 de 0</div>
+    </div>
+    <div id="tasks-list"></div>
   </div>
 
   <!-- RECADOS -->
@@ -184,6 +194,32 @@ function flipCard(id,nr,num,lbl,backT,backX){
     if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm'}
     if(adsOn){document.getElementById('ads-status').textContent='● Conectado';document.getElementById('ads-status').className='conn-s on';document.getElementById('conn-ads').classList.add('ok');document.getElementById('ads-btn').textContent='Gerenciar';document.getElementById('ads-btn').className='btn btn-o btn-sm'}
 
+    /* ══ TAREFAS DE ATIVAÇÃO (por plano) ══ */
+    let upLogo=false,upVideo=false;
+    try{
+      const{data:ups}=await JUMP.sb.from('uploads').select('categoria').eq('user_id',uid);
+      (ups||[]).forEach(u=>{if(u.categoria==='logo')upLogo=true;if(u.categoria==='videos')upVideo=true});
+    }catch(e){}
+    const ob=cliente.onboarding||{};
+    const TASKS=[
+      {done:!!ob.checkin,t:'Fazer o check-in com o Agente de Identidade',b:'Conte sobre seu negócio uma única vez — tudo parte daqui.',link:'agentes.html?agente=identidade',btn:'Fazer →',min:1},
+      {done:igOn,t:'Conectar seu Instagram',b:'Libera o diagnóstico real do perfil.',link:'conectar-conta.html',btn:'Conectar →',min:1},
+      {done:upLogo,t:'Enviar sua logo e fotos de produtos',b:'Os agentes criam artes com a sua identidade.',link:'upload.html',btn:'Enviar →',min:1},
+      {done:adsOn,t:'Conectar o Meta Ads',b:'O Agente de Tráfego acompanha e otimiza as campanhas.',link:'conectar-conta.html#ads',btn:'Conectar →',min:3},
+      {done:upVideo,t:'Enviar um vídeo bruto para edição',b:'O Agente Editor corta, legenda e entrega pronto.',link:'upload.html',btn:'Enviar →',min:3},
+    ].filter(t=>t.min<=level);
+    const feitas=TASKS.filter(t=>t.done).length;
+    if(TASKS.length&&feitas<TASKS.length){
+      document.getElementById('tasks-box').style.display='block';
+      document.getElementById('tasks-prog').textContent=feitas+' de '+TASKS.length+' concluídas';
+      document.getElementById('tasks-list').innerHTML=TASKS.map(t=>
+        `<div class="task${t.done?' done':''}">
+          <div class="task-chk">✓</div>
+          <div><div class="task-t">${t.t}</div><div class="task-b">${t.b}</div></div>
+          ${t.done?'':'<a href="'+t.link+'" class="btn btn-g btn-sm">'+t.btn+'</a>'}
+        </div>`).join('');
+    }
+
     /* MÉTRICAS — zeros quando não conectado; dados reais de `metricas` quando houver */
     let m={alcance:0,seguidores:0,engaj:0,posts:0,investido:0,roas:0,cpl:0,cliques:0};
     try{
@@ -192,19 +228,19 @@ function flipCard(id,nr,num,lbl,backT,backX){
     }catch(e){}
 
     document.getElementById('ig-stats').innerHTML=
-      flipCard('a','0,230,118',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
-      flipCard('b','0,212,255',JUMP.fmtNum(m.seguidores),'Seguidores','Crescimento',igOn?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
-      flipCard('c','124,255,107',(m.engaj||0)+'%','Engajamento','Taxa de engajamento',igOn?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
-      flipCard('d','64,255,191',JUMP.fmtNum(m.posts),'Posts no mês','Frequência',igOn?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
+      flipCard('a','var(--g-rgb)',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
+      flipCard('b','var(--g-rgb)',JUMP.fmtNum(m.seguidores),'Seguidores','Crescimento',igOn?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
+      flipCard('c','var(--g-rgb)',(m.engaj||0)+'%','Engajamento','Taxa de engajamento',igOn?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
+      flipCard('d','var(--g-rgb)',JUMP.fmtNum(m.posts),'Posts no mês','Frequência',igOn?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
 
     const adsBack=level>=3
       ?['Investimento total no período. O Agente de Tráfego realoca o budget diariamente entre os 4 públicos.','Retorno sobre investimento. Abaixo de 2x o Agente sugere correção de criativo ou público.','Custo por lead. O Agente compara com o benchmark do nicho e ajusta as campanhas.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
       :['Total investido em anúncios no período. Resultado consolidado das suas campanhas.','ROAS = retorno sobre o valor investido. Ex: 3x significa R$3 de retorno por R$1 investido.','Custo por lead captado. Quanto menor, mais eficiente está a campanha.','Total de cliques nos seus anúncios no período.'];
     document.getElementById('ads-stats').innerHTML=
-      flipCard('e','0,230,118',JUMP.fmtBRL(m.investido),'Investido','O que significa',adsOn?adsBack[0]:'Conecte o Meta Ads para acompanhar o investimento.')+
-      flipCard('f','0,212,255',(m.roas||0)+'x','ROAS','O que significa',adsOn?adsBack[1]:'Sem conta de anúncios conectada.')+
-      flipCard('g','168,85,247',JUMP.fmtBRL(m.cpl),'Custo por lead','O que significa',adsOn?adsBack[2]:'Valor zerado até a conexão.')+
-      flipCard('h','255,130,80',JUMP.fmtNum(m.cliques),'Cliques','O que significa',adsOn?adsBack[3]:'Conecte para medir os cliques reais.');
+      flipCard('e','var(--g-rgb)',JUMP.fmtBRL(m.investido),'Investido','O que significa',adsOn?adsBack[0]:'Conecte o Meta Ads para acompanhar o investimento.')+
+      flipCard('f','var(--g-rgb)',(m.roas||0)+'x','ROAS','O que significa',adsOn?adsBack[1]:'Sem conta de anúncios conectada.')+
+      flipCard('g','var(--g-rgb)',JUMP.fmtBRL(m.cpl),'Custo por lead','O que significa',adsOn?adsBack[2]:'Valor zerado até a conexão.')+
+      flipCard('h','var(--g-rgb)',JUMP.fmtNum(m.cliques),'Cliques','O que significa',adsOn?adsBack[3]:'Conecte para medir os cliques reais.');
 
     /* PRO: sugestões do tráfego | Básico/Plus: upsell */
     if(level>=3){
@@ -246,7 +282,7 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* AGENTES com lock */
     document.getElementById('ag-grid').innerHTML=AGENTS.map(a=>{
       const un=a.min<=level;
-      return `<a href="${un?'agentes.html?agente='+encodeURIComponent(a.n.toLowerCase()):'#'}" class="agc${un?'':' locked'}" style="--nc:${a.nc};--nr:${a.nr}">
+      return `<a href="${un?'agentes.html?agente='+encodeURIComponent(a.n.toLowerCase()):'#'}" class="agc${un?'':' locked'}" style="--nc:var(--g);--nr:var(--g-rgb)">
         ${un?'':'<span class="agc-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
         <div class="agc-ico">${a.ico}</div><div class="agc-name">${a.n}</div></a>`;
     }).join('');

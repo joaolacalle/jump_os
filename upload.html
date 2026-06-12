@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Meus arquivos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando arquivos...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd">
+    <div><div class="hd-hello">Meus arquivos</div><h1 class="hd-h">Base visual da <em>marca.</em></h1></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;border-color:rgba(0,212,255,.25)">
+    <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 Os agentes usam estes arquivos para criar com a <strong style="color:var(--t1)">sua cara</strong>: logo nas artes, fotos reais dos produtos nos infográficos, e vídeos brutos para o Editor (Pro).</div>
+  </div>
+  <div class="ptabs">
+    <div class="ptab on" id="t-logo" onclick="trocar('logo')">🏷 Logo</div>
+    <div class="ptab" id="t-produtos" onclick="trocar('produtos')">📦 Produtos</div>
+    <div class="ptab" id="t-pessoais" onclick="trocar('pessoais')">📸 Fotos pessoais</div>
+    <div class="ptab" id="t-videos" onclick="trocar('videos')">🎬 Vídeos <span class="pill pill-p" style="margin-left:5px;font-size:8px;padding:2px 7px">Pro</span></div>
+  </div>
+  <div class="up-zone" id="zone" onclick="document.getElementById('file-in').click()">
+    <div style="font-size:26px;margin-bottom:7px">⬆</div>
+    <div style="font-size:14px;font-weight:800" id="zone-t">Enviar logo</div>
+    <div style="font-family:var(--M);font-size:11px;color:var(--t3);margin-top:4px" id="zone-b">PNG, JPG ou SVG · clique ou arraste</div>
+  </div>
+  <input type="file" id="file-in" multiple style="display:none" accept="image/*">
+  <div class="up-grid" id="grid"></div>
+</main>
+</div>
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null,CAT='logo',FILES=[];
+const CFG={
+  logo:{t:'Enviar logo',b:'PNG, JPG ou SVG · fundo transparente é ideal',accept:'image/*'},
+  produtos:{t:'Enviar fotos de produtos',b:'Fotos reais — os agentes usam nos infográficos e artes',accept:'image/*'},
+  pessoais:{t:'Enviar fotos pessoais/da equipe',b:'Para conteúdo com rosto, bastidores e autoridade',accept:'image/*'},
+  videos:{t:'Enviar vídeo bruto',b:'O Agente Editor corta, legenda e exporta (plano Pro)',accept:'video/*'},
+};
+(async()=>{
+  try{
+    JUMP.sidebar('upload');
+    CTX=await JUMP.guard();
+    JUMP.setUser(CTX.cliente,CTX.user);
+    await listar();
+    document.getElementById('loading').classList.add('hide');
+  }catch(e){}
+})();
+function trocar(c){
+  CAT=c;
+  ['logo','produtos','pessoais','videos'].forEach(x=>document.getElementById('t-'+x).classList.toggle('on',x===c));
+  const cfg=CFG[c];
+  document.getElementById('zone-t').textContent=cfg.t;
+  document.getElementById('zone-b').textContent=cfg.b;
+  document.getElementById('file-in').accept=cfg.accept;
+  render();
+}
+async function listar(){
+  try{
+    const{data}=await JUMP.sb.from('uploads').select('*').eq('user_id',CTX.user.id).order('created_at',{ascending:false});
+    FILES=data||[];
+  }catch(e){FILES=[]}
+  render();
+}
+function render(){
+  const rows=FILES.filter(f=>f.categoria===CAT);
+  const g=document.getElementById('grid');
+  if(!rows.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum arquivo nesta categoria ainda.</div>';return}
+  g.innerHTML=rows.map(f=>`<div class="up-item">
+    ${CAT==='videos'?`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:30px">🎬</div>`:`<img src="${f.url}" alt="">`}
+    <button class="up-del" onclick="apagar('${f.id}','${f.path||''}')">✕</button>
+  </div>`).join('');
+}
+document.getElementById('file-in').addEventListener('change',async e=>{
+  const files=Array.from(e.target.files||[]);
+  if(!files.length)return;
+  if(CAT==='videos'&&(CTX.cliente.plano||'basico')!=='pro'){
+    JUMP.toast('Upload de vídeo para edição é do plano Pro.','err');return;
+  }
+  JUMP.toast('Enviando '+files.length+' arquivo(s)...');
+  for(const f of files){
+    try{
+      const path=CTX.user.id+'/'+CAT+'/'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+      const{error}=await JUMP.sb.storage.from('user-uploads').upload(path,f);
+      if(error)throw error;
+      const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
+      await JUMP.sb.from('uploads').insert({user_id:CTX.user.id,categoria:CAT,nome:f.name,url:pub.publicUrl,path});
+    }catch(err){JUMP.toast('Falha em '+f.name,'err')}
+  }
+  e.target.value='';
+  await listar();
+  JUMP.toast('✓ Upload concluído');
+});
+async function apagar(id,path){
+  if(!confirm('Excluir este arquivo?'))return;
+  try{
+    if(path)await JUMP.sb.storage.from('user-uploads').remove([path]);
+    await JUMP.sb.from('uploads').delete().eq('id',id);
+    JUMP.toast('Arquivo excluído');await listar();
+  }catch(e){JUMP.toast('Erro ao excluir','err')}
+}
+</script>
+</body>
+</html>
