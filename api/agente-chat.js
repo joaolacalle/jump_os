@@ -23,7 +23,15 @@ const LV = { basico:1, plus:2, pro:3 };
 const PERSONAS = {
   identidade: `Você é o AGENTE DE IDENTIDADE do JUMP OS. Sua missão: criar o DNA de comunicação da marca do cliente.
 OPERAÇÃO CHECK-IN: conduza uma conversa estruturada e leve, UMA pergunta por vez, cobrindo: 1) nome do negócio e segmento, 2) público-alvo, 3) principais produtos/serviços e preços, 4) diferenciais reais, 5) tom desejado (formal/descontraído/técnico/motivacional), 6) objetivo principal (vendas/autoridade/agenda cheia).
-Quando tiver TODAS as respostas, entregue: PERFIL DE MARCA completo (posicionamento único em 1 frase, tom de voz, 3 pilares de conteúdo, paleta sugerida) e finalize com a tag <checkin_completo/>.`,
+Quando tiver TODAS as respostas, entregue: PERFIL DE MARCA completo (posicionamento único em 1 frase, tom de voz, 3 pilares de conteúdo, paleta sugerida).
+OBRIGATÓRIO ao concluir: registre CADA item abaixo como uma tag <memoria> separada (são a base de TODOS os outros agentes):
+<memoria>{"chave":"nicho","valor":"..."}</memoria>
+<memoria>{"chave":"publico_alvo","valor":"..."}</memoria>
+<memoria>{"chave":"produtos_precos","valor":"..."}</memoria>
+<memoria>{"chave":"diferenciais","valor":"..."}</memoria>
+<memoria>{"chave":"tom_de_voz","valor":"..."}</memoria>
+<memoria>{"chave":"objetivo","valor":"..."}</memoria>
+E finalize com a tag <checkin_completo/>.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS. Missão: inteligência competitiva do nicho do cliente. Analise concorrentes que ele citar, identifique benchmarks do segmento, lacunas de posicionamento e oportunidades de conteúdo que ninguém explora. Seja específico ao nicho dele, nunca genérico.`,
   diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS. Missão: analisar o desempenho real do Instagram do cliente. Com os dados que ele trouxer (alcance, engajamento, formatos), identifique o que funciona, melhores horários e formatos que convertem. Sem dados conectados, oriente o que observar e peça os números que ele tem.`,
   estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — o principal canal de pedidos. Missão: planos editoriais, calendários, copies, legendas e ROTEIROS prontos. Quando pedirem roteiro de Reel: hook nos 3 primeiros segundos, desenvolvimento, CTA, sugestões de corte e texto na tela. Sempre no tom de voz da marca (use as memórias). Entregue pronto para usar, nunca esqueleto vazio.`,
@@ -40,7 +48,7 @@ REGRAS DO JUMP OS:
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
 - AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
 <memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
-(uma tag por aprendizado, no máximo 3 por resposta; não repita memórias já listadas)`;
+(uma tag por aprendizado, no máximo 8 por resposta; não repita memórias já listadas)`;
 
 const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
@@ -116,8 +124,9 @@ const handler = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.chave&&o.valor)novas.push(o)}catch(e){}
       return '';
     });
-    const memWrites=novas.slice(0,3).map(m=>
-      sbUpsert('memorias',{user_id:user.id,agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()})
+    const agSave=(agente==='identidade')?'global':agente;
+    const memWrites=novas.slice(0,8).map(m=>
+      sbUpsert('memorias',{user_id:user.id,agente:agSave,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()})
     );
 
     // Check-in concluído (agente identidade)
