@@ -1,5 +1,17 @@
 /* JUMP OS — Core compartilhado das dashboards */
 window.JUMP=(function(){
+  /* ══ TEMA ══ */
+  function hexRgb(h){h=h.replace('#','');return parseInt(h.substr(0,2),16)+','+parseInt(h.substr(2,2),16)+','+parseInt(h.substr(4,2),16)}
+  function applyTheme(t){
+    t=t||{};const r=document.documentElement.style;
+    if(t.c1){const rgb=hexRgb(t.c1);r.setProperty('--g',t.c1);r.setProperty('--g2',t.c1);r.setProperty('--g-rgb',rgb)}
+    if(t.c2)r.setProperty('--a2',t.c2);
+    if(t.c3)r.setProperty('--a3',t.c3);
+    document.documentElement.setAttribute('data-theme',t.bg==='claro'?'light':'dark');
+    try{localStorage.setItem('jump_tema',JSON.stringify(t))}catch(e){}
+  }
+  try{const t=JSON.parse(localStorage.getItem('jump_tema')||'null');if(t)applyTheme(t)}catch(e){}
+
   const SUPABASE_URL='https://fcdjzubdxikpvcqvalnt.supabase.co';
   const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
   const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -17,6 +29,7 @@ window.JUMP=(function(){
     const role=cliente.role||'usuario';
     if(roles&&!roles.includes(role)){location.href='dashboard-usuario.html';throw new Error('no-role')}
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
+    if(cliente.tema)applyTheme(cliente.tema);
     if(role==='supervisor'||role==='admin')injectRoleBar(role);
     return{user,cliente,role,token:data.session.access_token};
   }
@@ -74,5 +87,23 @@ window.JUMP=(function(){
     return nome;
   }
 
-  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser};
+  /* Sidebar padrão do usuário — páginas novas chamam JUMP.sidebar('id-ativo') */
+  function sidebar(active){
+    const L=[['dashboard-usuario.html','◈','Painel','painel'],['agentes.html','🤖','Meus agentes','agentes'],
+      ['calendario.html','📅','Calendário','calendario'],['aprovar.html','✓','Aprovações','aprovar'],
+      ['historico.html','🕘','Histórico','historico'],['upload.html','🖼','Meus arquivos','upload'],
+      ['conectar-conta.html','🔗','Conexões','conexoes'],['configuracoes.html','⚙','Configurações','config']];
+    const aside=document.createElement('aside');aside.className='sidebar';
+    aside.innerHTML=`<div class="sb-logo"><img src="assets/logo.png" alt="JUMP OS"></div>
+      <nav class="sb-nav">${L.map(l=>`<a href="${l[0]}" class="sb-link${l[3]===active?' a':''}"><span class="sb-ico">${l[1]}</span>${l[2]}</a>`).join('')}</nav>
+      <div class="sb-foot"><div class="sb-user"><div class="sb-avatar" id="sb-avatar">·</div><div class="sb-email" id="sb-email">...</div></div>
+      <button class="sb-out" onclick="JUMP.logout()">→ Sair da conta</button></div>`;
+    const app=document.querySelector('.app');
+    if(app)app.insertBefore(aside,app.firstChild);
+    const mt=document.createElement('div');mt.className='mob-top';
+    mt.innerHTML=`<img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button>`;
+    document.body.insertBefore(mt,document.body.firstChild);
+  }
+
+  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar};
 })();
