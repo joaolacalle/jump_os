@@ -3,8 +3,8 @@
 const SITE = 'https://jump-os-one.vercel.app';
 
 const SCOPES = {
-  instagram: 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement',
-  ads: 'ads_read',
+  instagram: 'instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,pages_read_engagement,public_profile',
+  ads: 'ads_read,public_profile',
 };
 
 module.exports = async (req, res) => {
