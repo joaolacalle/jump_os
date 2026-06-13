@@ -93,7 +93,7 @@ let CTX=null;
       history.replaceState(null,'','conectar-conta.html');
     }
     if(p.get('erro')){
-      const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada na sua conta.',sem_instagram_vinculado:'Sua Página existe, mas não tem Instagram comercial vinculado — siga o passo 2 do guia.',sem_conta_ads:'Nenhuma conta de anúncios encontrada.',token:'Falha na autorização. Tente novamente.',interno:'Erro inesperado. Tente novamente em instantes.'};
+      const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada. Certifique-se de autorizar acesso às Páginas na tela do Facebook.',sem_instagram_vinculado:'Sua Página do Facebook existe, mas o Instagram comercial não está vinculado a ela. Acesse as configurações do Instagram → Conta → Vinculada ao Facebook.',sem_conta_ads:'Nenhuma conta de anúncios encontrada. Verifique se tem uma conta no Gerenciador de Negócios.',token:'Falha na autorização. Tente novamente.',interno:'Erro inesperado. Tente novamente — se persistir, fale com o suporte.'};
       JUMP.toast(ERROS[p.get('erro')]||'Erro na conexão.','err');
       history.replaceState(null,'','conectar-conta.html');
     }
