@@ -183,14 +183,14 @@ function flipCard(id,nr,num,lbl,backT,backX){
     if(params.get('pagamento')==='sucesso'){JUMP.toast('🎉 Pagamento confirmado! Agentes em ativação.');history.replaceState(null,'','dashboard-usuario.html')}
 
     /* CONEXÕES */
-    let igOn=false,adsOn=false;
+    let igOn=false,adsOn=false,igMeta=null;
     try{
       const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',uid);
       (cc||[]).forEach(c=>{
-        if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta'))igOn=true;
+        if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta')){igOn=true;igMeta=c.meta||null}
         if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
       });
-    }catch(e){}
+    }catch(e){console.error('conexões:',e)}
     if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm'}
     if(adsOn){document.getElementById('ads-status').textContent='● Conectado';document.getElementById('ads-status').className='conn-s on';document.getElementById('conn-ads').classList.add('ok');document.getElementById('ads-btn').textContent='Gerenciar';document.getElementById('ads-btn').className='btn btn-o btn-sm'}
 
@@ -223,9 +223,18 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* MÉTRICAS — zeros quando não conectado; dados reais de `metricas` quando houver */
     let m={alcance:0,seguidores:0,engaj:0,posts:0,investido:0,roas:0,cpl:0,cliques:0};
     try{
-      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).order('created_at',{ascending:false}).limit(1);
-      if(mt&&mt[0])m=Object.assign(m,mt[0]);
-    }catch(e){}
+      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).limit(20);
+      if(mt&&mt.length){
+        // pega o registro mais recente sem depender de created_at
+        const ultimo=mt[mt.length-1];
+        m=Object.assign(m,ultimo);
+      }
+    }catch(e){console.error('métricas:',e)}
+    // Fonte primária: dados salvos na própria conexão do Instagram
+    if(igMeta){
+      if(igMeta.ig_followers!==undefined)m.seguidores=igMeta.ig_followers;
+      if(igMeta.ig_media!==undefined)m.posts=igMeta.ig_media;
+    }
 
     document.getElementById('ig-stats').innerHTML=
       flipCard('a','var(--g-rgb)',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
