@@ -223,17 +223,19 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* MÉTRICAS — zeros quando não conectado; dados reais de `metricas` quando houver */
     let m={alcance:0,seguidores:0,engaj:0,posts:0,investido:0,roas:0,cpl:0,cliques:0};
     try{
-      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).limit(20);
-      if(mt&&mt.length){
-        // pega o registro mais recente sem depender de created_at
-        const ultimo=mt[mt.length-1];
-        m=Object.assign(m,ultimo);
+      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).order('data_coleta',{ascending:false}).limit(1);
+      if(mt&&mt[0]){
+        const r=mt[0];
+        m.seguidores=r.seguidores||0;
+        m.posts=r.total_posts||0;
+        m.alcance=r.alcance_30d||0;
+        m.engaj=r.engajamento_30d||0;
       }
     }catch(e){console.error('métricas:',e)}
     // Fonte primária: dados salvos na própria conexão do Instagram
     if(igMeta){
-      if(igMeta.ig_followers!==undefined)m.seguidores=igMeta.ig_followers;
-      if(igMeta.ig_media!==undefined)m.posts=igMeta.ig_media;
+      if(igMeta.ig_followers!==undefined&&igMeta.ig_followers)m.seguidores=igMeta.ig_followers;
+      if(igMeta.ig_media!==undefined&&igMeta.ig_media)m.posts=igMeta.ig_media;
     }
 
     document.getElementById('ig-stats').innerHTML=
