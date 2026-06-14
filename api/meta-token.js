@@ -58,13 +58,14 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ user_id: user.id, tipo: 'instagram', nome, token, meta }),
     });
 
-    // 4. Salvar métricas iniciais (para os flip cards do painel)
+    // 4. Salvar métricas iniciais (nomes reais da tabela)
     await fetch(`${SUPABASE_URL}/rest/v1/metricas`, {
       method: 'POST', headers: SBH(),
       body: JSON.stringify({
         user_id: user.id,
         seguidores: prof.followers_count || 0,
-        posts: prof.media_count || 0,
+        total_posts: prof.media_count || 0,
+        data_coleta: new Date().toISOString(),
       }),
     }).catch(() => {});
 
