@@ -205,12 +205,50 @@ async function enviar(){
       addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
       if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
       if(d.tokens!==undefined)atualizarUso(d.tokens);
+      if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
     }
   }catch(e){
     ty.remove();
     addMsg('a','⚠️ '+e.message);
   }
   BUSY=false;document.getElementById('send').disabled=false;inp.focus();
+}
+let _imgFotos=null;
+async function mostrarBotaoImagem(req){
+  const w=document.getElementById('msgs');
+  const d=document.createElement('div');d.className='msg a';
+  // busca fotos do cliente (para image-to-image)
+  if(_imgFotos===null){
+    try{const{data}=await JUMP.sb.from('uploads').select('url,categoria').eq('user_id',CTX.user.id).in('categoria',['pessoais','logo','produtos']);_imgFotos=data||[]}catch(e){_imgFotos=[]}
+  }
+  const temFoto=req.usar_foto&&_imgFotos.length;
+  const fotoOpt=temFoto?`<div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">📸 Vou usar sua foto real como base.</div>`:`<div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">Sem foto sua no acervo — vou gerar do conceito. Envie fotos em "Meus arquivos" para personalizar.</div>`;
+  d.innerHTML='🎨 <b>Conceito pronto para gerar.</b>'+fotoOpt+'<button class="btn btn-g btn-sm" style="margin-top:6px">✨ Gerar imagem</button>';
+  const btn=d.querySelector('button');
+  btn.onclick=()=>gerarImagem(req,temFoto?_imgFotos[0].url:null,btn);
+  w.appendChild(d);w.scrollTop=w.scrollHeight;
+}
+async function gerarImagem(req,fotoUrl,btn){
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Gerando (pode levar até 30s)...';
+  try{
+    const r=await fetch('/api/gerar-imagem',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({prompt:req.prompt,foto_url:fotoUrl,tamanho:req.tamanho||'4:5'})
+    });
+    const raw=await r.text();let d;
+    try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
+    if(!r.ok){if(d&&d.limite){btn.parentElement.innerHTML='🚦 Limite mensal de imagens atingido. Fale com seu gestor.';return}throw new Error(d.error||'Erro ao gerar')}
+    const w=document.getElementById('msgs');
+    const img=document.createElement('div');img.className='msg a';
+    img.innerHTML='<img src="'+d.url+'" style="width:100%;border-radius:10px;display:block" alt="criativo gerado"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">imagem '+d.usadas+(d.limite?'/'+d.limite:'')+' do mês · salva em Meus arquivos</div><a href="'+d.url+'" target="_blank" class="btn btn-o btn-sm" style="margin-top:7px">⬇ Baixar</a>';
+    w.appendChild(img);w.scrollTop=w.scrollHeight;
+    btn.parentElement.remove();
+    JUMP.toast('✓ Imagem gerada e salva!');
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='✨ Gerar imagem';
+    JUMP.toast(e.message,'err');
+  }
 }
 function limiteMsg(){
   const w=document.getElementById('msgs');
