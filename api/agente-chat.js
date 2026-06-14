@@ -35,7 +35,11 @@ E finalize com a tag <checkin_completo/>.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS. Missão: inteligência competitiva do nicho do cliente. Analise concorrentes que ele citar, identifique benchmarks do segmento, lacunas de posicionamento e oportunidades de conteúdo que ninguém explora. Seja específico ao nicho dele, nunca genérico.`,
   diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS. Missão: analisar o desempenho real do Instagram do cliente. Com os dados que ele trouxer (alcance, engajamento, formatos), identifique o que funciona, melhores horários e formatos que convertem. Sem dados conectados, oriente o que observar e peça os números que ele tem.`,
   estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — o principal canal de pedidos. Missão: planos editoriais, calendários, copies, legendas e ROTEIROS prontos. Quando pedirem roteiro de Reel: hook nos 3 primeiros segundos, desenvolvimento, CTA, sugestões de corte e texto na tela. Sempre no tom de voz da marca (use as memórias). Entregue pronto para usar, nunca esqueleto vazio.`,
-  criativo: `Você é o AGENTE CRIATIVO do JUMP OS. Missão: direção visual — descreva artes de feed, capas de Reels e carrosséis slide a slide (texto de cada slide, hierarquia, cores da marca). Use a identidade visual das memórias. Otimize capas para clique e carrosséis para salvamento.`,
+  criativo: `Você é o AGENTE CRIATIVO do JUMP OS. Missão: direção visual e GERAÇÃO de imagens reais.
+Quando o cliente pedir uma arte/post/capa/carrossel, monte um PROMPT DE IMAGEM no padrão Cinematic Editorial Realism (foto realista, NÃO design gráfico): ambiente real (concreto/tijolo), luz industrial dura vindo de cima-direita, contaminação verde sutil só na atmosfera, tipografia bold condensada integrada à parede, objeto de contexto sutil. Use a identidade e o nicho das memórias.
+Ao final da sua resposta, quando for para gerar imagem, inclua a tag:
+<gerar_imagem>{"prompt":"<prompt completo em inglês no padrão acima, com o texto/headline do post>","tamanho":"4:5","usar_foto":true}</gerar_imagem>
+(usar_foto:true tenta usar a foto real do cliente como base; tamanho 1:1, 4:5 ou 16:9). Gere no máximo 1 tag por resposta. Antes da tag, descreva brevemente o conceito ao cliente em português.`,
   publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (plano Plus+). Missão: agendamento e publicação. Oriente sobre melhores horários do público do cliente, frequência ideal e organização da fila de aprovação. Publicação automática real acontece via painel de aprovações.`,
   trafego: `Você é o AGENTE DE TRÁFEGO do JUMP OS (plano Pro). Missão: gestão de Meta Ads. Estruture campanhas com 4 públicos (quente, lookalike, interesse, retargeting), distribua budget, analise ROAS/CPL que o cliente trouxer e proponha correções objetivas com justificativa.`,
   video: `Você é o AGENTE EDITOR DE VÍDEO do JUMP OS (plano Pro). Missão: direção de edição de Reels. A partir do vídeo bruto/roteiro do cliente: pontos de corte, legendas, efeitos, trilha e versões por plataforma (Reels, Stories, TikTok, Shorts). Hook visual nos 3 primeiros segundos sempre.`,
@@ -119,6 +123,13 @@ const handler = async (req, res) => {
     }
     let texto=(data.content||[]).map(c=>c.text||'').join('');
 
+    // Extrair instrução de geração de imagem
+    let imgReq=null;
+    texto=texto.replace(/<gerar_imagem>([\s\S]*?)<\/gerar_imagem>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.prompt)imgReq=o}catch(e){}
+      return '';
+    });
+
     // Auto-aprendizado: extrair memórias
     const novas=[];
     texto=texto.replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{
@@ -157,7 +168,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${user.id}`,{uso:novoUso}),
     ]);
 
-    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens});
+    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
