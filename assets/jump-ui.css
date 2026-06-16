@@ -8,7 +8,8 @@ html{overflow-x:hidden}
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
   --red:#FF6B6B;--yel:#FFD166;--cy:#00D4FF;--pu:#A855F7;
-  --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
+  --D:'Oswald','Bebas Neue',sans-serif;--B:'League Gothic','Barlow',sans-serif;--M:'Space Mono',monospace;
+  --H:'Oswald',sans-serif;
 }
 body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:16px;line-height:1.6;overflow-x:hidden;min-height:100vh}
 a{text-decoration:none;color:inherit}
@@ -221,3 +222,13 @@ td strong{color:var(--t1)}
 .ap-t{font-size:14px;font-weight:800;color:var(--t1)}
 .ap-leg{font-size:12px;color:var(--t2);line-height:1.5;max-height:54px;overflow:hidden}
 .ap-acts{display:flex;gap:7px;margin-top:auto;padding-top:8px}
+
+/* FONTES & MAIÚSCULAS — títulos/botões/labels */
+.hd-h,.sec-lbl,.modal-t,.tasks-t,.cal-mes,.ct-n,.ag-it-n,.st-l,.fs-l,.conn-t,.btn,.pill,.ptab,.sb-link{
+  font-feature-settings:"case";
+}
+.hd-h,.modal-t,.tasks-t,.cal-mes{font-family:var(--H)}
+.btn,.act-t{text-transform:uppercase;letter-spacing:.5px}
+/* Logo +20% */
+.sb-logo img{height:36px}
+.mob-top img{height:31px}
