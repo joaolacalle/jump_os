@@ -48,6 +48,7 @@ module.exports = async (req, res) => {
       ig_name: prof.name || '',
       ig_followers: prof.followers_count || 0,
       ig_media: prof.media_count || 0,
+      ig_picture: prof.profile_picture_url || '',
       via: 'token_manual',
     };
 

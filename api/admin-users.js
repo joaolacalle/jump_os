@@ -81,11 +81,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Você já tem uma solicitação aguardando o gestor.' });
       }
       let destinos = [];
-      if (me.supervisor_id) destinos = [me.supervisor_id];
-      else {
-        const adms = await sbGet(`clientes?role=eq.admin&select=id`);
-        destinos = (Array.isArray(adms) ? adms : []).map(a => a.id);
-      }
+      // Sempre notifica os admins; e também o supervisor direto, se houver
+      const adms = await sbGet(`clientes?role=eq.admin&select=id`);
+      destinos = (Array.isArray(adms) ? adms : []).map(a => a.id);
+      if (me.supervisor_id && !destinos.includes(me.supervisor_id)) destinos.push(me.supervisor_id);
       if (!destinos.length) return res.status(400).json({ error: 'Nenhum gestor encontrado. Fale com o suporte.' });
       const uso = (me.uso || {}).tokens || 0, lim = (me.limites || {}).tokens || 0;
       const rows = destinos.map(d => ({
@@ -139,11 +138,23 @@ module.exports = async (req, res) => {
           }
         }
       }
-      // Cria no Auth (e-mail já confirmado — conta criada pelo gestor)
-      const novo = await authAdmin('users', 'POST', {
-        email, password: senha, email_confirm: true,
-        user_metadata: { nome, plano: plano || 'plus' },
-      });
+      // Verifica se o e-mail já existe no Auth (excluído incompleto deixa órfão)
+      let novo;
+      try {
+        novo = await authAdmin('users', 'POST', {
+          email, password: senha, email_confirm: true,
+          user_metadata: { nome, plano: plano || 'plus' },
+        });
+      } catch (e) {
+        const msg = (e.message || '').toLowerCase();
+        if (msg.includes('already') || msg.includes('registered') || msg.includes('exists') || msg.includes('duplicate')) {
+          return res.status(400).json({ error: 'Este e-mail já está cadastrado no sistema. Use outro e-mail, ou peça ao admin para excluir o cadastro antigo completamente antes de recriar.' });
+        }
+        throw e;
+      }
+      if (!novo || !novo.id) {
+        return res.status(500).json({ error: 'Falha ao criar conta de acesso. Tente outro e-mail.' });
+      }
       // Tokens por plano (config global) + trial
       let limTokens = 1000000;
       try {
@@ -293,11 +304,36 @@ module.exports = async (req, res) => {
       const [t] = await sbGet(`clientes?id=eq.${user_id}&select=role,email`);
       if (t && t.role === 'admin') return res.status(403).json({ error: 'Não é possível excluir um admin' });
       if (t && t.role === 'supervisor' && !isAdmin) return res.status(403).json({ error: 'Apenas admin exclui supervisores' });
-      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user_id}`, { method: 'DELETE', headers: H() });
+      // Exclusão COMPLETA — remove de todas as tabelas + Auth (evita órfãos)
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
       await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
-      await authAdmin(`users/${user_id}`, 'DELETE');
+      await fetch(`${SUPABASE_URL}/rest/v1/memorias?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
+      await fetch(`${SUPABASE_URL}/rest/v1/chat_mensagens?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
+      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
+      try { await authAdmin(`users/${user_id}`, 'DELETE'); } catch (e) { /* já pode ter sido removido */ }
       await sbInsert('logs', { acao: `Conta excluída: ${(t && t.email) || user_id}`, user_id: requester.id }).catch(() => {});
       return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'limpar_email') {
+      // Admin: remove completamente um e-mail órfão (Auth + clientes) para poder recriar
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'E-mail obrigatório' });
+      // acha no Auth pela listagem
+      let removed = false;
+      try {
+        const list = await authAdmin(`users?filter=${encodeURIComponent('email.eq.' + email)}`, 'GET');
+        const users = (list && list.users) || [];
+        for (const u of users) {
+          await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${u.id}`, { method: 'DELETE', headers: H() }).catch(() => {});
+          await authAdmin(`users/${u.id}`, 'DELETE').catch(() => {});
+          removed = true;
+        }
+      } catch (e) {}
+      // limpa linha em clientes pelo email também
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?email=eq.${encodeURIComponent(email)}`, { method: 'DELETE', headers: H() }).catch(() => {});
+      return res.status(200).json({ ok: true, removed });
     }
 
     if (action === 'set_cotas') {
