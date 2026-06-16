@@ -239,7 +239,9 @@ if(plano&&PLANOS[plano]){
 async function goByRole(session){
   let dest=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
   try{
-    const{data:c}=await sb.from('clientes').select('role,bloqueado').eq('id',session.user.id).single();
+    // sem .single() — pega a primeira linha (robusto contra 0/2+ resultados)
+    const{data:cs}=await sb.from('clientes').select('role,bloqueado').eq('id',session.user.id).limit(1);
+    const c=cs&&cs.length?cs[0]:null;
     if(c&&c.bloqueado){
       await sb.auth.signOut();
       showMsg('msg-login','Esta conta está bloqueada. Fale com seu supervisor ou suporte.','err');
@@ -247,7 +249,7 @@ async function goByRole(session){
     }
     if(c&&c.role==='admin')dest='dashboard-admin.html';
     else if(c&&c.role==='supervisor')dest='dashboard-supervisor.html';
-  }catch(e){}
+  }catch(e){console.error('goByRole:',e)}
   location.href=dest;
 }
 
