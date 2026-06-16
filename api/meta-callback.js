@@ -2,7 +2,7 @@
 // Troca código por token → busca dados do perfil Instagram
 // ENV: META_APP_ID, META_APP_SECRET, SUPABASE_SERVICE_KEY
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const SITE = 'https://jump-os-one.vercel.app';
+const SITE = 'https://metodojump.com.br';
 const REDIRECT = `${SITE}/api/meta-callback`;
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
