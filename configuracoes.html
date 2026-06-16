@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Configurações</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=League+Gothic&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:920px){.cfg-grid{grid-template-columns:1fr}}</style>
@@ -31,7 +31,11 @@
         <label class="cp-sw"><input type="color" id="c3" value="#A855F7" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Recursos Pro e detalhes</div></div>
       </div>
-      <div style="margin:14px 0 10px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Fundo</div>
+      <div class="cp-row">
+        <label class="cp-sw"><input type="color" id="c4" value="#141312" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor de fundo</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Fundo geral do painel</div></div>
+      </div>
+      <div style="margin:14px 0 10px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Modo do fundo</div>
       <div class="bg-tg">
         <div class="bg-opt on" id="bg-escuro" onclick="setBg('escuro')">🌙 Escuro</div>
         <div class="bg-opt" id="bg-claro" onclick="setBg('claro')">☀️ Claro</div>
@@ -70,7 +74,7 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null,BG='escuro';
-const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',bg:'escuro'};
+const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
 (async()=>{
   try{
     JUMP.sidebar('config');
@@ -80,6 +84,7 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',bg:'escuro'};
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
     document.getElementById('c3').value=t.c3||PADRAO.c3;
+    document.getElementById('c4').value=t.c4||PADRAO.c4;
     setBg(t.bg||'escuro',true);
     document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=CTX.cliente.telefone||'';
@@ -91,7 +96,7 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',bg:'escuro'};
   }catch(e){}
 })();
 function temaAtual(){
-  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,bg:BG};
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,bg:BG};
 }
 function preview(){JUMP.applyTheme(temaAtual())}
 function setBg(v,skip){
