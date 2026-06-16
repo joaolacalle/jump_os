@@ -48,7 +48,8 @@ window.JUMP=(function(){
     if(role==='admin'){
       items.push(['dashboard-admin.html','👑','Admin']);
       items.push(['dashboard-supervisor.html','🛡','Supervisor']);
-      items.push(['dashboard-usuario.html','👤','Usuário']);
+      // Usuário NÃO entra na barra: o admin acessa sua conta de usuário
+      // pelo painel supervisor (onde ela aparece como conta supervisionada).
     }
     // SUPERVISOR: NÃO tem barra de troca. Ele cai no painel supervisor e acessa
     // usuários pela tabela. O "voltar" fica no banner do painel do usuário.
