@@ -33,6 +33,10 @@
 .act-b{font-size:11.5px;color:var(--t2);line-height:1.45}
 .act-go{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:var(--g);text-transform:uppercase;margin-top:auto}
 @media(max-width:920px){.conn-row{grid-template-columns:1fr}.ag-grid8,.acts4{grid-template-columns:1fr 1fr}}
+.per-btn{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1px;padding:5px 11px;border-radius:14px;border:1px solid var(--bd);color:var(--t3);cursor:pointer;transition:.2s}
+.per-btn:hover{color:var(--t1)}
+.per-btn.on{border-color:var(--g);color:var(--g);background:rgba(var(--g-rgb),.08)}
+.conn-pic{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -100,8 +104,28 @@
     </div>
   </div>
 
+  <!-- CAIXA DE TOKENS -->
+  <div class="card" id="tok-box" style="display:none;margin-bottom:14px;border-color:rgba(0,230,118,.3)">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span style="font-size:24px">🪙</span>
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:13px;font-weight:800;color:var(--t1)">Seus tokens do mês</div>
+        <div class="bar" style="margin-top:6px"><div class="bar-f" id="tok-bar" style="width:0%"></div></div>
+        <div class="bar-l" id="tok-lbl">—</div>
+      </div>
+      <div style="font-family:var(--M);font-size:11px;color:var(--t3);max-width:200px;line-height:1.5" id="tok-info">1500 tokens geram cerca de 20 imagens</div>
+      <button class="btn btn-o btn-sm" onclick="solicitarMais(this)">Solicitar mais →</button>
+    </div>
+  </div>
+
   <!-- INSTAGRAM STATS — flip -->
-  <div class="sec-lbl">Instagram — últimos 30 dias <span class="lbl-act" onclick="JUMP.toast('Toque em um card para ver a explicação')">ⓘ toque para detalhes</span></div>
+  <div class="sec-lbl">Instagram — desempenho
+    <span style="margin-left:auto;display:inline-flex;gap:5px">
+      <span class="per-btn on" data-d="30" onclick="setPeriodo(30,this)">30d</span>
+      <span class="per-btn" data-d="60" onclick="setPeriodo(60,this)">60d</span>
+      <span class="per-btn" data-d="90" onclick="setPeriodo(90,this)">90d</span>
+    </span>
+  </div>
   <div class="fs-grid" id="ig-stats"></div>
 
   <!-- ADS STATS — flip -->
@@ -193,7 +217,10 @@ function flipCard(id,nr,num,lbl,backT,backX){
         if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
       });
     }catch(e){console.error('conexões:',e)}
-    if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm'}
+    if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm';
+      // foto de perfil da conta conectada no ícone
+      if(igMeta&&igMeta.ig_picture){const ico=document.querySelector('#conn-ig .conn-ico');if(ico)ico.innerHTML='<img class="conn-pic" src="'+igMeta.ig_picture+'" alt="">'}
+    }
     if(adsOn){document.getElementById('ads-status').textContent='● Conectado';document.getElementById('ads-status').className='conn-s on';document.getElementById('conn-ads').classList.add('ok');document.getElementById('ads-btn').textContent='Gerenciar';document.getElementById('ads-btn').className='btn btn-o btn-sm'}
 
     /* ══ TAREFAS DE ATIVAÇÃO (por plano) ══ */
@@ -300,11 +327,39 @@ function flipCard(id,nr,num,lbl,backT,backX){
         <div class="agc-ico">${a.ico}</div><div class="agc-name">${a.n}</div></a>`;
     }).join('');
 
+    // Caixa de tokens
+    try{
+      const limTok=Number((cliente.limites||{}).tokens||0);
+      const usoTok=Number((cliente.uso||{}).tokens||0);
+      if(limTok){
+        document.getElementById('tok-box').style.display='block';
+        const pct=Math.min(100,Math.round(usoTok/limTok*100));
+        const bar=document.getElementById('tok-bar');
+        bar.style.width=pct+'%';bar.className='bar-f'+(pct>=95?' full':pct>=75?' warn':'');
+        document.getElementById('tok-lbl').textContent=JUMP.fmtNum(usoTok)+' / '+JUMP.fmtNum(limTok)+' tokens usados';
+        // info de conversão (config tokens_info)
+        try{const d=await JUMP.api('get_config',{},ctx.token);const info=(d.config||{}).tokens_info;if(info&&info.label)document.getElementById('tok-info').textContent=info.label}catch(e){}
+      }
+    }catch(e){}
+
     window._ctx=ctx;
     document.getElementById('loading').classList.add('hide');
   }catch(e){if(e.message!=='no-session'&&e.message!=='no-role')console.error(e)}
 })();
 
+function setPeriodo(dias,el){
+  document.querySelectorAll('.per-btn').forEach(b=>b.classList.toggle('on',b===el));
+  // recarrega métricas do período (por ora usa o mesmo dado; quando a API trouxer 60/90 troca aqui)
+  JUMP.toast('Período: últimos '+dias+' dias');
+}
+async function solicitarMais(btn){
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    await JUMP.api('request_tokens',{},window._ctx.token);
+    btn.textContent='✓ Solicitado';
+    JUMP.toast('Seu gestor foi avisado e pode liberar mais tokens.');
+  }catch(e){btn.disabled=false;btn.textContent='Solicitar mais →';JUMP.toast(e.message,'err')}
+}
 async function lerRecado(id,btn){
   try{await JUMP.sb.from('recados').update({lido:true}).eq('id',id);btn.closest('.rec').remove()}catch(e){JUMP.toast('Erro ao marcar','err')}
 }

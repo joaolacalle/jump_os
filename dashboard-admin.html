@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=League+Gothic&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -80,6 +80,10 @@
 
   <!-- TAB TODOS OS USUÁRIOS -->
   <div class="tabpane" id="pane-users">
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-g btn-sm" onclick="abrirCriarUser()">+ Criar usuário</button>
+      <button class="btn btn-o btn-sm" onclick="abrirConfigTokens()">⚙ Tokens por plano</button>
+    </div>
     <div class="card" id="solic-box" style="display:none;margin-bottom:14px;border-color:rgba(255,209,102,.4)">
       <div class="sec-lbl" style="margin-top:0">🪙 Solicitações de aumento de uso (visão global)</div>
       <div id="solic-list"></div>
@@ -191,6 +195,67 @@
     </div>
     <div id="g-lista" style="max-height:52vh;overflow:auto"></div>
     <div class="modal-acts"><button class="btn btn-o" onclick="fechar('modal-gestao')" style="flex:1">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL CRIAR USUÁRIO (admin) -->
+<div class="modal-bg" id="modal-cuser">
+  <div class="modal">
+    <div class="modal-t">Criar usuário</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cu-nome"></div>
+      <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="cu-email" type="email"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Senha inicial</label><input class="f-input" id="cu-senha" placeholder="mín. 6"></div>
+      <div class="f-group"><label class="f-label">Plano</label>
+        <select class="f-select" id="cu-plano"><option value="basico">Básico</option><option value="plus" selected>Plus</option><option value="pro">Pro</option></select>
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Supervisor responsável</label>
+      <select class="f-select" id="cu-sup"></select>
+    </div>
+    <div class="f-group"><label class="f-label">Cortesia</label>
+      <select class="f-select" id="cu-cortesia"><option value="">Sem cortesia</option><option value="7">7 dias (trial)</option><option value="30">30 dias</option><option value="60">60 dias</option><option value="ilimitado">Ilimitado</option></select>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-cuser')">Cancelar</button>
+      <button class="btn btn-g" id="cu-save" onclick="criarUser()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIG TOKENS POR PLANO -->
+<div class="modal-bg" id="modal-cfgtok">
+  <div class="modal">
+    <div class="modal-t">Tokens por plano</div>
+    <div class="bk-b" style="margin-bottom:10px">Define o limite mensal de tokens de cada plano e do trial. Vale para novas contas.</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Básico</label><input class="f-input" id="ct-basico" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Plus</label><input class="f-input" id="ct-plus" type="number" min="0"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pro</label><input class="f-input" id="ct-pro" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Trial 7 dias</label><input class="f-input" id="ct-trial" type="number" min="0"></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-cfgtok')">Cancelar</button>
+      <button class="btn btn-g" onclick="salvarCfgTokens()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ADICIONAR TOKENS (individual) -->
+<div class="modal-bg" id="modal-addtok">
+  <div class="modal">
+    <div class="modal-t">Ajustar tokens do usuário</div>
+    <input type="hidden" id="at-id">
+    <div class="bk-b" id="at-info" style="margin-bottom:10px"></div>
+    <div class="f-group"><label class="f-label">Novo limite mensal de tokens</label><input class="f-input" id="at-tokens" type="number" min="0"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-addtok')">Cancelar</button>
+      <button class="btn btn-g" onclick="salvarAddTokens()">Salvar limite</button>
+    </div>
   </div>
 </div>
 
@@ -331,6 +396,7 @@ function renderUsers(){
     <td><div class="td-acts">
       <button class="btn btn-o btn-sm" onclick="abrirTransf('${u.id}')">⇄ Transferir</button>
       <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Painel →</a>
+      <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${u.id}')">🪙 Tokens</button>
       <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
       <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
       <button class="btn btn-r btn-sm" onclick="excluirConta('${u.id}','${JUMP.esc(u.email||'')}')">🗑</button>
@@ -394,6 +460,76 @@ async function carregarSolicAdm(){
 async function resolverSolicAdm(id){
   try{await JUMP.sb.from('recados').update({resolvido:true,lido:true}).eq('id',id);JUMP.toast('Concluída');carregarSolicAdm()}catch(e){}
 }
+// ── CRIAR USUÁRIO (admin) ──
+function abrirCriarUser(){
+  ['cu-nome','cu-email','cu-senha'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('cu-cortesia').value='';
+  const sel=document.getElementById('cu-sup');
+  sel.innerHTML='<option value="">Eu (admin) como responsável</option>'+SUPS.filter(s=>s.role==='supervisor').map(s=>`<option value="${s.id}">${JUMP.esc(s.nome||s.email)}</option>`).join('');
+  document.getElementById('modal-cuser').classList.add('show');
+}
+async function criarUser(){
+  const btn=document.getElementById('cu-save');
+  const p={
+    nome:document.getElementById('cu-nome').value.trim(),
+    email:document.getElementById('cu-email').value.trim(),
+    senha:document.getElementById('cu-senha').value,
+    plano:document.getElementById('cu-plano').value,
+    cortesia:document.getElementById('cu-cortesia').value,
+    supervisor_id:document.getElementById('cu-sup').value||CTX.user.id,
+  };
+  if(!p.nome||!p.email||p.senha.length<6){JUMP.toast('Preencha nome, e-mail e senha (mín. 6).','err');return}
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  try{
+    await JUMP.api('create_user',p,CTX.token);
+    JUMP.toast('✓ Usuário criado');fechar('modal-cuser');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+  btn.disabled=false;btn.textContent='Criar usuário';
+}
+
+// ── CONFIG TOKENS POR PLANO ──
+let _cfg={};
+async function abrirConfigTokens(){
+  try{const d=await JUMP.api('get_config',{},CTX.token);_cfg=d.config||{}}catch(e){_cfg={}}
+  const tp=_cfg.tokens_plano||{basico:500000,plus:1500000,pro:5000000};
+  const tr=_cfg.trial||{dias:7,tokens:500};
+  document.getElementById('ct-basico').value=tp.basico||0;
+  document.getElementById('ct-plus').value=tp.plus||0;
+  document.getElementById('ct-pro').value=tp.pro||0;
+  document.getElementById('ct-trial').value=tr.tokens||0;
+  document.getElementById('modal-cfgtok').classList.add('show');
+}
+async function salvarCfgTokens(){
+  try{
+    await JUMP.api('set_config',{chave:'tokens_plano',valor:{
+      basico:+document.getElementById('ct-basico').value||0,
+      plus:+document.getElementById('ct-plus').value||0,
+      pro:+document.getElementById('ct-pro').value||0,
+    }},CTX.token);
+    await JUMP.api('set_config',{chave:'trial',valor:{dias:7,tokens:+document.getElementById('ct-trial').value||0}},CTX.token);
+    JUMP.toast('✓ Tokens por plano salvos');fechar('modal-cfgtok');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+
+// ── ADICIONAR/AJUSTAR TOKENS (individual) ──
+function abrirAddTokens(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const lim=(u.limites||{}).tokens||0;const uso=(u.uso||{}).tokens||0;
+  document.getElementById('at-id').value=id;
+  document.getElementById('at-info').innerHTML=`<strong>${JUMP.esc(u.nome||u.email)}</strong><br>Uso atual: ${JUMP.fmtNum(uso)} / ${JUMP.fmtNum(lim)} tokens`;
+  document.getElementById('at-tokens').value=lim;
+  document.getElementById('modal-addtok').classList.add('show');
+}
+async function salvarAddTokens(){
+  const id=document.getElementById('at-id').value;
+  const u=USERS.find(x=>x.id===id);
+  const limites=Object.assign({},u.limites||{},{tokens:+document.getElementById('at-tokens').value||0});
+  try{
+    await JUMP.api('set_limits',{user_id:id,limites},CTX.token);
+    JUMP.toast('✓ Limite de tokens atualizado');fechar('modal-addtok');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+
 function abrirCotas(id){
   const s=ALL.find(x=>x.id===id);if(!s)return;
   const co=s.cotas||{};

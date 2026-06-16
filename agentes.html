@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Meus agentes</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=League+Gothic&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -234,7 +234,7 @@ async function gerarImagem(req,btn){
     if(!r.ok){if(d&&d.limite){btn.parentElement.innerHTML='🚦 Limite mensal de imagens atingido. Fale com seu gestor.';return}throw new Error(d.error||'Erro ao gerar')}
     const w=document.getElementById('msgs');
     const img=document.createElement('div');img.className='msg a';
-    img.innerHTML='<img src="'+d.url+'" style="width:100%;border-radius:10px;display:block" alt="criativo gerado"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">imagem '+d.usadas+(d.limite?'/'+d.limite:'')+' do mês · salva em Meus arquivos</div><a href="'+d.url+'" target="_blank" class="btn btn-o btn-sm" style="margin-top:7px">⬇ Baixar</a>';
+    img.innerHTML='<img src="'+d.url+'" style="width:100%;border-radius:10px;display:block" alt="criativo gerado"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">imagem '+d.usadas+(d.limite?'/'+d.limite:'')+' do mês · salva em Meus arquivos</div><button class="btn btn-o btn-sm" style="margin-top:7px" onclick="baixarImg(\''+d.url+'\',this)">⬇ Baixar</button>';
     w.appendChild(img);w.scrollTop=w.scrollHeight;
     btn.parentElement.remove();
     JUMP.toast('✓ Imagem gerada e salva!');
@@ -242,6 +242,16 @@ async function gerarImagem(req,btn){
     btn.disabled=false;btn.innerHTML='✨ Gerar imagem';
     JUMP.toast(e.message,'err');
   }
+}
+async function baixarImg(url,btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class=\"spin-i\"></span> Baixando...'}
+  try{
+    const r=await fetch(url);const blob=await r.blob();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='jump-os-'+Date.now()+'.png';document.body.appendChild(a);a.click();
+    a.remove();URL.revokeObjectURL(a.href);
+    if(btn){btn.disabled=false;btn.innerHTML='✓ Baixado'}
+  }catch(e){if(btn){btn.disabled=false;btn.innerHTML='⬇ Baixar'}JUMP.toast('Erro ao baixar','err')}
 }
 function limiteMsg(){
   const w=document.getElementById('msgs');

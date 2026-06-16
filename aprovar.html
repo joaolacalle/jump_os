@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Aprovações</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=League+Gothic&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -84,7 +84,10 @@ async function aprovar(id){
 }
 async function baixar(id){
   const c=ITENS.find(i=>i.id===id);if(!c)return;
-  if(c.midia_url){const a=document.createElement('a');a.href=c.midia_url;a.download=c.titulo||'conteudo';a.target='_blank';a.click()}
+  if(c.midia_url){
+    try{const r=await fetch(c.midia_url);const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.titulo||'conteudo')+'.png';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href)}
+    catch(e){const a=document.createElement('a');a.href=c.midia_url;a.download=c.titulo||'conteudo';a.click()}
+  }
   if(c.legenda||c.texto){
     const blob=new Blob([(c.titulo||'')+'\n\n'+(c.legenda||c.texto||'')],{type:'text/plain'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.titulo||'legenda')+'.txt';a.click();
