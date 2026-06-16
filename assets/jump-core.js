@@ -26,11 +26,17 @@ window.JUMP=(function(){
     const user=data.session.user;
     let cliente={};
     try{
-      const{data:c}=await sb.from('clientes').select('*').eq('id',user.id).single();
-      if(c)cliente=c;
-    }catch(e){}
+      // sem .single() (quebra se houver 0/2+ linhas) — pega a primeira
+      const{data:cs}=await sb.from('clientes').select('*').eq('id',user.id).limit(1);
+      if(cs&&cs.length)cliente=cs[0];
+    }catch(e){console.error('guard clientes:',e)}
     const role=cliente.role||'usuario';
-    if(roles&&!roles.includes(role)){location.href='dashboard-usuario.html';throw new Error('no-role')}
+    if(roles&&!roles.includes(role)){
+      // sem permissão para esta página — manda para o painel do papel real
+      const destino=role==='admin'?'dashboard-admin.html':role==='supervisor'?'dashboard-supervisor.html':'dashboard-usuario.html';
+      if((location.pathname.split('/').pop()||'')!==destino)location.href=destino;
+      throw new Error('no-role');
+    }
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
     if(cliente.tema)applyTheme(cliente.tema);
     if(role==='supervisor'||role==='admin')injectRoleBar(role);
