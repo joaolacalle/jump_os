@@ -48,9 +48,22 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .nl-fb{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;color:var(--t1);display:none}
 .nl-fb span{color:var(--g)}
 .nv{display:flex;gap:clamp(18px,3vw,36px)}
-.na{font-size:15px;font-weight:600;color:var(--t2);transition:.2s}
+.na{font-size:15px;font-weight:600;color:var(--t2);transition:.2s;position:relative;padding:4px 0}
+.na::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:2px;background:var(--g);transition:.25s}
+.na:hover{color:var(--t1)}
+.na:hover::after{width:100%}
 .na:hover{color:var(--g)}
 .nbs{display:flex;gap:10px}
+.n-in{padding:10px 22px;border:1px solid var(--bd);border-radius:9px;font-size:14px;font-weight:700;color:var(--t1);transition:.25s;letter-spacing:.2px}
+.n-in:hover{border-color:var(--g);color:var(--g);background:rgba(0,230,118,.06)}
+.n-wa{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border:1px solid rgba(37,211,102,.4);border-radius:9px;font-size:13px;font-weight:700;color:#25D366;transition:.25s}
+.n-wa:hover{background:rgba(37,211,102,.1);border-color:#25D366}
+.n-wa svg{width:16px;height:16px;fill:currentColor}
+.wa-float{position:fixed;bottom:22px;right:22px;z-index:300;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(37,211,102,.4);transition:.25s;animation:waPulse 2.6s infinite}
+.wa-float:hover{transform:scale(1.08)}
+.wa-float svg{width:30px;height:30px;fill:#fff}
+@keyframes waPulse{0%,100%{box-shadow:0 8px 28px rgba(37,211,102,.4)}50%{box-shadow:0 8px 28px rgba(37,211,102,.7),0 0 0 8px rgba(37,211,102,.08)}}
+@media(max-width:760px){.wa-float{width:52px;height:52px;bottom:16px;right:16px}.wa-float svg{width:27px;height:27px}}
 .n-in{padding:9px 20px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-weight:700;color:var(--t2);transition:.2s}
 .n-in:hover{border-color:var(--g);color:var(--g)}
 .n-g{padding:9px 22px;background:var(--g);border-radius:8px;font-size:13px;font-weight:800;color:#000;transition:.2s}
@@ -782,6 +795,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <a href="agentes-detalhes.html" class="na">Ver tudo</a>
   </div>
   <div class="nbs">
+    <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" class="n-wa"><svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2z"/></svg>WhatsApp</a>
     <a href="login.html" class="n-in">Entrar</a>
     <a href="login.html?plano=plus" class="n-g btn-mg">Começar grátis →</a>
   </div>
@@ -793,6 +807,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <a href="#planos" onclick="tmob()">Planos</a>
   <a href="#mentorias" onclick="tmob()">Mentorias</a>
   <a href="login.html?plano=plus" onclick="tmob()">Começar 7 dias grátis →</a>
+  <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" onclick="tmob()" style="color:#25D366">💬 Falar no WhatsApp</a>
 </div>
 
 <!-- HERO -->
@@ -1086,7 +1101,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517999999999?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta pres" style="flex:1">→ Quero a presencial</a>
+                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta pres" style="flex:1">→ Quero a presencial</a>
                 <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(0)">←</button>
               </div>
             </div>
@@ -1123,7 +1138,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517999999999?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
+                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
                 <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(1)">←</button>
               </div>
             </div>
@@ -1483,5 +1498,6 @@ document.addEventListener('click',e=>{
   if(m.classList.contains('o')&&!m.contains(e.target)&&!h.contains(e.target)){m.classList.remove('o');h.classList.remove('o');}
 });
 </script>
+<a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" class="wa-float" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2z"/></svg></a>
 </body>
 </html>
