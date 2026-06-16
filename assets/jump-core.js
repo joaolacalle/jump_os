@@ -41,9 +41,15 @@ window.JUMP=(function(){
     if(document.querySelector('.role-bar'))return;
     const p=(location.pathname.split('/').pop()||'').split('?')[0];
     const items=[];
-    if(role==='admin')items.push(['dashboard-admin.html','👑','Admin']);
-    items.push(['dashboard-supervisor.html','🛡','Supervisor']);
-    items.push(['dashboard-usuario.html','👤','Usuário']);
+    // ADMIN: acumula papéis — pode acessar Admin, seu painel Supervisor e sua conta Usuário
+    if(role==='admin'){
+      items.push(['dashboard-admin.html','👑','Admin']);
+      items.push(['dashboard-supervisor.html','🛡','Supervisor']);
+      items.push(['dashboard-usuario.html','👤','Usuário']);
+    }
+    // SUPERVISOR: NÃO tem barra de troca. Ele cai no painel supervisor e acessa
+    // usuários pela tabela. O "voltar" fica no banner do painel do usuário.
+    if(role!=='admin')return;
     const bar=document.createElement('div');bar.className='role-bar';
     bar.innerHTML=items.map(i=>`<a class="rb-link${p===i[0]?' on':''}" href="${i[0]}">${i[1]} ${i[2]}</a>`).join('');
     document.body.appendChild(bar);
