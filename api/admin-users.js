@@ -21,7 +21,17 @@ async function sbPatch(path, body) {
 }
 async function sbInsert(table, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, { method: 'POST', headers: H(), body: JSON.stringify(body) });
-  if (!r.ok) throw new Error('Erro ao inserir');
+  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao inserir: ' + t.slice(0, 120)); }
+  return r.json();
+}
+async function sbUpsert(table, body) {
+  // merge-duplicates: se a linha já existe (trigger criou), atualiza em vez de falhar
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...H(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao salvar: ' + t.slice(0, 120)); }
   return r.json();
 }
 async function authAdmin(path, method, body) {
@@ -134,6 +144,16 @@ module.exports = async (req, res) => {
         email, password: senha, email_confirm: true,
         user_metadata: { nome, plano: plano || 'plus' },
       });
+      // Tokens por plano (config global) + trial
+      let limTokens = 1000000;
+      try {
+        const cfgRows = await sbGet(`config?chave=in.(tokens_plano,trial)&select=chave,valor`);
+        const cfg = {}; (cfgRows || []).forEach(r => cfg[r.chave] = r.valor);
+        const planoFinal = plano || 'plus';
+        if (cfg.tokens_plano && cfg.tokens_plano[planoFinal]) limTokens = Number(cfg.tokens_plano[planoFinal]);
+        // se for cortesia/trial de 7 dias, aplica limite de trial
+        if (cortesia === '7' && cfg.trial && cfg.trial.tokens) limTokens = Number(cfg.trial.tokens);
+      } catch (e) {}
       // Linha em clientes
       const row = {
         id: novo.id, email, nome, role: novoRole,
@@ -143,9 +163,10 @@ module.exports = async (req, res) => {
         cortesia_ate: cortesiaDate(cortesia),
         supervisor_id: novoRole === 'usuario' ? requester.id : null,
         limite_contas: novoRole === 'supervisor' ? (limite_contas || 10) : 0,
+        limites: novoRole === 'usuario' ? { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: limTokens } : null,
       };
-      try { await sbInsert('clientes', row); }
-      catch (e) { await sbPatch(`clientes?id=eq.${novo.id}`, row); } // trigger pode ter criado a linha
+      // upsert: a trigger handle_new_user já pode ter criado a linha — fazemos merge
+      await sbUpsert('clientes', row);
       await sbInsert('logs', { acao: `${role} criou ${novoRole}: ${email}`, user_id: requester.id }).catch(() => {});
       return res.status(200).json({ ok: true, id: novo.id });
     }
@@ -283,6 +304,21 @@ module.exports = async (req, res) => {
       if (!isAdmin) return res.status(403).json({ error: 'Apenas admin define cotas' });
       const { user_id, cotas } = req.body;
       await sbPatch(`clientes?id=eq.${user_id}`, { cotas });
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'get_config') {
+      const rows = await sbGet(`config?select=chave,valor`);
+      const cfg = {};
+      (Array.isArray(rows) ? rows : []).forEach(r => cfg[r.chave] = r.valor);
+      return res.status(200).json({ ok: true, config: cfg });
+    }
+
+    if (action === 'set_config') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const { chave, valor } = req.body;
+      if (!chave || valor === undefined) return res.status(400).json({ error: 'Dados incompletos' });
+      await sbUpsert('config', { chave, valor, updated_at: new Date().toISOString() });
       return res.status(200).json({ ok: true });
     }
 
