@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Meus agentes</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=League+Gothic&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -213,28 +213,21 @@ async function enviar(){
   }
   BUSY=false;document.getElementById('send').disabled=false;inp.focus();
 }
-let _imgFotos=null;
 async function mostrarBotaoImagem(req){
   const w=document.getElementById('msgs');
   const d=document.createElement('div');d.className='msg a';
-  // busca fotos do cliente (para image-to-image)
-  if(_imgFotos===null){
-    try{const{data}=await JUMP.sb.from('uploads').select('url,categoria').eq('user_id',CTX.user.id).in('categoria',['pessoais','logo','produtos']);_imgFotos=data||[]}catch(e){_imgFotos=[]}
-  }
-  const temFoto=req.usar_foto&&_imgFotos.length;
-  const fotoOpt=temFoto?`<div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">📸 Vou usar sua foto real como base.</div>`:`<div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">Sem foto sua no acervo — vou gerar do conceito. Envie fotos em "Meus arquivos" para personalizar.</div>`;
-  d.innerHTML='🎨 <b>Conceito pronto para gerar.</b>'+fotoOpt+'<button class="btn btn-g btn-sm" style="margin-top:6px">✨ Gerar imagem</button>';
+  d.innerHTML='🎨 <b>Conceito pronto para gerar.</b><div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">A imagem será criada a partir do conceito.</div><button class="btn btn-g btn-sm" style="margin-top:6px">✨ Gerar imagem</button>';
   const btn=d.querySelector('button');
-  btn.onclick=()=>gerarImagem(req,temFoto?_imgFotos[0].url:null,btn);
+  btn.onclick=()=>gerarImagem(req,btn);
   w.appendChild(d);w.scrollTop=w.scrollHeight;
 }
-async function gerarImagem(req,fotoUrl,btn){
+async function gerarImagem(req,btn){
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Gerando (pode levar até 30s)...';
   try{
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:req.prompt,foto_url:fotoUrl,tamanho:req.tamanho||'4:5'})
+      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5'})
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
