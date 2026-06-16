@@ -8,7 +8,7 @@ html{overflow-x:hidden}
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
   --red:#FF6B6B;--yel:#FFD166;--cy:#00D4FF;--pu:#A855F7;
-  --D:'Oswald','Bebas Neue',sans-serif;--B:'League Gothic','Barlow',sans-serif;--M:'Space Mono',monospace;
+  --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
   --H:'Oswald',sans-serif;
 }
 body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:16px;line-height:1.6;overflow-x:hidden;min-height:100vh}
@@ -38,7 +38,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 /* HEADERS */
 .hd{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:clamp(20px,3vw,30px)}
 .hd-hello{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
-.hd-h{font-family:'Oswald',var(--D);font-size:clamp(26px,4vw,40px);font-weight:700;text-transform:uppercase;line-height:1.05}
+.hd-h{font-family:'Oswald',sans-serif;font-size:clamp(28px,4.2vw,44px);font-weight:700;text-transform:uppercase;line-height:1.05;letter-spacing:.3px}
 .hd-h em{font-style:normal;color:var(--g)}
 .sec-lbl{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin:clamp(20px,3vw,28px) 0 13px;display:flex;align-items:center;gap:10px}
 .sec-lbl::after{content:'';flex:1;height:1px;background:var(--bd)}
@@ -227,7 +227,7 @@ td strong{color:var(--t1)}
 .hd-h,.sec-lbl,.modal-t,.tasks-t,.cal-mes,.ct-n,.ag-it-n,.st-l,.fs-l,.conn-t,.btn,.pill,.ptab,.sb-link{
   font-feature-settings:"case";
 }
-.hd-h,.modal-t,.tasks-t,.cal-mes{font-family:var(--H)}
+.hd-h,.modal-t,.tasks-t,.cal-mes,.ct-n,.pp-plan{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase}
 .btn,.act-t{text-transform:uppercase;letter-spacing:.5px}
 /* Logo +20% */
 .sb-logo img{height:36px}
