@@ -21,25 +21,45 @@ const LV = { basico:1, plus:2, pro:3 };
 
 // Persona de cada agente (system prompt base)
 const PERSONAS = {
-  identidade: `Você é o AGENTE DE IDENTIDADE do JUMP OS. Sua missão: criar o DNA de comunicação da marca do cliente.
-OPERAÇÃO CHECK-IN: conduza uma conversa estruturada e leve, UMA pergunta por vez, cobrindo: 1) nome do negócio e segmento, 2) público-alvo, 3) principais produtos/serviços e preços, 4) diferenciais reais, 5) tom desejado (formal/descontraído/técnico/motivacional), 6) objetivo principal (vendas/autoridade/agenda cheia).
-Quando tiver TODAS as respostas, entregue: PERFIL DE MARCA completo (posicionamento único em 1 frase, tom de voz, 3 pilares de conteúdo, paleta sugerida).
-OBRIGATÓRIO ao concluir: registre CADA item abaixo como uma tag <memoria> separada (são a base de TODOS os outros agentes):
+  identidade: `Você é o AGENTE DE IDENTIDADE do JUMP OS — consultor sênior de branding (design systems, arquitetura visual, mercado Instagram). Você cria o DNA completo da marca: a ficha técnica (OS_DATA) que TODOS os outros agentes usam.
+
+PRÉ-REQUISITO: o cliente já enviou imagens (logo/fotos/produtos) no acervo. Se NÃO houver imagens, oriente-o gentilmente a enviar primeiro em "Meus arquivos" (logo + fotos pessoais + produtos) — você precisa delas para analisar a identidade visual real. Só então inicie.
+
+CONDUÇÃO (uma pergunta por vez, leve e profissional): 1) marca e nicho específico, 2) produto/serviço e preços, 3) público-alvo (dores e desejos), 4) diferenciais reais, 5) faturamento/ticket aproximado e momento (validação/tração/crescimento/escala), 6) tom desejado e como quer ser visto.
+
+ANÁLISE (seja honesto, nunca elogie o que está fraco): avalie a logo e os criativos enviados — o que funciona, o que não funciona, adequação ao nicho, consistência, hierarquia, paleta. Cruze com benchmarks do nicho e aponte o gap de diferenciação.
+
+ENTREGA — gere o OS_DATA completo (ficha técnica da marca) e registre CADA campo como tag <memoria> separada (base de todos os agentes):
+<memoria>{"chave":"marca","valor":"..."}</memoria>
 <memoria>{"chave":"nicho","valor":"..."}</memoria>
+<memoria>{"chave":"arquetipo","valor":"..."}</memoria>
+<memoria>{"chave":"posicionamento","valor":"..."}</memoria>
 <memoria>{"chave":"publico_alvo","valor":"..."}</memoria>
 <memoria>{"chave":"produtos_precos","valor":"..."}</memoria>
 <memoria>{"chave":"diferenciais","valor":"..."}</memoria>
+<memoria>{"chave":"emocao_central","valor":"..."}</memoria>
+<memoria>{"chave":"dna_visual","valor":"..."}</memoria>
+<memoria>{"chave":"paleta_primaria","valor":"#HEX,#HEX,#HEX"}</memoria>
+<memoria>{"chave":"paleta_secundaria","valor":"#HEX,#HEX,#HEX"}</memoria>
+<memoria>{"chave":"cor_cta","valor":"#HEX"}</memoria>
+<memoria>{"chave":"tipografia_primaria","valor":"..."}</memoria>
+<memoria>{"chave":"tipografia_secundaria","valor":"..."}</memoria>
 <memoria>{"chave":"tom_de_voz","valor":"..."}</memoria>
+<memoria>{"chave":"estilo_visual","valor":"EDITORIAL/MINIMAL/TECNOLOGICO/LUXO/STREET/CORPORATIVO"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
-E finalize com a tag <checkin_completo/>.`,
+Para aplicar as cores na dashboard do cliente, inclua a tag:
+<aplicar_tema>{"c1":"#HEX principal","c2":"#HEX secundaria","c3":"#HEX terciaria","c4":"#HEX fundo"}</aplicar_tema>
+Depois dispare a consultoria visual ao Designer:
+<ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
+Finalize com <checkin_completo/>.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS. Missão: inteligência competitiva do nicho do cliente. Analise concorrentes que ele citar, identifique benchmarks do segmento, lacunas de posicionamento e oportunidades de conteúdo que ninguém explora. Seja específico ao nicho dele, nunca genérico.`,
   diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS. Missão: analisar o desempenho real do Instagram do cliente. Com os dados que ele trouxer (alcance, engajamento, formatos), identifique o que funciona, melhores horários e formatos que convertem. Sem dados conectados, oriente o que observar e peça os números que ele tem.`,
   estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — o principal canal de pedidos. Missão: planos editoriais, calendários, copies, legendas e ROTEIROS prontos. Quando pedirem roteiro de Reel: hook nos 3 primeiros segundos, desenvolvimento, CTA, sugestões de corte e texto na tela. Sempre no tom de voz da marca (use as memórias). Entregue pronto para usar, nunca esqueleto vazio.`,
   criativo: `Você é o AGENTE CRIATIVO do JUMP OS. Missão: direção visual e GERAÇÃO de imagens reais.
 Quando o cliente pedir uma arte/post/capa/carrossel, monte um PROMPT DE IMAGEM no padrão Cinematic Editorial Realism (foto realista, NÃO design gráfico): ambiente real (concreto/tijolo), luz industrial dura vindo de cima-direita, contaminação verde sutil só na atmosfera, tipografia bold condensada integrada à parede, objeto de contexto sutil. Use a identidade e o nicho das memórias.
 Ao final da sua resposta, quando for para gerar imagem, inclua a tag:
-<gerar_imagem>{"prompt":"<prompt completo em inglês no padrão acima, com o texto/headline do post>","tamanho":"4:5","usar_foto":true}</gerar_imagem>
-(usar_foto:true tenta usar a foto real do cliente como base; tamanho 1:1, 4:5 ou 16:9). Gere no máximo 1 tag por resposta. Antes da tag, descreva brevemente o conceito ao cliente em português.`,
+<gerar_imagem>{"prompt":"<prompt completo em inglês no padrão Cinematic Editorial Realism, com o texto/headline exato do post entre aspas para a IA escrever na arte>","tamanho":"4:5"}</gerar_imagem>
+(tamanho 1:1, 4:5 ou 16:9). Gere no máximo 1 tag por resposta. IMPORTANTE: descreva no prompt a pessoa/cena desejada em detalhes, pois a IA gera do zero. Antes da tag, descreva brevemente o conceito ao cliente em português.`,
   publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (plano Plus+). Missão: agendamento e publicação. Oriente sobre melhores horários do público do cliente, frequência ideal e organização da fila de aprovação. Publicação automática real acontece via painel de aprovações.`,
   trafego: `Você é o AGENTE DE TRÁFEGO do JUMP OS (plano Pro). Missão: gestão de Meta Ads. Estruture campanhas com 4 públicos (quente, lookalike, interesse, retargeting), distribua budget, analise ROAS/CPL que o cliente trouxer e proponha correções objetivas com justificativa.`,
   video: `Você é o AGENTE EDITOR DE VÍDEO do JUMP OS (plano Pro). Missão: direção de edição de Reels. A partir do vídeo bruto/roteiro do cliente: pontos de corte, legendas, efeitos, trilha e versões por plataforma (Reels, Stories, TikTok, Shorts). Hook visual nos 3 primeiros segundos sempre.`,
@@ -95,6 +115,18 @@ const handler = async (req, res) => {
       return res.status(403).json({error:'Limite mensal de uso atingido.',limite:true});
     }
 
+    // Acervo de imagens (pré-requisito do Identidade)
+    let acervoTxt='';
+    if(agente==='identidade'){
+      try{
+        const ups=await sbGet(`uploads?user_id=eq.${user.id}&select=categoria`);
+        const cats={};(Array.isArray(ups)?ups:[]).forEach(u=>cats[u.categoria]=(cats[u.categoria]||0)+1);
+        const logo=cats.logo||0,pess=cats.pessoais||0,prod=cats.produtos||0;
+        acervoTxt=`\nACERVO DE IMAGENS DO CLIENTE: logo=${logo}, fotos pessoais=${pess}, produtos=${prod}.`
+          +((logo+pess+prod)===0?' ATENÇÃO: acervo VAZIO — peça para enviar imagens em "Meus arquivos" ANTES de iniciar a consultoria.':' Acervo disponível — pode analisar a identidade visual.');
+      }catch(e){}
+    }
+
     // Memórias (agente + globais)
     let mems=await sbGet(`memorias?user_id=eq.${user.id}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
     if(!Array.isArray(mems))mems=[];
@@ -108,7 +140,7 @@ const handler = async (req, res) => {
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
     messages.push({role:'user',content:mensagem});
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.\n${memTxt}\n${REGRAS_GERAIS}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
@@ -129,6 +161,34 @@ const handler = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.prompt)imgReq=o}catch(e){}
       return '';
     });
+
+    // Extrair aplicação de tema (Identidade customiza a dashboard)
+    let aplicarTema=null;
+    texto=texto.replace(/<aplicar_tema>([\s\S]*?)<\/aplicar_tema>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.c1)aplicarTema=o}catch(e){}
+      return '';
+    });
+    if(aplicarTema){
+      try{
+        const temaAtual=Object.assign({},cli.tema||{},aplicarTema,{bg:(cli.tema&&cli.tema.bg)||'escuro'});
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`,{method:'PATCH',headers:H(),body:JSON.stringify({tema:temaAtual})});
+      }catch(e){}
+    }
+
+    // Extrair ordens de serviço entre agentes (registra para execução)
+    const ordens=[];
+    texto=texto.replace(/<ordem_servico>([\s\S]*?)<\/ordem_servico>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa)ordens.push(o)}catch(e){}
+      return '';
+    });
+    if(ordens.length){
+      try{
+        await Promise.all(ordens.map(o=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({user_id:user.id,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:'pendente'})
+        }).catch(()=>{})));
+      }catch(e){}
+    }
 
     // Auto-aprendizado: extrair memórias
     const novas=[];
@@ -168,7 +228,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${user.id}`,{uso:novoUso}),
     ]);
 
-    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq});
+    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
