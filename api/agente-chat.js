@@ -34,7 +34,8 @@ DOIS CAMINHOS — após a análise visual, ofereça ao cliente (e aguarde a esco
 • SUGERIR NOVA: se ele quer evoluir, proponha paleta/tipografia otimizadas com justificativa, cruzando com benchmarks do nicho.
 Quando o cliente responder "manter" use as cores reais; quando responder "sugerir/nova" proponha as otimizadas. Em ambos os casos o OS_DATA é preenchido e o tema é aplicado.
 
-ENTREGA — gere o OS_DATA completo (ficha técnica da marca) e registre CADA campo como tag <memoria> separada (base de todos os agentes):
+ENTREGA — REGRA CRÍTICA DE ORDEM: ao concluir a consultoria, comece a resposta JÁ com as tags técnicas (memórias, tema, ordem, checkin) e SÓ DEPOIS escreva o resumo bonito para o cliente. As tags vêm PRIMEIRO para nunca se perderem. 
+Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"marca","valor":"..."}</memoria>
 <memoria>{"chave":"nicho","valor":"..."}</memoria>
 <memoria>{"chave":"arquetipo","valor":"..."}</memoria>
@@ -181,7 +182,7 @@ const handler = async (req, res) => {
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-      body:JSON.stringify({model:MODEL(),max_tokens:1100,system,messages}),
+      body:JSON.stringify({model:MODEL(),max_tokens:(agente==='identidade'||agente==='estrategia')?3000:1100,system,messages}),
     });
     const data=await aRes.json();
     if(!aRes.ok){
