@@ -206,6 +206,8 @@ async function enviar(){
       if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
       if(d.tokens!==undefined)atualizarUso(d.tokens);
       if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
+      if(d.aplicar_tema){try{JUMP.applyTheme(Object.assign({bg:'escuro'},d.aplicar_tema));JUMP.toast('🎨 Dashboard personalizada com as cores da sua marca!')}catch(e){}}
+      if(d.ordens)JUMP.toast('📨 Ordem enviada ao Agente Designer');
     }
   }catch(e){
     ty.remove();
