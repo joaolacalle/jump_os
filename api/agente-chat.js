@@ -27,7 +27,12 @@ PRÉ-REQUISITO: o cliente já enviou imagens (logo/fotos/produtos) no acervo. Se
 
 CONDUÇÃO (uma pergunta por vez, leve e profissional): 1) marca e nicho específico, 2) produto/serviço e preços, 3) público-alvo (dores e desejos), 4) diferenciais reais, 5) faturamento/ticket aproximado e momento (validação/tração/crescimento/escala), 6) tom desejado e como quer ser visto.
 
-ANÁLISE (seja honesto, nunca elogie o que está fraco): avalie a logo e os criativos enviados — o que funciona, o que não funciona, adequação ao nicho, consistência, hierarquia, paleta. Cruze com benchmarks do nicho e aponte o gap de diferenciação.
+ANÁLISE VISUAL (você RECEBE as imagens reais do cliente): extraia as CORES EXATAS da logo (informe os hex aproximados que você observa), a tipografia aparente e o estilo. Seja honesto sobre qualidade, consistência e adequação ao nicho.
+
+DOIS CAMINHOS — após a análise visual, ofereça ao cliente (e aguarde a escolha dele):
+• MANTER IDENTIDADE: se ele quer preservar a marca atual, use as CORES e FONTES REAIS que você extraiu da logo para preencher o OS_DATA. NÃO sugira mudança visual — apenas registre o que já existe e siga para os dados de negócio.
+• SUGERIR NOVA: se ele quer evoluir, proponha paleta/tipografia otimizadas com justificativa, cruzando com benchmarks do nicho.
+Quando o cliente responder "manter" use as cores reais; quando responder "sugerir/nova" proponha as otimizadas. Em ambos os casos o OS_DATA é preenchido e o tema é aplicado.
 
 ENTREGA — gere o OS_DATA completo (ficha técnica da marca) e registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"marca","valor":"..."}</memoria>
@@ -138,7 +143,37 @@ const handler = async (req, res) => {
     let hist=await sbGet(`chat_mensagens?user_id=eq.${user.id}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
     if(!Array.isArray(hist))hist=[];
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
-    messages.push({role:'user',content:mensagem});
+
+    // VISÃO: o Identidade enxerga a logo/criativos reais para extrair cores e estilo
+    let conteudoUser=mensagem;
+    if(agente==='identidade' && /analis|cor|identidade|logo|marca|come[çc]ar|iniciar|sim/i.test(mensagem)){
+      try{
+        const imgs=await sbGet(`uploads?user_id=eq.${user.id}&categoria=in.(logo,criativos,produtos)&select=url,categoria&limit=3`);
+        const arr=Array.isArray(imgs)?imgs:[];
+        if(arr.length){
+          const blocks=[];
+          for(const im of arr){
+            try{
+              const r=await fetch(im.url);
+              if(r.ok){
+                const ct=r.headers.get('content-type')||'image/png';
+                if(/image\/(png|jpe?g|webp|gif)/.test(ct)){
+                  const buf=Buffer.from(await r.arrayBuffer());
+                  if(buf.length<4500000){ // <4.5MB
+                    blocks.push({type:'image',source:{type:'base64',media_type:ct.split(';')[0],data:buf.toString('base64')}});
+                  }
+                }
+              }
+            }catch(e){}
+          }
+          if(blocks.length){
+            blocks.push({type:'text',text:mensagem+'\n\n[As imagens acima são a logo/criativos REAIS do cliente. Extraia as cores exatas (hex aproximados), a tipografia aparente e avalie a qualidade visual a partir delas.]'});
+            conteudoUser=blocks;
+          }
+        }
+      }catch(e){}
+    }
+    messages.push({role:'user',content:conteudoUser});
 
     const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
 
