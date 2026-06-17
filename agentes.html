@@ -207,6 +207,12 @@ async function enviar(){
       if(d.tokens!==undefined)atualizarUso(d.tokens);
       if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
       if(d.aplicar_tema){try{JUMP.applyTheme(Object.assign({bg:'escuro'},d.aplicar_tema));JUMP.toast('🎨 Dashboard personalizada com as cores da sua marca!')}catch(e){}}
+      // botões de escolha quando o Identidade oferece manter/sugerir
+      if(AG==='identidade' && /manter identidade|sugerir nova|dois caminhos|preservar.*marca|evoluir/i.test(d.resposta||'') && !document.querySelector('.id-choice')){
+        const w=document.getElementById('msgs');const box=document.createElement('div');box.className='msg a id-choice';
+        box.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn btn-g btn-sm" onclick="escolhaId(\'Quero MANTER minha identidade atual. Use as cores e fontes reais da minha logo.\',this)">✓ Manter minha identidade</button><button class="btn btn-o btn-sm" onclick="escolhaId(\'Quero que você SUGIRA uma nova identidade visual otimizada.\',this)">✨ Sugerir nova</button></div>';
+        w.appendChild(box);w.scrollTop=w.scrollHeight;
+      }
       if(d.ordens)JUMP.toast('📨 Ordem enviada ao Agente Designer');
     }
   }catch(e){
@@ -244,6 +250,10 @@ async function gerarImagem(req,btn){
     btn.disabled=false;btn.innerHTML='✨ Gerar imagem';
     JUMP.toast(e.message,'err');
   }
+}
+function escolhaId(txt,btn){
+  document.querySelectorAll('.id-choice').forEach(e=>e.remove());
+  document.getElementById('inp').value=txt;enviar();
 }
 async function baixarImg(url,btn){
   if(btn){btn.disabled=true;btn.innerHTML='<span class=\"spin-i\"></span> Baixando...'}
