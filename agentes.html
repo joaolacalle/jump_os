@@ -167,6 +167,9 @@ async function selecionar(id){
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
 
+async function logChat(role,texto,agente){
+  try{await JUMP.sb.from('chat_mensagens').insert({user_id:CTX.user.id,agente:agente||AG,role:role,conteudo:texto})}catch(e){}
+}
 async function verificarOrdens(){
   try{
     const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
@@ -211,6 +214,8 @@ async function executarOrdens(btn){
     await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
     if(box)box.remove();
     JUMP.toast('✓ Ficha técnica e logo geradas!');
+    await logChat('user','[Executei a ordem: gerar ficha técnica + logo]','criativo');
+    await logChat('assistant','Gerei sua ficha técnica visual e a sugestão de logo a partir do seu OS_DATA. Veja acima.','criativo');
     // RETORNO (Rota 1): pergunta sobre aplicar a dashboard + orienta próximo
     mostrarRetornoFicha();
   }catch(e){
@@ -242,10 +247,12 @@ async function aplicarTemaOSData(btn){
     if(e2)throw e2;
     CTX.cliente.tema=tema;
     JUMP.toast('🎨 Dashboard personalizada! Cor principal: '+c1);
+    await logChat('user','[Escolhi: aplicar as cores da marca na dashboard]','criativo');
+    await logChat('assistant','Apliquei as cores da sua marca na dashboard (principal '+c1+'). Você pode reajustar em Configurações quando quiser.','criativo');
   }catch(e){console.error('aplicar tema:',e);JUMP.toast('Erro ao aplicar: '+(e.message||'tente nas Configurações'),'err')}
   finalizarRota1(btn);
 }
-function manterTema(btn){JUMP.toast('Visual atual mantido.');finalizarRota1(btn);}
+async function manterTema(btn){JUMP.toast('Visual atual mantido.');await logChat('user','[Escolhi: manter o visual atual da dashboard]','criativo');await logChat('assistant','Perfeito, mantive o visual atual. Sua identidade está registrada e disponível para os próximos agentes.','criativo');finalizarRota1(btn);}
 async function finalizarRota1(btn){
   const box=document.querySelector('.retorno-ficha');if(box)box.remove();
   try{const ob=Object.assign({},CTX.cliente.onboarding||{},{identidade:true});await JUMP.sb.from('clientes').update({onboarding:ob}).eq('id',CTX.user.id);CTX.cliente.onboarding=ob;}catch(e){}
@@ -253,6 +260,7 @@ async function finalizarRota1(btn){
   const m=document.createElement('div');m.className='msg a';
   m.innerHTML='🎯 <b>Identidade concluída!</b> Próximo passo: vá ao <b>Agente de Mercado</b> para analisarmos seus concorrentes e oportunidades do nicho.';
   w.appendChild(m);w.scrollTop=w.scrollHeight;
+  await logChat('assistant','Identidade concluída! Próximo passo: vá ao Agente de Mercado para analisarmos seus concorrentes e oportunidades do nicho.','criativo');
 }
 async function gerarPorOrdem(prompt,tamanho,tipo,titulo){
   const w=document.getElementById('msgs');
@@ -349,6 +357,8 @@ async function gerarImagem(req,btn){
     w.appendChild(img);w.scrollTop=w.scrollHeight;
     btn.parentElement.remove();
     JUMP.toast('✓ Imagem gerada e salva!');
+    await logChat('user','[Gerei uma imagem]',AG);
+    await logChat('assistant','Imagem gerada e salva em Meus Arquivos.',AG);
   }catch(e){
     btn.disabled=false;btn.innerHTML='✨ Gerar imagem';
     JUMP.toast(e.message,'err');
