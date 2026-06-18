@@ -163,8 +163,67 @@ async function selecionar(id){
   }catch(e){}
   w.scrollTop=w.scrollHeight;
   document.getElementById('inp').focus();
+  if(id==='criativo')verificarOrdens();
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
+
+async function verificarOrdens(){
+  try{
+    const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
+    if(!data||!data.length)return;
+    const w=document.getElementById('msgs');
+    const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
+    const box=document.createElement('div');box.className='msg a ordens-box';
+    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div><button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordens (gera ficha técnica + logo)</button>';
+    w.appendChild(box);w.scrollTop=w.scrollHeight;
+  }catch(e){}
+}
+
+async function executarOrdens(btn){
+  const box=document.querySelector('.ordens-box');
+  const b=box?box.querySelector('button'):null;
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Gerando ficha técnica + logo...'}
+  try{
+    // Monta o prompt da ficha técnica + logo a partir do OS_DATA (memórias)
+    const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.user.id);
+    const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
+    const marca=M.marca||CTX.cliente.nome||'Marca';
+    const paleta=(M.paleta_primaria||'#00E676')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
+    const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
+    const estilo=M.estilo_visual||'EDITORIAL';
+
+    // 1) Ficha técnica visual (brand board)
+    const promptFicha='Professional brand identity guide board (brand style sheet) for "'+marca+'". Show: color palette swatches with hex codes ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid. High quality, realistic design presentation. Text must be sharp and correct.';
+    await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual');
+
+    // 2) Sugestão de logo
+    const promptLogo='Minimalist professional logo design for "'+marca+'", '+estilo+' style, using colors '+paleta+'. Clean, modern, memorable mark + wordmark. Centered on neutral background, high contrast, vector-like, premium branding. Single logo concept, sharp and legible.';
+    await gerarPorOrdem(promptLogo,'1:1','conceitual','Sugestão de logo');
+
+    // marca ordens como concluídas
+    await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
+    if(box)box.remove();
+    JUMP.toast('✓ Ficha técnica e logo geradas!');
+  }catch(e){
+    if(b){b.disabled=false;b.innerHTML='⚡ Executar ordens (gera ficha técnica + logo)'}
+    JUMP.toast(e.message||'Erro ao executar ordens','err');
+  }
+}
+
+async function gerarPorOrdem(prompt,tamanho,tipo,titulo){
+  const w=document.getElementById('msgs');
+  const lbl=document.createElement('div');lbl.className='msg a';
+  lbl.innerHTML='🎨 <b>'+titulo+'</b> — gerando...';
+  w.appendChild(lbl);w.scrollTop=w.scrollHeight;
+  const r=await fetch('/api/gerar-imagem',{
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+    body:JSON.stringify({prompt,tamanho,tipo})
+  });
+  const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
+  if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));
+  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+d.url+'\',this)">⬇ Baixar</button>';
+  w.scrollTop=w.scrollHeight;
+}
 function addMsg(cls,txt,meta){
   const w=document.getElementById('msgs');
   const e=document.getElementById('empty');if(e)e.remove();
@@ -235,7 +294,7 @@ async function gerarImagem(req,btn){
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5'})
+      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual'})
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
