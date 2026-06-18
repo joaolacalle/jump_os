@@ -48,16 +48,31 @@ module.exports = async (req, res) => {
     });
     const result = await r.json();
     if (!r.ok) {
-      console.error('openai dalle:', JSON.stringify(result).slice(0, 300));
-      const msg = (result.error && result.error.message) || 'Falha ao gerar imagem.';
-      return res.status(500).json({ error: msg.includes('billing') || msg.includes('quota') ? 'Sem créditos na OpenAI. Adicione em platform.openai.com → Billing.' : 'Falha ao gerar imagem. Tente novamente.' });
+      const detalhe = (result.error && result.error.message) || JSON.stringify(result).slice(0, 200);
+      console.error('openai dalle:', detalhe);
+      let amigavel = 'Falha ao gerar imagem. Tente novamente.';
+      if (/billing|quota|insufficient/i.test(detalhe)) amigavel = 'Sem créditos na OpenAI. Adicione em platform.openai.com → Billing.';
+      else if (/content_policy|safety/i.test(detalhe)) amigavel = 'O conteúdo do prompt foi recusado pela OpenAI. Ajuste a descrição e tente de novo.';
+      else if (/size|dimension/i.test(detalhe)) amigavel = 'Formato de imagem inválido. Tente outro tamanho.';
+      else if (/api key|invalid|authentication/i.test(detalhe)) amigavel = 'Chave da OpenAI inválida. Verifique a OPENAI_API_KEY na Vercel.';
+      return res.status(500).json({ error: amigavel, detalhe: detalhe.slice(0, 160) });
     }
     const tempUrl = result.data && result.data[0] && result.data[0].url;
     if (!tempUrl) return res.status(500).json({ error: 'Resposta sem imagem' });
 
-    // Baixar a imagem da URL temporária da OpenAI
-    const imgResp = await fetch(tempUrl);
-    const bytes = Buffer.from(await imgResp.arrayBuffer());
+    // Baixar a imagem da URL temporária da OpenAI (com proteção)
+    let bytes;
+    try {
+      const imgResp = await fetch(tempUrl);
+      if (!imgResp.ok) throw new Error('download falhou ' + imgResp.status);
+      bytes = Buffer.from(await imgResp.arrayBuffer());
+    } catch (e) {
+      console.error('download temp url:', e.message);
+      // fallback: devolve a própria URL temporária da OpenAI (válida ~1h) para o cliente ver
+      uso.imagens = Number(uso.imagens || 0) + 1;
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
+      return res.status(200).json({ ok: true, url: tempUrl, usadas: uso.imagens, limite: lim.imagens || 0, aviso: 'temporaria' });
+    }
 
     // Salvar no Storage do Supabase
     const fileName = `${user.id}/gerados/${Date.now()}.png`;
@@ -66,7 +81,14 @@ module.exports = async (req, res) => {
       headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/png' },
       body: bytes,
     });
-    if (!up.ok) { console.error('storage:', await up.text()); return res.status(500).json({ error: 'Falha ao salvar imagem' }); }
+    if (!up.ok) {
+      const et = await up.text();
+      console.error('storage:', et);
+      // não perde a imagem: devolve a URL temporária da OpenAI
+      uso.imagens = Number(uso.imagens || 0) + 1;
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
+      return res.status(200).json({ ok: true, url: tempUrl, usadas: uso.imagens, limite: lim.imagens || 0, aviso: 'storage_falhou' });
+    }
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/user-uploads/${fileName}`;
 
     // Registrar na biblioteca (aba "Gerados por IA")
