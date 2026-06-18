@@ -193,7 +193,7 @@ async function executarOrdens(btn){
     const estilo=M.estilo_visual||'EDITORIAL';
 
     // 1) Ficha técnica visual (brand board)
-    const promptFicha='Professional brand identity guide board (brand style sheet) for "'+marca+'". Show: color palette swatches with hex codes ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid. High quality, realistic design presentation. Text must be sharp and correct.';
+    const promptFicha='Professional brand identity guide board (brand style sheet). Show ONLY: a color palette with swatches ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid, generous spacing between text. Do NOT invent any logo or brand symbol. High quality realistic design presentation, sharp legible text with correct letter spacing.';
     await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual');
 
     // 2) Sugestão de logo (adaptada ao nicho/arquétipo do OS_DATA)
@@ -225,23 +225,24 @@ function mostrarRetornoFicha(){
   box.innerHTML='✅ <b>Ficha técnica concluída.</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">Quer aplicar estas cores da sua marca na sua dashboard (botões, gráficos, menu)? Você pode manter o visual atual se preferir.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g btn-sm" onclick="aplicarTemaOSData(this)">Aplicar na minha dashboard</button><button class="btn btn-o btn-sm" onclick="manterTema(this)">Manter atual</button></div>';
   w.appendChild(box);w.scrollTop=w.scrollHeight;
 }
+function _hex(s){const m=(s||'').match(/#?[0-9a-fA-F]{6}/);return m?(m[0][0]==='#'?m[0]:'#'+m[0]):null}
 async function aplicarTemaOSData(btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aplicando...'}
   try{
-    const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.user.id);
+    const{data:mems,error}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.user.id);
+    if(error)throw error;
     const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
-    const p1=(M.paleta_primaria||'').split(',').map(s=>s.trim()).filter(Boolean);
-    const p2=(M.paleta_secundaria||'').split(',').map(s=>s.trim()).filter(Boolean);
-    const tema={
-      c1:p1[0]||'#00E676',
-      c2:p2[0]||p1[1]||'#00D4FF',
-      c3:(M.cor_cta||p1[2]||'#A855F7'),
-      c4:p1[0]?undefined:'#141312',
-      bg:'escuro'
-    };
+    const p1=(M.paleta_primaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
+    const p2=(M.paleta_secundaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
+    const cta=_hex(M.cor_cta);
+    const c1=p1[0]||cta||'#00E676';
+    const tema={c1:c1,c2:p2[0]||p1[1]||'#00D4FF',c3:cta||p1[2]||'#A855F7',c4:'#141312',bg:'escuro'};
     JUMP.applyTheme(tema);
-    await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.user.id);
-    JUMP.toast('🎨 Dashboard personalizada com sua marca!');
-  }catch(e){JUMP.toast('Não consegui aplicar agora','err')}
+    const{error:e2}=await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.user.id);
+    if(e2)throw e2;
+    CTX.cliente.tema=tema;
+    JUMP.toast('🎨 Dashboard personalizada! Cor principal: '+c1);
+  }catch(e){console.error('aplicar tema:',e);JUMP.toast('Erro ao aplicar: '+(e.message||'tente nas Configurações'),'err')}
   finalizarRota1(btn);
 }
 function manterTema(btn){JUMP.toast('Visual atual mantido.');finalizarRota1(btn);}
