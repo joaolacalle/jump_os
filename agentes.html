@@ -196,20 +196,63 @@ async function executarOrdens(btn){
     const promptFicha='Professional brand identity guide board (brand style sheet) for "'+marca+'". Show: color palette swatches with hex codes ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid. High quality, realistic design presentation. Text must be sharp and correct.';
     await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual');
 
-    // 2) Sugestão de logo
-    const promptLogo='Minimalist professional logo design for "'+marca+'", '+estilo+' style, using colors '+paleta+'. Clean, modern, memorable mark + wordmark. Centered on neutral background, high contrast, vector-like, premium branding. Single logo concept, sharp and legible.';
+    // 2) Sugestão de logo (adaptada ao nicho/arquétipo do OS_DATA)
+    const nicho=M.nicho||'';const arquetipo=M.arquetipo||'';const dna=M.dna_visual||'';
+    const promptLogo='Design ONE professional brand logo for "'+marca+'". '
+      +'Niche: '+nicho+'. Brand archetype: '+arquetipo+'. Visual DNA: '+dna+'. '
+      +'Style: '+estilo+'. Colors: '+paleta+'. '
+      +'Create a complete logo lockup: a distinctive ICON/symbol that represents the niche (memorable, geometric or organic as fits the archetype) combined with a clean wordmark of the brand name. '
+      +'Show the logo centered on a neutral premium background, plus a small variation (icon alone) in a corner. '
+      +'Professional vector-style branding, sharp edges, high contrast, balanced spacing, agency-level quality. '
+      +'The brand name text must be spelled EXACTLY "'+marca+'", perfectly legible, no distortion. Avoid generic clipart, avoid stock symbols.';
     await gerarPorOrdem(promptLogo,'1:1','conceitual','Sugestão de logo');
 
     // marca ordens como concluídas
     await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
     if(box)box.remove();
     JUMP.toast('✓ Ficha técnica e logo geradas!');
+    // RETORNO (Rota 1): pergunta sobre aplicar a dashboard + orienta próximo
+    mostrarRetornoFicha();
   }catch(e){
     if(b){b.disabled=false;b.innerHTML='⚡ Executar ordens (gera ficha técnica + logo)'}
     JUMP.toast(e.message||'Erro ao executar ordens','err');
   }
 }
 
+function mostrarRetornoFicha(){
+  const w=document.getElementById('msgs');
+  const box=document.createElement('div');box.className='msg a retorno-ficha';
+  box.innerHTML='✅ <b>Ficha técnica concluída.</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">Quer aplicar estas cores da sua marca na sua dashboard (botões, gráficos, menu)? Você pode manter o visual atual se preferir.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g btn-sm" onclick="aplicarTemaOSData(this)">Aplicar na minha dashboard</button><button class="btn btn-o btn-sm" onclick="manterTema(this)">Manter atual</button></div>';
+  w.appendChild(box);w.scrollTop=w.scrollHeight;
+}
+async function aplicarTemaOSData(btn){
+  try{
+    const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.user.id);
+    const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
+    const p1=(M.paleta_primaria||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const p2=(M.paleta_secundaria||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const tema={
+      c1:p1[0]||'#00E676',
+      c2:p2[0]||p1[1]||'#00D4FF',
+      c3:(M.cor_cta||p1[2]||'#A855F7'),
+      c4:p1[0]?undefined:'#141312',
+      bg:'escuro'
+    };
+    JUMP.applyTheme(tema);
+    await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.user.id);
+    JUMP.toast('🎨 Dashboard personalizada com sua marca!');
+  }catch(e){JUMP.toast('Não consegui aplicar agora','err')}
+  finalizarRota1(btn);
+}
+function manterTema(btn){JUMP.toast('Visual atual mantido.');finalizarRota1(btn);}
+async function finalizarRota1(btn){
+  const box=document.querySelector('.retorno-ficha');if(box)box.remove();
+  try{const ob=Object.assign({},CTX.cliente.onboarding||{},{identidade:true});await JUMP.sb.from('clientes').update({onboarding:ob}).eq('id',CTX.user.id);CTX.cliente.onboarding=ob;}catch(e){}
+  const w=document.getElementById('msgs');
+  const m=document.createElement('div');m.className='msg a';
+  m.innerHTML='🎯 <b>Identidade concluída!</b> Próximo passo: vá ao <b>Agente de Mercado</b> para analisarmos seus concorrentes e oportunidades do nicho.';
+  w.appendChild(m);w.scrollTop=w.scrollHeight;
+}
 async function gerarPorOrdem(prompt,tamanho,tipo,titulo){
   const w=document.getElementById('msgs');
   const lbl=document.createElement('div');lbl.className='msg a';
