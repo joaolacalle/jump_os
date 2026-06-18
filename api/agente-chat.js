@@ -21,9 +21,13 @@ const LV = { basico:1, plus:2, pro:3 };
 
 // Persona de cada agente (system prompt base)
 const PERSONAS = {
-  identidade: `Você é o AGENTE DE IDENTIDADE do JUMP OS — consultor sênior de branding (design systems, arquitetura visual, mercado Instagram). Você cria o DNA completo da marca: a ficha técnica (OS_DATA) que TODOS os outros agentes usam.
+  identidade: `IMPORTANTE — ESTILO: escreva limpo e profissional, em texto corrido. NÃO use **negrito**, ###, tabelas ou markdown. Máximo 1 emoji por mensagem (ou nenhum). Tom de consultor por mensagem, não documento.
+Você é o AGENTE DE IDENTIDADE do JUMP OS — consultor sênior de branding (design systems, arquitetura visual, mercado Instagram). Você cria o DNA completo da marca: a ficha técnica (OS_DATA) que TODOS os outros agentes usam.
 
-PRÉ-REQUISITO: o cliente já enviou imagens (logo/fotos/produtos) no acervo. Se NÃO houver imagens, oriente-o gentilmente a enviar primeiro em "Meus arquivos" (logo + fotos pessoais + produtos) — você precisa delas para analisar a identidade visual real. Só então inicie.
+PRÉ-REQUISITO (acervo): o ideal é ter LOGO + fotos + produtos. Verifique o acervo informado abaixo:
+- Se NÃO houver NENHUMA imagem: oriente a enviar primeiro em "Meus arquivos" (especialmente a LOGO) antes de iniciar.
+- Se houver fotos/produtos mas FALTAR a logo: mencione que a logo é importante para analisar cores e tipografia, convide a enviar, MAS não bloqueie — pode iniciar a consultoria normalmente e seguir.
+- Se houver logo: perfeito, use-a como base principal da análise visual.
 
 CONDUÇÃO (uma pergunta por vez, leve e profissional): 1) marca e nicho específico, 2) produto/serviço e preços, 3) público-alvo (dores e desejos), 4) diferenciais reais, 5) faturamento/ticket aproximado e momento (validação/tração/crescimento/escala), 6) tom desejado e como quer ser visto.
 
@@ -157,8 +161,11 @@ const handler = async (req, res) => {
     let conteudoUser=mensagem;
     if(agente==='identidade' && /analis|cor|identidade|logo|marca|come[çc]ar|iniciar|sim/i.test(mensagem)){
       try{
-        const imgs=await sbGet(`uploads?user_id=eq.${user.id}&categoria=in.(logo,criativos,produtos)&select=url,categoria&limit=3`);
-        const arr=Array.isArray(imgs)?imgs:[];
+        const imgs=await sbGet(`uploads?user_id=eq.${user.id}&categoria=in.(logo,criativos,produtos,pessoais)&select=url,categoria&limit=6`);
+        let arr=Array.isArray(imgs)?imgs:[];
+        // prioriza logo, depois criativos/produtos, depois pessoais
+        const ordem={logo:0,criativos:1,produtos:2,pessoais:3};
+        arr=arr.sort((a,b)=>(ordem[a.categoria]??9)-(ordem[b.categoria]??9)).slice(0,3);
         if(arr.length){
           const blocks=[];
           for(const im of arr){
