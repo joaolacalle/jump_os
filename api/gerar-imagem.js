@@ -98,11 +98,12 @@ module.exports = async (req, res) => {
         body: form,
       });
     } else {
-      // text-to-image (sem acervo): gera do zero
+      // text-to-image (sem logo no acervo): NUNCA inventar logo/nome de marca
+      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write or invent any logo, brand name or brand signature in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text.';
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt, size, n: 1, quality: 'high' }),
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'high' }),
       });
     }
     const result = await r.json();
