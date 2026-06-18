@@ -57,12 +57,15 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"tom_de_voz","valor":"..."}</memoria>
 <memoria>{"chave":"estilo_visual","valor":"EDITORIAL/MINIMAL/TECNOLOGICO/LUXO/STREET/CORPORATIVO"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
+⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
+
 FLUXO FINAL (ordem obrigatória):
-1) Registre as memórias do OS_DATA (tags acima) e finalize a consultoria com <checkin_completo/>.
-2) Dispare a ordem ao Designer para gerar a ficha técnica visual:
+1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora.
+2) Registre as memórias do OS_DATA (tags acima) e finalize a consultoria com <checkin_completo/>.
+3) Dispare a ordem ao Designer para gerar a ficha técnica visual:
 <ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
-3) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
-4) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
+4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
+5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
 - c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos, menu)
 - c2 (secundária) = segunda cor da paleta (textos de apoio)
 - c3 (terciária) = cor_cta ou terceira cor (recursos Pro, detalhes, fontes menores)
