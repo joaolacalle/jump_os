@@ -239,7 +239,7 @@ async function gerarImagem(req,btn){
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
-    if(!r.ok){if(d&&d.limite){btn.parentElement.innerHTML='🚦 Limite mensal de imagens atingido. Fale com seu gestor.';return}throw new Error(d.error||'Erro ao gerar')}
+    if(!r.ok){if(d&&d.limite){btn.parentElement.innerHTML='🚦 Limite mensal de imagens atingido. Fale com seu gestor.';return}throw new Error((d.error||'Erro ao gerar')+(d.detalhe?(' — '+d.detalhe):''))}
     const w=document.getElementById('msgs');
     const img=document.createElement('div');img.className='msg a';
     img.innerHTML='<img src="'+d.url+'" style="width:100%;border-radius:10px;display:block" alt="criativo gerado"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">imagem '+d.usadas+(d.limite?'/'+d.limite:'')+' do mês · salva em Meus arquivos</div><button class="btn btn-o btn-sm" style="margin-top:7px" onclick="baixarImg(\''+d.url+'\',this)">⬇ Baixar</button>';
