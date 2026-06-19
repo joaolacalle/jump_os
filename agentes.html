@@ -168,7 +168,10 @@ async function selecionar(id){
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
 
 async function logChat(role,texto,agente){
-  try{await JUMP.sb.from('chat_mensagens').insert({user_id:CTX.user.id,agente:agente||AG,role:role,conteudo:texto})}catch(e){}
+  try{
+    const{error}=await JUMP.sb.from('chat_mensagens').insert({user_id:CTX.user.id,agente:agente||AG,role:role,conteudo:texto});
+    if(error)console.error('logChat falhou:',error.message);
+  }catch(e){console.error('logChat erro:',e)}
 }
 async function verificarOrdens(){
   try{
