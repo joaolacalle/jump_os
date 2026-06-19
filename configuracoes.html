@@ -91,7 +91,7 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro',c5
       document.getElementById('cfg-nome').value=(CTX.viewCliente&&CTX.viewCliente.nome)||CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
-    const p=CTX.cliente.plano||'basico';
+    const p=(CTX.viewCliente||CTX.cliente).plano||'basico';
     document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
     document.getElementById('cfg-status').textContent=CTX.cliente.cortesia_ate?'cortesia ativa':(CTX.cliente.status||'');
     document.getElementById('loading').classList.add('hide');

@@ -208,10 +208,11 @@ function flipCard(id,nr,num,lbl,backT,backX){
     }
     JUMP.setUser(viewing||cliente,viewing?{email:viewing.email,user_metadata:{nome:viewing.nome}}:user);
 
-    const plano=cliente.plano||'basico';
+    const _conta=viewing||cliente;
+    const plano=_conta.plano||'basico';
     const level=LV[plano]||1;
     document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
-    document.getElementById('hd-status').textContent=(cliente.status==='ativo')?'operando.':'aguardando ativação.';
+    document.getElementById('hd-status').textContent=(_conta.status==='ativo')?'operando.':'aguardando ativação.';
     const uid=viewing?viewing.id:user.id;
 
     /* Banner pagamento */

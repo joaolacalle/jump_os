@@ -127,7 +127,7 @@ const AGS=[
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
 })();
-function nivel(){return LV[CTX.cliente.plano]||1}
+function nivel(){return LV[(CTX.viewCliente&&CTX.viewCliente.plano)||CTX.cliente.plano]||1}
 function renderList(){
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
