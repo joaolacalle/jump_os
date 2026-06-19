@@ -58,7 +58,7 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: 'Limite mensal de imagens atingido.', limite: true });
     }
 
-    const { prompt, tamanho, tipo } = req.body || {};
+    const { prompt, tamanho, tipo, slide } = req.body || {};
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
     // gpt-image-1: 1024x1024, 1024x1536 (retrato 4:5), 1536x1024 (paisagem 16:9), auto
     const size = tamanho === '4:5' ? '1024x1536' : tamanho === '16:9' ? '1536x1024' : '1024x1024';
@@ -80,13 +80,16 @@ module.exports = async (req, res) => {
       // logo da marca (sempre que existir)
       const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
       if (Array.isArray(logos) && logos[0]) { const im = await baixarImg(logos[0].url); if (im) baseImgs.push({ ...im, tag: 'logo' }); }
-      // foto pessoal (só quando o post é de pessoa)
-      if (tipo === 'pessoa') {
+      // REGRA CARROSSEL: foto/produto SÓ no primeiro slide (slide 1 ou imagem única).
+      // Slides 2+ não usam foto/produto — mantêm só a identidade visual da marca.
+      const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
+      // foto pessoal (só quando o post é de pessoa E é o primeiro slide)
+      if (tipo === 'pessoa' && primeiroSlide) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(fotos) && fotos[0]) { const im = await baixarImg(fotos[0].url); if (im) baseImgs.push({ ...im, tag: 'pessoa' }); }
       }
-      // produto (quando o post é de produto)
-      if (tipo === 'produto') {
+      // produto (quando o post é de produto E é o primeiro slide)
+      if (tipo === 'produto' && primeiroSlide) {
         const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(prods) && prods[0]) { const im = await baixarImg(prods[0].url); if (im) baseImgs.push({ ...im, tag: 'produto' }); }
       }
@@ -107,11 +110,14 @@ module.exports = async (req, res) => {
       if (temProduto) {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
-      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), never recreated, redrawn or invented. ===';
+      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
       const instr = prompt + preserva;
       form.append('prompt', instr);
       form.append('size', size);
       form.append('quality', 'high');
+      // Ordem: referência principal (pessoa/produto) primeiro, logo por último
+      const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
+      baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
       for (const b of baseImgs) {
         form.append('image[]', new Blob([b.buf], { type: b.ct }), `${b.tag}.png`);
       }
@@ -122,7 +128,7 @@ module.exports = async (req, res) => {
       });
     } else {
       // text-to-image (sem logo no acervo): NUNCA inventar logo/nome de marca
-      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write or invent any logo, brand name or brand signature in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background that tells the brand story, realistic integration with consistent directional lighting and shadows. No flat backgrounds.';
+      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting anywhere in the image (not once, not twice). Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background that tells the brand story, realistic integration with consistent directional lighting and shadows. No flat backgrounds.';
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
