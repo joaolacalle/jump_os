@@ -116,7 +116,7 @@ module.exports = async (req, res) => {
       const instr = prompt + preserva;
       form.append('prompt', instr);
       form.append('size', size);
-      form.append('quality', 'medium');
+      form.append('quality', 'high');
       // Ordem: referência principal (pessoa/produto) primeiro, logo por último
       const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
       baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
@@ -140,7 +140,7 @@ module.exports = async (req, res) => {
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'medium' }),
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'high' }),
       });
     }
     const result = await r.json();
@@ -161,34 +161,41 @@ module.exports = async (req, res) => {
     if (!b64) return res.status(500).json({ error: 'Resposta sem imagem' });
     const bytes = Buffer.from(b64, 'base64');
 
-    // Salvar no Storage do Supabase
+    // ECONOMIA DE TEMPO (Hobby 60s): subir no storage e registrar AGORA, mas com timeout curto.
+    // Se o storage demorar, devolvemos base64 (a imagem nunca se perde).
     const fileName = `${targetId}/gerados/${Date.now()}.png`;
-    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/user-uploads/${fileName}`, {
-      method: 'POST',
-      headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/png' },
-      body: bytes,
-    });
-    if (!up.ok) {
-      const et = await up.text();
-      console.error('storage:', et);
-      // fallback: devolve a imagem como data URL (base64) para o cliente ver/baixar
-      uso.imagens = Number(uso.imagens || 0) + 1;
-      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
-      return res.status(200).json({ ok: true, url: 'data:image/png;base64,'+b64, usadas: uso.imagens, limite: lim.imagens || 0, aviso: 'storage_falhou' });
-    }
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/user-uploads/${fileName}`;
-
-    // Registrar na biblioteca (aba "Gerados por IA")
-    await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
-      method: 'POST', headers: SBH(),
-      body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
-    }).catch(() => {});
-
-    // Registrar uso de imagem
     uso.imagens = Number(uso.imagens || 0) + 1;
-    await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) });
 
-    return res.status(200).json({ ok: true, url: publicUrl, usadas: uso.imagens, limite: lim.imagens || 0 });
+    let publicUrl = null;
+    try {
+      const ctrl = new AbortController();
+      const tmo = setTimeout(() => ctrl.abort(), 12000); // máx 12s para o storage
+      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/user-uploads/${fileName}`, {
+        method: 'POST',
+        headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/png' },
+        body: bytes, signal: ctrl.signal,
+      });
+      clearTimeout(tmo);
+      if (up.ok) {
+        publicUrl = `${SUPABASE_URL}/storage/v1/object/public/user-uploads/${fileName}`;
+        // registrar na biblioteca + uso (não bloqueia se falhar)
+        await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
+          method: 'POST', headers: SBH(),
+          body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
+        }).catch(() => {});
+      }
+    } catch (e) { console.error('storage lento/falhou:', e.message); }
+
+    // registrar uso (rápido)
+    await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
+
+    // Se o storage funcionou, manda a URL; senão, manda base64 (imagem garantida)
+    return res.status(200).json({
+      ok: true,
+      url: publicUrl || ('data:image/png;base64,' + b64),
+      usadas: uso.imagens, limite: lim.imagens || 0,
+      aviso: publicUrl ? undefined : 'base64'
+    });
   } catch (e) {
     console.error('gerar-imagem:', e.message);
     return res.status(500).json({ error: 'Erro interno na geração' });
