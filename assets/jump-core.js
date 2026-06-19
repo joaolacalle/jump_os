@@ -8,9 +8,9 @@ window.JUMP=(function(){
     if(t.c2)r.setProperty('--a2',t.c2);
     if(t.c3)r.setProperty('--a3',t.c3);
     document.documentElement.setAttribute('data-theme',t.bg==='claro'?'light':'dark');
-    // cor de fundo customizada (c4) — sobrescreve o fundo do tema
-    if(t.c4){r.setProperty('--ch',t.c4);}
-    else{r.removeProperty('--ch');}
+    // c4 = fundo da área de conteúdo (--ch, aplicado no .main); c5 = fundo dos cards (--card)
+    if(t.c4){r.setProperty('--ch',t.c4);}else{r.removeProperty('--ch');}
+    if(t.c5){r.setProperty('--card',t.c5);}else{r.removeProperty('--card');}
     try{localStorage.setItem('jump_tema',JSON.stringify(t))}catch(e){}
   }
   try{const t=JSON.parse(localStorage.getItem('jump_tema')||'null');if(t)applyTheme(t)}catch(e){}
