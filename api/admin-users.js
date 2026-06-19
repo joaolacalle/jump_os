@@ -220,6 +220,23 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    if (action === 'set_tema') {
+      const { user_id, tema } = req.body;
+      await assertScope(user_id);
+      await sbPatch(`clientes?id=eq.${user_id}`, { tema });
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'set_dados') {
+      const { user_id, nome, telefone } = req.body;
+      await assertScope(user_id);
+      const patch = {};
+      if (nome !== undefined) patch.nome = nome;
+      if (telefone !== undefined) patch.telefone = telefone;
+      await sbPatch(`clientes?id=eq.${user_id}`, patch);
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === 'set_cortesia') {
       const { user_id, cortesia } = req.body;
       await assertScope(user_id);
