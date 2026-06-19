@@ -351,7 +351,7 @@ async function mostrarBotaoImagem(req){
   w.appendChild(d);w.scrollTop=w.scrollHeight;
 }
 async function gerarImagem(req,btn){
-  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Gerando (pode levar até 30s)...';
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Gerando sua arte (15-40s)...';
   try{
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',

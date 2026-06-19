@@ -1,11 +1,14 @@
 {
   "functions": {
-    "api/*.js": {
-      "memory": 256,
+    "api/gerar-imagem.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/agente-chat.js": {
       "maxDuration": 60
+    },
+    "api/admin-users.js": {
+      "maxDuration": 30
     }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ]
+  }
 }
