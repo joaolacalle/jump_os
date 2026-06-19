@@ -213,8 +213,9 @@ async function executarOrdens(btn){
       +'The brand name text must be spelled EXACTLY "'+marca+'", perfectly legible, no distortion. Avoid generic clipart, avoid stock symbols.';
     await gerarPorOrdem(promptLogo,'1:1','conceitual','Sugestão de logo');
 
-    // marca ordens como concluídas
-    await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
+    // marca ordens como concluídas (com verificação de erro)
+    const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
+    if(eUpd)console.error('update ordem falhou:',eUpd.message);
     if(box)box.remove();
     JUMP.toast('✓ Ficha técnica e logo geradas!');
     await logChat('user','[Executei a ordem: gerar ficha técnica + logo]','criativo');
