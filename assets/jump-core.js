@@ -114,8 +114,9 @@ window.JUMP=(function(){
   function esc(s){return String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}
 
   function setUser(cliente,user){
-    const email=user.email;
-    const nome=(user.user_metadata&&user.user_metadata.nome)||cliente.nome||email.split('@')[0];
+    // Em impersonação, prioriza os dados da conta VISUALIZADA (cliente), não do logado (user)
+    const email=(cliente&&cliente.email)||user.email;
+    const nome=(cliente&&cliente.nome)||(user.user_metadata&&user.user_metadata.nome)||(email?email.split('@')[0]:'Usuário');
     const av=document.getElementById('sb-avatar');if(av)av.textContent=nome.charAt(0).toUpperCase();
     const em=document.getElementById('sb-email');if(em)em.textContent=email;
     const hh=document.getElementById('hd-hello');if(hh)hh.textContent='Bem-vindo, '+nome.split(' ')[0];
