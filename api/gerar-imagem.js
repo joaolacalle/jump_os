@@ -80,19 +80,21 @@ module.exports = async (req, res) => {
       // logo da marca (sempre que existir)
       const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
       if (Array.isArray(logos) && logos[0]) { const im = await baixarImg(logos[0].url); if (im) baseImgs.push({ ...im, tag: 'logo' }); }
-      // REGRA CARROSSEL: foto/produto SÓ no primeiro slide (slide 1 ou imagem única).
-      // Slides 2+ não usam foto/produto — mantêm só a identidade visual da marca.
+      // REGRA CARROSSEL: foto/produto reais SÓ no primeiro slide (capa).
       const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
-      // foto pessoal (só quando o post é de pessoa E é o primeiro slide)
-      if (tipo === 'pessoa' && primeiroSlide) {
+      // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
+      if (tipo === 'pessoal' && primeiroSlide) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(fotos) && fotos[0]) { const im = await baixarImg(fotos[0].url); if (im) baseImgs.push({ ...im, tag: 'pessoa' }); }
       }
-      // produto (quando o post é de produto E é o primeiro slide)
+      // TIPO 'produto' = FOTO REAL do produto (intocável). Só no 1º slide.
       if (tipo === 'produto' && primeiroSlide) {
         const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(prods) && prods[0]) { const im = await baixarImg(prods[0].url); if (im) baseImgs.push({ ...im, tag: 'produto' }); }
       }
+      // TIPO 'pessoa_conceito' = pessoa GENÉRICA criada pela IA (família, dormindo, equipe) → NÃO usa foto real (text-to-image livre).
+      // TIPO 'conceitual' = sem pessoa → também text-to-image livre.
+      // (ambos caem no else de text-to-image; a logo ainda é aplicada se houver)
     } catch (e) { console.error('acervo:', e.message); }
 
     let r;
@@ -105,12 +107,12 @@ module.exports = async (req, res) => {
       // Identity/Product Preservation Engine (destilado) — preservação absoluta
       let preserva = ' === PRESERVATION LOCK (ABSOLUTE PRIORITY OVER STYLE) ===';
       if (temPessoa) {
-        preserva += ' The provided person photo is the absolute identity source. Keep the EXACT same person: face shape, jawline, nose, eyes, eyebrows, lips, skin texture, marks, freckles, moles, wrinkles, hairline, beard, tattoos, piercings, jewelry, body proportions and age. Do NOT beautify, smooth, slim, rejuvenate or stylize. No lookalike, no inspired version — the exact same individual, as a real photo taken another day. Identity preservation wins over any creative choice. Reject plastic/wax skin, CGI look, distorted hands/face, uncanny valley.';
+        preserva += ' The provided person photo is the absolute identity source — this is a PHOTOREALISTIC composition, NOT an illustration, cartoon, vector or drawing. Keep the EXACT same person: face shape, jawline, nose, eyes, eyebrows, lips, skin texture, marks, freckles, moles, wrinkles, hairline, beard, tattoos, piercings, jewelry, body proportions and age. Do NOT beautify, smooth, slim, rejuvenate or stylize. No lookalike, no inspired version — the exact same individual, as a real photo taken another day. Identity preservation wins over any creative choice. Reject plastic/wax skin, CGI look, illustration, distorted hands/face, uncanny valley.';
       }
       if (temProduto) {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
-      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
+      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. AGENCY COMPOSITION: rich layered background with real depth and atmosphere (never flat/empty), small category label at the top, large headline with premium texture, generous negative space. Photorealistic, magazine-grade. ===';
       const instr = prompt + preserva;
       form.append('prompt', instr);
       form.append('size', size);
@@ -127,8 +129,14 @@ module.exports = async (req, res) => {
         body: form,
       });
     } else {
-      // text-to-image (sem logo no acervo): NUNCA inventar logo/nome de marca
-      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting anywhere in the image (not once, not twice). Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background that tells the brand story, realistic integration with consistent directional lighting and shadows. No flat backgrounds.';
+      // text-to-image: pessoa_conceito pode criar gente genérica; conceitual sem pessoa
+      let extra = ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting anywhere in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: small category label at top, large headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background with real depth that tells the brand story, generous negative space, realistic directional lighting and shadows. Photorealistic, magazine-grade, NO flat empty backgrounds, NO cartoon/vector/illustration style.';
+      if (tipo === 'pessoa_conceito') {
+        extra += ' This composition includes a realistic generic person/people (not a specific real individual) fitting the concept — render them photorealistically, natural and believable, never as illustration or cartoon.';
+      } else if (tipo === 'conceitual') {
+        extra += ' This composition has NO people — use objects, graphics, product mockups or abstract scene elements that illustrate the concept.';
+      }
+      const promptSemLogo = prompt + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
