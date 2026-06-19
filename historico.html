@@ -43,9 +43,9 @@ let ITENS=[];
   try{
     JUMP.sidebar('historico');
     const CTX=await JUMP.guard();
-    JUMP.setUser(CTX.cliente,CTX.user);
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.user.id).neq('status','pendente').order('created_at',{ascending:false}).limit(200);
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).neq('status','pendente').order('created_at',{ascending:false}).limit(200);
       ITENS=data||[];
     }catch(e){}
     ['publicado','aprovado','baixado','rejeitado'].forEach((s,i)=>{

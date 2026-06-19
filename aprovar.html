@@ -42,11 +42,11 @@ let CTX=null,ITENS=[],PLANO='basico';
   try{
     JUMP.sidebar('aprovar');
     CTX=await JUMP.guard();
-    JUMP.setUser(CTX.cliente,CTX.user);
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     PLANO=CTX.cliente.plano||'basico';
     if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.user.id).eq('status','pendente').order('created_at',{ascending:false});
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','pendente').order('created_at',{ascending:false});
       ITENS=data||[];
     }catch(e){}
     render();

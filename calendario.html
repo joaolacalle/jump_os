@@ -36,10 +36,10 @@ const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agos
   try{
     JUMP.sidebar('calendario');
     CTX=await JUMP.guard();
-    JUMP.setUser(CTX.cliente,CTX.user);
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     const hoje=new Date();ANO=hoje.getFullYear();MES=hoje.getMonth();
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.user.id);
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id);
       EVENTOS=data||[];
     }catch(e){}
     render();

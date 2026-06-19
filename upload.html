@@ -48,7 +48,7 @@ const CFG={
   try{
     JUMP.sidebar('upload');
     CTX=await JUMP.guard();
-    JUMP.setUser(CTX.cliente,CTX.user);
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     await listar();
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
@@ -66,7 +66,7 @@ function trocar(c){
 }
 async function listar(){
   try{
-    const{data}=await JUMP.sb.from('uploads').select('*').eq('user_id',CTX.user.id).order('created_at',{ascending:false});
+    const{data}=await JUMP.sb.from('uploads').select('*').eq('user_id',CTX.viewId||CTX.user.id).order('created_at',{ascending:false});
     FILES=data||[];
   }catch(e){FILES=[]}
   render();
@@ -90,11 +90,11 @@ document.getElementById('file-in').addEventListener('change',async e=>{
   JUMP.toast('Enviando '+files.length+' arquivo(s)...');
   for(const f of files){
     try{
-      const path=CTX.user.id+'/'+CAT+'/'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+      const path=(CTX.viewId||CTX.user.id)+'/'+CAT+'/'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
       const{error}=await JUMP.sb.storage.from('user-uploads').upload(path,f);
       if(error)throw error;
       const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
-      await JUMP.sb.from('uploads').insert({user_id:CTX.user.id,categoria:CAT,nome:f.name,url:pub.publicUrl,path});
+      await JUMP.sb.from('uploads').insert({user_id:CTX.viewId||CTX.user.id,categoria:CAT,nome:f.name,url:pub.publicUrl,path});
     }catch(err){JUMP.toast('Falha em '+f.name,'err')}
   }
   e.target.value='';

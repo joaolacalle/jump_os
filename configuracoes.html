@@ -35,11 +35,6 @@
         <label class="cp-sw"><input type="color" id="c4" value="#141312" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor de fundo</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Fundo geral do painel</div></div>
       </div>
-      <div style="margin:14px 0 10px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Modo do fundo</div>
-      <div class="bg-tg">
-        <div class="bg-opt on" id="bg-escuro" onclick="setBg('escuro')">🌙 Escuro</div>
-        <div class="bg-opt" id="bg-claro" onclick="setBg('claro')">☀️ Claro</div>
-      </div>
       <div style="display:flex;gap:9px;margin-top:16px">
         <button class="btn btn-o btn-sm" style="flex:1" onclick="restaurar()">Restaurar padrão</button>
         <button class="btn btn-g btn-sm" style="flex:1" onclick="salvarTema()">Salvar tema</button>
@@ -73,20 +68,19 @@
 </div>
 <script src="assets/jump-core.js"></script>
 <script>
-let CTX=null,BG='escuro';
+let CTX=null;
 const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
 (async()=>{
   try{
     JUMP.sidebar('config');
     CTX=await JUMP.guard();
-    JUMP.setUser(CTX.cliente,CTX.user);
-    const t=CTX.cliente.tema||PADRAO;
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    const t=(CTX.viewCliente&&CTX.viewCliente.tema)||CTX.cliente.tema||PADRAO;
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
     document.getElementById('c3').value=t.c3||PADRAO.c3;
     document.getElementById('c4').value=t.c4||PADRAO.c4;
-    setBg(t.bg||'escuro',true);
-    document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
+      document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=CTX.user.email||'';
     const p=CTX.cliente.plano||'basico';
@@ -96,27 +90,20 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
   }catch(e){}
 })();
 function temaAtual(){
-  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,bg:BG};
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,bg:'escuro'};
 }
 function preview(){JUMP.applyTheme(temaAtual())}
-function setBg(v,skip){
-  BG=v;
-  document.getElementById('bg-escuro').classList.toggle('on',v==='escuro');
-  document.getElementById('bg-claro').classList.toggle('on',v==='claro');
-  if(!skip)preview();
-}
 function restaurar(){
   document.getElementById('c1').value=PADRAO.c1;
   document.getElementById('c2').value=PADRAO.c2;
   document.getElementById('c3').value=PADRAO.c3;
-  setBg('escuro',true);
   JUMP.applyTheme(PADRAO);
   JUMP.toast('Padrão JUMP restaurado — clique em Salvar para manter.');
 }
 async function salvarTema(){
   const t=temaAtual();
   try{
-    await JUMP.sb.from('clientes').update({tema:t}).eq('id',CTX.user.id);
+    await JUMP.sb.from('clientes').update({tema:t}).eq('id',CTX.viewId||CTX.user.id);
     JUMP.applyTheme(t);
     JUMP.toast('✓ Tema salvo em todo o painel');
   }catch(e){JUMP.toast('Erro ao salvar tema','err')}
