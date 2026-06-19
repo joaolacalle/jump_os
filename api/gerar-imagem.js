@@ -116,7 +116,7 @@ module.exports = async (req, res) => {
       const instr = prompt + preserva;
       form.append('prompt', instr);
       form.append('size', size);
-      form.append('quality', 'high');
+      form.append('quality', 'medium');
       // Ordem: referência principal (pessoa/produto) primeiro, logo por último
       const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
       baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
@@ -140,7 +140,7 @@ module.exports = async (req, res) => {
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'high' }),
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'medium' }),
       });
     }
     const result = await r.json();
