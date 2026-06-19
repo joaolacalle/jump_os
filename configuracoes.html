@@ -24,7 +24,7 @@
           <div style="font-size:13px;font-weight:800">Cor de fundo do painel</div>
           <div style="font-family:var(--M);font-size:10px;color:var(--t3)">Escolha o tom de fundo do sistema</div>
         </div>
-        <label class="cp-sw cp-sw-lg"><input type="color" id="c4top" value="#141312" oninput="syncBg(this.value)"></label>
+        <label class="cp-sw cp-sw-lg"><input type="color" id="c4" value="#141312" oninput="preview()"></label>
       </div>
       <div class="cp-row">
         <label class="cp-sw"><input type="color" id="c1" value="#00E676" oninput="preview()"></label>
@@ -39,8 +39,8 @@
         <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Recursos Pro e detalhes</div></div>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c4" value="#141312" oninput="preview()"></label>
-        <div><div style="font-size:13px;font-weight:800">Cor de fundo</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Fundo geral do painel</div></div>
+        <label class="cp-sw"><input type="color" id="c5" value="#1E1C19" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor das caixas</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Fundo dos cards e painéis</div></div>
       </div>
       <div style="display:flex;gap:9px;margin-top:16px">
         <button class="btn btn-o btn-sm" style="flex:1" onclick="restaurar()">Restaurar padrão</button>
@@ -76,7 +76,7 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null;
-const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
+const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro',c5:'#1E1C19'};
 (async()=>{
   try{
     JUMP.sidebar('config');
@@ -86,10 +86,11 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
     document.getElementById('c3').value=t.c3||PADRAO.c3;
-    document.getElementById('c4').value=t.c4||PADRAO.c4;{const top=document.getElementById('c4top');if(top)top.value=t.c4||PADRAO.c4;}
-      document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
-    document.getElementById('cfg-tel').value=CTX.cliente.telefone||'';
-    document.getElementById('cfg-email').value=CTX.user.email||'';
+    document.getElementById('c4').value=t.c4||PADRAO.c4;
+    document.getElementById('c5').value=t.c5||PADRAO.c5;
+      document.getElementById('cfg-nome').value=(CTX.viewCliente&&CTX.viewCliente.nome)||CTX.cliente.nome||'';
+    document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
+    document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
     const p=CTX.cliente.plano||'basico';
     document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
     document.getElementById('cfg-status').textContent=CTX.cliente.cortesia_ate?'cortesia ativa':(CTX.cliente.status||'');
@@ -97,10 +98,9 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
   }catch(e){}
 })();
 function temaAtual(){
-  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,bg:'escuro'};
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,c5:document.getElementById('c5').value,bg:'escuro'};
 }
-function syncBg(v){const c4=document.getElementById('c4');if(c4)c4.value=v;const t=document.getElementById('c4top');if(t)t.value=v;preview()}
-function preview(){const c4=document.getElementById('c4').value;const top=document.getElementById('c4top');if(top)top.value=c4;JUMP.applyTheme(temaAtual())}
+function preview(){JUMP.applyTheme(temaAtual())}
 function restaurar(){
   document.getElementById('c1').value=PADRAO.c1;
   document.getElementById('c2').value=PADRAO.c2;
@@ -121,7 +121,7 @@ async function salvarDados(){
     await JUMP.sb.from('clientes').update({
       nome:document.getElementById('cfg-nome').value.trim(),
       telefone:document.getElementById('cfg-tel').value.trim(),
-    }).eq('id',CTX.user.id);
+    }).eq('id',CTX.viewId||CTX.user.id);
     JUMP.toast('✓ Dados salvos');
   }catch(e){JUMP.toast('Erro ao salvar','err')}
 }
