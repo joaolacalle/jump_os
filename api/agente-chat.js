@@ -128,13 +128,27 @@ const handler = async (req, res) => {
     const user=await uRes.json();
     if(!uRes.ok||!user.id) return res.status(401).json({error:'Sessão inválida'});
 
-    const { agente, mensagem } = req.body||{};
+    const { agente, mensagem, ver_id } = req.body||{};
     if(!agente||!PERSONAS[agente]) return res.status(400).json({error:'Agente inválido'});
     if(!mensagem||!mensagem.trim()) return res.status(400).json({error:'Mensagem vazia'});
     if(mensagem.length>4000) return res.status(400).json({error:'Mensagem muito longa'});
 
-    // Cliente + plano + limites
-    const [cli]=await sbGet(`clientes?id=eq.${user.id}&select=*`);
+    // Solicitante (logado) — pode ser supervisor/admin
+    const [requester]=await sbGet(`clientes?id=eq.${user.id}&select=id,role`);
+    if(!requester) return res.status(403).json({error:'Conta não encontrada'});
+    // ALVO: próprio por padrão; com ver_id e permissão, usa a conta visualizada
+    let targetId=user.id;
+    if(ver_id && ver_id!==user.id){
+      if(requester.role==='admin'){targetId=ver_id;}
+      else if(requester.role==='supervisor'){
+        const sup=await sbGet(`clientes?id=eq.${ver_id}&supervisor_id=eq.${user.id}&select=id`);
+        if(Array.isArray(sup)&&sup.length)targetId=ver_id;
+        else return res.status(403).json({error:'Sem permissão sobre esta conta'});
+      } else return res.status(403).json({error:'Sem permissão'});
+    }
+
+    // Cliente ALVO + plano + limites (dono dos dados: memórias, uso, onboarding)
+    const [cli]=await sbGet(`clientes?id=eq.${targetId}&select=*`);
     if(!cli) return res.status(403).json({error:'Conta não encontrada'});
     if(cli.bloqueado) return res.status(403).json({error:'Conta bloqueada'});
     const nivel=LV[cli.plano]||1;
@@ -146,7 +160,7 @@ const handler = async (req, res) => {
     let uso=cli.uso||{};
     if(uso.mes!==mesAtual){
       uso={tokens:0,imagens:0,videos:0,trafego_sugestoes:0,mes:mesAtual};
-      await sbPatch(`clientes?id=eq.${user.id}`,{uso});
+      await sbPatch(`clientes?id=eq.${targetId}`,{uso});
     }
     const lim=cli.limites||{};
     if(lim.tokens&&Number(uso.tokens||0)>=Number(lim.tokens)){
@@ -157,7 +171,7 @@ const handler = async (req, res) => {
     let acervoTxt='';
     if(agente==='identidade'){
       try{
-        const ups=await sbGet(`uploads?user_id=eq.${user.id}&select=categoria`);
+        const ups=await sbGet(`uploads?user_id=eq.${targetId}&select=categoria`);
         const cats={};(Array.isArray(ups)?ups:[]).forEach(u=>cats[u.categoria]=(cats[u.categoria]||0)+1);
         const logo=cats.logo||0,pess=cats.pessoais||0,prod=cats.produtos||0;
         acervoTxt=`\nACERVO DE IMAGENS DO CLIENTE: logo=${logo}, fotos pessoais=${pess}, produtos=${prod}.`
@@ -166,14 +180,14 @@ const handler = async (req, res) => {
     }
 
     // Memórias (agente + globais)
-    let mems=await sbGet(`memorias?user_id=eq.${user.id}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
+    let mems=await sbGet(`memorias?user_id=eq.${targetId}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
     if(!Array.isArray(mems))mems=[];
     const memTxt=(mems||[]).length
       ? 'MEMÓRIAS SOBRE ESTE CLIENTE:\n'+(mems||[]).map(m=>`- ${m.chave}: ${m.valor}`).join('\n')
       : 'MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
 
     // Histórico recente
-    let hist=await sbGet(`chat_mensagens?user_id=eq.${user.id}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
+    let hist=await sbGet(`chat_mensagens?user_id=eq.${targetId}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
     if(!Array.isArray(hist))hist=[];
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
 
@@ -181,7 +195,7 @@ const handler = async (req, res) => {
     let conteudoUser=mensagem;
     if(agente==='identidade' && /analis|cor|identidade|logo|marca|come[çc]ar|iniciar|sim/i.test(mensagem)){
       try{
-        const imgs=await sbGet(`uploads?user_id=eq.${user.id}&categoria=in.(logo,criativos,produtos,pessoais)&select=url,categoria&limit=6`);
+        const imgs=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(logo,criativos,produtos,pessoais)&select=url,categoria&limit=6`);
         let arr=Array.isArray(imgs)?imgs:[];
         // prioriza logo, depois criativos/produtos, depois pessoais
         const ordem={logo:0,criativos:1,produtos:2,pessoais:3};
@@ -242,7 +256,7 @@ const handler = async (req, res) => {
     if(aplicarTema){
       try{
         const temaAtual=Object.assign({},cli.tema||{},aplicarTema,{bg:(cli.tema&&cli.tema.bg)||'escuro'});
-        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`,{method:'PATCH',headers:H(),body:JSON.stringify({tema:temaAtual})});
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`,{method:'PATCH',headers:H(),body:JSON.stringify({tema:temaAtual})});
       }catch(e){}
     }
 
@@ -256,7 +270,7 @@ const handler = async (req, res) => {
       try{
         await Promise.all(ordens.map(o=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
           method:'POST',headers:H(),
-          body:JSON.stringify({user_id:user.id,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:'pendente'})
+          body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:'pendente'})
         }).catch(()=>{})));
       }catch(e){}
     }
@@ -269,7 +283,7 @@ const handler = async (req, res) => {
     });
     const agSave=(agente==='identidade')?'global':agente;
     const memWrites=novas.slice(0,8).map(m=>
-      sbUpsert('memorias',{user_id:user.id,agente:agSave,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()})
+      sbUpsert('memorias',{user_id:targetId,agente:agSave,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()})
     );
 
     // Check-in concluído (agente identidade)
@@ -278,7 +292,7 @@ const handler = async (req, res) => {
       texto=texto.replace(/<checkin_completo\/>/g,'').trim();
       checkin=true;
       const ob=Object.assign({},cli.onboarding||{},{checkin:true});
-      await sbPatch(`clientes?id=eq.${user.id}`,{onboarding:ob});
+      await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
     }
     texto=texto.trim();
 
@@ -288,15 +302,15 @@ const handler = async (req, res) => {
     const limTok=Number(lim.tokens||0);
     if(limTok&&!uso.avisado80&&novoUso.tokens>=limTok*0.8){
       novoUso.avisado80=true;
-      memWrites.push(sbInsert('recados',{user_id:user.id,tipo:'alerta',titulo:'80% do uso mensal atingido',mensagem:'Você já usou 80% dos seus tokens do mês. Se precisar de mais, solicite o aumento ao seu gestor direto pelo chat dos agentes.',lido:false,resolvido:false}));
+      memWrites.push(sbInsert('recados',{user_id:targetId,tipo:'alerta',titulo:'80% do uso mensal atingido',mensagem:'Você já usou 80% dos seus tokens do mês. Se precisar de mais, solicite o aumento ao seu gestor direto pelo chat dos agentes.',lido:false,resolvido:false}));
     }
     await Promise.all([
       ...memWrites,
       sbInsert('chat_mensagens',[
-        {user_id:user.id,agente,role:'user',conteudo:mensagem},
-        {user_id:user.id,agente,role:'assistant',conteudo:texto},
+        {user_id:targetId,agente,role:'user',conteudo:mensagem},
+        {user_id:targetId,agente,role:'assistant',conteudo:texto},
       ]),
-      sbPatch(`clientes?id=eq.${user.id}`,{uso:novoUso}),
+      sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
     return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length});

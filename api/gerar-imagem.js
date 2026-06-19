@@ -21,7 +21,30 @@ module.exports = async (req, res) => {
     if (!uRes.ok || !user.id) return res.status(401).json({ error: 'Sessão inválida' });
 
     // Cliente + plano + limites de imagem
-    const cRes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}&select=*`, { headers: SBH() });
+    // Solicitante (quem está logado — pode ser supervisor/admin)
+    const reqRes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}&select=id,role`, { headers: SBH() });
+    const [requester] = await reqRes.json();
+    if (!requester) return res.status(403).json({ error: 'Conta não encontrada' });
+
+    // ALVO: por padrão o próprio; se vier ver_id e o solicitante tiver permissão, usa o alvo
+    let targetId = user.id;
+    const verId = (req.body && req.body.ver_id) || null;
+    if (verId && verId !== user.id) {
+      if (requester.role === 'admin') {
+        targetId = verId; // admin acessa qualquer conta
+      } else if (requester.role === 'supervisor') {
+        // valida que o alvo é supervisionado por este supervisor
+        const supRes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${verId}&supervisor_id=eq.${user.id}&select=id`, { headers: SBH() });
+        const sup = await supRes.json();
+        if (Array.isArray(sup) && sup.length) targetId = verId;
+        else return res.status(403).json({ error: 'Sem permissão sobre esta conta' });
+      } else {
+        return res.status(403).json({ error: 'Sem permissão' });
+      }
+    }
+
+    // Carrega a conta ALVO (dona dos dados: logo, OS_DATA, uso, limites)
+    const cRes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}&select=*`, { headers: SBH() });
     const [cli] = await cRes.json();
     if (!cli) return res.status(403).json({ error: 'Conta não encontrada' });
     if (cli.bloqueado) return res.status(403).json({ error: 'Conta bloqueada' });
@@ -55,16 +78,16 @@ module.exports = async (req, res) => {
     }
     try {
       // logo da marca (sempre que existir)
-      const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${user.id}&categoria=eq.logo&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
+      const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
       if (Array.isArray(logos) && logos[0]) { const im = await baixarImg(logos[0].url); if (im) baseImgs.push({ ...im, tag: 'logo' }); }
       // foto pessoal (só quando o post é de pessoa)
       if (tipo === 'pessoa') {
-        const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${user.id}&categoria=eq.pessoais&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
+        const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(fotos) && fotos[0]) { const im = await baixarImg(fotos[0].url); if (im) baseImgs.push({ ...im, tag: 'pessoa' }); }
       }
       // produto (quando o post é de produto)
       if (tipo === 'produto') {
-        const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${user.id}&categoria=eq.produtos&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
+        const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
         if (Array.isArray(prods) && prods[0]) { const im = await baixarImg(prods[0].url); if (im) baseImgs.push({ ...im, tag: 'produto' }); }
       }
     } catch (e) { console.error('acervo:', e.message); }
@@ -125,7 +148,7 @@ module.exports = async (req, res) => {
     const bytes = Buffer.from(b64, 'base64');
 
     // Salvar no Storage do Supabase
-    const fileName = `${user.id}/gerados/${Date.now()}.png`;
+    const fileName = `${targetId}/gerados/${Date.now()}.png`;
     const up = await fetch(`${SUPABASE_URL}/storage/v1/object/user-uploads/${fileName}`, {
       method: 'POST',
       headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/png' },
@@ -136,7 +159,7 @@ module.exports = async (req, res) => {
       console.error('storage:', et);
       // fallback: devolve a imagem como data URL (base64) para o cliente ver/baixar
       uso.imagens = Number(uso.imagens || 0) + 1;
-      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
+      await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
       return res.status(200).json({ ok: true, url: 'data:image/png;base64,'+b64, usadas: uso.imagens, limite: lim.imagens || 0, aviso: 'storage_falhou' });
     }
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/user-uploads/${fileName}`;
@@ -144,12 +167,12 @@ module.exports = async (req, res) => {
     // Registrar na biblioteca (aba "Gerados por IA")
     await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
       method: 'POST', headers: SBH(),
-      body: JSON.stringify({ user_id: user.id, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
+      body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
     }).catch(() => {});
 
     // Registrar uso de imagem
     uso.imagens = Number(uso.imagens || 0) + 1;
-    await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) });
+    await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) });
 
     return res.status(200).json({ ok: true, url: publicUrl, usadas: uso.imagens, limite: lim.imagens || 0 });
   } catch (e) {
