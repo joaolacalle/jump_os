@@ -186,6 +186,15 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* IMPERSONATE: ?ver=ID (supervisor/admin via RLS) */
     const params=new URLSearchParams(location.search);
     const ver=params.get('ver');
+    // Propaga ?ver em todos os links internos (sidebar + ações) para o supervisor navegar
+    if(ver){
+      document.querySelectorAll('a[href$=".html"]').forEach(a=>{
+        const h=a.getAttribute('href');
+        if(h&&!h.includes('ver=')&&!h.includes('dashboard-supervisor')&&!h.includes('dashboard-admin')&&!h.includes('home')&&!h.includes('login')){
+          a.setAttribute('href',h+(h.includes('?')?'&':'?')+'ver='+ver);
+        }
+      });
+    }
     if(ver&&ver!==user.id&&(ctx.role==='supervisor'||ctx.role==='admin')){
       const{data:alvo}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
       if(alvo){
