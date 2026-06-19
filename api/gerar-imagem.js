@@ -122,7 +122,7 @@ module.exports = async (req, res) => {
       });
     } else {
       // text-to-image (sem logo no acervo): NUNCA inventar logo/nome de marca
-      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write or invent any logo, brand name or brand signature in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text.';
+      const promptSemLogo = prompt + ' IMPORTANT: do NOT create, draw, write or invent any logo, brand name or brand signature in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background that tells the brand story, realistic integration with consistent directional lighting and shadows. No flat backgrounds.';
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
