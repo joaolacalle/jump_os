@@ -235,9 +235,7 @@ td strong{color:var(--t1)}
 
 /* CORRESPONDÊNCIA DE CORES DO TEMA (mapa João) */
 /* Secundária = textos de apoio/informação */
-.hd-hello{color:var(--a2)}
 /* Terciária = recursos Pro, detalhes, labels e fontes menores */
-.sec-lbl{color:var(--a3)}
 .pill-p{background:rgba(168,85,247,.12);color:var(--a3);border-color:rgba(168,85,247,.3)}
 .ag-it .pill{color:var(--a3)}
 /* Principal (verde/tema) permanece em botões, destaques e gráficos via --g */
@@ -248,3 +246,17 @@ td strong{color:var(--t1)}
 .view-banner a{color:var(--t2);font-weight:700;text-decoration:none}
 .view-banner a:hover{color:var(--t1)}
 body:has(.view-banner) .app,body:has(.view-banner) .sidebar{padding-top:38px}
+
+/* ===== HARMONIZACAO DE CORES (mapa final João) ===== */
+/* Principal (--g): botões, destaques, gráficos, menu, palavra de destaque do título */
+.hd-h em{color:var(--g)}
+/* Terciária (--a3): labels pequenos de seção e de página (APARÊNCIA, DADOS DA CONTA, Configurações) */
+.sec-lbl{color:var(--a3)}
+.hd-hello{color:var(--a3)}
+/* Secundária (--a2): textos de informação e apoio */
+.hd-sub,.info-apoio{color:var(--a2)}
+/* Detalhes pequenos sob cada item permanecem em t2/t3 para legibilidade */
+
+/* Seletor de cor de fundo em destaque (Configurações) */
+.bg-pick{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border-radius:12px;background:rgba(var(--g-rgb),.06);border:1px solid rgba(var(--g-rgb),.18);margin-bottom:16px}
+.cp-sw-lg input{width:46px;height:46px}
