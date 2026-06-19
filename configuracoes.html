@@ -18,7 +18,14 @@
     <!-- TEMA -->
     <div class="card">
       <div class="sec-lbl" style="margin-top:0">🎨 Aparência do painel</div>
-      <div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:10px">O Agente de Identidade define as cores da sua marca após o check-in — e você pode personalizar quando quiser. As mudanças aplicam em todo o painel na hora.</div>
+      <div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:14px">O Agente de Identidade define as cores da sua marca após o check-in — e você pode personalizar quando quiser. As mudanças aplicam em todo o painel na hora.</div>
+      <div class="bg-pick">
+        <div>
+          <div style="font-size:13px;font-weight:800">Cor de fundo do painel</div>
+          <div style="font-family:var(--M);font-size:10px;color:var(--t3)">Escolha o tom de fundo do sistema</div>
+        </div>
+        <label class="cp-sw cp-sw-lg"><input type="color" id="c4top" value="#141312" oninput="syncBg(this.value)"></label>
+      </div>
       <div class="cp-row">
         <label class="cp-sw"><input type="color" id="c1" value="#00E676" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor principal</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Botões, destaques e gráficos</div></div>
@@ -79,7 +86,7 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
     document.getElementById('c3').value=t.c3||PADRAO.c3;
-    document.getElementById('c4').value=t.c4||PADRAO.c4;
+    document.getElementById('c4').value=t.c4||PADRAO.c4;{const top=document.getElementById('c4top');if(top)top.value=t.c4||PADRAO.c4;}
       document.getElementById('cfg-nome').value=CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=CTX.user.email||'';
@@ -92,7 +99,8 @@ const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro'};
 function temaAtual(){
   return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,bg:'escuro'};
 }
-function preview(){JUMP.applyTheme(temaAtual())}
+function syncBg(v){const c4=document.getElementById('c4');if(c4)c4.value=v;const t=document.getElementById('c4top');if(t)t.value=v;preview()}
+function preview(){const c4=document.getElementById('c4').value;const top=document.getElementById('c4top');if(top)top.value=c4;JUMP.applyTheme(temaAtual())}
 function restaurar(){
   document.getElementById('c1').value=PADRAO.c1;
   document.getElementById('c2').value=PADRAO.c2;
