@@ -38,9 +38,28 @@ window.JUMP=(function(){
       throw new Error('no-role');
     }
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
-    if(cliente.tema)applyTheme(cliente.tema);
-    if(role==='supervisor'||role==='admin')injectRoleBar(role);
-    return{user,cliente,role,token:data.session.access_token};
+
+    // IMPERSONAÇÃO GLOBAL: supervisor/admin visualizando outra conta via ?ver=ID
+    let viewing=null, viewId=user.id, viewCliente=cliente;
+    const verParam=new URLSearchParams(location.search).get('ver');
+    if(verParam && (role==='supervisor'||role==='admin') && verParam!==user.id){
+      try{
+        const{data:alvo}=await sb.from('clientes').select('*').eq('id',verParam).limit(1);
+        if(alvo&&alvo.length){
+          viewing=alvo[0];viewId=viewing.id;viewCliente=viewing;
+          window.JUMP._viewBanner=viewing; // sinaliza p/ mostrar banner
+        }
+      }catch(e){console.error('impersonate:',e)}
+    }
+
+    // tema: usa o da conta VISUALIZADA (personalização por usuário)
+    if(viewCliente.tema)applyTheme(viewCliente.tema);
+    else applyTheme({}); // reseta para padrão se a conta não tem tema próprio
+
+    if(!viewing && (role==='supervisor'||role==='admin'))injectRoleBar(role);
+    if(viewing)injectViewBanner(viewing,role);
+
+    return{user,cliente,role,token:data.session.access_token,viewId,viewing,viewCliente};
   }
 
   async function logout(){await sb.auth.signOut();location.href='home.html'}
@@ -103,6 +122,20 @@ window.JUMP=(function(){
     return nome;
   }
 
+  function injectViewBanner(viewing,role){
+    if(document.querySelector('.view-banner'))return;
+    const back=role==='admin'?'dashboard-admin.html':'dashboard-supervisor.html';
+    const b=document.createElement('div');b.className='view-banner';
+    b.innerHTML=`<span>👁 Visualizando: <b>${(viewing.nome||viewing.email||'').toUpperCase()}</b></span><a href="${back}">← Voltar ao painel</a>`;
+    document.body.appendChild(b);
+  }
+  // Propaga ?ver=ID em links internos quando em modo visualização
+  function verLink(href){
+    const v=new URLSearchParams(location.search).get('ver');
+    if(!v)return href;
+    return href+(href.includes('?')?'&':'?')+'ver='+v;
+  }
+
   /* Sidebar padrão do usuário — páginas novas chamam JUMP.sidebar('id-ativo') */
   function sidebar(active){
     const L=[['dashboard-usuario.html','◈','Painel','painel'],['agentes.html','🤖','Meus agentes','agentes'],
@@ -111,7 +144,7 @@ window.JUMP=(function(){
       ['conectar-conta.html','🔗','Conexões','conexoes'],['configuracoes.html','⚙','Configurações','config']];
     const aside=document.createElement('aside');aside.className='sidebar';
     aside.innerHTML=`<div class="sb-logo"><img src="assets/logo.png" alt="JUMP OS"></div>
-      <nav class="sb-nav">${L.map(l=>`<a href="${l[0]}" class="sb-link${l[3]===active?' a':''}"><span class="sb-ico">${l[1]}</span>${l[2]}</a>`).join('')}</nav>
+      <nav class="sb-nav">${L.map(l=>`<a href="${verLink(l[0])}" class="sb-link${l[3]===active?' a':''}"><span class="sb-ico">${l[1]}</span>${l[2]}</a>`).join('')}</nav>
       <div class="sb-foot"><div class="sb-user"><div class="sb-avatar" id="sb-avatar">·</div><div class="sb-email" id="sb-email">...</div></div>
       <button class="sb-out" onclick="JUMP.logout()">→ Sair da conta</button></div>`;
     const app=document.querySelector('.app');
@@ -121,5 +154,5 @@ window.JUMP=(function(){
     document.body.insertBefore(mt,document.body.firstChild);
   }
 
-  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar};
+  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink};
 })();
