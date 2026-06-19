@@ -11,7 +11,7 @@ html{overflow-x:hidden}
   --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
   --H:'Oswald',sans-serif;
 }
-body{background:var(--ch);color:var(--t1);font-family:var(--B);font-size:16px;line-height:1.6;overflow-x:hidden;min-height:100vh}
+body{background:#141312;color:var(--t1);font-family:var(--B);font-size:16px;line-height:1.6;overflow-x:hidden;min-height:100vh}
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit}
 input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
@@ -33,7 +33,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 .sb-email{font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--M)}
 .sb-out{padding:9px 12px;font-size:12px;color:var(--t3);text-align:left;transition:.2s;font-family:var(--M);letter-spacing:1px}
 .sb-out:hover{color:var(--red)}
-.main{padding:clamp(20px,3vw,36px);position:relative;min-width:0}
+.main{padding:clamp(20px,3vw,36px);position:relative;min-width:0;background:var(--ch);min-height:100vh}
 .mob-top{display:none}
 /* HEADERS */
 .hd{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:clamp(20px,3vw,30px)}
@@ -125,7 +125,7 @@ td strong{color:var(--t1)}
 .toast.err{border-color:rgba(255,107,107,.45)}
 @keyframes tin{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
 /* LOADING */
-.loading{position:fixed;inset:0;background:var(--ch);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:500}
+.loading{position:fixed;inset:0;background:#141312;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:500}
 .loading.hide{display:none}
 .ld-spin{width:38px;height:38px;border:3px solid var(--bd);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{100%{transform:rotate(360deg)}}
@@ -249,6 +249,7 @@ body:has(.view-banner) .app,body:has(.view-banner) .sidebar{padding-top:38px}
 
 /* ===== HARMONIZACAO DE CORES (mapa final João) ===== */
 /* Principal (--g): botões, destaques, gráficos, menu, palavra de destaque do título */
+.hd-h{color:var(--a3)}
 .hd-h em{color:var(--g)}
 /* Terciária (--a3): labels pequenos de seção e de página (APARÊNCIA, DADOS DA CONTA, Configurações) */
 .sec-lbl{color:var(--a3)}
