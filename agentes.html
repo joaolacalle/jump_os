@@ -228,6 +228,8 @@ function mostrarRetornoFicha(){
   w.appendChild(box);w.scrollTop=w.scrollHeight;
 }
 function _hex(s){const m=(s||'').match(/#?[0-9a-fA-F]{6}/);return m?(m[0][0]==='#'?m[0]:'#'+m[0]):null}
+function _lum(h){h=h.replace('#','');const r=parseInt(h.slice(0,2),16)/255,g=parseInt(h.slice(2,4),16)/255,b=parseInt(h.slice(4,6),16)/255;return 0.2126*r+0.7152*g+0.0722*b}
+function _lighten(h,amt){h=h.replace('#','');let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);r=Math.min(255,Math.round(r+255*amt));g=Math.min(255,Math.round(g+255*amt));b=Math.min(255,Math.round(b+255*amt));return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function aplicarTemaOSData(btn){
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aplicando...'}
   try{
@@ -237,12 +239,23 @@ async function aplicarTemaOSData(btn){
     const p1=(M.paleta_primaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
     const p2=(M.paleta_secundaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
     const cta=_hex(M.cor_cta);
-    const c1=p1[0]||cta||'#00E676';
-    const tema={c1:c1,c2:p2[0]||p1[1]||'#00D4FF',c3:cta||p1[2]||'#A855F7',c4:'#141312',bg:'escuro'};
+    // Composição harmônica completa a partir do OS_DATA
+    const c1=cta||p1[0]||'#00E676';                 // principal = cor de ação/CTA
+    const c2=p2[0]||p1[1]||'#00D4FF';                // secundária = apoio
+    const c3=p1[1]||p2[1]||cta||'#A855F7';           // terciária = detalhes
+    // fundo: usa a cor mais escura da paleta; cards um tom acima
+    const escuras=[...p1,...p2].filter(h=>_lum(h)<0.35).sort((a,b)=>_lum(a)-_lum(b));
+    const c4=escuras[0]||'#141312';                  // fundo do conteúdo (mais escura)
+    const c5=_lighten(c4,0.06);                      // cards = fundo levemente clareado
+    const tema={c1,c2,c3,c4,c5,bg:'escuro'};
     JUMP.applyTheme(tema);
-    const{error:e2}=await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.viewId||CTX.user.id);
-    if(e2)throw e2;
-    CTX.cliente.tema=tema;
+    if(CTX.viewId&&CTX.viewId!==CTX.user.id){
+      await JUMP.api('set_tema',{user_id:CTX.viewId,tema},CTX.token);
+    }else{
+      const{error:e2}=await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.user.id);
+      if(e2)throw e2;
+    }
+    if(CTX.viewCliente)CTX.viewCliente.tema=tema; else CTX.cliente.tema=tema;
     JUMP.toast('🎨 Dashboard personalizada! Cor principal: '+c1);
     await logChat('user','[Escolhi: aplicar as cores da marca na dashboard]','criativo');
     await logChat('assistant','Apliquei as cores da sua marca na dashboard (principal '+c1+'). Você pode reajustar em Configurações quando quiser.','criativo');

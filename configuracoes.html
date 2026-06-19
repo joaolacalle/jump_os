@@ -111,19 +111,29 @@ function restaurar(){
 async function salvarTema(){
   const t=temaAtual();
   try{
-    await JUMP.sb.from('clientes').update({tema:t}).eq('id',CTX.viewId||CTX.user.id);
+    if(CTX.viewId&&CTX.viewId!==CTX.user.id){
+      // supervisor/admin salvando na conta visualizada → via backend (valida escopo)
+      await JUMP.api('set_tema',{user_id:CTX.viewId,tema:t},CTX.token);
+    }else{
+      const{error}=await JUMP.sb.from('clientes').update({tema:t}).eq('id',CTX.user.id);
+      if(error)throw error;
+    }
     JUMP.applyTheme(t);
     JUMP.toast('✓ Tema salvo em todo o painel');
-  }catch(e){JUMP.toast('Erro ao salvar tema','err')}
+  }catch(e){console.error('salvar tema:',e);JUMP.toast('Erro ao salvar tema: '+(e.message||''),'err')}
 }
 async function salvarDados(){
+  const nome=document.getElementById('cfg-nome').value.trim();
+  const telefone=document.getElementById('cfg-tel').value.trim();
   try{
-    await JUMP.sb.from('clientes').update({
-      nome:document.getElementById('cfg-nome').value.trim(),
-      telefone:document.getElementById('cfg-tel').value.trim(),
-    }).eq('id',CTX.viewId||CTX.user.id);
+    if(CTX.viewId&&CTX.viewId!==CTX.user.id){
+      await JUMP.api('set_dados',{user_id:CTX.viewId,nome,telefone},CTX.token);
+    }else{
+      const{error}=await JUMP.sb.from('clientes').update({nome,telefone}).eq('id',CTX.user.id);
+      if(error)throw error;
+    }
     JUMP.toast('✓ Dados salvos');
-  }catch(e){JUMP.toast('Erro ao salvar','err')}
+  }catch(e){console.error('salvar dados:',e);JUMP.toast('Erro ao salvar: '+(e.message||''),'err')}
 }
 async function trocarSenha(){
   const s=document.getElementById('cfg-senha').value;
