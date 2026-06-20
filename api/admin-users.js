@@ -196,6 +196,28 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    if (action === 'get_planos') {
+      const LIMS_DEFAULT = {
+        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
+        plus:   { imagens: 18, reloads: 9,  videos: 4,  tokens: 500000 },
+        pro:    { imagens: 25, reloads: 15, videos: 10, tokens: 1200000 },
+      };
+      let planos = LIMS_DEFAULT;
+      try {
+        const pc = await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
+        if (Array.isArray(pc) && pc[0] && pc[0].valor) planos = { ...LIMS_DEFAULT, ...pc[0].valor };
+      } catch (e) {}
+      return res.status(200).json({ ok: true, planos });
+    }
+
+    if (action === 'set_planos') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin pode editar planos' });
+      const { planos } = req.body;
+      if (!planos || typeof planos !== 'object') return res.status(400).json({ error: 'planos inválido' });
+      await sbUpsert('config', { chave: 'planos', valor: planos, updated_at: new Date().toISOString() });
+      return res.status(200).json({ ok: true, planos });
+    }
+
     if (action === 'set_plan') {
       const { user_id, plano } = req.body;
       if (!['basico', 'plus', 'pro'].includes(plano)) return res.status(400).json({ error: 'Plano inválido' });
@@ -209,15 +231,20 @@ module.exports = async (req, res) => {
           }
         }
       }
-      // Limites de imagem por plano (criações/mês + reloads/mês)
-      const LIMS_PLANO = {
+      // Limites por plano: lê do banco (config 'planos'), com fallback aos defaults
+      const LIMS_DEFAULT = {
         basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
         plus:   { imagens: 18, reloads: 9,  videos: 4,  tokens: 500000 },
         pro:    { imagens: 25, reloads: 15, videos: 10, tokens: 1200000 },
       };
+      let LIMS_PLANO = LIMS_DEFAULT;
+      try {
+        const pc = await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
+        if (Array.isArray(pc) && pc[0] && pc[0].valor) LIMS_PLANO = { ...LIMS_DEFAULT, ...pc[0].valor };
+      } catch (e) {}
       // preserva limites existentes e sobrescreve os de imagem/reload do plano
       const cliAtual = (await sbGet(`clientes?id=eq.${user_id}&select=limites`))[0] || {};
-      const novoLim = { ...(cliAtual.limites || {}), ...LIMS_PLANO[plano] };
+      const novoLim = { ...(cliAtual.limites || {}), ...(LIMS_PLANO[plano] || LIMS_DEFAULT[plano]) };
       await sbPatch(`clientes?id=eq.${user_id}`, { plano, limites: novoLim });
       return res.status(200).json({ ok: true, limites: novoLim });
     }
