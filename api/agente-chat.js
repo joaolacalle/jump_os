@@ -219,6 +219,18 @@ const handler = async (req, res) => {
 
     // Acervo de imagens (pré-requisito do Identidade)
     let acervoTxt='';
+    // Designer: verificar se a conta tem OS_DATA mínimo (paleta/estilo) antes de gerar
+    let osDataStatus='';
+    if(agente==='criativo'){
+      try{
+        const memCheck=await sbGet(`memorias?user_id=eq.${targetId}&agente=eq.global&select=chave&limit=40`);
+        const chaves=(Array.isArray(memCheck)?memCheck:[]).map(m=>m.chave);
+        const temMinimo=chaves.includes('paleta_primaria')&&chaves.includes('estilo_visual');
+        osDataStatus = temMinimo
+          ? '\nOS_DATA: completo — use as cores/fontes/estilo reais das memórias.'
+          : '\n⚠️ OS_DATA INCOMPLETO: esta conta NÃO tem identidade visual definida (sem paleta/estilo). NÃO gere imagem genérica nem invente dados. Oriente o cliente a fazer o check-in com o Agente de Identidade primeiro, para você ter as cores, fontes e estilo da marca. Só gere imagem após o OS_DATA existir.';
+      }catch(e){}
+    }
     if(agente==='identidade'||agente==='criativo'){
       try{
         const ups=await sbGet(`uploads?user_id=eq.${targetId}&select=categoria`);
@@ -275,13 +287,13 @@ const handler = async (req, res) => {
     }
     messages.push({role:'user',content:conteudoUser});
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-      body:JSON.stringify({model:MODEL(),max_tokens:(agente==='identidade'||agente==='estrategia')?3000:1100,system,messages}),
+      body:JSON.stringify({model:MODEL(),max_tokens:(agente==='identidade'||agente==='estrategia'||agente==='criativo')?3000:1100,system,messages}),
     });
     const data=await aRes.json();
     if(!aRes.ok){
