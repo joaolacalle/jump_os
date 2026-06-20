@@ -24,22 +24,22 @@
           <div style="font-size:13px;font-weight:800">Cor de fundo do painel</div>
           <div style="font-family:var(--M);font-size:10px;color:var(--t3)">Escolha o tom de fundo do sistema</div>
         </div>
-        <label class="cp-sw cp-sw-lg"><input type="color" id="c4" value="#141312" oninput="preview()"></label>
+        <label class="cp-sw cp-sw-lg"><input type="color" id="c4" value="#000000" oninput="preview()"></label>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c1" value="#00E676" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c1" value="#64E17B" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor principal</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Botões, destaques e gráficos</div></div>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c2" value="#00D4FF" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c2" value="#65E17C" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor secundária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Informações e apoio</div></div>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c3" value="#A855F7" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c3" value="#FFFFFF" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Recursos Pro e detalhes</div></div>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c5" value="#1E1C19" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c5" value="#343434" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor das caixas</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Fundo dos cards e painéis</div></div>
       </div>
       <div style="display:flex;gap:9px;margin-top:16px">
@@ -76,7 +76,7 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null;
-const PADRAO={c1:'#00E676',c2:'#00D4FF',c3:'#A855F7',c4:'#141312',bg:'escuro',c5:'#1E1C19'};
+const PADRAO={c1:'#64E17B',c2:'#65E17C',c3:'#FFFFFF',c4:'#000000',c5:'#343434',bg:'escuro'};
 (async()=>{
   try{
     JUMP.sidebar('config');
@@ -105,6 +105,8 @@ function restaurar(){
   document.getElementById('c1').value=PADRAO.c1;
   document.getElementById('c2').value=PADRAO.c2;
   document.getElementById('c3').value=PADRAO.c3;
+  document.getElementById('c4').value=PADRAO.c4;
+  document.getElementById('c5').value=PADRAO.c5;
   JUMP.applyTheme(PADRAO);
   JUMP.toast('Padrão JUMP restaurado — clique em Salvar para manter.');
 }
