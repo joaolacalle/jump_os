@@ -119,6 +119,14 @@
         <textarea class="f-textarea" id="bc-msg" rows="2" placeholder="Mensagem..."></textarea>
         <button class="btn btn-g btn-sm" onclick="broadcast()">Enviar para todos →</button>
       </div>
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">📦 Planos e limites</div>
+        <div class="bk-b">Edite os limites de cada plano sem mexer no código. Aplica-se a novas trocas de plano.</div>
+        <div id="planos-edit" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+          <div style="font-family:var(--M);font-size:12px;color:var(--t3)">Carregando planos...</div>
+        </div>
+        <button class="btn btn-g btn-sm" onclick="salvarPlanos()" style="margin-top:10px">Salvar planos →</button>
+      </div>
       <div class="bk-card">
         <div class="bk-t">🕘 Atividade recente</div>
         <div class="bk-b">Últimos eventos registrados.</div>
@@ -248,13 +256,15 @@
 <!-- MODAL ADICIONAR TOKENS (individual) -->
 <div class="modal-bg" id="modal-addtok">
   <div class="modal">
-    <div class="modal-t">Ajustar tokens do usuário</div>
+    <div class="modal-t">Ajustar limites do usuário</div>
     <input type="hidden" id="at-id">
     <div class="bk-b" id="at-info" style="margin-bottom:10px"></div>
-    <div class="f-group"><label class="f-label">Novo limite mensal de tokens</label><input class="f-input" id="at-tokens" type="number" min="0"></div>
+    <div class="f-group"><label class="f-label">Criações de imagem / mês</label><input class="f-input" id="at-imagens" type="number" min="0"></div>
+    <div class="f-group"><label class="f-label">Saldo extra (recriar/promo) / mês</label><input class="f-input" id="at-reloads" type="number" min="0"></div>
+    <div class="f-group"><label class="f-label">Tokens de texto / mês</label><input class="f-input" id="at-tokens" type="number" min="0"></div>
     <div class="modal-acts">
       <button class="btn btn-o" onclick="fechar('modal-addtok')">Cancelar</button>
-      <button class="btn btn-g" onclick="salvarAddTokens()">Salvar limite</button>
+      <button class="btn btn-g" onclick="salvarAddTokens()">Salvar limites</button>
     </div>
   </div>
 </div>
@@ -321,6 +331,7 @@ function trocarTab(t){
     document.getElementById('tab-'+x).classList.toggle('on',x===t);
     document.getElementById('pane-'+x).classList.toggle('on',x===t);
   });
+  if(t==='back')carregarPlanos();
 }
 function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
@@ -511,22 +522,70 @@ async function salvarCfgTokens(){
   }catch(e){JUMP.toast(e.message,'err')}
 }
 
+// ── PLANOS E LIMITES (editar sem código) ──
+let _planos={};
+const PLANOS_CAMPOS=[
+  {k:'imagens',label:'Criações de imagem/mês'},
+  {k:'reloads',label:'Saldo extra (recriar/promo)/mês'},
+  {k:'videos',label:'Vídeos/mês'},
+  {k:'tokens',label:'Tokens de texto/mês'},
+];
+async function carregarPlanos(){
+  try{
+    const d=await JUMP.api('get_planos',{},CTX.token);
+    _planos=d.planos||{};
+  }catch(e){_planos={}}
+  const box=document.getElementById('planos-edit');
+  if(!box)return;
+  const nomes={basico:'Básico',plus:'Plus',pro:'Pro'};
+  box.innerHTML=['basico','plus','pro'].map(p=>{
+    const v=_planos[p]||{};
+    const campos=PLANOS_CAMPOS.map(f=>
+      `<div style="flex:1;min-width:140px"><label class="f-label">${f.label}</label>`+
+      `<input class="f-input" type="number" id="pl-${p}-${f.k}" value="${v[f.k]??0}"></div>`
+    ).join('');
+    return `<div style="border:1px solid var(--bd);border-radius:10px;padding:12px">
+      <div style="font-weight:800;color:var(--g);margin-bottom:8px">${nomes[p]}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${campos}</div>
+    </div>`;
+  }).join('');
+}
+async function salvarPlanos(){
+  const planos={};
+  ['basico','plus','pro'].forEach(p=>{
+    planos[p]={};
+    PLANOS_CAMPOS.forEach(f=>{planos[p][f.k]=+document.getElementById(`pl-${p}-${f.k}`).value||0});
+  });
+  try{
+    await JUMP.api('set_planos',{planos},CTX.token);
+    _planos=planos;
+    JUMP.toast('✓ Planos salvos! Aplica-se a novas trocas de plano.');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+
 // ── ADICIONAR/AJUSTAR TOKENS (individual) ──
 function abrirAddTokens(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
   const lim=(u.limites||{}).tokens||0;const uso=(u.uso||{}).tokens||0;
   document.getElementById('at-id').value=id;
-  document.getElementById('at-info').innerHTML=`<strong>${JUMP.esc(u.nome||u.email)}</strong><br>Uso atual: ${JUMP.fmtNum(uso)} / ${JUMP.fmtNum(lim)} tokens`;
+  const l=u.limites||{},us=u.uso||{};
+  document.getElementById('at-info').innerHTML=`<strong>${JUMP.esc(u.nome||u.email)}</strong> · plano ${u.plano||'basico'}<br>Imagens: ${us.imagens||0}/${l.imagens||0} · Extra: ${us.reloads||0}/${l.reloads||0} · Tokens: ${JUMP.fmtNum(uso)}/${JUMP.fmtNum(lim)}`;
+  document.getElementById('at-imagens').value=l.imagens??12;
+  document.getElementById('at-reloads').value=l.reloads??6;
   document.getElementById('at-tokens').value=lim;
   document.getElementById('modal-addtok').classList.add('show');
 }
 async function salvarAddTokens(){
   const id=document.getElementById('at-id').value;
   const u=USERS.find(x=>x.id===id);
-  const limites=Object.assign({},u.limites||{},{tokens:+document.getElementById('at-tokens').value||0});
+  const limites=Object.assign({},u.limites||{},{
+    imagens:+document.getElementById('at-imagens').value||0,
+    reloads:+document.getElementById('at-reloads').value||0,
+    tokens:+document.getElementById('at-tokens').value||0,
+  });
   try{
     await JUMP.api('set_limits',{user_id:id,limites},CTX.token);
-    JUMP.toast('✓ Limite de tokens atualizado');fechar('modal-addtok');await carregar();
+    JUMP.toast('✓ Limites atualizados');fechar('modal-addtok');await carregar();
   }catch(e){JUMP.toast(e.message,'err')}
 }
 

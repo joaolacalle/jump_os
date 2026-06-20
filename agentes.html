@@ -279,7 +279,7 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo){
   w.appendChild(lbl);w.scrollTop=w.scrollHeight;
   const r=await fetch('/api/gerar-imagem',{
     method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-    body:JSON.stringify({prompt,tamanho,tipo,slide:1,ver_id:CTX.viewId||null})
+    body:JSON.stringify({prompt,tamanho,tipo,slide:1,reload:!!req.reload,ver_id:CTX.viewId||null})
   });
   const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
   if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));
@@ -356,7 +356,7 @@ async function gerarImagem(req,btn){
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,ver_id:CTX.viewId||null})
+      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!req.reload,ver_id:CTX.viewId||null})
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
