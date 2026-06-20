@@ -17,11 +17,21 @@ window.JUMP=(function(){
 
   const SUPABASE_URL='https://fcdjzubdxikpvcqvalnt.supabase.co';
   const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
-  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+    auth:{ autoRefreshToken:true, persistSession:true, detectSessionInUrl:true }
+  });
+  // OPÇÃO C: timer proativo — renova o token a cada 45 min (antes de expirar ~1h)
+  setInterval(async ()=>{
+    try{ const{data}=await sb.auth.getSession(); if(data&&data.session){ await sb.auth.refreshSession(); } }catch(e){}
+  }, 45*60*1000);
 
   /* Guard: exige login; roles = array opcional ['admin','supervisor'] */
   async function guard(roles){
-    const{data}=await sb.auth.getSession();
+    let{data}=await sb.auth.getSession();
+    // tenta renovar a sessão antes de desistir (evita 'sessão inválida' por token expirado)
+    if(!data||!data.session){
+      try{ const r=await sb.auth.refreshSession(); if(r&&r.data&&r.data.session){ data=r.data; } }catch(e){}
+    }
     if(!data||!data.session){location.href='login.html';throw new Error('no-session')}
     const user=data.session.user;
     let cliente={};

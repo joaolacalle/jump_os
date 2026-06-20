@@ -2,9 +2,9 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{overflow-x:hidden}
 :root{
-  --ch:#141312;--ch2:#1C1A18;--ch3:#252220;--card:#1E1C19;
-  --g:#00E676;--g2:#00FF8A;--g-rgb:0,230,118;--glow:rgba(var(--g-rgb),.18);
-  --a2:#00D4FF;--a3:#A855F7;
+  --ch:#000000;--ch2:#1C1A18;--ch3:#252220;--card:#343434;
+  --g:#64E17B;--g2:#00FF8A;--g-rgb:100,225,123;--glow:rgba(var(--g-rgb),.18);
+  --a2:#65E17C;--a3:#FFFFFF;
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
   --red:#FF6B6B;--yel:#FFD166;--cy:#00D4FF;--pu:#A855F7;
