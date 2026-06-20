@@ -10,5 +10,11 @@
     "api/admin-users.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron-estrategia",
+      "schedule": "0 9 25 * *"
+    }
+  ]
 }

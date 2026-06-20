@@ -19,6 +19,10 @@
   <div class="card" id="basico-note" style="display:none;border-color:rgba(0,212,255,.25);margin-bottom:16px">
     <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 No plano <strong style="color:var(--cy)">Básico</strong>, você baixa o conteúdo pronto e publica você mesmo. Nos planos <strong>Plus e Pro</strong>, aprovar publica automaticamente no horário ideal.</div>
   </div>
+  <div id="fila-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span></div>
+    <div style="font-size:11px;color:var(--t3);margin-top:6px">As artes do seu plano estão sendo criadas uma a uma. Você pode aguardar aqui.</div>
+  </div>
   <div class="ap-grid" id="ap-grid"></div>
   <div class="card" id="vazio" style="display:none"><div style="text-align:center;padding:24px;font-family:var(--M);font-size:13px;color:var(--t3)">✓ Nenhum conteúdo aguardando.<br><span style="font-size:11px">Quando os agentes gerarem conteúdo, ele aparece aqui para sua revisão.</span></div></div>
 </main>
@@ -37,7 +41,7 @@
 </div>
 <script src="assets/jump-core.js"></script>
 <script>
-let CTX=null,ITENS=[],PLANO='basico';
+let CTX=null,ITENS=[],RASCUNHOS=[],PLANO='basico';
 (async()=>{
   try{
     JUMP.sidebar('aprovar');
@@ -46,11 +50,14 @@ let CTX=null,ITENS=[],PLANO='basico';
     PLANO=(CTX.viewCliente||CTX.cliente).plano||'basico';
     if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','pendente').order('created_at',{ascending:false});
-      ITENS=data||[];
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao']).order('created_at',{ascending:false});
+      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao');
+      RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url);
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
+    // Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
+    if(RASCUNHOS.length) gerarFila();
   }catch(e){}
 })();
 function render(){
@@ -59,7 +66,7 @@ function render(){
   document.getElementById('vazio').style.display=ITENS.length?'none':'block';
   g.innerHTML=ITENS.map(c=>{
     const ico=(c.formato||'').includes('reel')?'🎬':(c.formato||'').includes('carros')?'🖼':'📝';
-    const prazo=c.prazo?new Date(c.prazo).toLocaleDateString('pt-BR'):null;
+    const prazo=c.data_sugerida?new Date(c.data_sugerida).toLocaleDateString('pt-BR'):null;
     const acoes=PLANO==='basico'
       ?`<button class="btn btn-g btn-sm" style="flex:1" onclick="baixar('${c.id}')">⬇ Baixar</button>
         <button class="btn btn-o btn-sm" onclick="abrirRej('${c.id}')">Ajustar</button>`
@@ -75,9 +82,48 @@ function render(){
       </div></div>`;
   }).join('');
 }
+// Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
+async function gerarFila(){
+  const bar=document.getElementById('fila-bar');
+  if(bar)bar.style.display='block';
+  for(let i=0;i<RASCUNHOS.length;i++){
+    const c=RASCUNHOS[i];
+    const st=document.getElementById('fila-status');
+    if(st)st.textContent=`Gerando arte ${i+1} de ${RASCUNHOS.length}…`;
+    try{
+      const meta=c.meta||{};
+      // monta um prompt direto a partir do conteúdo planejado
+      const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". `+
+        `Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}`+
+        `Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.`;
+      const r=await fetch('/api/gerar-imagem',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        body:JSON.stringify({prompt,tamanho:c.formato&&c.formato.includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
+      });
+      const d=await r.json();
+      if(d&&d.ok){
+        // recarrega a lista para mostrar o item já pronto para aprovar
+        const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
+        ITENS=data||[]; render();
+      }
+    }catch(e){console.error('fila:',e);}
+  }
+  if(bar)bar.style.display='none';
+  JUMP.toast('✓ Artes geradas! Revise e aprove.');
+}
+// Salva o gosto do cliente como memória global (Designer aprende)
+async function salvarGosto(chave,valor){
+  try{
+    await JUMP.sb.from('memorias').insert({user_id:CTX.viewId||CTX.user.id,agente:'global',chave,valor});
+  }catch(e){}
+}
 async function aprovar(id){
+  const c=ITENS.find(i=>i.id===id);
   try{
     await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
+    // Designer aprende: este tipo/tema foi aprovado
+    if(c)salvarGosto('referencia_aprovada',`${c.tema||'post'} (${c.tipo_visual||'conceitual'}, ${c.formato||'feed'}) — aprovado pelo cliente`);
     JUMP.toast('✓ Aprovado! Será publicado no horário ideal.');
     ITENS=ITENS.filter(i=>i.id!==id);render();
   }catch(e){JUMP.toast('Erro ao aprovar','err')}
@@ -106,6 +152,8 @@ async function confirmarRej(){
   const motivo=document.getElementById('mr-motivo').value.trim();
   try{
     await JUMP.sb.from('conteudos').update({status:'rejeitado',feedback:motivo}).eq('id',id);
+    // Designer aprende: o que o cliente NÃO quer
+    if(motivo)salvarGosto('evitar_visual',motivo);
     JUMP.toast('Enviado ao agente para ajuste.');
     document.getElementById('modal-rej').classList.remove('show');
     ITENS=ITENS.filter(i=>i.id!==id);render();
