@@ -209,8 +209,17 @@ module.exports = async (req, res) => {
           }
         }
       }
-      await sbPatch(`clientes?id=eq.${user_id}`, { plano });
-      return res.status(200).json({ ok: true });
+      // Limites de imagem por plano (criações/mês + reloads/mês)
+      const LIMS_PLANO = {
+        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
+        plus:   { imagens: 18, reloads: 9,  videos: 4,  tokens: 500000 },
+        pro:    { imagens: 25, reloads: 15, videos: 10, tokens: 1200000 },
+      };
+      // preserva limites existentes e sobrescreve os de imagem/reload do plano
+      const cliAtual = (await sbGet(`clientes?id=eq.${user_id}&select=limites`))[0] || {};
+      const novoLim = { ...(cliAtual.limites || {}), ...LIMS_PLANO[plano] };
+      await sbPatch(`clientes?id=eq.${user_id}`, { plano, limites: novoLim });
+      return res.status(200).json({ ok: true, limites: novoLim });
     }
 
     if (action === 'set_limits') {

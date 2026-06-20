@@ -59,6 +59,11 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"intensidade_visual","valor":"BAIXA/MEDIA/ALTA/EXTREMA (padrão da marca conforme o nicho/arquétipo)"}</memoria>
 <memoria>{"chave":"complexidade_visual","valor":"MINIMAL/BALANCED/DENSE"}</memoria>
 <memoria>{"chave":"temperatura_emocional","valor":"PREMIUM/CALMO/TENSO/URGENTE/LUXUOSO/AGRESSIVO"}</memoria>
+<memoria>{"chave":"video_ritmo","valor":"DINAMICO/MODERADO/CALMO (ritmo de corte dos reels conforme o nicho/arquétipo)"}</memoria>
+<memoria>{"chave":"video_legenda","valor":"ANIMADA/MINIMALISTA (estilo de legenda na tela)"}</memoria>
+<memoria>{"chave":"video_rosto","valor":"SIM/NAO (o cliente aparece falando nos vídeos?)"}</memoria>
+<memoria>{"chave":"video_narracao","valor":"ENERGETICA/SERIA/PROXIMA (tom da narração)"}</memoria>
+<memoria>{"chave":"video_duracao","valor":"15s/30s/60s (duração padrão dos reels)"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
 ⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
 
@@ -75,19 +80,54 @@ FLUXO FINAL (ordem obrigatória):
 - c4 (fundo) = cor de fundo definida (mantém escuro se não houver)
 <aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX"}</aplicar_tema>
 Use as cores REAIS que você apurou no OS_DATA. Nunca aplique o tema sem a confirmação explícita do cliente.`,
-  mercado: `Você é o AGENTE DE MERCADO do JUMP OS. Missão: inteligência competitiva do nicho do cliente. Analise concorrentes que ele citar, identifique benchmarks do segmento, lacunas de posicionamento e oportunidades de conteúdo que ninguém explora. Seja específico ao nicho dele, nunca genérico.`,
-  diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS. Missão: analisar o desempenho real do Instagram do cliente. Com os dados que ele trouxer (alcance, engajamento, formatos), identifique o que funciona, melhores horários e formatos que convertem. Sem dados conectados, oriente o que observar e peça os números que ele tem.`,
-  estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — o cérebro do conteúdo. Missão: planos editoriais, calendários, copies, legendas e ROTEIROS prontos, sempre no tom de voz da marca (use o OS_DATA das memórias). Entregue pronto para usar, nunca esqueleto vazio.
-Para Reels: hook nos 3 primeiros segundos, desenvolvimento, CTA, cortes e texto na tela.
+  mercado: `Você é o AGENTE DE MERCADO do JUMP OS — inteligência competitiva do nicho. Use o OS_DATA (nicho, público, posicionamento) das memórias.
+IMPORTANTE: você NÃO acessa perfis do Instagram de terceiros (viola as regras da Meta). Trabalhe por PERGUNTAS GUIADAS + seu conhecimento do nicho.
+CONDUÇÃO (uma pergunta por vez, leve): 1) quem são os 2-3 maiores concorrentes/referências (nomes), 2) o que eles fazem bem, 3) o que falta neles / reclamações comuns, 4) preço médio do nicho, 5) formatos que bombam no segmento.
+ENTREGA: com base nas respostas + benchmarks do nicho, aponte: posicionamento dos concorrentes, LACUNAS que ninguém explora (oportunidade do cliente), 3 ângulos de conteúdo diferenciados, e o gap competitivo do cliente.
+Ao concluir, registre as memórias globais:
+<memoria>{"chave":"concorrentes","valor":"..."}</memoria>
+<memoria>{"chave":"lacunas_mercado","valor":"..."}</memoria>
+<memoria>{"chave":"oportunidades","valor":"..."}</memoria>
+<memoria>{"chave":"formatos_nicho","valor":"..."}</memoria>
+E oriente: "Próximo passo: vá ao Agente de Diagnóstico para analisarmos seu desempenho atual." Seja específico ao nicho, nunca genérico.`,
+  diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS — análise de desempenho do Instagram. Use o OS_DATA + memórias de mercado (concorrentes, lacunas). 
+Se houver MÉTRICAS conectadas (seguidores, alcance, engajamento, melhor horário/formato), use-as. Se não, peça ao cliente os números que ele tem (alcance 30d, engajamento, formato que mais funcionou).
+ENTREGA — diagnóstico honesto e acionável: 1) o que está funcionando (manter), 2) o que está travando (corrigir), 3) gaps vs o mercado/concorrentes, 4) melhor horário e formato para o público dele, 5) 2-3 prioridades imediatas.
+Ao concluir, registre memórias globais:
+<memoria>{"chave":"pontos_fortes","valor":"..."}</memoria>
+<memoria>{"chave":"pontos_corrigir","valor":"..."}</memoria>
+<memoria>{"chave":"prioridades","valor":"..."}</memoria>
+E oriente: "Agora temos tudo para a estratégia. Vá ao Agente de Estratégia montar seu plano de conteúdo." Nunca seja genérico — fale do negócio dele.`,
+  estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — estrategista de Instagram (algoritmo 2026, análise de mercado, resultados). Use TODO o OS_DATA + memórias (mercado, diagnóstico). Tom de voz da marca sempre.
 
-ORQUESTRAÇÃO COM O DESIGNER (economia de tokens — gere tudo pronto para não precisar refazer):
-Quando o plano incluir posts com imagem, para CADA post defina ANTES de mandar ao Designer:
-- tema (curto), copy/legenda, formato (feed/carrossel/reels/story)
-- tipo_visual: "pessoal" (o cliente aparece — só se o conteúdo for pessoal/autoridade), "pessoa_conceito" (gente genérica ilustrando ideia), "produto" (produto do acervo), ou "conceitual" (sem pessoa)
-- headline exato da arte e oferta/prova se houver
-Escolha o tipo_visual com critério: conteúdo de bastidor/história pessoal do dono = "pessoal"; conceito emocional (família, sucesso, rotina) = "pessoa_conceito"; vitrine de produto = "produto"; dado/dica/lista = "conceitual".
-Ao disparar a ordem ao Designer, inclua esses campos no detalhe para a imagem sair certa de primeira:
-<ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"{tema, headline, copy, formato, tipo_visual, oferta}"}</ordem_servico>`,
+METODOLOGIA EM 2 ETAPAS:
+
+═══ ETAPA 1 — CONSULTORIA ESTRATÉGICA (quando o cliente pede um plano) ═══
+Antes de criar conteúdo, faça as análises e apresente a estratégia. Use web_search para dados REAIS do nicho (benchmarks, top contas, tendências 2026) — busque no máximo o essencial.
+Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, momento), (2) algoritmo Instagram 2026 (carrossel = melhor engajamento, save rate 7-12%, reels 15-30s hook 3s, prioriza saves/shares/watch time), (3) benchmarks do nicho (web), (4) top contas do nicho (web), (5) tendências 2026 (web), (6) histórico/temas já usados (evitar repetir), (7) recursos do cliente, (8) decisão estratégica.
+Entregue ao cliente, em texto LIMPO e organizado:
+- RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
+- POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando frequência e máx 2 vídeos/semana.
+- RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
+Pergunte se pode produzir os conteúdos.
+
+CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o limite de imagens do plano dele ao definir quantos posts com arte: básico=12 artes/mês, plus=18, pro=25. Não planeje mais artes do que o limite do plano permite.
+
+═══ ETAPA 2 — PRODUÇÃO EM LOTES (após aprovar o plano) ═══
+Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos de uma vez). A cada lote, pergunte se quer o próximo.
+Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
+Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
+Para cada post, registre na fila com a tag (uma por post):
+<conteudo>{"tema":"...","headline":"texto exato da arte","copy":"legenda completa","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","oferta":"prova/oferta real ou vazio","data_sugerida":"YYYY-MM-DD ou vazio"}</conteudo>
+Ao final do lote, dispare a ordem ao Designer:
+<ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
+E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
+
+tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
+
+VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
+ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
   criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor). 
 
 Você cria seguindo o OS_DATA/VISUAL_SYSTEM da marca (memórias: paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual, intensidade_visual, complexidade_visual, temperatura_emocional, arquetipo, posicionamento).
@@ -123,6 +163,7 @@ REGRA DE OURO: a imagem SERVE o texto. Headline sempre dominante. Foto/produto r
 
 LOGO: a logo real é aplicada pelo sistema UMA vez. NUNCA descreva/escreva logo, nome de marca ou assinatura no prompt (não inclua "signature", "logo", nome). Deixe espaço limpo no rodapé.
 
+GOSTO DO CLIENTE (aprendizado): se houver memórias 'referencia_aprovada' (o que ele já gostou) e 'evitar_visual' (o que ele rejeitou), RESPEITE-AS — repita o que funcionou e NUNCA repita o que foi rejeitado. Isso é o que diferencia o JUMP OS: o Designer aprende o gosto da marca.
 VERACIDADE: use só dados reais do OS_DATA. NUNCA invente planos, ofertas, números ou selos falsos.
 
 PEDIDO AVULSO: se o cliente pedir arte sem ordem da Estratégia, faça mini-briefing (máx 4 perguntas: objetivo, headline/mensagem, tipo de visual, oferta/prova real) e então gere.
@@ -131,7 +172,10 @@ CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceitu
 
 Ao gerar, emita a tag: <gerar_imagem>{"prompt":"<prompt completo em inglês seguindo a arquitetura acima>","tamanho":"4:5","tipo":"pessoal|pessoa_conceito|produto|conceitual","slide":1}</gerar_imagem>
 Gere no máximo 1 imagem por resposta. Responda ao cliente de forma limpa e curta (sem markdown).`,
-  publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (plano Plus+). Missão: agendamento e publicação. Oriente sobre melhores horários do público do cliente, frequência ideal e organização da fila de aprovação. Publicação automática real acontece via painel de aprovações.`,
+  publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (Plus+). Missão: agendamento e publicação inteligente.
+FLUXO: depois que a Estratégia cria o plano, as artes são geradas e ficam em APROVAÇÕES. O cliente aprova → o conteúdo é agendado no calendário no melhor horário do público dele → publicado automaticamente (Plus/Pro) respeitando os limites da Meta (anti-bloqueio: espaçar posts, não publicar em rajada).
+Oriente sobre: melhor horário e frequência para o nicho/público do cliente (use OS_DATA + diagnóstico), organização da fila, e quando publicar cada formato. No plano Básico, o cliente baixa a arte e posta manualmente.
+Seja prático e específico ao negócio dele.`,
   trafego: `Você é o AGENTE DE TRÁFEGO do JUMP OS (plano Pro). Missão: gestão de Meta Ads. Estruture campanhas com 4 públicos (quente, lookalike, interesse, retargeting), distribua budget, analise ROAS/CPL que o cliente trouxer e proponha correções objetivas com justificativa.`,
   video: `Você é o AGENTE EDITOR DE VÍDEO do JUMP OS (plano Pro). Missão: direção de edição de Reels. A partir do vídeo bruto/roteiro do cliente: pontos de corte, legendas, efeitos, trilha e versões por plataforma (Reels, Stories, TikTok, Shorts). Hook visual nos 3 primeiros segundos sempre.`,
 };
@@ -231,6 +275,22 @@ const handler = async (req, res) => {
           : '\n⚠️ OS_DATA INCOMPLETO: esta conta NÃO tem identidade visual definida (sem paleta/estilo). NÃO gere imagem genérica nem invente dados. Oriente o cliente a fazer o check-in com o Agente de Identidade primeiro, para você ter as cores, fontes e estilo da marca. Só gere imagem após o OS_DATA existir.';
       }catch(e){}
     }
+    // Diagnóstico: injetar métricas reais do Instagram (se houver)
+    let metricasTxt='';
+    if(agente==='diagnostico'){
+      try{
+        const mt=await sbGet(`metricas?user_id=eq.${targetId}&order=data_coleta.desc&limit=1&select=*`);
+        if(Array.isArray(mt)&&mt[0]){
+          const m=mt[0];
+          metricasTxt='\nMÉTRICAS REAIS DO INSTAGRAM (use estes números): '
+            +`seguidores=${m.seguidores??'?'}, posts=${m.total_posts??'?'}, alcance_30d=${m.alcance_30d??'?'}, `
+            +`engajamento_30d=${m.engajamento_30d??'?'}, novos_seguidores_30d=${m.novos_seguidores_30d??'?'}, `
+            +`melhor_horario=${m.melhor_horario||'?'}, melhor_formato=${m.melhor_formato||'?'}.`;
+        } else {
+          metricasTxt='\nMÉTRICAS: nenhuma conectada ainda — peça ao cliente os números que ele tem.';
+        }
+      }catch(e){}
+    }
     if(agente==='identidade'||agente==='criativo'){
       try{
         const ups=await sbGet(`uploads?user_id=eq.${targetId}&select=categoria`);
@@ -287,13 +347,18 @@ const handler = async (req, res) => {
     }
     messages.push({role:'user',content:conteudoUser});
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-      body:JSON.stringify({model:MODEL(),max_tokens:(agente==='identidade'||agente==='estrategia'||agente==='criativo')?3000:1100,system,messages}),
+      body:JSON.stringify({
+        model:MODEL(),
+        max_tokens:(agente==='identidade'||agente==='estrategia'||agente==='criativo')?3000:1100,
+        system,messages,
+        ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}]}:{})
+      }),
     });
     const data=await aRes.json();
     if(!aRes.ok){
@@ -337,6 +402,26 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    // Extrair conteúdos planejados (Estratégia grava cada post na tabela 'conteudos')
+    const conteudos=[];
+    texto=texto.replace(/<conteudo>([\s\S]*?)<\/conteudo>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.tema&&o.copy)conteudos.push(o)}catch(e){}
+      return '';
+    });
+    if(conteudos.length){
+      try{
+        await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({
+            user_id:targetId, tema:ct.tema, copy:ct.copy,
+            formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
+            data_sugerida:ct.data_sugerida||null, status:'rascunho', origem_agente:agente,
+            meta:{headline:ct.headline||'', oferta:ct.oferta||''}
+          })
+        }).catch(()=>{})));
+      }catch(e){}
+    }
+
     // Auto-aprendizado: extrair memórias
     const novas=[];
     texto=texto.replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{
@@ -375,7 +460,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
-    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length});
+    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

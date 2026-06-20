@@ -52,13 +52,20 @@ module.exports = async (req, res) => {
     // Reset mensal do uso de imagens
     const mes = new Date().toISOString().slice(0, 7);
     let uso = cli.uso || {};
-    if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, videos: 0, mes }; }
+    if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     const lim = cli.limites || {};
-    if (lim.imagens && Number(uso.imagens || 0) >= Number(lim.imagens)) {
-      return res.status(403).json({ error: 'Limite mensal de imagens atingido.', limite: true });
+    const ehReload = !!reload;
+    if (ehReload) {
+      if (lim.reloads != null && Number(uso.reloads || 0) >= Number(lim.reloads)) {
+        return res.status(403).json({ error: 'Limite mensal de recriações (reloads) atingido.', limite: true, tipo_limite: 'reload' });
+      }
+    } else {
+      if (lim.imagens != null && Number(uso.imagens || 0) >= Number(lim.imagens)) {
+        return res.status(403).json({ error: 'Limite mensal de criações de imagem atingido.', limite: true, tipo_limite: 'imagem' });
+      }
     }
 
-    const { prompt, tamanho, tipo, slide } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload } = req.body || {};
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
     // gpt-image-1: 1024x1024, 1024x1536 (retrato 4:5), 1536x1024 (paisagem 16:9), auto
     const size = tamanho === '4:5' ? '1024x1536' : tamanho === '16:9' ? '1536x1024' : '1024x1024';
@@ -164,7 +171,7 @@ module.exports = async (req, res) => {
     // ECONOMIA DE TEMPO (Hobby 60s): subir no storage e registrar AGORA, mas com timeout curto.
     // Se o storage demorar, devolvemos base64 (a imagem nunca se perde).
     const fileName = `${targetId}/gerados/${Date.now()}.png`;
-    uso.imagens = Number(uso.imagens || 0) + 1;
+    if (ehReload) { uso.reloads = Number(uso.reloads || 0) + 1; } else { uso.imagens = Number(uso.imagens || 0) + 1; }
 
     let publicUrl = null;
     try {
@@ -189,11 +196,19 @@ module.exports = async (req, res) => {
     // registrar uso (rápido)
     await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
 
+    // Se veio de um conteúdo planejado, vincula a arte e marca para aprovação
+    if (conteudo_id && publicUrl) {
+      await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudo_id}`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ midia_url: publicUrl, status: 'aguardando_aprovacao' })
+      }).catch(() => {});
+    }
+
     // Se o storage funcionou, manda a URL; senão, manda base64 (imagem garantida)
     return res.status(200).json({
       ok: true,
       url: publicUrl || ('data:image/png;base64,' + b64),
-      usadas: uso.imagens, limite: lim.imagens || 0,
+      usadas: uso.imagens, limite: lim.imagens || 0, reloads_usados: uso.reloads||0, reloads_limite: lim.reloads||0,
       aviso: publicUrl ? undefined : 'base64'
     });
   } catch (e) {
