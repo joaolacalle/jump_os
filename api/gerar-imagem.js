@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
       if (temProduto) {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
-      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. AGENCY COMPOSITION: rich layered background with real depth and atmosphere (never flat/empty), small category label at the top, large headline with premium texture, generous negative space. Photorealistic, magazine-grade. ===';
+      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
       const instr = prompt + preserva;
       form.append('prompt', instr);
       form.append('size', size);
@@ -130,11 +130,11 @@ module.exports = async (req, res) => {
       });
     } else {
       // text-to-image: pessoa_conceito pode criar gente genérica; conceitual sem pessoa
-      let extra = ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting anywhere in the image. Leave brand space clean — the real logo will be added separately. Ensure correct letter spacing and legible text. Agency-grade finish: small category label at top, large headline with premium texture (metallic/gradient/glow as fits the style), layered cinematic background with real depth that tells the brand story, generous negative space, realistic directional lighting and shadows. Photorealistic, magazine-grade, NO flat empty backgrounds, NO cartoon/vector/illustration style.';
+      let extra = ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting in the image — leave brand space clean (the real logo is added separately). All text spelling 100% correct in Portuguese (ç ã õ é á), perfect kerning, no melted/fused letters.';
       if (tipo === 'pessoa_conceito') {
-        extra += ' This composition includes a realistic generic person/people (not a specific real individual) fitting the concept — render them photorealistically, natural and believable, never as illustration or cartoon.';
+        extra += ' Includes a realistic generic person/people (not a specific real individual), photorealistic, never illustration or cartoon.';
       } else if (tipo === 'conceitual') {
-        extra += ' This composition has NO people — use objects, graphics, product mockups or abstract scene elements that illustrate the concept.';
+        extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
       const promptSemLogo = prompt + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
