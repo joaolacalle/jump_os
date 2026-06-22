@@ -199,8 +199,8 @@ module.exports = async (req, res) => {
     if (action === 'get_planos') {
       const LIMS_DEFAULT = {
         basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
-        plus:   { imagens: 18, reloads: 9,  videos: 4,  tokens: 500000 },
-        pro:    { imagens: 25, reloads: 15, videos: 10, tokens: 1200000 },
+        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000 },
+        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000 },
       };
       let planos = LIMS_DEFAULT;
       try {
@@ -234,8 +234,8 @@ module.exports = async (req, res) => {
       // Limites por plano: lê do banco (config 'planos'), com fallback aos defaults
       const LIMS_DEFAULT = {
         basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
-        plus:   { imagens: 18, reloads: 9,  videos: 4,  tokens: 500000 },
-        pro:    { imagens: 25, reloads: 15, videos: 10, tokens: 1200000 },
+        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000 },
+        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000 },
       };
       let LIMS_PLANO = LIMS_DEFAULT;
       try {
