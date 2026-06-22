@@ -7,6 +7,7 @@ module.exports = (req, res) => {
     plans: {
       basico: process.env.PAYPAL_PLAN_BASICO || '',
       plus: process.env.PAYPAL_PLAN_PLUS || '',
+      pro: process.env.PAYPAL_PLAN_PRO || '',
     },
   });
 };

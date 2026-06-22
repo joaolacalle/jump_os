@@ -1,17 +1,15 @@
 // api/create-checkout.js — Vercel Serverless Function (PayPal Subscriptions)
 // Compatível com checkout.html (payload: {plano, email, userId} → retorna {url})
 // ENV necessárias na Vercel: PAYPAL_CLIENT_ID, PAYPAL_SECRET, PAYPAL_MODE (sandbox|live)
-
 const PAYPAL_API = process.env.PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
-
-// Plan IDs do PayPal — criar no painel (instruções na entrega) e colar aqui
+// Plan IDs do PayPal — criar no painel e configurar nas ENVs da Vercel
 const PLANS = {
   basico: process.env.PAYPAL_PLAN_BASICO, // ex: P-1AB23456CD789012EABCDEFG
   plus:   process.env.PAYPAL_PLAN_PLUS,
+  pro:    process.env.PAYPAL_PLAN_PRO,
 };
-
 async function getAccessToken() {
   const auth = Buffer.from(
     `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`
@@ -28,17 +26,14 @@ async function getAccessToken() {
   const data = await res.json();
   return data.access_token;
 }
-
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-
   try {
     const { plano, email, userId } = req.body || {};
-
     if (!plano || !PLANS[plano]) {
       return res.status(400).json({ error: 'Plano inválido' });
     }
@@ -48,10 +43,8 @@ module.exports = async (req, res) => {
     if (!PLANS[plano]) {
       return res.status(500).json({ error: 'Plan ID não configurado' });
     }
-
     const origin = req.headers.origin || `https://${req.headers.host}`;
     const token = await getAccessToken();
-
     const subRes = await fetch(`${PAYPAL_API}/v1/billing/subscriptions`, {
       method: 'POST',
       headers: {
@@ -72,18 +65,15 @@ module.exports = async (req, res) => {
         },
       }),
     });
-
     const sub = await subRes.json();
     if (!subRes.ok) {
       console.error('PayPal error:', JSON.stringify(sub));
       return res.status(500).json({ error: 'Erro ao criar assinatura' });
     }
-
     const approve = (sub.links || []).find(l => l.rel === 'approve');
     if (!approve) {
       return res.status(500).json({ error: 'Link de aprovação não retornado' });
     }
-
     return res.status(200).json({ url: approve.href, subscriptionId: sub.id });
   } catch (err) {
     console.error('create-checkout error:', err.message);
