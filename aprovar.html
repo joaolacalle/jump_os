@@ -75,9 +75,9 @@ function render(){
     return `<div class="ap-card">
       <div class="ap-img">${c.midia_url?`<img src="${c.midia_url}" alt="">`:ico}</div>
       <div class="ap-body">
-        <div class="ap-t">${JUMP.esc(c.titulo||'Conteúdo')}</div>
+        <div class="ap-t">${JUMP.esc(c.tema||'Conteúdo')}</div>
         <div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(c.formato||'post')}${prazo?' · publica '+prazo:''}</div>
-        <div class="ap-leg">${JUMP.esc(c.legenda||c.texto||'')}</div>
+        <div class="ap-leg">${JUMP.esc(c.copy||'')}</div>
         <div class="ap-acts">${acoes}</div>
       </div></div>`;
   }).join('');
@@ -106,6 +106,11 @@ async function gerarFila(){
         // recarrega a lista para mostrar o item já pronto para aprovar
         const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
         ITENS=data||[]; render();
+      } else if(d&&d.limite){
+        // limite de imagens atingido — para a fila com aviso claro
+        if(bar)bar.style.display='none';
+        JUMP.toast('Limite de imagens do plano atingido. As artes restantes ficam pendentes.','err');
+        return;
       }
     }catch(e){console.error('fila:',e);}
   }
@@ -131,12 +136,12 @@ async function aprovar(id){
 async function baixar(id){
   const c=ITENS.find(i=>i.id===id);if(!c)return;
   if(c.midia_url){
-    try{const r=await fetch(c.midia_url);const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.titulo||'conteudo')+'.png';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href)}
-    catch(e){const a=document.createElement('a');a.href=c.midia_url;a.download=c.titulo||'conteudo';a.click()}
+    try{const r=await fetch(c.midia_url);const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.tema||'conteudo')+'.png';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href)}
+    catch(e){const a=document.createElement('a');a.href=c.midia_url;a.download=c.tema||'conteudo';a.click()}
   }
-  if(c.legenda||c.texto){
-    const blob=new Blob([(c.titulo||'')+'\n\n'+(c.legenda||c.texto||'')],{type:'text/plain'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.titulo||'legenda')+'.txt';a.click();
+  if(c.copy){
+    const blob=new Blob([(c.tema||'')+'\n\n'+(c.copy||'')],{type:'text/plain'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.tema||'legenda')+'.txt';a.click();
   }
   try{await JUMP.sb.from('conteudos').update({status:'baixado'}).eq('id',id)}catch(e){}
   JUMP.toast('⬇ Baixado! Bom post.');

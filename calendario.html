@@ -48,7 +48,7 @@ const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agos
 })();
 function evDoDia(d){
   return EVENTOS.filter(ev=>{
-    const dt=ev.data_postagem||ev.prazo||ev.created_at;
+    const dt=ev.data_agendada||ev.data_sugerida||ev.created_at;
     if(!dt)return false;
     const e=new Date(dt);
     return e.getFullYear()===ANO&&e.getMonth()===MES&&e.getDate()===d;
@@ -64,7 +64,7 @@ function render(){
   for(let d=1;d<=dias;d++){
     const evs=evDoDia(d);
     const isHoje=hoje.getFullYear()===ANO&&hoje.getMonth()===MES&&hoje.getDate()===d;
-    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}" onclick="verDia(${d})">${d}${evs.slice(0,2).map(e=>`<span class="cal-ev${e.status==='pendente'?' pend':''}">${JUMP.esc(e.titulo||e.formato||'Post')}</span>`).join('')}${evs.length>2?'<span class="cal-ev">+'+(evs.length-2)+'</span>':''}</div>`;
+    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}" onclick="verDia(${d})">${d}${evs.slice(0,2).map(e=>`<span class="cal-ev${e.status==='aguardando_aprovacao'?' pend':''}">${JUMP.esc(e.tema||e.formato||'Post')}</span>`).join('')}${evs.length>2?'<span class="cal-ev">+'+(evs.length-2)+'</span>':''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML=h;
 }
@@ -75,8 +75,8 @@ function verDia(d){
   if(!evs.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3)">Nenhum conteúdo neste dia. Peça ao Agente de Estratégia para preencher seu calendário.</div>';return}
   w.innerHTML=evs.map(e=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd)">
     <span style="font-size:17px">${(e.formato||'').includes('reel')?'🎬':(e.formato||'').includes('carros')?'🖼':'📝'}</span>
-    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.titulo||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(e.formato||'post')} · ${JUMP.esc(e.status||'planejado')}</div></div>
-    ${e.status==='pendente'?'<a href="aprovar.html" class="btn btn-g btn-sm">Aprovar →</a>':''}
+    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(e.formato||'post')} · ${JUMP.esc(e.status||'planejado')}</div></div>
+    ${e.status==='aguardando_aprovacao'?'<a href="aprovar.html" class="btn btn-g btn-sm">Aprovar →</a>':''}
   </div>`).join('');
 }
 function mudaMes(n){MES+=n;if(MES<0){MES=11;ANO--}if(MES>11){MES=0;ANO++}render()}

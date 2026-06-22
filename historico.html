@@ -45,7 +45,7 @@ let ITENS=[];
     const CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).neq('status','pendente').order('created_at',{ascending:false}).limit(200);
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).neq('status','rascunho').order('created_at',{ascending:false}).limit(200);
       ITENS=data||[];
     }catch(e){}
     ['publicado','aprovado','baixado','rejeitado'].forEach((s,i)=>{
@@ -62,7 +62,7 @@ function render(){
   if(!rows.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;font-family:var(--M);font-size:12px">Nada por aqui ainda. Seu histórico cresce conforme os agentes trabalham.</td></tr>';return}
   const P={publicado:'pill-g',aprovado:'pill-c',baixado:'pill-c',rejeitado:'pill-r'};
   tb.innerHTML=rows.map(c=>`<tr>
-    <td><strong>${JUMP.esc(c.titulo||'Conteúdo')}</strong></td>
+    <td><strong>${JUMP.esc(c.tema||'Conteúdo')}</strong></td>
     <td style="font-family:var(--M);font-size:12px">${JUMP.esc(c.formato||'post')}</td>
     <td><span class="pill ${P[c.status]||'pill-y'}">${JUMP.esc(c.status)}</span></td>
     <td style="font-family:var(--M);font-size:12px">${c.created_at?new Date(c.created_at).toLocaleDateString('pt-BR'):'—'}</td>
