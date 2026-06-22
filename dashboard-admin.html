@@ -261,6 +261,7 @@
     <div class="bk-b" id="at-info" style="margin-bottom:10px"></div>
     <div class="f-group"><label class="f-label">Criações de imagem / mês</label><input class="f-input" id="at-imagens" type="number" min="0"></div>
     <div class="f-group"><label class="f-label">Saldo extra (recriar/promo) / mês</label><input class="f-input" id="at-reloads" type="number" min="0"></div>
+    <div class="f-group"><label class="f-label">Edições de vídeo / mês</label><input class="f-input" id="at-videos" type="number" min="0"></div>
     <div class="f-group"><label class="f-label">Tokens de texto / mês</label><input class="f-input" id="at-tokens" type="number" min="0"></div>
     <div class="modal-acts">
       <button class="btn btn-o" onclick="fechar('modal-addtok')">Cancelar</button>
@@ -569,9 +570,10 @@ function abrirAddTokens(id){
   const lim=(u.limites||{}).tokens||0;const uso=(u.uso||{}).tokens||0;
   document.getElementById('at-id').value=id;
   const l=u.limites||{},us=u.uso||{};
-  document.getElementById('at-info').innerHTML=`<strong>${JUMP.esc(u.nome||u.email)}</strong> · plano ${u.plano||'basico'}<br>Imagens: ${us.imagens||0}/${l.imagens||0} · Extra: ${us.reloads||0}/${l.reloads||0} · Tokens: ${JUMP.fmtNum(uso)}/${JUMP.fmtNum(lim)}`;
+  document.getElementById('at-info').innerHTML=`<strong>${JUMP.esc(u.nome||u.email)}</strong> · plano ${u.plano||'basico'}<br>Imagens: ${us.imagens||0}/${l.imagens||0} · Extra: ${us.reloads||0}/${l.reloads||0} · Vídeos: ${us.videos||0}/${l.videos||0} · Tokens: ${JUMP.fmtNum(uso)}/${JUMP.fmtNum(lim)}`;
   document.getElementById('at-imagens').value=l.imagens??12;
   document.getElementById('at-reloads').value=l.reloads??6;
+  document.getElementById('at-videos').value=l.videos??0;
   document.getElementById('at-tokens').value=lim;
   document.getElementById('modal-addtok').classList.add('show');
 }
@@ -581,6 +583,7 @@ async function salvarAddTokens(){
   const limites=Object.assign({},u.limites||{},{
     imagens:+document.getElementById('at-imagens').value||0,
     reloads:+document.getElementById('at-reloads').value||0,
+    videos:+document.getElementById('at-videos').value||0,
     tokens:+document.getElementById('at-tokens').value||0,
   });
   try{

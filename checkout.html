@@ -224,12 +224,26 @@ const PLANOS={
     nome:'Plus',preco:'R$399',cents:',90',
     desc:'6 agentes + publicação automática trabalhando por você.',
     agentes:[
-      {n:'Identidade',f:'DNA da marca',c:'rgba(0,230,118,.8)'},
-      {n:'Mercado',f:'Análise nicho',c:'rgba(0,212,255,.8)'},
+      {n:'Identidade',f:'DNA da marca',c:'rgba(100,225,123,.8)'},
+      {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
       {n:'Diagnóstico',f:'Instagram real',c:'rgba(124,255,107,.8)'},
-      {n:'Estratégia',f:'Plano mensal',c:'rgba(0,230,118,.8)'},
+      {n:'Estratégia',f:'Plano mensal',c:'rgba(100,225,123,.8)'},
       {n:'Criativo',f:'Gera criativos',c:'rgba(64,255,191,.8)'},
       {n:'Publicação',f:'Publica automático',c:'rgba(0,191,160,.9)'},
+    ]
+  },
+  pro:{
+    nome:'Pro',preco:'R$799',cents:',90',
+    desc:'Os 8 agentes completos. Tráfego pago e edição de vídeo inclusos.',
+    agentes:[
+      {n:'Identidade',f:'DNA da marca',c:'rgba(100,225,123,.8)'},
+      {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
+      {n:'Diagnóstico',f:'Instagram real',c:'rgba(124,255,107,.8)'},
+      {n:'Estratégia',f:'Plano mensal',c:'rgba(100,225,123,.8)'},
+      {n:'Criativo',f:'Gera criativos',c:'rgba(64,255,191,.8)'},
+      {n:'Publicação',f:'Publica automático',c:'rgba(0,191,160,.9)'},
+      {n:'Tráfego',f:'Meta Ads',c:'rgba(100,225,123,.9)'},
+      {n:'Editor de Vídeo',f:'Edita seus reels',c:'rgba(64,255,191,.9)'},
     ]
   }
 };
@@ -258,6 +272,23 @@ function switchPlan(){
   if(window.paypal&&ppConfig)renderPayPalButtons();
 }
 
+/* ══ PREÇOS DINÂMICOS (vêm do PayPal, fonte única de verdade) ══ */
+async function carregarPrecos(){
+  try{
+    const r=await fetch('/api/paypal-prices');
+    const d=await r.json();
+    if(d&&d.precos){
+      // atualiza o objeto PLANOS com os preços reais do PayPal
+      ['basico','plus','pro'].forEach(p=>{
+        if(d.precos[p]&&PLANOS[p]){
+          PLANOS[p].preco=d.precos[p].preco;
+          PLANOS[p].cents=d.precos[p].cents;
+        }
+      });
+    }
+  }catch(e){/* mantém os preços de fallback do HTML se a API falhar */}
+}
+
 /* ══ AUTH GUARD ══ */
 (async()=>{
   try{
@@ -269,6 +300,7 @@ function switchPlan(){
     userEmail=data.session.user.email;
     userId=data.session.user.id;
     document.getElementById('user-email').textContent=userEmail;
+    await carregarPrecos();   // busca os preços reais antes de renderizar
     renderPlan();
     document.getElementById('loading').classList.remove('show');
     document.getElementById('content').style.display='grid';
