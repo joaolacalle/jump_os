@@ -275,7 +275,7 @@ function switchPlan(){
 /* ══ PREÇOS DINÂMICOS (vêm do PayPal, fonte única de verdade) ══ */
 async function carregarPrecos(){
   try{
-    const r=await fetch('/api/paypal-prices');
+    const r=await fetch('/api/paypal?action=prices');
     const d=await r.json();
     if(d&&d.precos){
       // atualiza o objeto PLANOS com os preços reais do PayPal
@@ -319,7 +319,7 @@ async function logout(){
 let ppConfig=null;
 async function initPayPal(){
   try{
-    const r=await fetch('/api/paypal-config');
+    const r=await fetch('/api/paypal?action=config');
     ppConfig=await r.json();
     if(!ppConfig.clientId)throw new Error('config vazia');
     const s=document.createElement('script');
@@ -365,7 +365,7 @@ async function goCheckout(){
   msg.className='pay-msg';
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Preparando pagamento...';
   try{
-    const res=await fetch('/api/create-checkout',{
+    const res=await fetch('/api/paypal?action=checkout',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({plano,email:userEmail,userId})

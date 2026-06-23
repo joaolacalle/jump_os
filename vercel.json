@@ -13,11 +13,11 @@
   },
   "crons": [
     {
-      "path": "/api/cron-estrategia",
+      "path": "/api/cron?job=estrategia",
       "schedule": "0 9 25 * *"
     },
     {
-      "path": "/api/cron-renovar-tokens",
+      "path": "/api/cron?job=tokens",
       "schedule": "0 6 * * *"
     }
   ]
