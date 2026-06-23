@@ -84,6 +84,11 @@ input{font-family:inherit;outline:none}
 /* Plano badge */
 .plano-badge{display:none;align-items:center;gap:9px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:10px;padding:11px 15px;margin-bottom:22px}
 .plano-badge.show{display:flex}
+.plano-sel{display:flex;gap:8px;margin-bottom:22px}
+.plano-sel.show{display:flex}
+.ps-btn{flex:1;padding:11px 8px;border-radius:10px;border:1.5px solid var(--bd);background:transparent;color:var(--t2);font-family:var(--B);font-size:14px;font-weight:800;cursor:pointer;transition:.18s}
+.ps-btn:hover{border-color:rgba(var(--g-rgb),.5);color:var(--t1)}
+.ps-btn.on{background:var(--g);border-color:var(--g);color:#0f0e0d}
 .pb-ico{font-size:18px}
 .pb-txt{font-size:13px;color:var(--t2)}
 .pb-txt strong{color:var(--g);font-weight:800}
@@ -167,6 +172,12 @@ input{font-family:inherit;outline:none}
         <span class="pb-ico">✦</span>
         <span class="pb-txt">Você está ativando o plano <strong id="plano-nome">Plus</strong> — <span id="plano-preco">R$399,90/mês</span></span>
       </div>
+      <!-- Seletor de planos (troca antes de criar a conta) -->
+      <div class="plano-sel" id="plano-sel" style="display:none">
+        <button type="button" class="ps-btn" data-plano="basico" onclick="trocarPlano('basico')">Básico</button>
+        <button type="button" class="ps-btn" data-plano="plus" onclick="trocarPlano('plus')">Plus</button>
+        <button type="button" class="ps-btn" data-plano="pro" onclick="trocarPlano('pro')">Pro</button>
+      </div>
       <!-- Tabs -->
       <div class="tabs">
         <div class="tab a" id="tab-login" onclick="switchTab('login')">Entrar</div>
@@ -227,17 +238,32 @@ const plano=params.get('plano');
 const PLANOS={
   basico:{nome:'Básico',preco:'R$129,90/mês'},
   plus:{nome:'Plus',preco:'R$399,90/mês'},
+  pro:{nome:'Pro',preco:'R$799,90/mês'},
 };
-if(plano&&PLANOS[plano]){
+// plano escolhido (muda com o seletor, sem recarregar a página)
+let planoSel=plano&&PLANOS[plano]?plano:null;
+function atualizaBadge(){
+  if(!planoSel||!PLANOS[planoSel])return;
   document.getElementById('plano-badge').classList.add('show');
-  document.getElementById('plano-nome').textContent=PLANOS[plano].nome;
-  document.getElementById('plano-preco').textContent=PLANOS[plano].preco;
+  document.getElementById('plano-sel').classList.add('show');
+  document.getElementById('plano-nome').textContent=PLANOS[planoSel].nome;
+  document.getElementById('plano-preco').textContent=PLANOS[planoSel].preco;
+  document.querySelectorAll('.ps-btn').forEach(b=>b.classList.toggle('on',b.dataset.plano===planoSel));
+}
+function trocarPlano(p){
+  planoSel=p;
+  atualizaBadge();
+  // atualiza a URL sem recarregar (mantém o plano se a pessoa der refresh)
+  history.replaceState(null,'',`login.html?plano=${p}`);
+}
+if(planoSel){
+  atualizaBadge();
   switchTab('signup');
 }
 
 /* ══ ROTEAMENTO POR PAPEL: admin → admin | supervisor → supervisor | usuario → painel/checkout ══ */
 async function goByRole(session){
-  let dest=plano?`checkout.html?plano=${plano}`:'dashboard-usuario.html';
+  let dest=planoSel?`checkout.html?plano=${planoSel}`:'dashboard-usuario.html';
   try{
     // sem .single() — pega a primeira linha (robusto contra 0/2+ resultados)
     const{data:cs}=await sb.from('clientes').select('role,bloqueado').eq('id',session.user.id).limit(1);
@@ -302,12 +328,12 @@ async function doSignup(){
   const btn=document.getElementById('btn-signup');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Criando conta...';
   try{
-    const redirectUrl=plano
-      ?`${location.origin}/checkout.html?plano=${plano}`
+    const redirectUrl=planoSel
+      ?`${location.origin}/checkout.html?plano=${planoSel}`
       :`${location.origin}/dashboard-usuario.html`;
     const{data,error}=await sb.auth.signUp({
       email,password:pass,
-      options:{data:{nome:name,plano:plano||'nenhum'},emailRedirectTo:redirectUrl}
+      options:{data:{nome:name,plano:planoSel||'nenhum'},emailRedirectTo:redirectUrl}
     });
     if(error)throw error;
     showMsg('msg-signup','✅ Conta criada! Enviamos um e-mail de confirmação para '+email+'. Clique no link para ativar e continuar.','ok');
