@@ -266,7 +266,10 @@ function renderPlan(){
   ).join('');
 }
 function switchPlan(){
-  plano=plano==='plus'?'basico':'plus';
+  // cicla pelos 3 planos: basico → plus → pro → basico
+  const ordem=['basico','plus','pro'];
+  const i=ordem.indexOf(plano);
+  plano=ordem[(i+1)%ordem.length];
   history.replaceState(null,'',`checkout.html?plano=${plano}`);
   renderPlan();
   if(window.paypal&&ppConfig)renderPayPalButtons();
