@@ -541,9 +541,15 @@ const handler = async (req, res) => {
     });
     if(automacoes.length){
       try{
-        // checar limite do plano (básico 3, plus 5, pro 8)
+        // checar limite do plano (configurável no admin; fallback básico 3, plus 5, pro 8)
         const LIM_DM={basico:3,plus:5,pro:8};
-        const maxDm=LIM_DM[cli.plano]||3;
+        let maxDm=LIM_DM[cli.plano]||3;
+        try{
+          const pc=await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
+          if(Array.isArray(pc)&&pc[0]&&pc[0].valor&&pc[0].valor[cli.plano]&&pc[0].valor[cli.plano].dm!=null){
+            maxDm=Number(pc[0].valor[cli.plano].dm);
+          }
+        }catch(e){}
         const atuais=await sbGet(`automacoes_dm?user_id=eq.${targetId}&ativo=eq.true&select=id`);
         const jaTem=(Array.isArray(atuais)?atuais:[]).length;
         const podem=Math.max(0,maxDm-jaTem);

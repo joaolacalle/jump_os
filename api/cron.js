@@ -96,6 +96,53 @@ async function jobTokens() {
   return { total: contas.length, renovados, expirados, saudaveis: ok };
 }
 
+// ── JOB 3: monitoramento de segurança (detecta padrões suspeitos e avisa o admin) ──
+async function jobSeguranca() {
+  const agora = Date.now();
+  const h24 = new Date(agora - 24*3600*1000).toISOString();
+  const clientes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?select=id,email,cpf,status,bloqueado,tipo_cortesia,cortesia_ate,created_at,uso`, { headers: SBH() }).then(r=>r.json());
+  const arr = Array.isArray(clientes) ? clientes : [];
+  const admins = await fetch(`${SUPABASE_URL}/rest/v1/clientes?role=eq.admin&select=id`, { headers: SBH() }).then(r=>r.json());
+  const adminIds = Array.isArray(admins) ? admins.map(a=>a.id) : [];
+  if (!adminIds.length) return { avisos: 0 };
+
+  const alertas = [];
+  // 1) muitas contas novas em 24h
+  const novas = arr.filter(c => c.created_at && c.created_at >= h24);
+  if (novas.length >= 5) alertas.push(`${novas.length} contas criadas nas últimas 24h — verifique se há cadastros em massa.`);
+  // 2) CPF repetido (possível multiconta/abuso)
+  const cpfMap = {};
+  arr.forEach(c => { if (c.cpf) cpfMap[c.cpf] = (cpfMap[c.cpf]||0)+1; });
+  Object.entries(cpfMap).filter(([_,n]) => n > 1).forEach(([cpf,n]) =>
+    alertas.push(`CPF repetido em ${n} contas (final ${String(cpf).slice(-4)}) — possível abuso de trial.`));
+  // 3) uso de imagens muito alto (possível abuso antes de cancelar)
+  arr.forEach(c => {
+    const img = c.uso && c.uso.imagens ? Number(c.uso.imagens) : 0;
+    if (img > 80) alertas.push(`${c.email}: ${img} imagens este mês — uso muito acima do normal.`);
+  });
+
+  if (!alertas.length) return { avisos: 0 };
+  // Evita duplicar: marca o dia
+  const tag = `seg_${new Date().toISOString().slice(0,10)}`;
+  let criados = 0;
+  for (const adminId of adminIds) {
+    // já avisou hoje?
+    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${adminId}&tipo=eq.seguranca&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (Array.isArray(existe) && existe.length) continue;
+    await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({
+        user_id: adminId, tipo: 'seguranca',
+        titulo: `🛡 ${alertas.length} alerta(s) de segurança`,
+        mensagem: alertas.join(' | ') + ` [${tag}]`,
+        lido: false, resolvido: false,
+      }),
+    }).catch(()=>{});
+    criados++;
+  }
+  return { avisos: criados, alertas: alertas.length };
+}
+
 module.exports = async (req, res) => {
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
@@ -112,7 +159,11 @@ module.exports = async (req, res) => {
       const r = await jobTokens();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia ou ?job=tokens)' });
+    if (job === 'seguranca') {
+      const r = await jobSeguranca();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens ou seguranca)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });

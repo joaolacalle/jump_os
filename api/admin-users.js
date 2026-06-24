@@ -204,9 +204,9 @@ module.exports = async (req, res) => {
 
     if (action === 'get_planos') {
       const LIMS_DEFAULT = {
-        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
-        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000 },
-        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000 },
+        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000,  dm: 3 },
+        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000,  dm: 5 },
+        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000, dm: 8 },
       };
       let planos = LIMS_DEFAULT;
       try {
@@ -239,9 +239,9 @@ module.exports = async (req, res) => {
       }
       // Limites por plano: lê do banco (config 'planos'), com fallback aos defaults
       const LIMS_DEFAULT = {
-        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
-        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000 },
-        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000 },
+        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000,  dm: 3 },
+        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000,  dm: 5 },
+        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000, dm: 8 },
       };
       let LIMS_PLANO = LIMS_DEFAULT;
       try {
@@ -415,6 +415,82 @@ module.exports = async (req, res) => {
       if (!chave || valor === undefined) return res.status(400).json({ error: 'Dados incompletos' });
       await sbUpsert('config', { chave, valor, updated_at: new Date().toISOString() });
       return res.status(200).json({ ok: true });
+    }
+
+    // ── AGENTE DE SEGURANÇA: dados/alertas do sistema (só admin) ──
+    if (action === 'security_data') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const agora = Date.now();
+      const h24 = new Date(agora - 24*3600*1000).toISOString();
+      const h1 = new Date(agora - 3600*1000).toISOString();
+      // Coletas para o painel
+      const [todos, recentes24, logs1h, alertas] = await Promise.all([
+        sbGet(`clientes?select=id,email,plano,status,bloqueado,cortesia_ate,tipo_cortesia,created_at,uso`),
+        sbGet(`clientes?created_at=gte.${h24}&select=id,email,created_at,cpf&order=created_at.desc`),
+        sbGet(`logs?created_at=gte.${h1}&select=id,acao,user_id&order=created_at.desc&limit=50`),
+        sbGet(`recados?tipo=eq.seguranca&resolvido=eq.false&select=id,titulo,mensagem,created_at&order=created_at.desc&limit=20`),
+      ]);
+      const arr = Array.isArray(todos) ? todos : [];
+      // Detecções rápidas (heurísticas)
+      const flags = [];
+      // 1) muitas contas criadas nas últimas 24h
+      const novas = Array.isArray(recentes24) ? recentes24 : [];
+      if (novas.length >= 5) flags.push({ nivel: 'alerta', txt: `${novas.length} contas criadas nas últimas 24h` });
+      // 2) CPF repetido
+      const cpfMap = {};
+      arr.forEach(c => { if (c.cpf) cpfMap[c.cpf] = (cpfMap[c.cpf]||0)+1; });
+      Object.entries(cpfMap).filter(([_,n]) => n > 1).forEach(([cpf,n]) =>
+        flags.push({ nivel: 'alerta', txt: `CPF repetido em ${n} contas (final ${String(cpf).slice(-4)})` }));
+      // 3) uso de imagens muito acima do normal (possível abuso)
+      arr.forEach(c => {
+        const img = c.uso && c.uso.imagens ? Number(c.uso.imagens) : 0;
+        if (img > 50) flags.push({ nivel: 'info', txt: `${c.email}: ${img} imagens este mês` });
+      });
+      return res.status(200).json({
+        ok: true,
+        resumo: {
+          total: arr.length,
+          ativos: arr.filter(c => c.status === 'ativo' && !c.bloqueado).length,
+          bloqueados: arr.filter(c => c.bloqueado).length,
+          trial: arr.filter(c => c.tipo_cortesia === 'trial' && c.cortesia_ate && new Date(c.cortesia_ate) > new Date()).length,
+          novas24h: novas.length,
+        },
+        flags,
+        alertas: Array.isArray(alertas) ? alertas : [],
+        logs: Array.isArray(logs1h) ? logs1h : [],
+      });
+    }
+
+    // ── AGENTE DE SEGURANÇA: chat de consulta (IA com contexto do sistema) ──
+    if (action === 'security_chat') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const { pergunta } = req.body;
+      if (!pergunta) return res.status(400).json({ error: 'Pergunta vazia' });
+      // Coleta um panorama do sistema para dar contexto ao agente
+      const clientes = await sbGet(`clientes?select=email,plano,status,bloqueado,tipo_cortesia,cortesia_ate,uso,created_at`);
+      const arr = Array.isArray(clientes) ? clientes : [];
+      const panorama = {
+        total: arr.length,
+        por_plano: arr.reduce((a,c)=>{a[c.plano||'?']=(a[c.plano||'?']||0)+1;return a;},{}),
+        ativos: arr.filter(c=>c.status==='ativo'&&!c.bloqueado).length,
+        bloqueados: arr.filter(c=>c.bloqueado).length,
+        em_trial: arr.filter(c=>c.tipo_cortesia==='trial').length,
+        top_uso_imagens: arr.map(c=>({email:c.email,img:(c.uso&&c.uso.imagens)||0})).sort((a,b)=>b.img-a.img).slice(0,5),
+      };
+      const sys = `Você é o AGENTE DE SEGURANÇA do JUMP OS — assistente do administrador (João). Responda de forma direta, objetiva e em português, como um analista de segurança e operações. Use os DADOS REAIS do sistema fornecidos. Se perguntarem algo que os dados não cobrem, diga o que seria preciso verificar. Aponte riscos (fraude, abuso de trial, uso anormal) quando relevante. Seja conciso. NÃO invente números — use só os dados dados. Escreva limpo, sem markdown pesado.`;
+      const userMsg = `PERGUNTA DO ADMIN: ${pergunta}\n\nDADOS ATUAIS DO SISTEMA (JSON):\n${JSON.stringify(panorama)}`;
+      try {
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: sys, messages: [{ role: 'user', content: userMsg }] }),
+        });
+        const ai = await aiRes.json();
+        const txt = (ai.content && ai.content[0] && ai.content[0].text) || 'Não consegui processar agora.';
+        return res.status(200).json({ ok: true, resposta: txt });
+      } catch (e) {
+        return res.status(500).json({ error: 'Falha ao consultar o agente' });
+      }
     }
 
     return res.status(400).json({ error: 'Ação desconhecida' });
