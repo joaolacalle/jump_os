@@ -49,6 +49,11 @@ function cortesiaDate(v) {
   const dias = parseInt(v, 10);
   return isNaN(dias) ? null : new Date(Date.now() + dias * 864e5).toISOString();
 }
+// Tipo de cortesia: '7' = trial (cota reduzida); 30/60/ilimitado = cortesia paga (cota cheia)
+function tipoCortesia(v) {
+  if (!v) return null;
+  return v === '7' ? 'trial' : 'cortesia';
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -172,6 +177,7 @@ module.exports = async (req, res) => {
         status: 'ativo', bloqueado: false,
         telefone: telefone || null, cpf: cpf || null, endereco: endereco || null,
         cortesia_ate: cortesiaDate(cortesia),
+        tipo_cortesia: tipoCortesia(cortesia),
         supervisor_id: novoRole === 'usuario' ? requester.id : null,
         limite_contas: novoRole === 'supervisor' ? (limite_contas || 10) : 0,
         limites: novoRole === 'usuario' ? { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: limTokens } : null,
@@ -190,7 +196,7 @@ module.exports = async (req, res) => {
       if (telefone !== undefined) patch.telefone = telefone;
       if (cpf !== undefined) patch.cpf = cpf;
       if (endereco !== undefined) patch.endereco = endereco;
-      if (cortesia) patch.cortesia_ate = cortesiaDate(cortesia);
+      if (cortesia) { patch.cortesia_ate = cortesiaDate(cortesia); patch.tipo_cortesia = tipoCortesia(cortesia); }
       if (email) { await authAdmin(`users/${user_id}`, 'PUT', { email }); patch.email = email; }
       await sbPatch(`clientes?id=eq.${user_id}`, patch);
       return res.status(200).json({ ok: true });
@@ -276,7 +282,7 @@ module.exports = async (req, res) => {
     if (action === 'set_cortesia') {
       const { user_id, cortesia } = req.body;
       await assertScope(user_id);
-      await sbPatch(`clientes?id=eq.${user_id}`, { cortesia_ate: cortesiaDate(cortesia) });
+      await sbPatch(`clientes?id=eq.${user_id}`, { cortesia_ate: cortesiaDate(cortesia), tipo_cortesia: tipoCortesia(cortesia) });
       return res.status(200).json({ ok: true });
     }
 

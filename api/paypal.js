@@ -204,7 +204,7 @@ module.exports = async (req, res) => {
       // (A cobrança em si é regida pelo PayPal; aqui liberamos o acesso completo no nosso lado.)
       const pr = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, {
         method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ cortesia_ate: null, status: 'ativo' }),
+        body: JSON.stringify({ cortesia_ate: null, tipo_cortesia: null, status: 'ativo' }),
       });
       if (!pr.ok) return res.status(500).json({ error: 'Falha ao ativar' });
       return res.status(200).json({ ok: true });

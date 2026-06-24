@@ -53,15 +53,36 @@ module.exports = async (req, res) => {
     const mes = new Date().toISOString().slice(0, 7);
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
-    const lim = cli.limites || {};
+    let lim = cli.limites || {};
+
+    // ── COTA DE TRIAL ──
+    // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
+    // a cota de imagens/reloads é reduzida. Após o trial, libera a cota cheia.
+    let emTrial = false;
+    try {
+      if (cli.cortesia_ate && new Date(cli.cortesia_ate).getTime() > Date.now() && cli.tipo_cortesia === 'trial') {
+        emTrial = true;
+        const tRes = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: SBH() });
+        const tj = await tRes.json();
+        const trial = (Array.isArray(tj) && tj[0] && tj[0].valor) ? tj[0].valor : { imagens: 5, reloads: 2, videos: 0 };
+        // limite efetivo = o MENOR entre a cota do plano e a cota de trial
+        lim = {
+          ...lim,
+          imagens: Math.min(Number(lim.imagens ?? 0), Number(trial.imagens ?? 5)),
+          reloads: Math.min(Number(lim.reloads ?? 0), Number(trial.reloads ?? 2)),
+          videos:  Math.min(Number(lim.videos  ?? 0), Number(trial.videos  ?? 0)),
+        };
+      }
+    } catch (e) {}
+
     const ehReload = !!reload;
     if (ehReload) {
       if (lim.reloads != null && Number(uso.reloads || 0) >= Number(lim.reloads)) {
-        return res.status(403).json({ error: 'Limite mensal de recriações (reloads) atingido.', limite: true, tipo_limite: 'reload' });
+        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de recriações do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de recriações (reloads) atingido.', limite: true, tipo_limite: 'reload', trial: emTrial });
       }
     } else {
       if (lim.imagens != null && Number(uso.imagens || 0) >= Number(lim.imagens)) {
-        return res.status(403).json({ error: 'Limite mensal de criações de imagem atingido.', limite: true, tipo_limite: 'imagem' });
+        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de imagens do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de criações de imagem atingido.', limite: true, tipo_limite: 'imagem', trial: emTrial });
       }
     }
 

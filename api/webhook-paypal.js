@@ -62,6 +62,27 @@ module.exports = async (req, res) => {
             patch.limites = { ...atual, ...lims };
           }
         }
+        // COTA DE TRIAL: ao ATIVAR (início da assinatura), marca o fim do período
+        // de teste (cortesia_ate = hoje + dias do trial). Durante esse período, o
+        // gerar-imagem aplica a cota reduzida. Só marca em ACTIVATED e se ainda não existir.
+        if (type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+          try {
+            const filter0 = userId ? `id=eq.${userId}` : `email=eq.${encodeURIComponent(email)}`;
+            const r0 = await fetch(`${SUPABASE_URL}/rest/v1/clientes?${filter0}&select=cortesia_ate`, { headers: H() });
+            const j0 = await r0.json();
+            const jaTem = Array.isArray(j0) && j0[0] && j0[0].cortesia_ate;
+            if (!jaTem) {
+              let dias = 7;
+              try {
+                const tr = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: H() });
+                const tj = await tr.json();
+                if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias) dias = Number(tj[0].valor.dias);
+              } catch (e) {}
+              patch.cortesia_ate = new Date(Date.now() + dias * 24 * 3600 * 1000).toISOString();
+              patch.tipo_cortesia = 'trial';  // assinatura nova entra em período de teste real
+            }
+          } catch (e) {}
+        }
         const filter = userId ? `id=eq.${userId}` : `email=eq.${encodeURIComponent(email)}`;
         await fetch(`${SUPABASE_URL}/rest/v1/clientes?${filter}`, {
           method: 'PATCH',
