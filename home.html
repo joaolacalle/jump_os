@@ -42,20 +42,20 @@ button{cursor:pointer;border:none;background:none;font-family:inherit}
 
 /* ══ NAV ══ */
 nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,56px);transition:.35s;flex-wrap:nowrap}
-nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-filter:blur(20px)}
+nav.sc{background:linear-gradient(180deg,rgba(108,43,168,.97),rgba(88,35,140,.97));border-bottom:1px solid rgba(251,191,36,.25);backdrop-filter:blur(20px)}
 .nl{display:flex;align-items:center}
 .nl img{height:34px;object-fit:contain}
 .nl-fb{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;color:var(--t1);display:none}
 .nl-fb span{color:var(--g)}
 .nv{display:flex;gap:clamp(14px,2.2vw,32px);white-space:nowrap}
-.na{font-size:15px;font-weight:600;color:var(--t2);transition:.2s;position:relative;padding:4px 0;white-space:nowrap}
-.na::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:2px;background:var(--g);transition:.25s}
-.na:hover{color:var(--t1)}
+.na{font-size:15px;font-weight:600;color:#FBBF24;transition:.2s;position:relative;padding:4px 0;white-space:nowrap}
+.na::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:2px;background:#FBBF24;transition:.25s}
+.na:hover{color:#FCD34D}
 .na:hover::after{width:100%}
-.na:hover{color:var(--g)}
+.na:hover{color:#FCD34D}
 .nbs{display:flex;gap:10px;align-items:center;flex-shrink:0}
-.n-in{padding:10px 22px;border:1px solid var(--bd);border-radius:9px;font-size:14px;font-weight:700;color:var(--t1);transition:.25s;letter-spacing:.2px;white-space:nowrap}
-.n-in:hover{border-color:var(--g);color:var(--g);background:rgba(168,85,247,.06)}
+.n-in{padding:10px 22px;border:1px solid rgba(251,191,36,.5);border-radius:9px;font-size:14px;font-weight:700;color:#FBBF24;transition:.25s;letter-spacing:.2px;white-space:nowrap}
+.n-in:hover{border-color:#FBBF24;color:#FCD34D;background:rgba(251,191,36,.1)}
 .n-wa{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border:1px solid rgba(37,211,102,.4);border-radius:9px;font-size:13px;font-weight:700;color:#25D366;transition:.25s}
 .n-wa:hover{background:rgba(37,211,102,.1);border-color:#25D366}
 .n-wa svg{width:16px;height:16px;fill:currentColor}
@@ -66,7 +66,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 @media(max-width:760px){.wa-float{width:52px;height:52px;bottom:16px;right:16px}.wa-float svg{width:27px;height:27px}}
 .n-in{padding:9px 20px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-weight:700;color:var(--t2);transition:.2s}
 .n-in:hover{border-color:var(--g);color:var(--g)}
-.n-g{padding:9px 22px;background:var(--g);border-radius:8px;font-size:13px;font-weight:800;color:#000;transition:.2s;white-space:nowrap}
+.n-g{padding:9px 22px;background:#FBBF24;border-radius:8px;font-size:13px;font-weight:800;color:#3D2A00;transition:.2s;white-space:nowrap}
 .n-g:hover{background:var(--g2)}
 .ham{display:none;flex-direction:column;gap:5px;padding:4px}
 .ham span{display:block;width:22px;height:2px;background:var(--t2);border-radius:2px;transition:.3s}
@@ -110,7 +110,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .btn-mg{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);background:var(--g);color:#000;border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:800;letter-spacing:.3px;transition:background .2s,box-shadow .2s}
 .btn-mg:hover{background:var(--g2);box-shadow:0 12px 32px var(--glow)}
 .btn-ol{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);border:1px solid var(--bd);color:var(--t1);border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:700;transition:.2s}
-.btn-ol:hover{border-color:var(--g);color:var(--g)}
+.btn-ol:hover{border-color:#FBBF24;color:#FBBF24}
 .h-nums{display:flex;gap:clamp(22px,4vw,48px);flex-wrap:wrap;opacity:0}
 .hn-num{font-family:var(--M);font-size:clamp(28px,3.8vw,46px);font-weight:700;color:var(--g);line-height:1;text-shadow:0 0 20px rgba(168,85,247,.25)}
 .hn-lbl{font-size:clamp(11px,1.3vw,13px);font-weight:600;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-top:4px}
@@ -220,9 +220,9 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .step:last-child{border:none}
 .step:hover{background:rgba(245,242,236,.04);padding-left:18px}
 .sn{font-family:var(--M);font-size:clamp(28px,3.5vw,40px);font-weight:700;color:rgba(245,242,236,.1);line-height:1;min-width:clamp(44px,6vw,60px);transition:.3s}
-.step:hover .sn{color:var(--g)}
+.step:hover .sn{color:#FBBF24}
 .st{font-size:clamp(15px,1.8vw,19px);font-weight:800;text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px;color:var(--t1);transition:.3s}
-.step:hover .st{color:var(--g)}
+.step:hover .st{color:#FBBF24}
 .sb{font-size:clamp(14px,1.6vw,16px);color:var(--t2);line-height:1.65}
 .sa{font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-top:8px;opacity:.6}
 
@@ -323,7 +323,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* Nav */
 .car-nav{display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.5vw,22px);margin-top:4px}
 .car-arr{width:clamp(42px,5.5vw,52px);height:clamp(42px,5.5vw,52px);border-radius:50%;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:clamp(16px,2.5vw,20px);color:var(--t2);transition:.25s;background:var(--ch2)}
-.car-arr:hover{border-color:var(--g);color:var(--g);background:rgba(168,85,247,.08)}
+.car-arr:hover{border-color:#FBBF24;color:#FBBF24;background:rgba(251,191,36,.08)}
 .car-dots{display:flex;gap:7px;align-items:center}
 .cdot{width:6px;height:6px;border-radius:50%;background:var(--t3);transition:.3s;cursor:pointer}
 .cdot.a{background:var(--g);box-shadow:0 0 8px var(--g);width:22px;border-radius:3px}
@@ -567,9 +567,17 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 }
 .pf-front.pro-card{
   background-image:
-    linear-gradient(145deg,rgba(251,191,36,.16) 0%,rgba(251,191,36,.05) 40%,transparent 65%),
+    linear-gradient(145deg,rgba(251,191,36,.16) 0%,rgba(168,85,247,.07) 45%,transparent 70%),
     repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(251,191,36,.03) 12px,rgba(251,191,36,.03) 13px);
-  border-color:rgba(251,191,36,.45) !important;
+  border:1px solid transparent !important;
+  border-image:linear-gradient(135deg,rgba(251,191,36,.6) 0%,rgba(168,85,247,.55) 100%) 1 !important;
+  position:relative;
+}
+.pf-front.pro-card::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;
+  background:linear-gradient(135deg,rgba(251,191,36,.5),rgba(168,85,247,.45));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
 }
 .pf-back{
   background-image:
@@ -584,7 +592,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .mini-ag-func{font-size:11px;color:var(--t3);font-family:var(--M);margin-top:3px;line-height:1.3}
 
 .pf-ver{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;padding:clamp(13px,1.8vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;border:1.5px solid var(--bd);color:var(--t1);background:transparent;width:100%;cursor:pointer;font-family:var(--B)}
-.pf-ver:hover{border-color:var(--g);color:var(--g)}
+.pf-ver:hover{border-color:#FBBF24;color:#FBBF24}
 .pf-front.feat .pf-ver{background:var(--g);color:#000;border-color:transparent}
 .pf-front.feat .pf-ver:hover{background:var(--g2)}
 /* BACK CONTENT */
@@ -620,7 +628,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .pres .mf-price{color:#FBBF24}.dig .mf-price{color:#22D3EE}
 .mf-period{font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:var(--t3);margin-top:5px}
 .mf-ver{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;padding:clamp(13px,1.8vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;border:1.5px solid var(--bd);color:var(--t1);background:transparent;width:100%;cursor:pointer;font-family:var(--B)}
-.mf-ver:hover{border-color:var(--g);color:var(--g)}
+.mf-ver:hover{border-color:#FBBF24;color:#FBBF24}
 /* Mentoria back */
 .mfb-title{font-family:var(--D);font-size:clamp(18px,2.2vw,24px);letter-spacing:1px;text-transform:uppercase;color:var(--g);margin-bottom:clamp(12px,2vw,18px)}
 .mfb-section{margin-bottom:clamp(10px,1.8vw,14px)}
@@ -664,7 +672,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 .fc{min-width:148px}
 .fc h4{font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--t3);margin-bottom:18px}
 .fc a{display:block;font-size:clamp(15px,1.7vw,16px);color:var(--t2);margin-bottom:11px;transition:.2s}
-.fc a:hover{color:var(--g)}
+.fc a:hover{color:#FBBF24}
 .fb-bot{border-top:1px solid var(--bd);padding-top:clamp(20px,3vw,28px);display:flex;gap:clamp(12px,2vw,24px);justify-content:space-between;flex-wrap:wrap;align-items:center}
 .fb-cp{font-size:clamp(12px,1.3vw,13px);color:var(--t3)}
 .fb-lg{font-size:clamp(11px,1.2vw,12px);color:var(--t3);line-height:1.6;max-width:620px;text-align:right}
@@ -947,11 +955,11 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise competitiva</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Análise Instagram</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano editorial</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(157,111,245,.8);grid-column:1/-1"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos visuais</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise competitiva</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Análise Instagram</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano editorial</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(244,114,182,.9);grid-column:1/-1"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos visuais</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
@@ -988,12 +996,12 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(157,111,245,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(157,111,245,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Publica automático</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Publica automático</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
@@ -1014,7 +1022,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       <!-- PRO -->
       <div class="pf-wrap" id="pfw-2">
         <div class="pf-inner">
-          <div class="pf-front pro-card" style="border-color:rgba(168,85,247,.4)">
+          <div class="pf-front pro-card">
             <div class="pf-lbl" style="color:rgba(168,85,247,.7)">Em breve</div>
             <div class="pf-name" style="color:rgba(168,85,247,.8)">Pro</div>
             <div class="pf-price-b" style="background:rgba(168,85,247,.06)">
@@ -1029,14 +1037,14 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Todos os 8 agentes</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(157,111,245,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(157,111,245,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Auto publicação</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(168,85,247,.9)"><span class="mini-ag-ico">📢</span><div><div class="mini-ag-name">Tráfego</div><div class="mini-ag-func">Meta Ads</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(255,130,80,.9)"><span class="mini-ag-ico">🎬</span><div><div class="mini-ag-name">Editor Vídeo</div><div class="mini-ag-func">Edita Reels</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Auto publicação</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(248,113,113,.9)"><span class="mini-ag-ico">📢</span><div><div class="mini-ag-name">Tráfego</div><div class="mini-ag-func">Meta Ads</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(163,230,53,.9)"><span class="mini-ag-ico">🎬</span><div><div class="mini-ag-name">Editor Vídeo</div><div class="mini-ag-func">Edita Reels</div></div></div>
               </div>
             </div>
             <div class="pfb-actions">
