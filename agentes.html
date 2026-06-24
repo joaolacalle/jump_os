@@ -196,7 +196,7 @@ async function executarOrdens(btn){
     const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id);
     const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
     const marca=M.marca||CTX.cliente.nome||'Marca';
-    const paleta=(M.paleta_primaria||'#64E17B')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
+    const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
     const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
     const estilo=M.estilo_visual||'EDITORIAL';
 
@@ -240,8 +240,8 @@ async function aplicarTemaOSData(btn){
     const p2=(M.paleta_secundaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
     const cta=_hex(M.cor_cta);
     // Composição harmônica completa a partir do OS_DATA
-    const c1=cta||p1[0]||'#64E17B';                 // principal = cor de ação/CTA
-    const c2=p2[0]||p1[1]||'#65E17C';                // secundária = apoio
+    const c1=cta||p1[0]||'#A855F7';                 // principal = cor de ação/CTA
+    const c2=p2[0]||p1[1]||'#B975F9';                // secundária = apoio
     const c3=p1[1]||p2[1]||cta||'#A855F7';           // terciária = detalhes
     // fundo: usa a cor mais escura da paleta; cards um tom acima
     const escuras=[...p1,...p2].filter(h=>_lum(h)<0.35).sort((a,b)=>_lum(a)-_lum(b));

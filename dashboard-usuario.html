@@ -10,7 +10,7 @@
 /* específicos desta página */
 .conn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
 .conn{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:15px 17px}
-.conn.ok{border-color:rgba(0,230,118,.35)}
+.conn.ok{border-color:rgba(168,85,247,.35)}
 .conn-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:rgba(0,0,0,.3)}
 .conn-t{font-size:14px;font-weight:800;color:var(--t1)}
 .conn-s{font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
@@ -19,7 +19,7 @@
 .ads-pro{background:var(--card);background-image:linear-gradient(145deg,rgba(168,85,247,.12) 0%,transparent 60%);border:1px solid rgba(168,85,247,.35);border-radius:12px;padding:17px;margin-top:12px}
 .ads-pro-h{display:flex;align-items:center;gap:9px;margin-bottom:11px}
 .ads-pro-t{font-family:var(--D);font-size:17px;letter-spacing:1px;text-transform:uppercase;color:var(--pu)}
-.agc{background:var(--card);background-image:linear-gradient(145deg,rgba(var(--nr,0,230,118),.13) 0%,transparent 60%);border:1px solid rgba(var(--nr,0,230,118),.32);border-radius:12px;padding:15px;position:relative;transition:.25s;display:block}
+.agc{background:var(--card);background-image:linear-gradient(145deg,rgba(var(--nr,168,85,247),.13) 0%,transparent 60%);border:1px solid rgba(var(--nr,168,85,247),.32);border-radius:12px;padding:15px;position:relative;transition:.25s;display:block}
 .agc:hover{transform:translateY(-3px)}
 .agc.locked{opacity:.42;pointer-events:none}
 .agc-ico{font-size:21px;margin-bottom:8px}
@@ -28,7 +28,7 @@
 .ag-grid8{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .acts4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .act{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;transition:.22s;display:flex;flex-direction:column;gap:6px}
-.act:hover{border-color:rgba(0,230,118,.35);transform:translateY(-2px)}
+.act:hover{border-color:rgba(168,85,247,.35);transform:translateY(-2px)}
 .act-t{font-size:13.5px;font-weight:800;text-transform:uppercase;color:var(--t1)}
 .act-b{font-size:11.5px;color:var(--t2);line-height:1.45}
 .act-go{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:var(--g);text-transform:uppercase;margin-top:auto}
@@ -168,12 +168,12 @@
 <script src="assets/jump-core.js"></script>
 <script>
 const AGENTS=[
-  {ico:'🎨',n:'Identidade',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:1},
-  {ico:'🔍',n:'Mercado',nc:'rgba(0,212,255,.9)',nr:'0,212,255',min:1},
-  {ico:'📊',n:'Diagnóstico',nc:'rgba(124,255,107,.9)',nr:'124,255,107',min:1},
-  {ico:'📋',n:'Estratégia',nc:'rgba(0,230,118,.9)',nr:'0,230,118',min:1},
-  {ico:'🖼',n:'Criativo',nc:'rgba(64,255,191,.9)',nr:'64,255,191',min:1},
-  {ico:'📅',n:'Publicação',nc:'rgba(0,191,160,.9)',nr:'0,191,160',min:2},
+  {ico:'🎨',n:'Identidade',nc:'rgba(168,85,247,.9)',nr:'168,85,247',min:1},
+  {ico:'🔍',n:'Mercado',nc:'rgba(185,117,249,.9)',nr:'185,117,249',min:1},
+  {ico:'📊',n:'Diagnóstico',nc:'rgba(192,132,252,.9)',nr:'192,132,252',min:1},
+  {ico:'📋',n:'Estratégia',nc:'rgba(168,85,247,.9)',nr:'168,85,247',min:1},
+  {ico:'🖼',n:'Criativo',nc:'rgba(157,111,245,.9)',nr:'157,111,245',min:1},
+  {ico:'📅',n:'Publicação',nc:'rgba(157,111,245,.9)',nr:'157,111,245',min:2},
   {ico:'📢',n:'Tráfego',nc:'rgba(168,85,247,.8)',nr:'168,85,247',min:3},
   {ico:'🎬',n:'Editor Vídeo',nc:'rgba(255,130,80,.8)',nr:'255,130,80',min:3},
 ];
@@ -359,6 +359,21 @@ function flipCard(id,nr,num,lbl,backT,backX){
         ${un?'':'<span class="agc-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
         <div class="agc-ico">${a.ico}</div><div class="agc-name">${a.n}</div></a>`;
     }).join('');
+
+    // Aviso de período de teste (trial) — cota reduzida
+    try{
+      if(cliente.cortesia_ate && new Date(cliente.cortesia_ate).getTime()>Date.now()){
+        const fim=new Date(cliente.cortesia_ate);
+        const dias=Math.max(1,Math.ceil((fim.getTime()-Date.now())/(864e5)));
+        const aviso=document.createElement('div');
+        aviso.style.cssText='background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.3);border-radius:11px;padding:12px 15px;margin-bottom:16px;font-size:13px;color:var(--t2);line-height:1.55';
+        aviso.innerHTML='✨ <strong style="color:var(--t1)">Período de teste ativo</strong> — faltam '+dias+' dia(s). Durante o teste, sua cota de geração é reduzida. Ao confirmar a assinatura, sua cota completa é liberada automaticamente.';
+        const main=document.querySelector('.main');
+        const hd=main&&main.querySelector('.hd');
+        if(hd&&hd.nextSibling)hd.parentNode.insertBefore(aviso,hd.nextSibling);
+        else if(main)main.insertBefore(aviso,main.firstChild);
+      }
+    }catch(e){}
 
     // Caixa de uso: Infográficos (imagens) + Edições de vídeo
     try{

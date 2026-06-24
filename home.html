@@ -16,8 +16,8 @@ html{scroll-behavior:smooth;overflow-x:hidden}
   --ch:#141312;--ch2:#1C1A18;--ch3:#252220;--ch4:#2E2B27;
   --cream:#F5F2EC;--cream2:#EDE9E1;--cream3:#E4E0D6;
   --black:#090807;
-  --g:#64E17B;--g2:#65E17C;--g3:#4FC968;
-  --glow:rgba(0,230,118,.18);--gdim:rgba(0,230,118,.07);
+  --g:#A855F7;--g2:#B975F9;--g3:#8B3FE0;
+  --glow:rgba(168,85,247,.18);--gdim:rgba(168,85,247,.07);
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --tl:#141312;--tl2:#4A4540;--tl3:#8A8278;
   --bd:rgba(245,242,236,.08);--bl:rgba(20,19,18,.1);
@@ -36,7 +36,7 @@ button{cursor:pointer;border:none;background:none;font-family:inherit}
 
 /* ══ CURSOR ══ */
 .cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:difference}
-.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(0,230,118,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s,opacity .3s}
+.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(168,85,247,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s,opacity .3s}
 .cur.big{width:20px;height:20px}
 .cur-r.big{border-color:var(--g);transform:translate(-50%,-50%) scale(1.7)}
 
@@ -55,7 +55,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .na:hover{color:var(--g)}
 .nbs{display:flex;gap:10px}
 .n-in{padding:10px 22px;border:1px solid var(--bd);border-radius:9px;font-size:14px;font-weight:700;color:var(--t1);transition:.25s;letter-spacing:.2px}
-.n-in:hover{border-color:var(--g);color:var(--g);background:rgba(0,230,118,.06)}
+.n-in:hover{border-color:var(--g);color:var(--g);background:rgba(168,85,247,.06)}
 .n-wa{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border:1px solid rgba(37,211,102,.4);border-radius:9px;font-size:13px;font-weight:700;color:#25D366;transition:.25s}
 .n-wa:hover{background:rgba(37,211,102,.1);border-color:#25D366}
 .n-wa svg{width:16px;height:16px;fill:currentColor}
@@ -91,20 +91,20 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* Cursor spotlight */
 .hero::after{
   content:'';position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(700px circle at var(--mx) var(--my), rgba(0,230,118,.07), transparent 40%);
+  background:radial-gradient(700px circle at var(--mx) var(--my), rgba(168,85,247,.07), transparent 40%);
   transition:background .1s;
 }
-.h-glow{position:absolute;top:-10%;right:-8%;width:700px;height:700px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,230,118,.09),transparent 65%);pointer-events:none}
+.h-glow{position:absolute;top:-10%;right:-8%;width:700px;height:700px;border-radius:50%;background:radial-gradient(ellipse,rgba(168,85,247,.09),transparent 65%);pointer-events:none}
 .h-glow2{position:absolute;bottom:-15%;left:-6%;width:400px;height:400px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,180,255,.04),transparent 65%);pointer-events:none}
 .h-wrap{max-width:1000px;margin:0 auto;width:100%;position:relative;z-index:1;text-align:center}
-.h-pill{display:inline-flex;align-items:center;gap:8px;margin-left:auto;margin-right:auto;background:var(--gdim);border:1px solid rgba(0,230,118,.2);border-radius:20px;padding:6px 14px;margin-bottom:clamp(22px,3.5vw,32px)}
+.h-pill{display:inline-flex;align-items:center;gap:8px;margin-left:auto;margin-right:auto;background:var(--gdim);border:1px solid rgba(168,85,247,.2);border-radius:20px;padding:6px 14px;margin-bottom:clamp(22px,3.5vw,32px)}
 .h-dot{width:7px;height:7px;border-radius:50%;background:var(--g);animation:hpulse 2.2s infinite}
-@keyframes hpulse{0%,100%{box-shadow:0 0 0 0 rgba(0,230,118,.55)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes hpulse{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,.55)}50%{box-shadow:0 0 0 8px transparent}}
 .h-pill-t{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--g);overflow:hidden;max-width:clamp(200px,28vw,380px);white-space:nowrap;text-overflow:ellipsis}
 .h1{font-family:'Oswald',var(--D);font-size:clamp(54px,7.2vw,98px);line-height:1.06;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:clamp(18px,3vw,28px)}
 .h1 .l{display:block;overflow:visible;padding-bottom:.14em;margin-bottom:-.1em}
 .h1 .l span{display:block;transform:translateY(112%);padding-top:.06em}
-.h1 em{font-style:normal;color:var(--g);text-shadow:0 0 50px rgba(0,230,118,.35)}
+.h1 em{font-style:normal;color:var(--g);text-shadow:0 0 50px rgba(168,85,247,.35)}
 .h-sub{font-size:clamp(17px,2vw,21px);color:var(--t2);line-height:1.75;max-width:620px;margin:0 auto clamp(28px,4.5vw,44px);opacity:0}
 .h-btns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:clamp(32px,5vw,50px);opacity:0;justify-content:center}
 .btn-mg{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);background:var(--g);color:#000;border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:800;letter-spacing:.3px;transition:background .2s,box-shadow .2s}
@@ -112,7 +112,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .btn-ol{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);border:1px solid var(--bd);color:var(--t1);border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:700;transition:.2s}
 .btn-ol:hover{border-color:var(--g);color:var(--g)}
 .h-nums{display:flex;gap:clamp(22px,4vw,48px);flex-wrap:wrap;opacity:0}
-.hn-num{font-family:var(--M);font-size:clamp(28px,3.8vw,46px);font-weight:700;color:var(--g);line-height:1;text-shadow:0 0 20px rgba(0,230,118,.25)}
+.hn-num{font-family:var(--M);font-size:clamp(28px,3.8vw,46px);font-weight:700;color:var(--g);line-height:1;text-shadow:0 0 20px rgba(168,85,247,.25)}
 .hn-lbl{font-size:clamp(11px,1.3vw,13px);font-weight:600;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-top:4px}
 /* Photo */
 .h-photo{position:relative;opacity:0}
@@ -122,7 +122,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .h-photo-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:42%;background:linear-gradient(transparent,rgba(10,9,8,.97))}
 .h-photo-card::before{content:'';position:absolute;top:0;right:0;width:2px;height:55%;background:linear-gradient(var(--g),transparent);z-index:1}
 .h-cap{position:absolute;bottom:0;left:0;right:0;padding:clamp(16px,3vw,26px);z-index:2}
-.hcap-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,230,118,.95);border-radius:6px;padding:5px 12px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#000;margin-bottom:8px}
+.hcap-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,.95);border-radius:6px;padding:5px 12px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#000;margin-bottom:8px}
 .hcap-name{font-size:clamp(16px,2.5vw,20px);font-weight:800;color:#fff;line-height:1.2}
 .hcap-role{font-size:clamp(11px,1.3vw,12px);color:rgba(255,255,255,.5);margin-top:3px}
 .hfl{position:absolute;border-radius:12px;padding:12px 16px}
@@ -145,7 +145,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .proof{background:var(--black);padding:clamp(20px,3vw,28px) clamp(20px,5vw,56px)}
 .pf-in{max-width:1300px;margin:0 auto;display:flex;gap:clamp(16px,4vw,56px);align-items:center;justify-content:center;flex-wrap:wrap}
 .pfi{text-align:center}
-.pfn{font-family:var(--M);font-size:clamp(26px,3.5vw,38px);font-weight:700;color:var(--g);line-height:1;text-shadow:0 0 16px rgba(0,230,118,.3)}
+.pfn{font-family:var(--M);font-size:clamp(26px,3.5vw,38px);font-weight:700;color:var(--g);line-height:1;text-shadow:0 0 16px rgba(168,85,247,.3)}
 .pfl{font-size:clamp(12px,1.4vw,14px);color:rgba(245,242,236,.3);font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:5px}
 .pfs{width:1px;height:40px;background:rgba(245,242,236,.07)}
 
@@ -153,7 +153,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .sec{padding:clamp(72px,11vw,116px) clamp(20px,5vw,56px)}
 .si{max-width:1300px;margin:0 auto}
 /* Tags */
-.tg-d{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(0,230,118,.7);margin-bottom:14px}
+.tg-d{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(168,85,247,.7);margin-bottom:14px}
 .tg-l{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--g3);margin-bottom:14px}
 /* Headlines */
 .sh-d{font-family:var(--D);font-size:clamp(40px,5.5vw,80px);text-transform:uppercase;line-height:.93;color:var(--t1);margin-bottom:clamp(14px,2vw,22px);letter-spacing:.3px}
@@ -180,8 +180,8 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .sec-agents{
   background-color:var(--ch);
   background-image:
-    radial-gradient(circle,rgba(0,230,118,.1) 1px,transparent 1px),
-    radial-gradient(circle,rgba(0,230,118,.06) 1px,transparent 1px);
+    radial-gradient(circle,rgba(168,85,247,.1) 1px,transparent 1px),
+    radial-gradient(circle,rgba(168,85,247,.06) 1px,transparent 1px);
   background-size:50px 50px, 25px 25px;
   background-position:0 0, 12px 12px;
 }
@@ -196,7 +196,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* MENTORIAS — noise + radial */
 .sec-ment{
   background-color:var(--ch3);
-  background-image:radial-gradient(ellipse at 20% 50%,rgba(0,230,118,.05),transparent 50%),
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(168,85,247,.05),transparent 50%),
     radial-gradient(ellipse at 80% 20%,rgba(0,150,255,.03),transparent 50%);
 }
 /* FAQ — vertical lines */
@@ -208,7 +208,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* CTA — radial glow */
 .sec-cta{
   background-color:var(--black);
-  background-image:radial-gradient(ellipse 70% 80% at 50% 50%,rgba(0,230,118,.07),transparent 65%);
+  background-image:radial-gradient(ellipse 70% 80% at 50% 50%,rgba(168,85,247,.07),transparent 65%);
 }
 
 /* ══ COMO FUNCIONA ══ */
@@ -237,9 +237,9 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
   height:clamp(480px,60vw,540px);
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(var(--nr,0,230,118),.18) 0%,rgba(var(--nr,0,230,118),.06) 35%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(var(--nr,0,230,118),.025) 12px,rgba(var(--nr,0,230,118),.025) 13px);
-  border:1px solid rgba(var(--nr,0,230,118),.45);
+    linear-gradient(145deg,rgba(var(--nr,168,85,247),.18) 0%,rgba(var(--nr,168,85,247),.06) 35%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(var(--nr,168,85,247),.025) 12px,rgba(var(--nr,168,85,247),.025) 13px);
+  border:1px solid rgba(var(--nr,168,85,247),.45);
   border-radius:14px;
   padding:clamp(16px,2.2vw,22px);
   display:flex;flex-direction:column;
@@ -271,14 +271,14 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
   margin-top:auto;padding:8px 12px;border-radius:8px;
   font-size:clamp(11px,1.3vw,12px);font-weight:700;font-family:var(--M);
   letter-spacing:1.5px;text-transform:uppercase;
-  background:rgba(var(--nr,0,230,118),.12);
-  border:1px solid rgba(var(--nr,0,230,118),.3);
+  background:rgba(var(--nr,168,85,247),.12);
+  border:1px solid rgba(var(--nr,168,85,247),.3);
   color:var(--nc,var(--g));
   transition:.2s;cursor:pointer;width:100%;
 }
-.cc-flip-btn:hover{background:rgba(var(--nr,0,230,118),.22)}
-.cc-benefit{font-size:clamp(12px,1.4vw,14px);color:var(--t1);line-height:1.5;margin:8px 0 12px;font-style:italic;opacity:.85;padding-bottom:10px;border-bottom:1px solid rgba(var(--nr,0,230,118),.15)}
-.cc-back-title{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(var(--nr,0,230,118),.75);margin-bottom:8px}
+.cc-flip-btn:hover{background:rgba(var(--nr,168,85,247),.22)}
+.cc-benefit{font-size:clamp(12px,1.4vw,14px);color:var(--t1);line-height:1.5;margin:8px 0 12px;font-style:italic;opacity:.85;padding-bottom:10px;border-bottom:1px solid rgba(var(--nr,168,85,247),.15)}
+.cc-back-title{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(var(--nr,168,85,247),.75);margin-bottom:8px}
 .cc-tasks{list-style:none;display:flex;flex-direction:column;gap:7px}
 .cc-tasks li{font-size:clamp(12px,1.4vw,13px);color:var(--t2);display:flex;align-items:flex-start;gap:7px;line-height:1.45;font-family:var(--M)}
 .cc-tasks li::before{content:'→';color:var(--nc,var(--g));flex-shrink:0;font-size:9px;margin-top:2px;opacity:.7}
@@ -297,11 +297,11 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .car-card[data-pos="-1"]:hover,.car-card[data-pos="1"]:hover{opacity:.75;filter:brightness(1.05)}
 /* Active card styling */
 .car-card.active{
-  border-color:rgba(var(--nr,0,230,118),.7) !important;
+  border-color:rgba(var(--nr,168,85,247),.7) !important;
   box-shadow:
     0 32px 80px rgba(0,0,0,.7),
-    0 0 0 1px rgba(var(--nr,0,230,118),.5),
-    0 0 50px rgba(var(--nr,0,230,118),.15) !important;
+    0 0 0 1px rgba(var(--nr,168,85,247),.5),
+    0 0 50px rgba(var(--nr,168,85,247),.15) !important;
 }
 .car-card.active::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--nc,var(--g));border-radius:14px 14px 0 0}
 /* Card content */
@@ -317,13 +317,13 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .cc-role{
   font-family:var(--M);font-size:clamp(10px,1.2vw,11px);font-weight:700;
   letter-spacing:3px;text-transform:uppercase;
-  color:var(--nc,rgba(0,230,118,.8));
+  color:var(--nc,rgba(168,85,247,.8));
   margin-bottom:8px;opacity:.85;
 }
 /* Nav */
 .car-nav{display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.5vw,22px);margin-top:4px}
 .car-arr{width:clamp(42px,5.5vw,52px);height:clamp(42px,5.5vw,52px);border-radius:50%;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:clamp(16px,2.5vw,20px);color:var(--t2);transition:.25s;background:var(--ch2)}
-.car-arr:hover{border-color:var(--g);color:var(--g);background:rgba(0,230,118,.08)}
+.car-arr:hover{border-color:var(--g);color:var(--g);background:rgba(168,85,247,.08)}
 .car-dots{display:flex;gap:7px;align-items:center}
 .cdot{width:6px;height:6px;border-radius:50%;background:var(--t3);transition:.3s;cursor:pointer}
 .cdot.a{background:var(--g);box-shadow:0 0 8px var(--g);width:22px;border-radius:3px}
@@ -344,21 +344,21 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 }
 /* FRONT — minimalista, só nome + preço */
 .pf-front{background:var(--ch2);border:1px solid var(--bd);padding:clamp(28px,4vw,42px)}
-.pf-front.feat{background:var(--ch);border-color:rgba(0,230,118,.3)}
+.pf-front.feat{background:var(--ch);border-color:rgba(168,85,247,.3)}
 .pf-front.feat::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--g),var(--g2))}
 /* BACK */
-.pf-back{background:var(--ch3);border:1px solid rgba(0,230,118,.18);padding:clamp(22px,3.5vw,32px);transform:rotateY(180deg)}
+.pf-back{background:var(--ch3);border:1px solid rgba(168,85,247,.18);padding:clamp(22px,3.5vw,32px);transform:rotateY(180deg)}
 /* BADGE */
 .pf-badge{position:absolute;top:16px;right:16px;background:var(--g);color:#000;font-family:var(--M);font-size:9px;font-weight:900;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border-radius:20px}
 /* FRONT CONTENT */
 .pf-lbl{font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
-.pf-front.feat .pf-lbl{color:rgba(0,230,118,.7)}
+.pf-front.feat .pf-lbl{color:rgba(168,85,247,.7)}
 .pf-name{font-family:var(--D);font-size:clamp(44px,6vw,70px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);margin-bottom:0;line-height:1}
 /* Price block */
 .pf-price-b{margin:clamp(22px,3.5vw,36px) 0 auto;padding:clamp(18px,2.5vw,28px);background:rgba(0,0,0,.25);border-radius:12px;display:flex;flex-direction:column;gap:4px}
 .pf-price-row{display:flex;align-items:flex-end;gap:6px}
 .pf-val{font-family:var(--M);font-size:clamp(48px,6.5vw,68px);font-weight:700;line-height:1;color:var(--t1)}
-.pf-front.feat .pf-val{color:var(--g);text-shadow:0 0 30px rgba(0,230,118,.3)}
+.pf-front.feat .pf-val{color:var(--g);text-shadow:0 0 30px rgba(168,85,247,.3)}
 .pf-sup{font-size:clamp(18px,2.5vw,24px);font-weight:700;vertical-align:top;margin-top:10px}
 .pf-period{font-family:var(--M);font-size:clamp(14px,1.6vw,16px);color:var(--t3);margin-top:6px}
 .pf-recorr{font-family:var(--M);font-size:clamp(12px,1.4vw,14px);color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:3px;display:flex;align-items:center;gap:6px}
@@ -367,8 +367,8 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 
 
 /* SVG Agent Icons */
-.cc-ico-svg{width:44px;height:44px;margin-bottom:10px;filter:drop-shadow(0 4px 8px rgba(var(--nr,0,230,118),.3));transition:transform .3s,filter .3s}
-.car-card[data-pos="0"] .cc-ico-svg{animation:ico-float 3s ease-in-out infinite;filter:drop-shadow(0 6px 16px rgba(var(--nr,0,230,118),.5))}
+.cc-ico-svg{width:44px;height:44px;margin-bottom:10px;filter:drop-shadow(0 4px 8px rgba(var(--nr,168,85,247),.3));transition:transform .3s,filter .3s}
+.car-card[data-pos="0"] .cc-ico-svg{animation:ico-float 3s ease-in-out infinite;filter:drop-shadow(0 6px 16px rgba(var(--nr,168,85,247),.5))}
 .car-card[data-pos="0"] .cc-ico-svg svg{transform:scale(1.1)}
 
 
@@ -379,20 +379,20 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* Aurora blobs animados */
 .hero-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .aurora-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;will-change:transform}
-.ab-1{width:520px;height:520px;background:radial-gradient(circle,rgba(0,230,118,.16),transparent 65%);top:-15%;right:-5%;animation:ab1 16s ease-in-out infinite}
+.ab-1{width:520px;height:520px;background:radial-gradient(circle,rgba(168,85,247,.16),transparent 65%);top:-15%;right:-5%;animation:ab1 16s ease-in-out infinite}
 .ab-2{width:420px;height:420px;background:radial-gradient(circle,rgba(0,150,255,.08),transparent 65%);bottom:-10%;left:-8%;animation:ab2 20s ease-in-out infinite}
-.ab-3{width:340px;height:340px;background:radial-gradient(circle,rgba(0,230,118,.1),transparent 65%);top:35%;left:30%;animation:ab3 24s ease-in-out infinite}
+.ab-3{width:340px;height:340px;background:radial-gradient(circle,rgba(168,85,247,.1),transparent 65%);top:35%;left:30%;animation:ab3 24s ease-in-out infinite}
 @keyframes ab1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-60px,50px) scale(1.15)}66%{transform:translate(30px,-30px) scale(.92)}}
 @keyframes ab2{0%,100%{transform:translate(0,0) scale(1)}40%{transform:translate(70px,-40px) scale(1.1)}70%{transform:translate(-40px,30px) scale(.95)}}
 @keyframes ab3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,60px) scale(1.2)}}
 /* Linhas verticais flutuantes */
 .hero-lines{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.h-line{position:absolute;width:1px;background:linear-gradient(transparent,rgba(0,230,118,.25),transparent);animation:hline-rise linear infinite;will-change:transform}
+.h-line{position:absolute;width:1px;background:linear-gradient(transparent,rgba(168,85,247,.25),transparent);animation:hline-rise linear infinite;will-change:transform}
 @keyframes hline-rise{0%{transform:translateY(110vh)}100%{transform:translateY(-110vh)}}
 /* Grid pulse */
 .hero::after{
   content:'';position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(700px circle at var(--mx) var(--my), rgba(0,230,118,.08), transparent 40%);
+  background:radial-gradient(700px circle at var(--mx) var(--my), rgba(168,85,247,.08), transparent 40%);
   transition:background .1s;
 }
 
@@ -406,12 +406,12 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
   position:relative;overflow:hidden;
   z-index:1;
 }
-.mb-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 120% at 50% 50%,rgba(0,230,118,.06),transparent);pointer-events:none}
+.mb-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 120% at 50% 50%,rgba(168,85,247,.06),transparent);pointer-events:none}
 /* Stat side */
 .mb-stat-side{display:flex;flex-direction:column;align-items:flex-start;min-width:clamp(100px,14vw,160px);flex-shrink:0;gap:2px}
 .mb-stat-num{
   font-family:var(--D);font-size:clamp(52px,8vw,88px);line-height:.92;
-  color:var(--g);text-shadow:0 0 30px rgba(0,230,118,.4);
+  color:var(--g);text-shadow:0 0 30px rgba(168,85,247,.4);
   transition:all .4s cubic-bezier(.22,1,.36,1);
 }
 .mb-stat-lbl{font-family:var(--M);font-size:clamp(10px,1.3vw,13px);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);transition:.4s}
@@ -446,7 +446,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
   .main-banner{gap:clamp(12px,3vw,24px)}
 }
 
-.ben-wrap{background:rgba(0,230,118,.04);border-top:1px solid rgba(0,230,118,.1);border-bottom:1px solid rgba(0,230,118,.1);padding:16px 0;overflow:hidden;position:relative;z-index:1}
+.ben-wrap{background:rgba(168,85,247,.04);border-top:1px solid rgba(168,85,247,.1);border-bottom:1px solid rgba(168,85,247,.1);padding:16px 0;overflow:hidden;position:relative;z-index:1}
 .ben-track{display:flex;gap:0;animation:benroll 32s linear infinite;white-space:nowrap}
 .ben-track:hover{animation-play-state:paused}
 .ben-item{display:inline-flex;align-items:center;gap:10px;padding:0 clamp(28px,4vw,56px);font-size:clamp(15px,1.8vw,18px);font-weight:700;color:var(--t2);border-right:1px solid rgba(245,242,236,.06)}
@@ -464,21 +464,21 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .mf-front.pres{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.16) 0%,rgba(0,230,118,.05) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.025) 12px,rgba(0,230,118,.025) 13px);
-  border:1px solid rgba(0,230,118,.45) !important;
+    linear-gradient(145deg,rgba(168,85,247,.16) 0%,rgba(168,85,247,.05) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.025) 12px,rgba(168,85,247,.025) 13px);
+  border:1px solid rgba(168,85,247,.45) !important;
 }
 .mf-front.dig{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,212,255,.14) 0%,rgba(0,212,255,.04) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,212,255,.025) 12px,rgba(0,212,255,.025) 13px);
-  border:1px solid rgba(0,212,255,.4) !important;
+    linear-gradient(145deg,rgba(185,117,249,.14) 0%,rgba(185,117,249,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(185,117,249,.025) 12px,rgba(185,117,249,.025) 13px);
+  border:1px solid rgba(185,117,249,.4) !important;
 }
 .mf-back{
   background:#1A1916;
   background-image:linear-gradient(145deg,rgba(0,0,0,.3) 0%,transparent 60%);
-  border:1px solid rgba(0,230,118,.2) !important;
+  border:1px solid rgba(168,85,247,.2) !important;
   border-radius:12px;overflow:hidden;
   position:absolute;inset:0;
   transform:rotateY(180deg);
@@ -508,21 +508,21 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .mf-front.pres{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.16) 0%,rgba(0,230,118,.05) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.025) 12px,rgba(0,230,118,.025) 13px);
-  border:1px solid rgba(0,230,118,.45) !important;
+    linear-gradient(145deg,rgba(168,85,247,.16) 0%,rgba(168,85,247,.05) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.025) 12px,rgba(168,85,247,.025) 13px);
+  border:1px solid rgba(168,85,247,.45) !important;
 }
 .mf-front.dig{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,212,255,.14) 0%,rgba(0,212,255,.04) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,212,255,.025) 12px,rgba(0,212,255,.025) 13px);
-  border:1px solid rgba(0,212,255,.4) !important;
+    linear-gradient(145deg,rgba(185,117,249,.14) 0%,rgba(185,117,249,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(185,117,249,.025) 12px,rgba(185,117,249,.025) 13px);
+  border:1px solid rgba(185,117,249,.4) !important;
 }
 .mf-back{
   background:#1A1916;
   background-image:linear-gradient(145deg,rgba(0,0,0,.3) 0%,transparent 60%);
-  border:1px solid rgba(0,230,118,.2) !important;
+  border:1px solid rgba(168,85,247,.2) !important;
   border-radius:12px;overflow:hidden;
   position:absolute;inset:0;
   transform:rotateY(180deg);
@@ -555,15 +555,15 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 /* Texturas por plano */
 .pf-front.basico-card{
   background-image:
-    linear-gradient(145deg,rgba(0,194,90,.14) 0%,rgba(0,194,90,.04) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,194,90,.025) 12px,rgba(0,194,90,.025) 13px);
-  border-color:rgba(0,194,90,.4) !important;
+    linear-gradient(145deg,rgba(139,63,224,.14) 0%,rgba(139,63,224,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(139,63,224,.025) 12px,rgba(139,63,224,.025) 13px);
+  border-color:rgba(139,63,224,.4) !important;
 }
 .pf-front.plus-card{
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.18) 0%,rgba(0,230,118,.06) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.03) 12px,rgba(0,230,118,.03) 13px);
-  border-color:rgba(0,230,118,.5) !important;
+    linear-gradient(145deg,rgba(168,85,247,.18) 0%,rgba(168,85,247,.06) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.03) 12px,rgba(168,85,247,.03) 13px);
+  border-color:rgba(168,85,247,.5) !important;
 }
 .pf-front.pro-card{
   background-image:
@@ -577,7 +577,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 }
 /* ══ MINI AGENT CARDS ══ */
 .mini-ag-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px}
-.mini-ag{background:rgba(0,0,0,.25);border:1px solid var(--bd);border-left:2px solid var(--nc,rgba(0,230,118,.4));border-radius:8px;padding:9px 11px;display:flex;align-items:center;gap:8px;transition:.2s}
+.mini-ag{background:rgba(0,0,0,.25);border:1px solid var(--bd);border-left:2px solid var(--nc,rgba(168,85,247,.4));border-radius:8px;padding:9px 11px;display:flex;align-items:center;gap:8px;transition:.2s}
 .mini-ag:hover{background:rgba(255,255,255,.04)}
 .mini-ag-ico{font-size:17px;flex-shrink:0}
 .mini-ag-name{font-family:var(--D);font-size:14px;letter-spacing:.5px;text-transform:uppercase;color:var(--nc,var(--g));line-height:1}
@@ -608,16 +608,16 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .mf-wrap.flipped .mf-inner{transform:rotateY(180deg)}
 .mf-front,.mf-back{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;overflow:hidden}
 .mf-front{background:rgba(245,242,236,.04);border:1px solid var(--bd);padding:clamp(26px,4vw,42px)}
-.mf-front.pres::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--g),rgba(0,230,118,.25))}
-.mf-front.dig::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(0,212,255,.8),rgba(0,212,255,.2))}
-.mf-back{background:var(--ch2);border:1px solid rgba(0,230,118,.18);padding:clamp(22px,3.5vw,32px);transform:rotateY(180deg)}
+.mf-front.pres::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--g),rgba(168,85,247,.25))}
+.mf-front.dig::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(185,117,249,.8),rgba(185,117,249,.2))}
+.mf-back{background:var(--ch2);border:1px solid rgba(168,85,247,.18);padding:clamp(22px,3.5vw,32px);transform:rotateY(180deg)}
 .mf-tag{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:clamp(14px,2vw,22px)}
-.pres .mf-tag{color:var(--g)}.dig .mf-tag{color:rgba(0,212,255,.9)}
+.pres .mf-tag{color:var(--g)}.dig .mf-tag{color:rgba(185,117,249,.9)}
 .mf-name{font-family:var(--D);font-size:clamp(36px,5vw,60px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);line-height:.95;margin-bottom:4px}
 .mf-price-b{margin:clamp(20px,3vw,32px) 0 auto;padding:clamp(16px,2.5vw,24px);background:rgba(0,0,0,.2);border-radius:12px;display:flex;flex-direction:column;gap:4px}
 .mf-price-row{display:flex;align-items:flex-end;gap:6px}
 .mf-price{font-family:var(--M);font-size:clamp(40px,5.5vw,56px);font-weight:700;line-height:1}
-.pres .mf-price{color:var(--g)}.dig .mf-price{color:rgba(0,212,255,.9)}
+.pres .mf-price{color:var(--g)}.dig .mf-price{color:rgba(185,117,249,.9)}
 .mf-period{font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:var(--t3);margin-top:5px}
 .mf-ver{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;padding:clamp(13px,1.8vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;border:1.5px solid var(--bd);color:var(--t1);background:transparent;width:100%;cursor:pointer;font-family:var(--B)}
 .mf-ver:hover{border-color:var(--g);color:var(--g)}
@@ -630,7 +630,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 .mfb-list li::before{content:'→';color:var(--g);flex-shrink:0;font-size:10px;margin-top:2px;opacity:.7}
 .mfb-cta{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:auto;padding:clamp(13px,1.7vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;font-family:var(--B)}
 .pres .mfb-cta{background:var(--g);color:#000}.pres .mfb-cta:hover{background:var(--g2)}
-.dig .mfb-cta{background:rgba(0,212,255,.9);color:#000}.dig .mfb-cta:hover{opacity:.88}
+.dig .mfb-cta{background:rgba(185,117,249,.9);color:#000}.dig .mfb-cta:hover{opacity:.88}
 .mfb-back-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;padding:9px;border-radius:8px;font-size:clamp(11px,1.3vw,13px);font-weight:700;background:transparent;border:1px solid var(--bd);color:var(--t2);cursor:pointer;transition:.2s;font-family:var(--B)}
 .mfb-back-btn:hover{color:var(--t1)}
 
@@ -647,7 +647,7 @@ nav.sc{background:rgba(20,19,18,.96);border-bottom:1px solid var(--bd);backdrop-
 
 /* ══ CTA ══ */
 .cta-h{font-family:var(--D);font-size:clamp(44px,7.5vw,104px);text-transform:uppercase;letter-spacing:.3px;line-height:.93;color:#fff;margin-bottom:clamp(14px,2vw,22px);text-align:center}
-.cta-h em{color:var(--g);font-style:normal;text-shadow:0 0 50px rgba(0,230,118,.5)}
+.cta-h em{color:var(--g);font-style:normal;text-shadow:0 0 50px rgba(168,85,247,.5)}
 .cta-sub{font-size:clamp(16px,2vw,21px);color:rgba(245,242,236,.5);margin-bottom:clamp(28px,5vw,50px);text-align:center}
 .cta-bs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
 .cta-note{font-size:clamp(12px,1.4vw,14px);color:rgba(245,242,236,.28);text-align:center}
@@ -679,15 +679,15 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 .pf-front.feat{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.16) 0%,rgba(0,230,118,.05) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.025) 12px,rgba(0,230,118,.025) 13px);
-  border:1px solid rgba(0,230,118,.45);
+    linear-gradient(145deg,rgba(168,85,247,.16) 0%,rgba(168,85,247,.05) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.025) 12px,rgba(168,85,247,.025) 13px);
+  border:1px solid rgba(168,85,247,.45);
 }
 .pf-back{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.1) 0%,transparent 50%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.02) 12px,rgba(0,230,118,.02) 13px);
+    linear-gradient(145deg,rgba(168,85,247,.1) 0%,transparent 50%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.02) 12px,rgba(168,85,247,.02) 13px);
 }
 
 /* ══ MENTORIA CARDS UPGRADE — nível agentes ══ */
@@ -701,22 +701,22 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 .mf-front.pres{
   background:#1E1C19 !important;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.16) 0%,rgba(0,230,118,.04) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.025) 12px,rgba(0,230,118,.025) 13px) !important;
-  border:1px solid rgba(0,230,118,.4) !important;
+    linear-gradient(145deg,rgba(168,85,247,.16) 0%,rgba(168,85,247,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.025) 12px,rgba(168,85,247,.025) 13px) !important;
+  border:1px solid rgba(168,85,247,.4) !important;
 }
 .mf-front.dig{
   background:#1E1C19 !important;
   background-image:
-    linear-gradient(145deg,rgba(0,212,255,.14) 0%,rgba(0,212,255,.04) 40%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,212,255,.02) 12px,rgba(0,212,255,.02) 13px) !important;
-  border:1px solid rgba(0,212,255,.35) !important;
+    linear-gradient(145deg,rgba(185,117,249,.14) 0%,rgba(185,117,249,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(185,117,249,.02) 12px,rgba(185,117,249,.02) 13px) !important;
+  border:1px solid rgba(185,117,249,.35) !important;
 }
 .mf-back{
   background:#1E1C19 !important;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.08) 0%,transparent 50%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.018) 12px,rgba(0,230,118,.018) 13px) !important;
+    linear-gradient(145deg,rgba(168,85,247,.08) 0%,transparent 50%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.018) 12px,rgba(168,85,247,.018) 13px) !important;
 }
 
 
@@ -750,11 +750,11 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <linearGradient id="jg-nav" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0%" stop-color="#003d1a"/>
       <stop offset="55%" stop-color="#00a84f"/>
-      <stop offset="100%" stop-color="#00e676"/>
+      <stop offset="100%" stop-color="#A855F7"/>
     </linearGradient>
     <linearGradient id="os-nav" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#00e676"/>
-      <stop offset="100%" stop-color="#00ff8a"/>
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#B975F9"/>
     </linearGradient>
     <filter id="glow-nav">
       <feGaussianBlur stdDeviation="1.5" result="b"/>
@@ -765,20 +765,20 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <rect x="0" y="2" width="42" height="42" rx="9" fill="#0d1a0d"/>
   <rect x="0" y="2" width="42" height="42" rx="9" fill="url(#jg-nav)" opacity=".12"/>
   <!-- Grid sutil -->
-  <line x1="0" y1="16" x2="42" y2="16" stroke="#00e676" stroke-width=".4" opacity=".15"/>
-  <line x1="0" y1="30" x2="42" y2="30" stroke="#00e676" stroke-width=".4" opacity=".15"/>
-  <line x1="14" y1="2" x2="14" y2="44" stroke="#00e676" stroke-width=".4" opacity=".15"/>
-  <line x1="28" y1="2" x2="28" y2="44" stroke="#00e676" stroke-width=".4" opacity=".15"/>
+  <line x1="0" y1="16" x2="42" y2="16" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
+  <line x1="0" y1="30" x2="42" y2="30" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
+  <line x1="14" y1="2" x2="14" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
+  <line x1="28" y1="2" x2="28" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
   <!-- Barras crescentes -->
   <rect x="6" y="32" width="5" height="8" rx="1" fill="url(#jg-nav)" opacity=".55"/>
   <rect x="13" y="26" width="5" height="14" rx="1" fill="url(#jg-nav)" opacity=".75"/>
   <rect x="20" y="18" width="5" height="22" rx="1" fill="url(#jg-nav)"/>
   <!-- J com seta curvada -->
   <path d="M 30 10 L 30 32 Q 30 40 22 40 Q 16 40 14 36" fill="none" stroke="url(#jg-nav)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-nav)"/>
-  <polyline points="25,6 30,10 35,15" fill="none" stroke="#00e676" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-nav)"/>
+  <polyline points="25,6 30,10 35,15" fill="none" stroke="#A855F7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-nav)"/>
   <!-- Ponto de destino -->
-  <circle cx="30" cy="10" r="4" fill="#00e676" opacity=".25"/>
-  <circle cx="30" cy="10" r="2.5" fill="#00e676"/>
+  <circle cx="30" cy="10" r="4" fill="#A855F7" opacity=".25"/>
+  <circle cx="30" cy="10" r="2.5" fill="#A855F7"/>
   <circle cx="30" cy="10" r="1.2" fill="white" opacity=".8"/>
   <!-- WORDMARK -->
   <text x="50" y="32" font-family="Oswald,Bebas Neue,sans-serif" font-weight="700" font-size="30" letter-spacing="2" fill="#F5F2EC">JUMP</text>
@@ -885,7 +885,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <section class="sec sec-agents" id="agentes">
   <div class="si">
     <!-- STATUS BAR DOS AGENTES -->
-    <div class="ag-status-bar rv" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(0,230,118,.15);border-radius:12px">
+    <div class="ag-status-bar rv" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(168,85,247,.15);border-radius:12px">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:hpulse 2s infinite"></div>
         <span style="font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g)">Sistema neural ativo</span>
@@ -947,11 +947,11 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,212,255,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise competitiva</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(124,255,107,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Análise Instagram</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano editorial</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(64,255,191,.8);grid-column:1/-1"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos visuais</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise competitiva</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Análise Instagram</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano editorial</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(157,111,245,.8);grid-column:1/-1"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos visuais</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
@@ -988,12 +988,12 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,212,255,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(124,255,107,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(64,255,191,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,191,160,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Publica automático</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(157,111,245,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(157,111,245,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Publica automático</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
@@ -1029,12 +1029,12 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pfb-section">
               <div class="pfb-lbl">Todos os 8 agentes</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,212,255,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(124,255,107,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,230,118,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(64,255,191,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(0,191,160,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Auto publicação</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(185,117,249,.8)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(192,132,252,.8)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(168,85,247,.8)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(157,111,245,.8)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
+                <div class="mini-ag" style="--nc:rgba(157,111,245,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Auto publicação</div></div></div>
                 <div class="mini-ag" style="--nc:rgba(168,85,247,.9)"><span class="mini-ag-ico">📢</span><div><div class="mini-ag-name">Tráfego</div><div class="mini-ag-func">Meta Ads</div></div></div>
                 <div class="mini-ag" style="--nc:rgba(255,130,80,.9)"><span class="mini-ag-ico">🎬</span><div><div class="mini-ag-name">Editor Vídeo</div><div class="mini-ag-func">Edita Reels</div></div></div>
               </div>
@@ -1081,7 +1081,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                   <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:var(--g);margin-top:8px;font-weight:700">R$2.999,90</div>
                   <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 encontros · à vista</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:9px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:8px 12px">
+                <div style="display:flex;align-items:center;gap:9px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
                   <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)">2 meses Plus grátis</div>
                 </div>
@@ -1115,10 +1115,10 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;flex:1">
                 <div>
                   <div style="font-family:var(--D);font-size:clamp(22px,3vw,34px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);line-height:1">Reuniões<br>Estratégicas</div>
-                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:rgba(0,212,255,.9);margin-top:8px;font-weight:700">R$1.499,90</div>
+                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:rgba(185,117,249,.9);margin-top:8px;font-weight:700">R$1.499,90</div>
                   <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 reuniões · à vista</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:9px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:8px 12px">
+                <div style="display:flex;align-items:center;gap:9px;background:rgba(185,117,249,.07);border:1px solid rgba(185,117,249,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
                   <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)">2 meses Básico grátis</div>
                 </div>
@@ -1126,7 +1126,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <button class="mf-ver" style="margin-top:12px" onclick="flipMent(1)">Ver o que inclui →</button>
             </div>
             <div class="mf-back" style="padding:clamp(16px,2.2vw,22px)">
-              <div class="mfb-title" style="color:rgba(0,212,255,.9)">Digital — 3 Reuniões</div>
+              <div class="mfb-title" style="color:rgba(185,117,249,.9)">Digital — 3 Reuniões</div>
               <div class="mfb-section">
                 <div class="mfb-lbl">Incluso</div>
                 <ul class="mfb-list">
@@ -1187,25 +1187,25 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <linearGradient id="jg-ft" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0%" stop-color="#003d1a"/>
       <stop offset="55%" stop-color="#00a84f"/>
-      <stop offset="100%" stop-color="#00e676"/>
+      <stop offset="100%" stop-color="#A855F7"/>
     </linearGradient>
     <linearGradient id="os-ft" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#00e676"/>
-      <stop offset="100%" stop-color="#00ff8a"/>
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#B975F9"/>
     </linearGradient>
   </defs>
   <rect x="0" y="2" width="42" height="42" rx="9" fill="#0d1a0d"/>
   <rect x="0" y="2" width="42" height="42" rx="9" fill="url(#jg-ft)" opacity=".12"/>
-  <line x1="0" y1="16" x2="42" y2="16" stroke="#00e676" stroke-width=".4" opacity=".12"/>
-  <line x1="0" y1="30" x2="42" y2="30" stroke="#00e676" stroke-width=".4" opacity=".12"/>
-  <line x1="14" y1="2" x2="14" y2="44" stroke="#00e676" stroke-width=".4" opacity=".12"/>
-  <line x1="28" y1="2" x2="28" y2="44" stroke="#00e676" stroke-width=".4" opacity=".12"/>
+  <line x1="0" y1="16" x2="42" y2="16" stroke="#A855F7" stroke-width=".4" opacity=".12"/>
+  <line x1="0" y1="30" x2="42" y2="30" stroke="#A855F7" stroke-width=".4" opacity=".12"/>
+  <line x1="14" y1="2" x2="14" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".12"/>
+  <line x1="28" y1="2" x2="28" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".12"/>
   <rect x="6" y="32" width="5" height="8" rx="1" fill="url(#jg-ft)" opacity=".55"/>
   <rect x="13" y="26" width="5" height="14" rx="1" fill="url(#jg-ft)" opacity=".75"/>
   <rect x="20" y="18" width="5" height="22" rx="1" fill="url(#jg-ft)"/>
   <path d="M 30 10 L 30 32 Q 30 40 22 40 Q 16 40 14 36" fill="none" stroke="url(#jg-ft)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="25,6 30,10 35,15" fill="none" stroke="#00e676" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="30" cy="10" r="2.5" fill="#00e676"/>
+  <polyline points="25,6 30,10 35,15" fill="none" stroke="#A855F7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="30" cy="10" r="2.5" fill="#A855F7"/>
   <circle cx="30" cy="10" r="1.2" fill="white" opacity=".8"/>
   <text x="50" y="32" font-family="Oswald,Bebas Neue,sans-serif" font-weight="700" font-size="30" letter-spacing="2" fill="#F5F2EC">JUMP</text>
   <text x="160" y="32" font-family="Oswald,Bebas Neue,sans-serif" font-weight="700" font-size="30" letter-spacing="2" fill="url(#os-ft)">OS</text>
@@ -1297,22 +1297,22 @@ ScrollTrigger.create({trigger:'[style*="foto-urban"]',start:'top bottom',end:'bo
 /* ══ COVERFLOW CAROUSEL ══ */
 
 const AGENT_SVGS=[
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi1" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#00FF8A"/><stop offset="1" stop-color="#00C25A"/></linearGradient></defs><polygon points="20,3 37,32 3,32" fill="url(#gi1)" opacity=".12"/><polygon points="20,3 37,32 3,32" fill="none" stroke="url(#gi1)" stroke-width="2"/><polygon points="20,10 30,28 10,28" fill="url(#gi1)" opacity=".3"/><circle cx="20" cy="20" r="3.5" fill="url(#gi1)"/><circle cx="20" cy="20" r="1.5" fill="white" opacity=".8"/></svg>`,
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi2" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#00FFFF"/><stop offset="1" stop-color="#0088CC"/></linearGradient></defs><circle cx="17" cy="17" r="12" stroke="url(#gi2)" stroke-width="2.5" fill="rgba(0,212,255,.1)"/><circle cx="17" cy="17" r="7" stroke="url(#gi2)" stroke-width="1.5" fill="rgba(0,212,255,.15)" opacity=".6"/><line x1="26" y1="26" x2="36" y2="36" stroke="url(#gi2)" stroke-width="3" stroke-linecap="round"/><line x1="11" y1="17" x2="23" y2="17" stroke="url(#gi2)" stroke-width="1.5" opacity=".6"/><line x1="17" y1="11" x2="17" y2="23" stroke="url(#gi2)" stroke-width="1.5" opacity=".6"/></svg>`,
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi3" x1="0" y1="40" x2="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#00C25A"/><stop offset="1" stop-color="#7CFF6B"/></linearGradient></defs><rect x="5" y="26" width="7" height="10" rx="2" fill="url(#gi3)" opacity=".5"/><rect x="16" y="18" width="7" height="18" rx="2" fill="url(#gi3)" opacity=".75"/><rect x="27" y="8" width="7" height="28" rx="2" fill="url(#gi3)"/><polyline points="8,22 19,14 30,6" fill="none" stroke="rgba(124,255,107,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 2"/><circle cx="30" cy="6" r="2.5" fill="#7CFF6B"/></svg>`,
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi4" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#00FF8A"/><stop offset="1" stop-color="#00C25A"/></linearGradient></defs><rect x="6" y="8" width="28" height="28" rx="3" fill="rgba(0,230,118,.08)" stroke="url(#gi4)" stroke-width="1.5"/><rect x="13" y="4" width="14" height="7" rx="2" fill="url(#gi4)"/><line x1="6" y1="18" x2="34" y2="18" stroke="url(#gi4)" stroke-width="1" opacity=".4"/><line x1="18" y1="8" x2="18" y2="36" stroke="url(#gi4)" stroke-width="1" opacity=".4"/><polyline points="10,25 14,29 22,21" fill="none" stroke="url(#gi4)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi5" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#40FFBF"/><stop offset="1" stop-color="#00A884"/></linearGradient></defs><rect x="5" y="7" width="30" height="26" rx="3" fill="rgba(64,255,191,.08)" stroke="url(#gi5)" stroke-width="1.5"/><circle cx="13" cy="16" r="4" fill="url(#gi5)" opacity=".5"/><polyline points="5,28 15,18 22,25 28,19 35,28" fill="none" stroke="url(#gi5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi6" x1="0" y1="40" x2="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#00A884"/><stop offset="1" stop-color="#00FFCC"/></linearGradient></defs><rect x="10" y="8" width="20" height="30" rx="3" fill="rgba(0,191,160,.1)" stroke="url(#gi6)" stroke-width="1.5"/><line x1="10" y1="32" x2="30" y2="32" stroke="url(#gi6)" stroke-width="1.5" opacity=".5"/><line x1="20" y1="4" x2="20" y2="14" stroke="url(#gi6)" stroke-width="2.5" stroke-linecap="round"/><polyline points="14,10 20,4 26,10" fill="none" stroke="url(#gi6)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi1" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#B975F9"/><stop offset="1" stop-color="#8B3FE0"/></linearGradient></defs><polygon points="20,3 37,32 3,32" fill="url(#gi1)" opacity=".12"/><polygon points="20,3 37,32 3,32" fill="none" stroke="url(#gi1)" stroke-width="2"/><polygon points="20,10 30,28 10,28" fill="url(#gi1)" opacity=".3"/><circle cx="20" cy="20" r="3.5" fill="url(#gi1)"/><circle cx="20" cy="20" r="1.5" fill="white" opacity=".8"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi2" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#00FFFF"/><stop offset="1" stop-color="#0088CC"/></linearGradient></defs><circle cx="17" cy="17" r="12" stroke="url(#gi2)" stroke-width="2.5" fill="rgba(185,117,249,.1)"/><circle cx="17" cy="17" r="7" stroke="url(#gi2)" stroke-width="1.5" fill="rgba(185,117,249,.15)" opacity=".6"/><line x1="26" y1="26" x2="36" y2="36" stroke="url(#gi2)" stroke-width="3" stroke-linecap="round"/><line x1="11" y1="17" x2="23" y2="17" stroke="url(#gi2)" stroke-width="1.5" opacity=".6"/><line x1="17" y1="11" x2="17" y2="23" stroke="url(#gi2)" stroke-width="1.5" opacity=".6"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi3" x1="0" y1="40" x2="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#8B3FE0"/><stop offset="1" stop-color="#C084FC"/></linearGradient></defs><rect x="5" y="26" width="7" height="10" rx="2" fill="url(#gi3)" opacity=".5"/><rect x="16" y="18" width="7" height="18" rx="2" fill="url(#gi3)" opacity=".75"/><rect x="27" y="8" width="7" height="28" rx="2" fill="url(#gi3)"/><polyline points="8,22 19,14 30,6" fill="none" stroke="rgba(192,132,252,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 2"/><circle cx="30" cy="6" r="2.5" fill="#C084FC"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi4" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#B975F9"/><stop offset="1" stop-color="#8B3FE0"/></linearGradient></defs><rect x="6" y="8" width="28" height="28" rx="3" fill="rgba(168,85,247,.08)" stroke="url(#gi4)" stroke-width="1.5"/><rect x="13" y="4" width="14" height="7" rx="2" fill="url(#gi4)"/><line x1="6" y1="18" x2="34" y2="18" stroke="url(#gi4)" stroke-width="1" opacity=".4"/><line x1="18" y1="8" x2="18" y2="36" stroke="url(#gi4)" stroke-width="1" opacity=".4"/><polyline points="10,25 14,29 22,21" fill="none" stroke="url(#gi4)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi5" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#9D6FF5"/><stop offset="1" stop-color="#00A884"/></linearGradient></defs><rect x="5" y="7" width="30" height="26" rx="3" fill="rgba(157,111,245,.08)" stroke="url(#gi5)" stroke-width="1.5"/><circle cx="13" cy="16" r="4" fill="url(#gi5)" opacity=".5"/><polyline points="5,28 15,18 22,25 28,19 35,28" fill="none" stroke="url(#gi5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi6" x1="0" y1="40" x2="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#00A884"/><stop offset="1" stop-color="#00FFCC"/></linearGradient></defs><rect x="10" y="8" width="20" height="30" rx="3" fill="rgba(157,111,245,.1)" stroke="url(#gi6)" stroke-width="1.5"/><line x1="10" y1="32" x2="30" y2="32" stroke="url(#gi6)" stroke-width="1.5" opacity=".5"/><line x1="20" y1="4" x2="20" y2="14" stroke="url(#gi6)" stroke-width="2.5" stroke-linecap="round"/><polyline points="14,10 20,4 26,10" fill="none" stroke="url(#gi6)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi7" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#CC88FF"/><stop offset="1" stop-color="#8844CC"/></linearGradient></defs><circle cx="20" cy="20" r="16" stroke="url(#gi7)" stroke-width="1.5" fill="rgba(168,85,247,.08)"/><circle cx="20" cy="20" r="10" stroke="url(#gi7)" stroke-width="1.5" fill="rgba(168,85,247,.1)" opacity=".6"/><circle cx="20" cy="20" r="4" stroke="url(#gi7)" stroke-width="1.5" fill="rgba(168,85,247,.2)"/><circle cx="20" cy="20" r="2" fill="url(#gi7)"/><line x1="20" y1="2" x2="20" y2="7" stroke="url(#gi7)" stroke-width="2" stroke-linecap="round" opacity=".5"/><line x1="20" y1="33" x2="20" y2="38" stroke="url(#gi7)" stroke-width="2" stroke-linecap="round" opacity=".5"/></svg>`,
   `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gi8" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#FFAA66"/><stop offset="1" stop-color="#FF6622"/></linearGradient></defs><rect x="4" y="12" width="32" height="22" rx="3" fill="rgba(255,130,80,.1)" stroke="url(#gi8)" stroke-width="1.5"/><rect x="4" y="8" width="32" height="7" rx="2" fill="rgba(255,130,80,.18)" stroke="url(#gi8)" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="15" stroke="url(#gi8)" stroke-width="2"/><line x1="20" y1="8" x2="20" y2="15" stroke="url(#gi8)" stroke-width="2"/><line x1="28" y1="8" x2="28" y2="15" stroke="url(#gi8)" stroke-width="2"/><polygon points="16,20 16,30 28,25" fill="url(#gi8)"/></svg>`
 ];
 const AGENTS=[
-  {id:'01',ico:'🎨',name:'Identidade',role:'Agente de Identidade',func:'Cria o DNA de comunicação da sua marca — uma vez, para sempre.',benefit:'Sua marca com identidade única, tom e posicionamento definidos automaticamente.',tasks:['Cria perfil completo da sua marca','Define identidade visual e tom de voz','Gera posicionamento único no nicho','Identifica seus diferenciais','Documenta o guia de comunicação'],nc:'rgba(0,230,118,.9)',nr:'0,230,118'},
-  {id:'02',ico:'🔍',name:'Mercado',role:'Agente de Mercado',func:'Inteligência competitiva do seu nicho em tempo real.',benefit:'Sabe exatamente onde você pode ganhar terreno da concorrência.',tasks:['Mapeia seus concorrentes diretos','Analisa benchmarks de engajamento','Encontra lacunas de posicionamento','Detecta tendências do nicho','Gera relatório de oportunidades'],nc:'rgba(0,212,255,.9)',nr:'0,212,255'},
-  {id:'03',ico:'📊',name:'Diagnóstico',role:'Agente de Diagnóstico',func:'Analisa seu Instagram — dado real, não achismo.',benefit:'Descobre o que funciona de verdade no seu perfil — sem achismo.',tasks:['Analisa métricas reais de alcance','Identifica melhores horários do público','Classifica formatos por conversão','Detecta posts de maior engajamento','Gera diagnóstico completo do perfil'],nc:'rgba(124,255,107,.9)',nr:'124,255,107'},
-  {id:'04',ico:'📋',name:'Estratégia',role:'Agente de Estratégia',func:'Plano editorial mensal completo — do calendário ao roteiro.',benefit:'Todo o planejamento do mês criado em minutos, pronto para executar.',tasks:['Cria calendário editorial completo','Escreve copies e legendas prontas','Roteiriza Reels e vídeos curtos','Define pilares e CTAs do mês','Planeja campanhas e datas especiais'],nc:'rgba(0,230,118,.9)',nr:'0,230,118'},
-  {id:'05',ico:'🖼',name:'Criativo',role:'Agente Criativo',func:'Criativos visuais com a sua identidade — não genéricos.',benefit:'Imagens, capas e carrosséis com a cara da sua marca, sem designer.',tasks:['Cria imagens para o feed','Gera thumbnails e capas de Reels','Monta slides de carrossel','Adapta visuais por formato','Aplica identidade visual automaticamente'],nc:'rgba(64,255,191,.9)',nr:'64,255,191'},
-  {id:'06',ico:'📅',name:'Publicação',role:'Agente de Publicação',func:'Publica automaticamente após sua aprovação.',benefit:'Você aprova com 1 clique e o sistema publica no horário certo.',tasks:['Agenda no melhor horário do público','Publica automaticamente via Meta API','Monitora performance pós-publicação','Envia relatório após cada post','Otimiza timing com base nos dados'],nc:'rgba(0,191,160,.9)',nr:'0,191,160'},
+  {id:'01',ico:'🎨',name:'Identidade',role:'Agente de Identidade',func:'Cria o DNA de comunicação da sua marca — uma vez, para sempre.',benefit:'Sua marca com identidade única, tom e posicionamento definidos automaticamente.',tasks:['Cria perfil completo da sua marca','Define identidade visual e tom de voz','Gera posicionamento único no nicho','Identifica seus diferenciais','Documenta o guia de comunicação'],nc:'rgba(168,85,247,.9)',nr:'168,85,247'},
+  {id:'02',ico:'🔍',name:'Mercado',role:'Agente de Mercado',func:'Inteligência competitiva do seu nicho em tempo real.',benefit:'Sabe exatamente onde você pode ganhar terreno da concorrência.',tasks:['Mapeia seus concorrentes diretos','Analisa benchmarks de engajamento','Encontra lacunas de posicionamento','Detecta tendências do nicho','Gera relatório de oportunidades'],nc:'rgba(185,117,249,.9)',nr:'185,117,249'},
+  {id:'03',ico:'📊',name:'Diagnóstico',role:'Agente de Diagnóstico',func:'Analisa seu Instagram — dado real, não achismo.',benefit:'Descobre o que funciona de verdade no seu perfil — sem achismo.',tasks:['Analisa métricas reais de alcance','Identifica melhores horários do público','Classifica formatos por conversão','Detecta posts de maior engajamento','Gera diagnóstico completo do perfil'],nc:'rgba(192,132,252,.9)',nr:'192,132,252'},
+  {id:'04',ico:'📋',name:'Estratégia',role:'Agente de Estratégia',func:'Plano editorial mensal completo — do calendário ao roteiro.',benefit:'Todo o planejamento do mês criado em minutos, pronto para executar.',tasks:['Cria calendário editorial completo','Escreve copies e legendas prontas','Roteiriza Reels e vídeos curtos','Define pilares e CTAs do mês','Planeja campanhas e datas especiais'],nc:'rgba(168,85,247,.9)',nr:'168,85,247'},
+  {id:'05',ico:'🖼',name:'Criativo',role:'Agente Criativo',func:'Criativos visuais com a sua identidade — não genéricos.',benefit:'Imagens, capas e carrosséis com a cara da sua marca, sem designer.',tasks:['Cria imagens para o feed','Gera thumbnails e capas de Reels','Monta slides de carrossel','Adapta visuais por formato','Aplica identidade visual automaticamente'],nc:'rgba(157,111,245,.9)',nr:'157,111,245'},
+  {id:'06',ico:'📅',name:'Publicação',role:'Agente de Publicação',func:'Publica automaticamente após sua aprovação.',benefit:'Você aprova com 1 clique e o sistema publica no horário certo.',tasks:['Agenda no melhor horário do público','Publica automaticamente via Meta API','Monitora performance pós-publicação','Envia relatório após cada post','Otimiza timing com base nos dados'],nc:'rgba(157,111,245,.9)',nr:'157,111,245'},
   {id:'07',ico:'📢',name:'Tráfego',role:'Agente de Tráfego',func:'Gerencia suas campanhas Meta Ads com otimização automática.',benefit:'Suas campanhas otimizadas por IA — mais resultado com o mesmo budget.',tasks:['Estrutura 4 públicos simultâneos','Otimiza budget automaticamente','Cria variações de anúncios','Monitora ROAS semanalmente','Escala campanhas vencedoras'],nc:'rgba(168,85,247,.8)',nr:'168,85,247'},
   {id:'08',ico:'🎬',name:'Editor de Vídeo',role:'Agente de Vídeo',func:'Edita Reels automaticamente — cortes, legendas, formatos.',benefit:'Seus vídeos editados e prontos para publicar sem abrir editor.',tasks:['Corta e edita footage automaticamente','Adiciona legendas animadas','Aplica efeitos da marca','Exporta para cada plataforma','Gera thumbnail automaticamente'],nc:'rgba(255,130,80,.8)',nr:'255,130,80'},
 ];

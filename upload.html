@@ -15,7 +15,7 @@
   <div class="hd">
     <div><div class="hd-hello">Meus arquivos</div><h1 class="hd-h">Base visual da <em>marca.</em></h1></div>
   </div>
-  <div class="card" style="margin-bottom:16px;border-color:rgba(0,212,255,.25)">
+  <div class="card" style="margin-bottom:16px;border-color:rgba(185,117,249,.25)">
     <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 Os agentes usam estes arquivos para criar com a <strong style="color:var(--t1)">sua cara</strong>: logo nas artes, fotos reais dos produtos nos infográficos, e vídeos brutos para o Editor (Pro).</div>
   </div>
   <div class="ptabs">
@@ -84,7 +84,7 @@ function render(){
 document.getElementById('file-in').addEventListener('change',async e=>{
   const files=Array.from(e.target.files||[]);
   if(!files.length)return;
-  if(CAT==='videos'&&((CTX.viewCliente||CTX.cliente).plano||'basico')!=='pro'){
+  if(CAT==='videos'&&(CTX.cliente.plano||'basico')!=='pro'){
     JUMP.toast('Upload de vídeo para edição é do plano Pro.','err');return;
   }
   JUMP.toast('Enviando '+files.length+' arquivo(s)...');

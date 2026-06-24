@@ -13,8 +13,8 @@
 html{overflow-x:hidden}
 :root{
   --ch:#141312;--ch2:#1C1A18;--ch3:#252220;
-  --g:#64E17B;--g2:#65E17C;
-  --glow:rgba(0,230,118,.18);
+  --g:#A855F7;--g2:#B975F9;
+  --glow:rgba(168,85,247,.18);
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
   --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
@@ -30,7 +30,7 @@ button{cursor:pointer;border:none;background:none;font-family:inherit}
   background-size:180px 180px;mix-blend-mode:overlay}
 
 .cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:difference}
-.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(0,230,118,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s}
+.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(168,85,247,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s}
 .cur.big{width:20px;height:20px}
 .cur-r.big{border-color:var(--g);transform:translate(-50%,-50%) scale(1.7)}
 
@@ -43,10 +43,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 /* LAYOUT */
 .page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(96px,14vw,130px) clamp(20px,5vw,56px) clamp(48px,8vw,72px);position:relative;overflow:hidden;
   background-image:radial-gradient(rgba(245,242,236,.05) 1px,transparent 1px);background-size:28px 28px}
-.page::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px circle at var(--mx) var(--my),rgba(0,230,118,.06),transparent 40%)}
+.page::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px circle at var(--mx) var(--my),rgba(168,85,247,.06),transparent 40%)}
 .pg-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .pg-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5}
-.pgb-1{width:460px;height:460px;background:radial-gradient(circle,rgba(0,230,118,.13),transparent 65%);top:-15%;right:-8%;animation:pgb1 18s ease-in-out infinite}
+.pgb-1{width:460px;height:460px;background:radial-gradient(circle,rgba(168,85,247,.13),transparent 65%);top:-15%;right:-8%;animation:pgb1 18s ease-in-out infinite}
 .pgb-2{width:380px;height:380px;background:radial-gradient(circle,rgba(0,150,255,.06),transparent 65%);bottom:-15%;left:-8%;animation:pgb2 22s ease-in-out infinite}
 @keyframes pgb1{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,40px) scale(1.1)}}
 @keyframes pgb2{0%,100%{transform:translate(0,0)}50%{transform:translate(55px,-35px) scale(1.08)}}
@@ -57,9 +57,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .sum-card{
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.1) 0%,rgba(0,230,118,.03) 35%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.02) 12px,rgba(0,230,118,.02) 13px);
-  border:1px solid rgba(0,230,118,.3);
+    linear-gradient(145deg,rgba(168,85,247,.1) 0%,rgba(168,85,247,.03) 35%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.02) 12px,rgba(168,85,247,.02) 13px);
+  border:1px solid rgba(168,85,247,.3);
   border-radius:16px;padding:clamp(26px,4vw,38px);
   box-shadow:0 28px 70px rgba(0,0,0,.5);
 }
@@ -68,24 +68,24 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .sc-title em{font-style:normal;color:var(--g)}
 .sc-sub{font-size:14px;color:var(--t2);margin-bottom:24px}
 /* Mini agents */
-.ma-lbl{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(0,230,118,.7);margin-bottom:10px}
+.ma-lbl{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(168,85,247,.7);margin-bottom:10px}
 .ma-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:22px}
-.ma{background:rgba(0,0,0,.25);border:1px solid var(--bd);border-left:2px solid var(--nc,rgba(0,230,118,.5));border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:9px}
+.ma{background:rgba(0,0,0,.25);border:1px solid var(--bd);border-left:2px solid var(--nc,rgba(168,85,247,.5));border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:9px}
 .ma-name{font-family:var(--D);font-size:14px;letter-spacing:.5px;text-transform:uppercase;color:var(--nc,var(--g));line-height:1}
 .ma-func{font-size:11px;color:var(--t3);font-family:var(--M);margin-top:2px}
 /* Trust */
 .trust{display:flex;flex-direction:column;gap:11px;padding-top:20px;border-top:1px solid var(--bd)}
 .tr-item{display:flex;align-items:flex-start;gap:11px;font-size:14px;color:var(--t2);line-height:1.55}
-.tr-ico{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:rgba(0,230,118,.1);border:1.5px solid rgba(0,230,118,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--g);font-weight:900}
+.tr-ico{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--g);font-weight:900}
 .tr-item strong{color:var(--t1)}
 
 /* PAGAMENTO DIREITA */
 .pay-card{
   background:#1E1C19;
-  background-image:linear-gradient(145deg,rgba(0,230,118,.14) 0%,rgba(0,230,118,.04) 40%,transparent 65%);
-  border:1px solid rgba(0,230,118,.45);
+  background-image:linear-gradient(145deg,rgba(168,85,247,.14) 0%,rgba(168,85,247,.04) 40%,transparent 65%);
+  border:1px solid rgba(168,85,247,.45);
   border-radius:16px;padding:clamp(24px,3.5vw,32px);
-  box-shadow:0 28px 70px rgba(0,0,0,.5),0 0 50px rgba(0,230,118,.06);
+  box-shadow:0 28px 70px rgba(0,0,0,.5),0 0 50px rgba(168,85,247,.06);
   position:sticky;top:90px;
 }
 .pc-plan-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -93,14 +93,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .pc-switch{font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1px;color:var(--t3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:.2s;text-transform:uppercase}
 .pc-switch:hover{color:var(--g)}
 .pc-price-b{background:rgba(0,0,0,.3);border-radius:12px;padding:clamp(16px,2.5vw,22px);margin:14px 0 18px}
-.pc-val{font-family:var(--M);font-size:clamp(40px,5.5vw,54px);font-weight:700;line-height:1;color:var(--g);text-shadow:0 0 30px rgba(0,230,118,.3)}
+.pc-val{font-family:var(--M);font-size:clamp(40px,5.5vw,54px);font-weight:700;line-height:1;color:var(--g);text-shadow:0 0 30px rgba(168,85,247,.3)}
 .pc-val .cents{font-size:clamp(18px,2.5vw,24px)}
 .pc-per{font-family:var(--M);font-size:13px;color:var(--t3);margin-top:6px}
 .pc-rec{font-family:var(--M);font-size:11px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:3px;display:flex;align-items:center;gap:6px}
 .pc-rec::before{content:'↻';color:var(--g)}
 /* Linha de info do usuário */
 .user-row{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border:1px solid var(--bd);border-radius:9px;padding:11px 14px;margin-bottom:18px}
-.ur-ico{width:30px;height:30px;border-radius:50%;background:rgba(0,230,118,.12);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.ur-ico{width:30px;height:30px;border-radius:50%;background:rgba(168,85,247,.12);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
 .ur-email{font-size:13px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ur-change{font-family:var(--M);font-size:10px;color:var(--t3);margin-left:auto;cursor:pointer;transition:.2s;flex-shrink:0}
 .ur-change:hover{color:var(--g)}
@@ -136,6 +136,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
   .pay-card{position:static}
   .ma-grid{grid-template-columns:1fr}
 }
+.pc-plan-sel{display:flex;gap:7px;margin:12px 0 16px}
+.pcs-btn{flex:1;padding:10px 6px;border-radius:9px;border:1.5px solid var(--bd);background:transparent;color:var(--t2);font-family:var(--B);font-size:13px;font-weight:800;cursor:pointer;transition:.18s}
+.pcs-btn:hover{border-color:rgba(var(--g-rgb),.5);color:var(--t1)}
+.pcs-btn.on{background:var(--g);border-color:var(--g);color:#0f0e0d}
 </style>
 </head>
 <body>
@@ -177,7 +181,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <div class="pay-card">
       <div class="pc-plan-row">
         <div class="pc-plan-name" id="pay-plan" style="color:var(--g)">Plus</div>
-        <span class="pc-switch" onclick="switchPlan()" id="switch-btn">Trocar plano</span>
+      </div>
+      <div class="pc-plan-sel" id="pc-plan-sel">
+        <button type="button" class="pcs-btn" data-plano="basico" onclick="setPlan('basico')">Básico</button>
+        <button type="button" class="pcs-btn" data-plano="plus" onclick="setPlan('plus')">Plus</button>
+        <button type="button" class="pcs-btn" data-plano="pro" onclick="setPlan('pro')">Pro</button>
       </div>
       <div class="pc-price-b">
         <div class="pc-val" id="pay-price">R$399<span class="cents">,90</span></div>
@@ -191,7 +199,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
       </div>
       <!-- Botões PayPal renderizados aqui (pagamento sem sair do site) -->
       <div id="paypal-buttons"></div>
-      <div class="pp-loading" id="pp-loading"><span class="spinner" style="border-color:rgba(0,230,118,.2);border-top-color:var(--g)"></span> Carregando pagamento seguro...</div>
+      <div class="pp-loading" id="pp-loading"><span class="spinner" style="border-color:rgba(168,85,247,.2);border-top-color:var(--g)"></span> Carregando pagamento seguro...</div>
       <!-- Fallback: se o SDK não carregar, usa o redirect -->
       <button class="pay-btn" id="pay-btn" onclick="goCheckout()" style="display:none">Ir para pagamento →</button>
       <div class="pay-secure"><span class="lock">🔒</span> Pagamento seguro · PayPal</div>
@@ -213,37 +221,37 @@ const PLANOS={
     nome:'Básico',preco:'R$129',cents:',90',
     desc:'5 agentes de criação. Você cria, você publica.',
     agentes:[
-      {n:'Identidade',f:'DNA da marca',c:'rgba(0,230,118,.8)'},
-      {n:'Mercado',f:'Análise nicho',c:'rgba(0,212,255,.8)'},
-      {n:'Diagnóstico',f:'Instagram real',c:'rgba(124,255,107,.8)'},
-      {n:'Estratégia',f:'Plano mensal',c:'rgba(0,230,118,.8)'},
-      {n:'Criativo',f:'Gera criativos',c:'rgba(64,255,191,.8)'},
+      {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
+      {n:'Mercado',f:'Análise nicho',c:'rgba(185,117,249,.8)'},
+      {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
+      {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
+      {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
     ]
   },
   plus:{
     nome:'Plus',preco:'R$399',cents:',90',
     desc:'6 agentes + publicação automática trabalhando por você.',
     agentes:[
-      {n:'Identidade',f:'DNA da marca',c:'rgba(100,225,123,.8)'},
+      {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
       {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
-      {n:'Diagnóstico',f:'Instagram real',c:'rgba(124,255,107,.8)'},
-      {n:'Estratégia',f:'Plano mensal',c:'rgba(100,225,123,.8)'},
-      {n:'Criativo',f:'Gera criativos',c:'rgba(64,255,191,.8)'},
-      {n:'Publicação',f:'Publica automático',c:'rgba(0,191,160,.9)'},
+      {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
+      {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
+      {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
+      {n:'Publicação',f:'Publica automático',c:'rgba(157,111,245,.9)'},
     ]
   },
   pro:{
     nome:'Pro',preco:'R$799',cents:',90',
     desc:'Os 8 agentes completos. Tráfego pago e edição de vídeo inclusos.',
     agentes:[
-      {n:'Identidade',f:'DNA da marca',c:'rgba(100,225,123,.8)'},
+      {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
       {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
-      {n:'Diagnóstico',f:'Instagram real',c:'rgba(124,255,107,.8)'},
-      {n:'Estratégia',f:'Plano mensal',c:'rgba(100,225,123,.8)'},
-      {n:'Criativo',f:'Gera criativos',c:'rgba(64,255,191,.8)'},
-      {n:'Publicação',f:'Publica automático',c:'rgba(0,191,160,.9)'},
-      {n:'Tráfego',f:'Meta Ads',c:'rgba(100,225,123,.9)'},
-      {n:'Editor de Vídeo',f:'Edita seus reels',c:'rgba(64,255,191,.9)'},
+      {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
+      {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
+      {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
+      {n:'Publicação',f:'Publica automático',c:'rgba(157,111,245,.9)'},
+      {n:'Tráfego',f:'Meta Ads',c:'rgba(168,85,247,.9)'},
+      {n:'Editor de Vídeo',f:'Edita seus reels',c:'rgba(157,111,245,.9)'},
     ]
   }
 };
@@ -264,15 +272,19 @@ function renderPlan(){
   document.getElementById('sum-agents').innerHTML=p.agentes.map(a=>
     `<div class="ma" style="--nc:${a.c}"><div><div class="ma-name">${a.n}</div><div class="ma-func">${a.f}</div></div></div>`
   ).join('');
+  if(typeof marcarBotao==='function')marcarBotao();
 }
-function switchPlan(){
-  // cicla pelos 3 planos: basico → plus → pro → basico
-  const ordem=['basico','plus','pro'];
-  const i=ordem.indexOf(plano);
-  plano=ordem[(i+1)%ordem.length];
+function setPlan(p){
+  // escolhe o plano direto (básico/plus/pro)
+  if(!PLANOS[p])return;
+  plano=p;
   history.replaceState(null,'',`checkout.html?plano=${plano}`);
   renderPlan();
+  marcarBotao();
   if(window.paypal&&ppConfig)renderPayPalButtons();
+}
+function marcarBotao(){
+  document.querySelectorAll('.pcs-btn').forEach(b=>b.classList.toggle('on',b.dataset.plano===plano));
 }
 
 /* ══ PREÇOS DINÂMICOS (vêm do PayPal, fonte única de verdade) ══ */

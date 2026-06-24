@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Conectar contas</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 .wrap{max-width:760px;margin:0 auto}
 .step{display:flex;gap:15px;padding:17px 0;border-bottom:1px solid var(--bd)}
 .step:last-child{border:none}
-.step-n{width:34px;height:34px;border-radius:50%;background:rgba(0,230,118,.1);border:1.5px solid rgba(0,230,118,.3);display:flex;align-items:center;justify-content:center;font-family:var(--M);font-size:13px;font-weight:700;color:var(--g);flex-shrink:0}
+.step-n{width:34px;height:34px;border-radius:50%;background:rgba(168,85,247,.1);border:1.5px solid rgba(168,85,247,.3);display:flex;align-items:center;justify-content:center;font-family:var(--M);font-size:13px;font-weight:700;color:var(--g);flex-shrink:0}
 .step-t{font-size:15px;font-weight:800;color:var(--t1);margin-bottom:4px}
 .step-b{font-size:13.5px;color:var(--t2);line-height:1.65}
 .step-b a{color:var(--g);font-weight:700;text-decoration:underline;text-underline-offset:3px}
-.sec-box{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-radius:12px;padding:17px;margin:16px 0}
+.sec-box{background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.2);border-radius:12px;padding:17px;margin:16px 0}
 .sec-i{display:flex;gap:10px;font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:9px}
 .sec-i:last-child{margin-bottom:0}
 .sec-i strong{color:var(--t1)}
@@ -116,7 +116,7 @@ let CTX=null;
     }
     /* Conexões existentes */
     try{
-      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.viewId||CTX.user.id);
+      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.user.id);
       if(cc&&cc.length){
         document.getElementById('conexoes-ativas').innerHTML=cc.map(c=>`
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)">
@@ -142,7 +142,7 @@ async function conectar(tipo){
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo Meta...';
   try{
     /* Endpoint OAuth — disponível após aprovação do App Review da Meta */
-    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&uid='+(CTX.viewId||CTX.user.id));
+    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&uid='+CTX.user.id);
     if(r.ok){const d=await r.json();if(d.url){location.href=d.url;return}}
     throw new Error('pending');
   }catch(e){

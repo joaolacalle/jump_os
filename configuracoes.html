@@ -27,11 +27,11 @@
         <label class="cp-sw cp-sw-lg"><input type="color" id="c4" value="#000000" oninput="preview()"></label>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c1" value="#64E17B" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c1" value="#A855F7" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor principal</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Botões, destaques e gráficos</div></div>
       </div>
       <div class="cp-row">
-        <label class="cp-sw"><input type="color" id="c2" value="#65E17C" oninput="preview()"></label>
+        <label class="cp-sw"><input type="color" id="c2" value="#B975F9" oninput="preview()"></label>
         <div><div style="font-size:13px;font-weight:800">Cor secundária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Informações e apoio</div></div>
       </div>
       <div class="cp-row">
@@ -67,7 +67,36 @@
           <span class="pill pill-g" id="cfg-plano">—</span>
           <span style="font-family:var(--M);font-size:11px;color:var(--t3)" id="cfg-status"></span>
         </div>
-        <div style="font-size:12px;color:var(--t3);margin-top:10px;line-height:1.6">Para mudar de plano ou cancelar, fale com o suporte ou seu supervisor.</div>
+
+        <!-- Detalhes de cobrança (preenchidos via PayPal) -->
+        <div id="cfg-pgto" style="display:none;margin-top:14px;border-top:1px solid var(--bd);padding-top:14px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0">
+            <span style="color:var(--t3)">Forma de pagamento</span>
+            <span style="color:var(--t1);font-weight:700" id="cfg-metodo">PayPal</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0">
+            <span style="color:var(--t3)">Próxima cobrança</span>
+            <span style="color:var(--t1);font-weight:700" id="cfg-prox">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0">
+            <span style="color:var(--t3)">Valor</span>
+            <span style="color:var(--t1);font-weight:700" id="cfg-valor">—</span>
+          </div>
+        </div>
+
+        <!-- Período de teste: botão para ativar a assinatura agora -->
+        <div id="cfg-trial-box" style="display:none;margin-top:14px;border-top:1px solid var(--bd);padding-top:14px">
+          <div class="box box-g" style="margin-bottom:12px">
+            <p style="margin:0;font-size:13px;line-height:1.6">✨ <strong>Você está no período de teste</strong> — faltam <span id="cfg-trial-dias">7</span> dia(s). Durante o teste, sua cota de geração é reduzida.</p>
+          </div>
+          <label style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--t2);line-height:1.55;cursor:pointer;margin-bottom:12px">
+            <input type="checkbox" id="cfg-trial-ok" style="margin-top:3px;flex-shrink:0">
+            <span>Quero <strong>ativar minha assinatura agora</strong> e liberar a cota completa. Entendo que, ao fazer isso por vontade própria, <strong>encerro o período de teste</strong> e a cobrança passa a valer, abrindo mão do tempo de teste restante.</span>
+          </label>
+          <button class="btn btn-g" id="cfg-ativar-btn" onclick="ativarAssinatura()" disabled>Ativar assinatura agora</button>
+        </div>
+
+        <div style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.6">Para mudar de plano ou cancelar, acesse sua conta no PayPal ou fale com o suporte. Veja a <a href="reembolso.html" style="color:var(--g)">Política de Reembolso</a>.</div>
       </div>
     </div>
   </div>
@@ -76,7 +105,7 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null;
-const PADRAO={c1:'#64E17B',c2:'#65E17C',c3:'#FFFFFF',c4:'#000000',c5:'#343434',bg:'escuro'};
+const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',bg:'escuro'};
 (async()=>{
   try{
     JUMP.sidebar('config');
@@ -91,9 +120,24 @@ const PADRAO={c1:'#64E17B',c2:'#65E17C',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
       document.getElementById('cfg-nome').value=(CTX.viewCliente&&CTX.viewCliente.nome)||CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
-    const p=(CTX.viewCliente||CTX.cliente).plano||'basico';
+    const cliAtual=CTX.viewCliente||CTX.cliente;
+    const p=cliAtual.plano||'basico';
     document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
-    document.getElementById('cfg-status').textContent=CTX.cliente.cortesia_ate?'cortesia ativa':(CTX.cliente.status||'');
+    // status + período de teste
+    const emTrial=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now();
+    document.getElementById('cfg-status').textContent=emTrial?'período de teste':(cliAtual.status||'');
+    if(emTrial){
+      const dias=Math.max(1,Math.ceil((new Date(cliAtual.cortesia_ate).getTime()-Date.now())/864e5));
+      document.getElementById('cfg-trial-dias').textContent=dias;
+      document.getElementById('cfg-trial-box').style.display='block';
+      // só o dono pode ativar (não o supervisor visualizando)
+      if(CTX.viewId&&CTX.viewId!==CTX.user.id){
+        document.getElementById('cfg-ativar-btn').style.display='none';
+        document.querySelector('#cfg-trial-box label').style.display='none';
+      }
+    }
+    // dados de cobrança via PayPal (status, próxima cobrança, valor)
+    carregarAssinatura(p);
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
 })();
@@ -146,6 +190,51 @@ async function trocarSenha(){
     document.getElementById('cfg-senha').value='';
     JUMP.toast('✓ Senha alterada');
   }catch(e){JUMP.toast('Erro ao alterar senha','err')}
+}
+
+// Liga/desliga o botão de ativar conforme o checkbox
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.id==='cfg-trial-ok'){
+    document.getElementById('cfg-ativar-btn').disabled=!e.target.checked;
+  }
+});
+
+// Busca status/próxima cobrança/valor no PayPal (via paypal.js consolidado)
+async function carregarAssinatura(plano){
+  try{
+    const r=await fetch('/api/paypal?action=subscription',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({user_id:CTX.viewId||CTX.user.id})
+    });
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d&&d.ok){
+      document.getElementById('cfg-pgto').style.display='block';
+      if(d.metodo)document.getElementById('cfg-metodo').textContent=d.metodo;
+      if(d.proxima)document.getElementById('cfg-prox').textContent=d.proxima;
+      if(d.valor)document.getElementById('cfg-valor').textContent=d.valor;
+    }
+  }catch(e){/* silencioso — se não houver assinatura, só não mostra */}
+}
+
+// Ativa a assinatura agora (encerra o trial por vontade própria do cliente)
+async function ativarAssinatura(){
+  if(!document.getElementById('cfg-trial-ok').checked)return;
+  const btn=document.getElementById('cfg-ativar-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Ativando...';
+  try{
+    const r=await fetch('/api/paypal?action=activate',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({user_id:CTX.user.id})
+    });
+    const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'Falha ao ativar');
+    JUMP.toast('✓ Assinatura ativada! Sua cota completa foi liberada.');
+    setTimeout(()=>location.href='dashboard-usuario.html',1400);
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='Ativar assinatura agora';
+    JUMP.toast(e.message||'Erro ao ativar','err');
+  }
 }
 </script>
 </body>

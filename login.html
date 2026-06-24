@@ -14,8 +14,8 @@
 html{overflow-x:hidden}
 :root{
   --ch:#141312;--ch2:#1C1A18;--ch3:#252220;
-  --g:#00E676;--g2:#00FF8A;
-  --glow:rgba(0,230,118,.18);
+  --g:#A855F7;--g2:#B975F9;
+  --glow:rgba(168,85,247,.18);
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
   --D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;
@@ -34,7 +34,7 @@ input{font-family:inherit;outline:none}
 
 /* CURSOR */
 .cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:difference}
-.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(0,230,118,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s}
+.cur-r{position:fixed;width:40px;height:40px;border:1.5px solid rgba(168,85,247,.45);border-radius:50%;pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s}
 .cur.big{width:20px;height:20px}
 .cur-r.big{border-color:var(--g);transform:translate(-50%,-50%) scale(1.7)}
 
@@ -48,10 +48,10 @@ input{font-family:inherit;outline:none}
   background-image:radial-gradient(rgba(245,242,236,.05) 1px,transparent 1px);
   background-size:28px 28px;
 }
-.side::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px circle at var(--mx) var(--my),rgba(0,230,118,.06),transparent 40%)}
+.side::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px circle at var(--mx) var(--my),rgba(168,85,247,.06),transparent 40%)}
 .side-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .sa-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5}
-.sab-1{width:440px;height:440px;background:radial-gradient(circle,rgba(0,230,118,.15),transparent 65%);top:-15%;right:-10%;animation:sab1 17s ease-in-out infinite}
+.sab-1{width:440px;height:440px;background:radial-gradient(circle,rgba(168,85,247,.15),transparent 65%);top:-15%;right:-10%;animation:sab1 17s ease-in-out infinite}
 .sab-2{width:360px;height:360px;background:radial-gradient(circle,rgba(0,150,255,.07),transparent 65%);bottom:-12%;left:-8%;animation:sab2 21s ease-in-out infinite}
 @keyframes sab1{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,40px) scale(1.12)}}
 @keyframes sab2{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,-35px) scale(1.08)}}
@@ -59,7 +59,7 @@ input{font-family:inherit;outline:none}
 .side-logo img{height:40px;object-fit:contain}
 .side-mid{position:relative;z-index:1}
 .side-h{font-family:'Oswald',var(--D);font-size:clamp(36px,4.5vw,60px);font-weight:700;text-transform:uppercase;line-height:1.06;margin-bottom:16px}
-.side-h em{font-style:normal;color:var(--g);text-shadow:0 0 40px rgba(0,230,118,.35)}
+.side-h em{font-style:normal;color:var(--g);text-shadow:0 0 40px rgba(168,85,247,.35)}
 .side-sub{font-size:clamp(15px,1.7vw,18px);color:var(--t2);line-height:1.7;max-width:420px}
 /* Agentes dots strip */
 .side-agents{position:relative;z-index:1;display:flex;flex-direction:column;gap:12px}
@@ -74,15 +74,15 @@ input{font-family:inherit;outline:none}
   width:100%;max-width:440px;
   background:#1E1C19;
   background-image:
-    linear-gradient(145deg,rgba(0,230,118,.1) 0%,rgba(0,230,118,.03) 35%,transparent 65%),
-    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(0,230,118,.02) 12px,rgba(0,230,118,.02) 13px);
-  border:1px solid rgba(0,230,118,.3);
+    linear-gradient(145deg,rgba(168,85,247,.1) 0%,rgba(168,85,247,.03) 35%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.02) 12px,rgba(168,85,247,.02) 13px);
+  border:1px solid rgba(168,85,247,.3);
   border-radius:16px;
   padding:clamp(28px,4vw,40px);
-  box-shadow:0 28px 70px rgba(0,0,0,.5),0 0 50px rgba(0,230,118,.05);
+  box-shadow:0 28px 70px rgba(0,0,0,.5),0 0 50px rgba(168,85,247,.05);
 }
 /* Plano badge */
-.plano-badge{display:none;align-items:center;gap:9px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:10px;padding:11px 15px;margin-bottom:22px}
+.plano-badge{display:none;align-items:center;gap:9px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:10px;padding:11px 15px;margin-bottom:22px}
 .plano-badge.show{display:flex}
 .plano-sel{display:flex;gap:8px;margin-bottom:22px}
 .plano-sel.show{display:flex}
@@ -106,7 +106,7 @@ input{font-family:inherit;outline:none}
   background:rgba(0,0,0,.35);border:1.5px solid var(--bd);
   color:var(--t1);font-size:15px;transition:.25s;
 }
-.f-input:focus{border-color:rgba(0,230,118,.5);box-shadow:0 0 0 3px rgba(0,230,118,.08)}
+.f-input:focus{border-color:rgba(168,85,247,.5);box-shadow:0 0 0 3px rgba(168,85,247,.08)}
 .f-input::placeholder{color:var(--t3)}
 /* Botão principal */
 .f-btn{
@@ -120,7 +120,7 @@ input{font-family:inherit;outline:none}
 /* Mensagens */
 .f-msg{display:none;padding:13px 15px;border-radius:9px;font-size:13.5px;line-height:1.55;margin-top:14px}
 .f-msg.show{display:block}
-.f-msg.ok{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);color:var(--g)}
+.f-msg.ok{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.3);color:var(--g)}
 .f-msg.err{background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:#FF8A8A}
 /* Links extra */
 .f-extra{text-align:center;margin-top:18px;font-size:13px;color:var(--t3)}
@@ -157,8 +157,8 @@ input{font-family:inherit;outline:none}
       <p class="side-sub">Entre na sua conta ou crie uma nova para ativar o sistema de marketing que trabalha por você.</p>
     </div>
     <div class="side-agents">
-      <div class="sa-row"><div class="sa-dot" style="background:#00E676;box-shadow:0 0 8px #00E676"></div><div class="sa-txt">Identidade · Mercado · Diagnóstico</div></div>
-      <div class="sa-row"><div class="sa-dot" style="background:#00D4FF;box-shadow:0 0 8px #00D4FF;animation-delay:.4s"></div><div class="sa-txt">Estratégia · Criativo · Publicação</div></div>
+      <div class="sa-row"><div class="sa-dot" style="background:#A855F7;box-shadow:0 0 8px #A855F7"></div><div class="sa-txt">Identidade · Mercado · Diagnóstico</div></div>
+      <div class="sa-row"><div class="sa-dot" style="background:#B975F9;box-shadow:0 0 8px #B975F9;animation-delay:.4s"></div><div class="sa-txt">Estratégia · Criativo · Publicação</div></div>
       <div class="sa-row"><div class="sa-dot" style="background:#A855F7;box-shadow:0 0 8px #A855F7;animation-delay:.8s"></div><div class="sa-txt">Tráfego · Editor de Vídeo</div></div>
     </div>
   </div>
