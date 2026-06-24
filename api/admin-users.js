@@ -118,14 +118,14 @@ module.exports = async (req, res) => {
     }
 
     // 3. Ações
-    if (action === 'create_user' || action === 'create_supervisor') {
+    if (action === 'create_user' || action === 'create_supervisor' || action === 'create_admin') {
       const { nome, email, senha, plano, cortesia, telefone, cpf, endereco, limite_contas } = req.body;
       if (!nome || !email || !senha || senha.length < 6) {
         return res.status(400).json({ error: 'Dados incompletos (nome, e-mail, senha 6+)' });
       }
-      const novoRole = action === 'create_supervisor' ? 'supervisor' : 'usuario';
-      if (novoRole === 'supervisor' && !isAdmin) {
-        return res.status(403).json({ error: 'Apenas admin cria supervisores' });
+      const novoRole = action === 'create_admin' ? 'admin' : (action === 'create_supervisor' ? 'supervisor' : 'usuario');
+      if ((novoRole === 'supervisor' || novoRole === 'admin') && !isAdmin) {
+        return res.status(403).json({ error: 'Apenas admin cria supervisores ou outros admins' });
       }
       // Vagas do supervisor
       if (novoRole === 'usuario' && !isAdmin) {
@@ -173,13 +173,13 @@ module.exports = async (req, res) => {
       // Linha em clientes
       const row = {
         id: novo.id, email, nome, role: novoRole,
-        plano: plano || (novoRole === 'supervisor' ? null : 'plus'),
+        plano: plano || ((novoRole === 'supervisor' || novoRole === 'admin') ? null : 'plus'),
         status: 'ativo', bloqueado: false,
         telefone: telefone || null, cpf: cpf || null, endereco: endereco || null,
         cortesia_ate: cortesiaDate(cortesia),
         tipo_cortesia: tipoCortesia(cortesia),
         supervisor_id: novoRole === 'usuario' ? requester.id : null,
-        limite_contas: novoRole === 'supervisor' ? (limite_contas || 10) : 0,
+        limite_contas: novoRole === 'supervisor' ? (limite_contas || 10) : (novoRole === 'admin' ? 9999 : 0),
         limites: novoRole === 'usuario' ? { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: limTokens } : null,
       };
       // upsert: a trigger handle_new_user já pode ter criado a linha — fazemos merge
@@ -414,6 +414,146 @@ module.exports = async (req, res) => {
       const { chave, valor } = req.body;
       if (!chave || valor === undefined) return res.status(400).json({ error: 'Dados incompletos' });
       await sbUpsert('config', { chave, valor, updated_at: new Date().toISOString() });
+      return res.status(200).json({ ok: true });
+    }
+
+    // ═══ SUPORTE JUMP (SAC interno com IA) ═══
+
+    // Manual do sistema (base de conhecimento da IA)
+    const MANUAL_JUMP = `MANUAL DO JUMP OS (para responder dúvidas dos usuários):
+
+CONECTAR INSTAGRAM: Menu "Conectar contas". A conta precisa ser Business ou Creator (não pessoal). O token dura 60 dias e o sistema renova sozinho. Se aparecer "reconecte", é só refazer a conexão.
+
+OS 8 AGENTES:
+- Identidade: define o DNA da marca (cores, tom de voz, público).
+- Mercado: analisa concorrentes e acha oportunidades.
+- Diagnóstico: lê as métricas reais do Instagram.
+- Estratégia: monta o calendário e as copies do mês.
+- Criativo: gera as imagens e artes.
+- Publicação (Plus+): agenda posts e cria campanhas de DM automática.
+- Tráfego (Pro): gerencia anúncios (Meta Ads).
+- Editor de Vídeo (Pro): edita Reels.
+
+CICLO MENSAL: Todo dia 25 chega o aviso para gerar a estratégia do mês seguinte. Abra o Agente de Estratégia e clique em gerar.
+
+APROVAR CONTEÚDO: O conteúdo gerado aparece em "Aprovar". Você revisa e aprova com um clique. Imagens podem ser recriadas (reload) se não gostar.
+
+LIMITES (por mês, variam por plano): imagens (criações), saldo extra (reloads/promoções), vídeos, tokens de texto e palavras-chave de DM. O texto/conversa com os agentes é livre.
+
+TRIAL E COBRANÇA: Novos assinantes têm 7 dias de teste com cota reduzida. Após 7 dias, a cota completa do plano é liberada. Dá para ativar a assinatura antes nas Configurações. Reembolso segue o CDC (7 dias).
+
+PROMOÇÃO/DM: No Agente de Publicação, botão "Criar campanha DM" no topo. Define palavra-chave + mensagem + link. Quando alguém comenta a palavra, o sistema responde no direct.
+
+PROBLEMAS COMUNS: Se algo não carregar, recarregue a página. Se o Instagram desconectar, reconecte. Para aumentar limites ou relatar bugs, use este chat que eu encaminho ao suporte.`;
+
+    // USUÁRIO conversa com o Suporte JUMP (IA responde; abre ticket se necessário)
+    if (action === 'suporte_chat') {
+      const { mensagem, ticket_id } = req.body;
+      if (!mensagem) return res.status(400).json({ error: 'Mensagem vazia' });
+      const uid = requester.id;
+      let tid = ticket_id;
+      // histórico do ticket (se já existe)
+      let historico = [];
+      if (tid) {
+        const msgs = await sbGet(`suporte_mensagens?ticket_id=eq.${tid}&order=created_at.asc&select=autor,texto`);
+        historico = Array.isArray(msgs) ? msgs : [];
+      }
+      // grava a mensagem do usuário (cria ticket se ainda não há)
+      if (!tid) {
+        const novo = await sbInsert('suporte_tickets', { user_id: uid, assunto: mensagem.slice(0, 60), status: 'aberto' });
+        tid = Array.isArray(novo) && novo[0] ? novo[0].id : null;
+      }
+      if (tid) await sbInsert('suporte_mensagens', { ticket_id: tid, autor: 'usuario', texto: mensagem });
+
+      // dados do usuário p/ contexto (plano, limites, uso)
+      const [cli] = await sbGet(`clientes?id=eq.${uid}&select=nome,plano,limites,uso,cortesia_ate,tipo_cortesia`);
+      const ctxUser = cli ? `Usuário: ${cli.nome||''} | Plano: ${cli.plano||'?'} | Uso de imagens: ${(cli.uso&&cli.uso.imagens)||0}/${(cli.limites&&cli.limites.imagens)||0}` : '';
+      const histTxt = historico.map(m => `${m.autor === 'usuario' ? 'Usuário' : m.autor === 'admin' ? 'Suporte (humano)' : 'Você'}: ${m.texto}`).join('\n');
+
+      const sys = `Você é o "Suporte JUMP", o assistente de suporte do JUMP OS. Ajude o usuário com dúvidas de uso de forma clara, simpática e objetiva, em português. Use o MANUAL abaixo como fonte. Se a dúvida for respondível pelo manual, responda direto e bem.
+
+REGRAS:
+- Se o usuário pede algo que precisa de um humano (aumento de limites/tokens, relatar um bug que você não resolve, reembolso, cancelamento, problema na conta), responda acolhendo e diga que vai ENCAMINHAR ao suporte. Então TERMINE sua resposta com a tag [TICKET:categoria] onde categoria é uma de: tokens, problema, sugestao, outro.
+- Se for só dúvida de uso que você resolveu, NÃO use a tag.
+- Seja conciso. Escreva limpo, sem markdown pesado.
+
+${MANUAL_JUMP}
+
+CONTEXTO DO USUÁRIO: ${ctxUser}`;
+      const userMsg = histTxt ? `CONVERSA ATÉ AGORA:\n${histTxt}\n\nNOVA MENSAGEM: ${mensagem}` : mensagem;
+
+      try {
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 700, system: sys, messages: [{ role: 'user', content: userMsg }] }),
+        });
+        const ai = await aiRes.json();
+        let txt = (ai.content && ai.content[0] && ai.content[0].text) || 'Desculpe, tente de novo.';
+        // detectar tag de ticket
+        let categoria = null;
+        const m = txt.match(/\[TICKET:(\w+)\]/);
+        if (m) { categoria = m[1]; txt = txt.replace(/\[TICKET:\w+\]/, '').trim(); }
+        // grava resposta da IA
+        if (tid) await sbInsert('suporte_mensagens', { ticket_id: tid, autor: 'ia', texto: txt });
+        // se virou ticket p/ humano, marca categoria/prioridade e avisa admin
+        if (categoria && tid) {
+          await sbPatch(`suporte_tickets?id=eq.${tid}`, { categoria, status: 'aberto', prioridade: categoria === 'problema' ? 'alta' : 'normal' });
+          const adms = await sbGet(`clientes?role=eq.admin&select=id`);
+          for (const a of (Array.isArray(adms) ? adms : [])) {
+            await sbInsert('recados', { user_id: a.id, tipo: 'suporte', titulo: 'Novo chamado de suporte', mensagem: `${(cli&&cli.nome)||'Usuário'}: ${mensagem.slice(0,80)} [ticket:${tid}]`, lido: false, resolvido: false }).catch(()=>{});
+          }
+        }
+        return res.status(200).json({ ok: true, resposta: txt, ticket_id: tid, virou_ticket: !!categoria });
+      } catch (e) {
+        return res.status(500).json({ error: 'Falha ao responder' });
+      }
+    }
+
+    // USUÁRIO lista seus tickets
+    if (action === 'suporte_meus_tickets') {
+      const uid = requester.id;
+      const tickets = await sbGet(`suporte_tickets?user_id=eq.${uid}&order=updated_at.desc&select=*`);
+      return res.status(200).json({ ok: true, tickets: Array.isArray(tickets) ? tickets : [] });
+    }
+
+    // USUÁRIO/ADMIN carrega as mensagens de um ticket
+    if (action === 'suporte_ticket_msgs') {
+      const { ticket_id } = req.body;
+      if (!ticket_id) return res.status(400).json({ error: 'ticket_id obrigatório' });
+      // valida acesso: dono ou admin
+      const [tk] = await sbGet(`suporte_tickets?id=eq.${ticket_id}&select=user_id`);
+      if (!tk) return res.status(404).json({ error: 'Ticket não encontrado' });
+      if (!isAdmin && tk.user_id !== requester.id) return res.status(403).json({ error: 'Sem acesso' });
+      const msgs = await sbGet(`suporte_mensagens?ticket_id=eq.${ticket_id}&order=created_at.asc&select=*`);
+      return res.status(200).json({ ok: true, mensagens: Array.isArray(msgs) ? msgs : [] });
+    }
+
+    // ADMIN lista todos os tickets (com filtro de status)
+    if (action === 'suporte_admin_tickets') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const status = (req.body && req.body.status) || '';
+      const filtro = status ? `&status=eq.${status}` : '';
+      const tickets = await sbGet(`suporte_tickets?order=updated_at.desc${filtro}&select=*`);
+      const arr = Array.isArray(tickets) ? tickets : [];
+      // anexa nome/email do usuário
+      for (const t of arr) {
+        const [u] = await sbGet(`clientes?id=eq.${t.user_id}&select=nome,email`);
+        t.usuario_nome = u ? (u.nome || u.email) : '—';
+      }
+      return res.status(200).json({ ok: true, tickets: arr });
+    }
+
+    // ADMIN responde um ticket (a resposta volta ao usuário no mesmo chat)
+    if (action === 'suporte_responder') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const { ticket_id, texto, resolver } = req.body;
+      if (!ticket_id || !texto) return res.status(400).json({ error: 'Dados incompletos' });
+      await sbInsert('suporte_mensagens', { ticket_id, autor: 'admin', texto });
+      await sbPatch(`suporte_tickets?id=eq.${ticket_id}`, { status: resolver ? 'resolvido' : 'respondido', resolvido_em: resolver ? new Date().toISOString() : null });
+      // avisa o usuário dono do ticket
+      const [tk] = await sbGet(`suporte_tickets?id=eq.${ticket_id}&select=user_id`);
+      if (tk) await sbInsert('recados', { user_id: tk.user_id, tipo: 'suporte_resposta', titulo: 'O suporte respondeu', mensagem: `Sua solicitação teve uma resposta. [ticket:${ticket_id}]`, lido: false, resolvido: false }).catch(()=>{});
       return res.status(200).json({ ok: true });
     }
 

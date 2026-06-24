@@ -541,7 +541,7 @@ const handler = async (req, res) => {
     });
     if(automacoes.length){
       try{
-        // checar limite do plano (configurável no admin; fallback básico 3, plus 5, pro 8)
+        // limite de DM: individual do usuário > config do plano > fallback (3/5/8)
         const LIM_DM={basico:3,plus:5,pro:8};
         let maxDm=LIM_DM[cli.plano]||3;
         try{
@@ -550,6 +550,8 @@ const handler = async (req, res) => {
             maxDm=Number(pc[0].valor[cli.plano].dm);
           }
         }catch(e){}
+        // limite individual sobrescreve (se o admin definiu pra esse usuário)
+        if(cli.limites&&cli.limites.dm!=null)maxDm=Number(cli.limites.dm);
         const atuais=await sbGet(`automacoes_dm?user_id=eq.${targetId}&ativo=eq.true&select=id`);
         const jaTem=(Array.isArray(atuais)?atuais:[]).length;
         const podem=Math.max(0,maxDm-jaTem);
