@@ -124,8 +124,9 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
     const p=cliAtual.plano||'basico';
     document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
     // status + período de teste
-    const emTrial=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now();
-    document.getElementById('cfg-status').textContent=emTrial?'período de teste':(cliAtual.status||'');
+    const emTrial=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now() && cliAtual.tipo_cortesia==='trial';
+    const ehCortesiaPaga=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now() && cliAtual.tipo_cortesia!=='trial';
+    document.getElementById('cfg-status').textContent=emTrial?'período de teste':(ehCortesiaPaga?'cortesia':(cliAtual.status||''));
     if(emTrial){
       const dias=Math.max(1,Math.ceil((new Date(cliAtual.cortesia_ate).getTime()-Date.now())/864e5));
       document.getElementById('cfg-trial-dias').textContent=dias;

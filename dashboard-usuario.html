@@ -362,12 +362,12 @@ function flipCard(id,nr,num,lbl,backT,backX){
 
     // Aviso de período de teste (trial) — cota reduzida
     try{
-      if(cliente.cortesia_ate && new Date(cliente.cortesia_ate).getTime()>Date.now()){
+      if(cliente.cortesia_ate && new Date(cliente.cortesia_ate).getTime()>Date.now() && cliente.tipo_cortesia==='trial'){
         const fim=new Date(cliente.cortesia_ate);
         const dias=Math.max(1,Math.ceil((fim.getTime()-Date.now())/(864e5)));
         const aviso=document.createElement('div');
-        aviso.style.cssText='background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.3);border-radius:11px;padding:12px 15px;margin-bottom:16px;font-size:13px;color:var(--t2);line-height:1.55';
-        aviso.innerHTML='✨ <strong style="color:var(--t1)">Período de teste ativo</strong> — faltam '+dias+' dia(s). Durante o teste, sua cota de geração é reduzida. Ao confirmar a assinatura, sua cota completa é liberada automaticamente.';
+        aviso.style.cssText='background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.3);border-radius:11px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--t2);line-height:1.55;display:flex;align-items:center;gap:14px;flex-wrap:wrap';
+        aviso.innerHTML='<div style="flex:1;min-width:200px">✨ <strong style="color:var(--t1)">Período de teste ativo</strong> — faltam '+dias+' dia(s). Durante o teste, sua cota de geração é reduzida.</div><a href="configuracoes.html#assinatura" class="btn btn-g btn-sm" style="white-space:nowrap">Ativar assinatura →</a>';
         const main=document.querySelector('.main');
         const hd=main&&main.querySelector('.hd');
         if(hd&&hd.nextSibling)hd.parentNode.insertBefore(aviso,hd.nextSibling);
