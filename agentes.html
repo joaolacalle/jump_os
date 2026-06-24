@@ -97,6 +97,49 @@
       </div>
     </div>
   </div>
+
+<!-- MODAL DE PROMOÇÃO/DM (só Publicação) -->
+<div id="promo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharPromo()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px;color:var(--g)">🎯 Nova Promoção / DM</div>
+      <button onclick="fecharPromo()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--t3);line-height:1.55;margin-bottom:16px">Quando alguém comentar a palavra-chave (em posts ou anúncios), o sistema envia automaticamente sua mensagem com o link/oferta no direct.</div>
+
+    <div class="f-group"><label class="f-label">Palavra-chave (gatilho)</label>
+      <input class="f-input" id="promo-kw" placeholder="Ex: EU QUERO" maxlength="40"></div>
+
+    <div class="f-group"><label class="f-label">Mensagem automática no direct</label>
+      <textarea class="f-input" id="promo-msg" rows="3" placeholder="Ex: Oi! Aqui está o link da promoção: ..." maxlength="900"></textarea></div>
+
+    <div class="f-group"><label class="f-label">Link / oferta (opcional)</label>
+      <input class="f-input" id="promo-link" placeholder="https://..."></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px"><label class="f-label">Objetivo</label>
+        <select class="f-input" id="promo-obj">
+          <option value="link">Enviar link</option>
+          <option value="cupom">Enviar cupom</option>
+          <option value="lead">Captar lead</option>
+          <option value="info">Dar informação</option>
+        </select></div>
+      <div style="flex:1;min-width:140px"><label class="f-label">Onde vale</label>
+        <select class="f-input" id="promo-origem">
+          <option value="ambos">Posts e anúncios</option>
+          <option value="organico">Só posts orgânicos</option>
+          <option value="anuncio">Só anúncios</option>
+        </select></div>
+    </div>
+
+    <div id="promo-result" style="font-size:12.5px;margin:10px 0"></div>
+    <div style="display:flex;gap:9px;margin-top:8px">
+      <button class="btn btn-g" id="promo-save" onclick="salvarPromo()" style="flex:1">Criar automação</button>
+      <button class="btn btn-o" onclick="fecharPromo()">Cancelar</button>
+    </div>
+    <div id="promo-list" style="margin-top:16px"></div>
+  </div>
+</div>
 </main>
 </div>
 <script src="assets/jump-core.js"></script>
@@ -160,6 +203,7 @@ async function selecionar(id){
         <div class="ec-t">Agente de ${a.n}</div>
         <div class="ec-b">${id==='identidade'?'Comece pelo check-in: eu conheço seu negócio uma vez e todos os agentes aprendem junto.':'Pronto para trabalhar no seu nicho. O que precisa?'}</div>
         <div class="sug-chips">${a.sug.map(s=>`<span class="chip" onclick="usarChip(this)">${s}</span>`).join('')}</div>
+        ${id==='publicacao'?'<button class="btn btn-g" style="margin-top:16px" onclick="abrirPromo()">🎯 Criar Promoção / DM automática</button>':''}
       </div>`;
     }
   }catch(e){}
@@ -425,6 +469,80 @@ async function toggleMem(){
 const inp=document.getElementById('inp');
 inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(120,inp.scrollHeight)+'px'});
 inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}});
+
+/* ══ PROMOÇÃO / DM AUTOMÁTICA (Publicação) ══ */
+function abrirPromo(){
+  document.getElementById('promo-overlay').style.display='flex';
+  document.getElementById('promo-result').innerHTML='';
+  listarPromo();
+}
+function fecharPromo(){document.getElementById('promo-overlay').style.display='none';}
+
+async function salvarPromo(){
+  const kw=document.getElementById('promo-kw').value.trim();
+  const msgBase=document.getElementById('promo-msg').value.trim();
+  const link=document.getElementById('promo-link').value.trim();
+  const obj=document.getElementById('promo-obj').value;
+  const origem=document.getElementById('promo-origem').value;
+  const res=document.getElementById('promo-result');
+  if(kw.length<2){res.innerHTML='<span style="color:var(--red)">Digite uma palavra-chave.</span>';return;}
+  if(msgBase.length<5){res.innerHTML='<span style="color:var(--red)">Digite a mensagem do direct.</span>';return;}
+  // monta a mensagem final (anexa o link se houver)
+  const mensagem=link?(msgBase+'\n\n'+link):msgBase;
+  const btn=document.getElementById('promo-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Criando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    // checar limite do plano via config
+    const plano=(CTX.viewCliente||CTX.cliente).plano||'basico';
+    let maxDm={basico:3,plus:5,pro:8}[plano]||3;
+    try{
+      const{data:pc}=await JUMP.sb.from('config').select('valor').eq('chave','planos').limit(1);
+      if(pc&&pc[0]&&pc[0].valor&&pc[0].valor[plano]&&pc[0].valor[plano].dm!=null)maxDm=Number(pc[0].valor[plano].dm);
+    }catch(e){}
+    const{data:atuais}=await JUMP.sb.from('automacoes_dm').select('id').eq('user_id',uid).eq('ativo',true);
+    if((atuais||[]).length>=maxDm){
+      res.innerHTML='<span style="color:var(--red)">Limite do plano atingido ('+maxDm+' automações). Desative uma ou faça upgrade.</span>';
+      btn.disabled=false;btn.innerHTML='Criar automação';return;
+    }
+    const{error}=await JUMP.sb.from('automacoes_dm').insert({
+      user_id:uid,palavra_chave:kw,mensagem,objetivo:obj,gatilho:'comentario',origem,ativo:true
+    });
+    if(error)throw error;
+    res.innerHTML='<span style="color:var(--g)">✓ Automação criada! Responde automaticamente quem comentar "'+kw+'".</span>';
+    document.getElementById('promo-kw').value='';
+    document.getElementById('promo-msg').value='';
+    document.getElementById('promo-link').value='';
+    listarPromo();
+  }catch(e){
+    res.innerHTML='<span style="color:var(--red)">Erro: '+(e.message||'tente novamente')+'</span>';
+  }
+  btn.disabled=false;btn.innerHTML='Criar automação';
+}
+
+async function listarPromo(){
+  const wrap=document.getElementById('promo-list');
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const{data}=await JUMP.sb.from('automacoes_dm').select('*').eq('user_id',uid).order('created_at',{ascending:false});
+    if(!data||!data.length){wrap.innerHTML='<div style="font-size:12px;color:var(--t3);font-family:var(--M);text-align:center;padding:8px">Nenhuma automação ativa ainda.</div>';return;}
+    wrap.innerHTML='<div class="f-label" style="margin-bottom:8px">Automações ativas</div>'+data.map(d=>
+      `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">"${JUMP.esc(d.palavra_chave)}" ${d.ativo?'':'<span style=\'color:var(--t3);font-size:10px\'>(inativa)</span>'}</div>
+          <div style="font-size:11px;color:var(--t3);font-family:var(--M)">${({link:'🔗 Link',cupom:'🎟 Cupom',lead:'📋 Lead',info:'ℹ️ Info'})[d.objetivo]||d.objetivo} · ${({ambos:'Posts e anúncios',organico:'Orgânico',anuncio:'Anúncios'})[d.origem]||d.origem} · ${d.disparos||0} envios</div>
+        </div>
+        <button class="btn btn-r btn-sm" onclick="excluirPromo('${d.id}')">Excluir</button>
+      </div>`
+    ).join('');
+  }catch(e){wrap.innerHTML='';}
+}
+
+async function excluirPromo(id){
+  if(!confirm('Excluir esta automação? Ela para de responder imediatamente.'))return;
+  try{await JUMP.sb.from('automacoes_dm').delete().eq('id',id);listarPromo();JUMP.toast('Automação excluída.');}
+  catch(e){JUMP.toast('Erro ao excluir','err');}
+}
 </script>
 </body>
 </html>

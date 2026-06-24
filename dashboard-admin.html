@@ -61,6 +61,7 @@
   <div class="ptabs" style="margin-top:20px">
     <div class="ptab on" id="tab-sups" onclick="trocarTab('sups')">🛡 Supervisores</div>
     <div class="ptab" id="tab-users" onclick="trocarTab('users')">👥 Todos os usuários</div>
+    <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">🛡 Segurança</div>
     <div class="ptab" id="tab-back" onclick="trocarTab('back')">⚙ Backend</div>
   </div>
 
@@ -105,6 +106,43 @@
         <thead><tr><th>Usuário</th><th>Supervisor</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody id="tbody-user"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- TAB SEGURANÇA -->
+  <div class="tabpane" id="pane-seg">
+    <div class="bk-grid">
+      <!-- Resumo de segurança -->
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">🛡 Painel de Segurança</div>
+        <div class="bk-b">Visão geral do sistema e alertas automáticos. O monitoramento roda diariamente e avisa aqui.</div>
+        <div id="seg-resumo" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
+          <div style="font-family:var(--M);font-size:12px;color:var(--t3)">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Alertas detectados -->
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">⚠️ Alertas e detecções</div>
+        <div class="bk-b">Padrões suspeitos detectados automaticamente (contas em massa, CPF repetido, uso anormal).</div>
+        <div id="seg-flags" style="margin-top:10px"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+      </div>
+
+      <!-- Agente de consulta -->
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">🤖 Agente de Segurança</div>
+        <div class="bk-b">Pergunte qualquer coisa sobre o sistema. Ele busca os dados reais e responde.</div>
+        <div id="seg-chat" style="max-height:300px;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:10px"></div>
+        <div style="display:flex;gap:8px">
+          <input class="f-input" id="seg-input" placeholder="Ex: quais contas usaram mais imagens? Há algum risco de abuso?" style="flex:1" onkeydown="if(event.key==='Enter')perguntarSeg()">
+          <button class="btn btn-g" id="seg-btn" onclick="perguntarSeg()">Perguntar</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+          <span class="chip" onclick="document.getElementById('seg-input').value='Quantas contas ativas, em trial e bloqueadas temos?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Resumo de contas</span>
+          <span class="chip" onclick="document.getElementById('seg-input').value='Há sinais de abuso de trial ou multicontas?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Risco de abuso?</span>
+          <span class="chip" onclick="document.getElementById('seg-input').value='Quais contas consumiram mais recursos este mês?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Maior consumo</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -328,11 +366,12 @@ let CTX=null,ALL=[],SUPS=[],USERS=[];
 })();
 
 function trocarTab(t){
-  ['sups','users','back'].forEach(x=>{
+  ['sups','users','seg','back'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('on',x===t);
     document.getElementById('pane-'+x).classList.toggle('on',x===t);
   });
   if(t==='back')carregarPlanos();
+  if(t==='seg')carregarSeguranca();
 }
 function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
@@ -529,6 +568,7 @@ const PLANOS_CAMPOS=[
   {k:'imagens',label:'Criações de imagem/mês'},
   {k:'reloads',label:'Saldo extra (recriar/promo)/mês'},
   {k:'videos',label:'Vídeos/mês'},
+  {k:'dm',label:'Palavras-chave de DM/promo'},
   {k:'tokens',label:'Tokens de texto/mês'},
 ];
 async function carregarPlanos(){
@@ -716,6 +756,67 @@ async function broadcast(){
     JUMP.toast('✓ Enviado para '+(d.count||0)+' usuários');
     document.getElementById('bc-titulo').value='';document.getElementById('bc-msg').value='';
   }catch(e){JUMP.toast(e.message,'err')}
+}
+
+/* ══ AGENTE DE SEGURANÇA ══ */
+async function carregarSeguranca(){
+  try{
+    const d=await JUMP.api('security_data',{},CTX.token);
+    if(!d.ok)return;
+    // resumo
+    const r=d.resumo||{};
+    document.getElementById('seg-resumo').innerHTML=[
+      ['Total de contas',r.total||0],
+      ['Ativas',r.ativos||0],
+      ['Em teste',r.trial||0],
+      ['Bloqueadas',r.bloqueados||0],
+      ['Novas (24h)',r.novas24h||0],
+    ].map(([l,v])=>`<div style="background:var(--ch2);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;min-width:90px"><div style="font-family:var(--D);font-size:24px;color:var(--g)">${v}</div><div style="font-size:11px;color:var(--t3);font-family:var(--M)">${l}</div></div>`).join('');
+    // flags + alertas
+    const flags=d.flags||[],alertas=d.alertas||[];
+    const fbox=document.getElementById('seg-flags');
+    if(!flags.length&&!alertas.length){
+      fbox.innerHTML='<div style="font-size:13px;color:var(--g)">✓ Nenhum padrão suspeito detectado.</div>';
+    }else{
+      let h='';
+      flags.forEach(f=>{
+        const cor=f.nivel==='alerta'?'var(--yel)':'var(--t2)';
+        h+=`<div style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--bd)"><span>${f.nivel==='alerta'?'⚠️':'ℹ️'}</span><span style="font-size:13px;color:${cor}">${JUMP.esc(f.txt)}</span></div>`;
+      });
+      alertas.forEach(a=>{
+        h+=`<div style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--bd)"><span>🛡</span><span style="font-size:13px;color:var(--t2)"><b>${JUMP.esc(a.titulo||'')}</b><br>${JUMP.esc(a.mensagem||'')}</span></div>`;
+      });
+      fbox.innerHTML=h;
+    }
+  }catch(e){
+    document.getElementById('seg-resumo').innerHTML='<div style="font-size:12px;color:var(--red)">Erro ao carregar dados de segurança.</div>';
+  }
+}
+
+async function perguntarSeg(){
+  const inp=document.getElementById('seg-input');
+  const q=inp.value.trim();
+  if(!q)return;
+  const chat=document.getElementById('seg-chat');
+  const btn=document.getElementById('seg-btn');
+  // adiciona a pergunta
+  chat.innerHTML+=`<div style="align-self:flex-end;max-width:85%;background:var(--g);color:#0f0e0d;padding:9px 13px;border-radius:12px 12px 3px 12px;font-size:13px">${JUMP.esc(q)}</div>`;
+  chat.scrollTop=chat.scrollHeight;
+  inp.value='';btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  // placeholder de resposta
+  const pid='seg-r-'+Date.now();
+  chat.innerHTML+=`<div id="${pid}" style="align-self:flex-start;max-width:85%;background:var(--ch2);border:1px solid var(--bd);padding:9px 13px;border-radius:12px 12px 12px 3px;font-size:13px;color:var(--t3)">analisando...</div>`;
+  chat.scrollTop=chat.scrollHeight;
+  try{
+    const d=await JUMP.api('security_chat',{pergunta:q},CTX.token);
+    const el=document.getElementById(pid);
+    if(d.ok){el.style.color='var(--t1)';el.innerHTML=JUMP.esc(d.resposta).replace(/\n/g,'<br>');}
+    else{el.style.color='var(--red)';el.textContent=d.error||'Erro ao processar.';}
+  }catch(e){
+    const el=document.getElementById(pid);el.style.color='var(--red)';el.textContent='Erro ao consultar o agente.';
+  }
+  chat.scrollTop=chat.scrollHeight;
+  btn.disabled=false;btn.innerHTML='Perguntar';
 }
 </script>
 </body>
