@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Suporte JUMP</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.sup-wrap{display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 160px);min-height:480px}
+@media(max-width:880px){.sup-wrap{grid-template-columns:1fr;height:auto}}
+.sup-side{background:var(--ch2);border:1px solid var(--bd);border-radius:14px;padding:16px;overflow-y:auto}
+.sup-new{width:100%;padding:11px;background:var(--g);color:#0f0e0d;border:none;border-radius:10px;font-family:var(--B);font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px}
+.sup-tk{padding:11px 12px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.sup-tk:hover{border-color:rgba(var(--g-rgb),.5)}
+.sup-tk.on{border-color:var(--g);background:rgba(var(--g-rgb),.06)}
+.sup-tk-as{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;line-height:1.3}
+.sup-tk-st{font-size:10px;font-family:var(--M);text-transform:uppercase;letter-spacing:.5px}
+.st-aberto{color:var(--yel)}.st-respondido{color:var(--g)}.st-resolvido{color:var(--t3)}
+.sup-chat{background:var(--ch2);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.sup-msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.sup-msg{max-width:82%;padding:11px 14px;border-radius:13px;font-size:13.5px;line-height:1.5}
+.sup-msg.usuario{align-self:flex-end;background:var(--g);color:#0f0e0d;border-bottom-right-radius:3px}
+.sup-msg.ia{align-self:flex-start;background:var(--ch3);border:1px solid var(--bd);border-bottom-left-radius:3px}
+.sup-msg.admin{align-self:flex-start;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-bottom-left-radius:3px}
+.sup-msg-who{font-size:9px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;opacity:.6;margin-bottom:4px}
+.sup-input{display:flex;gap:9px;padding:14px;border-top:1px solid var(--bd)}
+.sup-input textarea{flex:1;background:var(--ch3);border:1px solid var(--bd);border-radius:10px;padding:11px 13px;color:var(--t1);font-family:var(--B);font-size:14px;resize:none;max-height:110px}
+.sup-send{padding:0 20px;background:var(--g);color:#0f0e0d;border:none;border-radius:10px;font-size:18px;cursor:pointer}
+.sup-send:disabled{opacity:.5;cursor:default}
+.sup-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;color:var(--t3)}
+.sup-empty-i{font-size:42px;margin-bottom:14px}
+.sup-tag{display:inline-block;font-size:10px;font-family:var(--M);padding:2px 8px;border-radius:10px;background:rgba(var(--g-rgb),.12);color:var(--g);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando suporte...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd"><div><div class="hd-hello">Suporte JUMP</div><h1 class="hd-h">Precisa de <em>ajuda?</em></h1></div></div>
+  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tire dúvidas sobre como usar o sistema, peça aumento de limites ou relate um problema. Eu respondo na hora — e, se precisar de um humano, encaminho ao suporte e te aviso aqui mesmo.</p>
+
+  <div class="sup-wrap">
+    <!-- Lista de conversas -->
+    <div class="sup-side">
+      <button class="sup-new" onclick="novaConversa()">+ Nova conversa</button>
+      <div id="sup-tickets"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+    </div>
+
+    <!-- Chat -->
+    <div class="sup-chat">
+      <div class="sup-msgs" id="sup-msgs">
+        <div class="sup-empty" id="sup-empty">
+          <div class="sup-empty-i">💬</div>
+          <div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">Como posso ajudar?</div>
+          <div style="font-size:12.5px;max-width:300px">Comece uma nova conversa ou escolha uma anterior à esquerda.</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:18px">
+            <span class="chip" onclick="sugestao('Como conecto meu Instagram?')" style="cursor:pointer;font-size:11px;padding:6px 12px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Como conectar o Instagram?</span>
+            <span class="chip" onclick="sugestao('Como funciona o ciclo mensal?')" style="cursor:pointer;font-size:11px;padding:6px 12px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Ciclo mensal</span>
+            <span class="chip" onclick="sugestao('Preciso de mais tokens este mês')" style="cursor:pointer;font-size:11px;padding:6px 12px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Pedir mais tokens</span>
+          </div>
+        </div>
+      </div>
+      <div class="sup-input">
+        <textarea id="sup-inp" placeholder="Escreva sua mensagem..." rows="1" disabled></textarea>
+        <button class="sup-send" id="sup-send" onclick="enviar()" disabled>➤</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX={}, ticketAtual=null;
+
+(async function(){
+  const s=await JUMP.guard(['usuario','supervisor','admin']);
+  if(!s)return;
+  CTX=s;
+  JUMP.sidebar('suporte');
+  JUMP.setUser();
+  document.getElementById('loading').classList.add('hide');
+  // habilita input (chat novo já pode começar)
+  document.getElementById('sup-inp').disabled=false;
+  document.getElementById('sup-send').disabled=false;
+  carregarTickets();
+})();
+
+async function carregarTickets(){
+  try{
+    const d=await JUMP.api('suporte_meus_tickets',{},CTX.token);
+    const wrap=document.getElementById('sup-tickets');
+    if(!d.tickets||!d.tickets.length){
+      wrap.innerHTML='<div style="font-size:12px;color:var(--t3);font-family:var(--M);line-height:1.5">Nenhuma conversa ainda. Clique em "+ Nova conversa".</div>';
+      return;
+    }
+    wrap.innerHTML=d.tickets.map(t=>`
+      <div class="sup-tk ${t.id===ticketAtual?'on':''}" onclick="abrirTicket('${t.id}')">
+        <div class="sup-tk-as">${JUMP.esc(t.assunto||'Conversa')}</div>
+        <div class="sup-tk-st st-${t.status}">${({aberto:'aguardando',respondido:'respondido',resolvido:'resolvido'})[t.status]||t.status}</div>
+      </div>`).join('');
+  }catch(e){}
+}
+
+function novaConversa(){
+  ticketAtual=null;
+  document.querySelectorAll('.sup-tk').forEach(x=>x.classList.remove('on'));
+  document.getElementById('sup-msgs').innerHTML=`
+    <div class="sup-empty" id="sup-empty">
+      <div class="sup-empty-i">💬</div>
+      <div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">Nova conversa</div>
+      <div style="font-size:12.5px;max-width:300px">Escreva sua dúvida ou solicitação abaixo.</div>
+    </div>`;
+  document.getElementById('sup-inp').focus();
+}
+
+async function abrirTicket(id){
+  ticketAtual=id;
+  document.querySelectorAll('.sup-tk').forEach(x=>x.classList.remove('on'));
+  event&&event.currentTarget&&event.currentTarget.classList.add('on');
+  const box=document.getElementById('sup-msgs');
+  box.innerHTML='<div class="sup-empty"><div class="ld-spin"></div></div>';
+  try{
+    const d=await JUMP.api('suporte_ticket_msgs',{ticket_id:id},CTX.token);
+    box.innerHTML='';
+    (d.mensagens||[]).forEach(m=>addMsg(m.autor,m.texto));
+    box.scrollTop=box.scrollHeight;
+  }catch(e){box.innerHTML='<div class="sup-empty">Erro ao carregar.</div>';}
+}
+
+function addMsg(autor,texto){
+  const box=document.getElementById('sup-msgs');
+  const empty=document.getElementById('sup-empty');
+  if(empty)empty.remove();
+  const who={usuario:'Você',ia:'Suporte JUMP',admin:'Suporte (equipe)'}[autor]||autor;
+  const div=document.createElement('div');
+  div.className='sup-msg '+autor;
+  div.innerHTML=`<div class="sup-msg-who">${who}</div>${JUMP.esc(texto).replace(/\n/g,'<br>')}`;
+  box.appendChild(div);
+  box.scrollTop=box.scrollHeight;
+}
+
+function sugestao(t){document.getElementById('sup-inp').value=t;enviar();}
+
+async function enviar(){
+  const inp=document.getElementById('sup-inp');
+  const txt=inp.value.trim();
+  if(!txt)return;
+  const btn=document.getElementById('sup-send');
+  addMsg('usuario',txt);
+  inp.value='';btn.disabled=true;
+  // placeholder
+  const box=document.getElementById('sup-msgs');
+  const pid='p'+Date.now();
+  const ph=document.createElement('div');ph.className='sup-msg ia';ph.id=pid;
+  ph.innerHTML='<div class="sup-msg-who">Suporte JUMP</div><span style="opacity:.6">digitando...</span>';
+  box.appendChild(ph);box.scrollTop=box.scrollHeight;
+  try{
+    const d=await JUMP.api('suporte_chat',{mensagem:txt,ticket_id:ticketAtual},CTX.token);
+    document.getElementById(pid).remove();
+    if(d.ok){
+      addMsg('ia',d.resposta);
+      if(d.virou_ticket){
+        const box2=document.getElementById('sup-msgs');
+        const tag=document.createElement('div');tag.style.cssText='align-self:center;font-size:11px;color:var(--g);font-family:var(--M);margin:4px 0';
+        tag.textContent='✓ Encaminhado ao suporte — você será avisado da resposta aqui.';
+        box2.appendChild(tag);
+      }
+      if(!ticketAtual&&d.ticket_id){ticketAtual=d.ticket_id;carregarTickets();}
+    }else{
+      addMsg('ia','Desculpe, houve um erro. Tente de novo.');
+    }
+  }catch(e){
+    document.getElementById(pid)&&document.getElementById(pid).remove();
+    addMsg('ia','Erro de conexão. Tente novamente.');
+  }
+  btn.disabled=false;
+}
+
+// Enter envia, Shift+Enter quebra linha; auto-grow
+const inp=document.getElementById('sup-inp');
+inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(110,inp.scrollHeight)+'px'});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}});
+</script>
+</body>
+</html>

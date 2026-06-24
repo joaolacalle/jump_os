@@ -20,6 +20,8 @@
 /* CHAT */
 .chat-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
 .chat-top{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--bd)}
+.mem-grp{font-family:var(--M);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:10px 0 5px;font-weight:700}
+.mem-grp:first-child{margin-top:0}
 .ct-ico{width:36px;height:36px;border-radius:10px;background:rgba(var(--g-rgb),.12);border:1px solid rgba(var(--g-rgb),.3);display:flex;align-items:center;justify-content:center;font-size:17px}
 .ct-n{font-family:var(--D);font-size:17px;letter-spacing:.5px;text-transform:uppercase;color:var(--g);line-height:1}
 .ct-s{font-family:var(--M);font-size:9.5px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:2px;display:flex;align-items:center;gap:5px}
@@ -81,6 +83,7 @@
       <div class="chat-top">
         <div class="ct-ico" id="ct-ico">🤖</div>
         <div><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
+        <button class="mem-btn" id="promo-top-btn" onclick="abrirPromo()" style="display:none;margin-left:auto">🎯 Criar campanha DM</button>
         <button class="mem-btn" id="mem-btn" onclick="toggleMem()" style="display:none">🧠 O que aprendi</button>
       </div>
       <div class="mem-pane" id="mem-pane"></div>
@@ -187,6 +190,7 @@ async function selecionar(id){
   document.getElementById('ct-ico').textContent=a.ico;
   document.getElementById('ct-n').textContent='Agente de '+a.n;
   document.getElementById('mem-btn').style.display='inline-block';
+  document.getElementById('promo-top-btn').style.display=(id==='publicacao')?'inline-block':'none';
   document.getElementById('mem-pane').classList.remove('show');
   document.getElementById('inp').disabled=false;
   document.getElementById('send').disabled=false;
@@ -203,7 +207,6 @@ async function selecionar(id){
         <div class="ec-t">Agente de ${a.n}</div>
         <div class="ec-b">${id==='identidade'?'Comece pelo check-in: eu conheço seu negócio uma vez e todos os agentes aprendem junto.':'Pronto para trabalhar no seu nicho. O que precisa?'}</div>
         <div class="sug-chips">${a.sug.map(s=>`<span class="chip" onclick="usarChip(this)">${s}</span>`).join('')}</div>
-        ${id==='publicacao'?'<button class="btn btn-g" style="margin-top:16px" onclick="abrirPromo()">🎯 Criar Promoção / DM automática</button>':''}
       </div>`;
     }
   }catch(e){}
@@ -458,10 +461,23 @@ async function toggleMem(){
   const p=document.getElementById('mem-pane');
   if(p.classList.contains('show')){p.classList.remove('show');return}
   try{
-    const{data}=await JUMP.sb.from('memorias').select('chave,valor,agente').eq('user_id',CTX.viewId||CTX.user.id).or(`agente.eq.${AG},agente.eq.global`).order('updated_at',{ascending:false}).limit(30);
-    p.innerHTML=(data&&data.length)
-      ?data.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('')
-      :'<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Ainda não aprendi nada — me conta sobre seu negócio!</div>';
+    const{data}=await JUMP.sb.from('memorias').select('chave,valor,agente').eq('user_id',CTX.viewId||CTX.user.id).or(`agente.eq.${AG},agente.eq.global`).order('updated_at',{ascending:false}).limit(40);
+    if(!data||!data.length){
+      p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Ainda não aprendi nada — me conta sobre seu negócio!</div>';
+    }else{
+      const geral=data.filter(m=>m.agente==='global');
+      const espec=data.filter(m=>m.agente!=='global');
+      let h='';
+      if(geral.length){
+        h+='<div class="mem-grp">📌 Sobre o seu negócio (todos os agentes sabem)</div>';
+        h+=geral.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('');
+      }
+      if(espec.length){
+        h+='<div class="mem-grp">🎯 Aprendizados deste agente</div>';
+        h+=espec.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('');
+      }
+      p.innerHTML=h;
+    }
     p.classList.add('show');
   }catch(e){}
 }

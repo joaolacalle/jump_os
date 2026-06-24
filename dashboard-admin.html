@@ -61,7 +61,7 @@
   <div class="ptabs" style="margin-top:20px">
     <div class="ptab on" id="tab-sups" onclick="trocarTab('sups')">🛡 Supervisores</div>
     <div class="ptab" id="tab-users" onclick="trocarTab('users')">👥 Todos os usuários</div>
-    <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">🛡 Segurança</div>
+    <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">💬 Suporte & Segurança</div>
     <div class="ptab" id="tab-back" onclick="trocarTab('back')">⚙ Backend</div>
   </div>
 
@@ -69,6 +69,7 @@
   <div class="tabpane on" id="pane-sups">
     <div class="top-row">
       <input class="f-input search" id="search-sup" placeholder="🔍 Buscar supervisor..." oninput="renderSups()">
+      <button class="btn btn-o" onclick="abrirCriarAdmin()">+ Criar admin</button>
       <button class="btn btn-g" onclick="abrirCriarSup()">+ Adicionar supervisor</button>
     </div>
     <div class="tbl-wrap">
@@ -112,6 +113,21 @@
   <!-- TAB SEGURANÇA -->
   <div class="tabpane" id="pane-seg">
     <div class="bk-grid">
+      <!-- TICKETS DE SUPORTE -->
+      <div class="bk-card" style="grid-column:1/-1">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div class="bk-t">💬 Chamados de Suporte</div>
+          <div class="bk-b">Solicitações dos usuários (dúvidas que viraram ticket, pedidos de tokens, problemas). Responda aqui e a resposta volta ao usuário no chat dele.</div></div>
+          <select class="f-input" id="sup-filtro" onchange="carregarSuporte()" style="width:auto">
+            <option value="aberto">Aguardando resposta</option>
+            <option value="">Todos</option>
+            <option value="respondido">Respondidos</option>
+            <option value="resolvido">Resolvidos</option>
+          </select>
+        </div>
+        <div id="sup-admin-list" style="margin-top:12px"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+      </div>
+
       <!-- Resumo de segurança -->
       <div class="bk-card" style="grid-column:1/-1">
         <div class="bk-t">🛡 Painel de Segurança</div>
@@ -207,6 +223,24 @@
   </div>
 </div>
 
+<!-- MODAL CRIAR ADMIN -->
+<div class="modal-bg" id="modal-admin">
+  <div class="modal">
+    <div class="modal-t">Criar administrador</div>
+    <div style="font-size:12px;color:var(--t3);line-height:1.55;margin-bottom:14px;padding:10px 12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:9px">⚠️ Um admin tem acesso total ao sistema (todos os usuários, planos, segurança e suporte). Crie apenas para pessoas de confiança.</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="ma-nome"></div>
+      <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="ma-email" type="email"></div>
+    </div>
+    <div class="f-group"><label class="f-label">Senha inicial</label><input class="f-input" id="ma-senha" placeholder="mín. 6 caracteres"></div>
+    <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="ma-tel"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-admin')">Cancelar</button>
+      <button class="btn btn-g" id="ma-save" onclick="criarAdmin()">Criar admin</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TRANSFERIR -->
 <div class="modal-bg" id="modal-transf">
   <div class="modal">
@@ -248,6 +282,7 @@
 <div class="modal-bg" id="modal-cuser">
   <div class="modal">
     <div class="modal-t">Criar usuário</div>
+    <div style="font-size:12px;color:var(--t3);line-height:1.55;margin-bottom:14px;padding:10px 12px;background:rgba(var(--g-rgb),.06);border-radius:9px">💡 Quer testar o sistema como cliente? Crie uma conta de usuário para você aqui (com e-mail próprio) e deixe "Eu (admin) como responsável" — ela vira uma das suas contas supervisionadas, com limites próprios.</div>
     <div class="f-row">
       <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cu-nome"></div>
       <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="cu-email" type="email"></div>
@@ -300,6 +335,7 @@
     <div class="f-group"><label class="f-label">Criações de imagem / mês</label><input class="f-input" id="at-imagens" type="number" min="0"></div>
     <div class="f-group"><label class="f-label">Saldo extra (recriar/promo) / mês</label><input class="f-input" id="at-reloads" type="number" min="0"></div>
     <div class="f-group"><label class="f-label">Edições de vídeo / mês</label><input class="f-input" id="at-videos" type="number" min="0"></div>
+    <div class="f-group"><label class="f-label">Palavras-chave de DM/promo</label><input class="f-input" id="at-dm" type="number" min="0"></div>
     <div class="f-group"><label class="f-label">Tokens de texto / mês</label><input class="f-input" id="at-tokens" type="number" min="0"></div>
     <div class="modal-acts">
       <button class="btn btn-o" onclick="fechar('modal-addtok')">Cancelar</button>
@@ -371,7 +407,7 @@ function trocarTab(t){
     document.getElementById('pane-'+x).classList.toggle('on',x===t);
   });
   if(t==='back')carregarPlanos();
-  if(t==='seg')carregarSeguranca();
+  if(t==='seg'){carregarSeguranca();carregarSuporte();}
 }
 function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
@@ -614,6 +650,7 @@ function abrirAddTokens(id){
   document.getElementById('at-imagens').value=l.imagens??12;
   document.getElementById('at-reloads').value=l.reloads??6;
   document.getElementById('at-videos').value=l.videos??0;
+  document.getElementById('at-dm').value=l.dm??({basico:3,plus:5,pro:8}[u.plano]||3);
   document.getElementById('at-tokens').value=lim;
   document.getElementById('modal-addtok').classList.add('show');
 }
@@ -624,6 +661,7 @@ async function salvarAddTokens(){
     imagens:+document.getElementById('at-imagens').value||0,
     reloads:+document.getElementById('at-reloads').value||0,
     videos:+document.getElementById('at-videos').value||0,
+    dm:+document.getElementById('at-dm').value||0,
     tokens:+document.getElementById('at-tokens').value||0,
   });
   try{
@@ -715,6 +753,27 @@ async function criarSup(){
     JUMP.toast('✓ Supervisor criado');fechar('modal-sup');await carregar();
   }catch(e){JUMP.toast(e.message,'err')}
   btn.disabled=false;btn.textContent='Criar supervisor';
+}
+
+function abrirCriarAdmin(){
+  ['ma-nome','ma-email','ma-senha','ma-tel'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('modal-admin').classList.add('show');
+}
+async function criarAdmin(){
+  const btn=document.getElementById('ma-save');
+  const payload={
+    nome:document.getElementById('ma-nome').value.trim(),
+    email:document.getElementById('ma-email').value.trim(),
+    senha:document.getElementById('ma-senha').value,
+    telefone:document.getElementById('ma-tel').value.trim(),
+  };
+  if(!payload.nome||!payload.email||payload.senha.length<6){JUMP.toast('Preencha nome, e-mail e senha (mín. 6).','err');return}
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  try{
+    await JUMP.api('create_admin',payload,CTX.token);
+    JUMP.toast('✓ Administrador criado');fechar('modal-admin');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+  btn.disabled=false;btn.textContent='Criar admin';
 }
 
 async function setLimite(id,val){
@@ -818,6 +877,81 @@ async function perguntarSeg(){
   chat.scrollTop=chat.scrollHeight;
   btn.disabled=false;btn.innerHTML='Perguntar';
 }
+
+/* ═══ SUPORTE (admin) ═══ */
+async function carregarSuporte(){
+  const wrap=document.getElementById('sup-admin-list');
+  if(!wrap)return;
+  const status=document.getElementById('sup-filtro').value;
+  try{
+    const d=await JUMP.api('suporte_admin_tickets',{status},CTX.token);
+    if(!d.tickets||!d.tickets.length){
+      wrap.innerHTML='<div style="font-size:13px;color:var(--g)">✓ Nenhum chamado '+(status==='aberto'?'aguardando':'')+'.</div>';
+      return;
+    }
+    wrap.innerHTML=d.tickets.map(t=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--bd)">
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:700;color:var(--t1)">${JUMP.esc(t.assunto||'Chamado')}</div>
+          <div style="font-size:11px;color:var(--t3);font-family:var(--M)">${JUMP.esc(t.usuario_nome)} · ${({duvida:'Dúvida',tokens:'Tokens',problema:'Problema',sugestao:'Sugestão',outro:'Outro'})[t.categoria]||t.categoria} · ${({aberto:'aguardando',respondido:'respondido',resolvido:'resolvido'})[t.status]||t.status}</div>
+        </div>
+        ${t.prioridade==='alta'?'<span style="font-size:10px;color:var(--red);font-family:var(--M)">ALTA</span>':''}
+        <button class="btn btn-g btn-sm" onclick="abrirTicketAdmin('${t.id}','${JUMP.esc(t.assunto||'').replace(/'/g,"")}')">Ver / responder</button>
+      </div>`).join('');
+  }catch(e){wrap.innerHTML='<div style="font-size:12px;color:var(--red)">Erro ao carregar chamados.</div>';}
+}
+
+async function abrirTicketAdmin(id,assunto){
+  document.getElementById('tk-modal').style.display='flex';
+  document.getElementById('tk-titulo').textContent=assunto||'Chamado';
+  document.getElementById('tk-id').value=id;
+  document.getElementById('tk-msgs').innerHTML='<div style="text-align:center;padding:20px"><div class="ld-spin"></div></div>';
+  document.getElementById('tk-resp').value='';
+  try{
+    const d=await JUMP.api('suporte_ticket_msgs',{ticket_id:id},CTX.token);
+    const box=document.getElementById('tk-msgs');
+    box.innerHTML=(d.mensagens||[]).map(m=>{
+      const who={usuario:'Usuário',ia:'Suporte JUMP (IA)',admin:'Você'}[m.autor]||m.autor;
+      const al=m.autor==='usuario'?'flex-start':'flex-end';
+      const bg=m.autor==='usuario'?'var(--ch3)':(m.autor==='admin'?'rgba(251,191,36,.12)':'rgba(var(--g-rgb),.1)');
+      return `<div style="align-self:${al};max-width:85%;background:${bg};border:1px solid var(--bd);padding:9px 12px;border-radius:11px;margin-bottom:8px">
+        <div style="font-size:9px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;opacity:.6;margin-bottom:3px">${who}</div>
+        <div style="font-size:13px;line-height:1.5">${JUMP.esc(m.texto).replace(/\n/g,'<br>')}</div></div>`;
+    }).join('');
+    box.scrollTop=box.scrollHeight;
+  }catch(e){document.getElementById('tk-msgs').innerHTML='<div style="color:var(--red)">Erro.</div>';}
+}
+
+function fecharTk(){document.getElementById('tk-modal').style.display='none';}
+
+async function responderTk(resolver){
+  const id=document.getElementById('tk-id').value;
+  const texto=document.getElementById('tk-resp').value.trim();
+  if(!texto){JUMP.toast('Escreva uma resposta','err');return;}
+  const btns=document.querySelectorAll('#tk-modal button');btns.forEach(b=>b.disabled=true);
+  try{
+    await JUMP.api('suporte_responder',{ticket_id:id,texto,resolver:!!resolver},CTX.token);
+    JUMP.toast('✓ Resposta enviada ao usuário');
+    fecharTk();carregarSuporte();
+  }catch(e){JUMP.toast('Erro ao responder','err');}
+  btns.forEach(b=>b.disabled=false);
+}
 </script>
+<!-- MODAL RESPONDER TICKET -->
+<div id="tk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharTk()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:560px;width:100%;padding:24px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-family:var(--D);font-size:19px;letter-spacing:.5px" id="tk-titulo">Chamado</div>
+      <button onclick="fecharTk()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <input type="hidden" id="tk-id">
+    <div id="tk-msgs" style="flex:1;overflow-y:auto;max-height:360px;display:flex;flex-direction:column;margin-bottom:14px;padding-right:4px"></div>
+    <textarea class="f-input" id="tk-resp" rows="3" placeholder="Sua resposta ao usuário..."></textarea>
+    <div style="display:flex;gap:9px;margin-top:12px">
+      <button class="btn btn-g" onclick="responderTk(false)" style="flex:1">Responder</button>
+      <button class="btn btn-o" onclick="responderTk(true)" style="flex:1">Responder e resolver</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
