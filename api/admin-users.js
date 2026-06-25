@@ -641,6 +641,22 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       }
     }
 
+    // ── EDITOR DE VÍDEO: listar meus jobs ──
+    if (action === 'video_meus_jobs') {
+      const uid = requester.id;
+      const jobs = await sbGet(`video_jobs?user_id=eq.${uid}&order=created_at.desc&limit=30&select=*`);
+      return res.status(200).json({ ok: true, jobs: Array.isArray(jobs) ? jobs : [] });
+    }
+    // ── EDITOR DE VÍDEO: status de um job (polling) ──
+    if (action === 'video_status') {
+      const { job_id } = req.body;
+      if (!job_id) return res.status(400).json({ error: 'job_id obrigatório' });
+      const [j] = await sbGet(`video_jobs?id=eq.${job_id}&select=*`);
+      if (!j) return res.status(404).json({ error: 'Job não encontrado' });
+      if (!isAdmin && j.user_id !== requester.id) return res.status(403).json({ error: 'Sem acesso' });
+      return res.status(200).json({ ok: true, job: j });
+    }
+
     return res.status(400).json({ error: 'Ação desconhecida' });
   } catch (err) {
     console.error('admin-users error:', err.message);
