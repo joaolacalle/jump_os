@@ -80,7 +80,7 @@ let CTX={}, ticketAtual=null;
   if(!s)return;
   CTX=s;
   JUMP.sidebar('suporte');
-  JUMP.setUser();
+  JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
   document.getElementById('loading').classList.add('hide');
   // habilita input (chat novo já pode começar)
   document.getElementById('sup-inp').disabled=false;

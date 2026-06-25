@@ -67,9 +67,23 @@
 
   <!-- TAB SUPERVISORES -->
   <div class="tabpane on" id="pane-sups">
+    <!-- ADMINISTRADORES -->
+    <div id="admins-sec" style="margin-bottom:24px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px">👑 Administradores</div>
+        <button class="btn btn-g btn-sm" id="btn-criar-admin" onclick="abrirCriarAdmin()" style="display:none">+ Criar admin</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Administrador</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbody-admins"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px;margin-bottom:10px">🛡 Supervisores</div>
     <div class="top-row">
       <input class="f-input search" id="search-sup" placeholder="🔍 Buscar supervisor..." oninput="renderSups()">
-      <button class="btn btn-o" onclick="abrirCriarAdmin()">+ Criar admin</button>
       <button class="btn btn-g" onclick="abrirCriarSup()">+ Adicionar supervisor</button>
     </div>
     <div class="tbl-wrap">
@@ -424,7 +438,11 @@ async function carregar(){
   /* filtro de supervisores */
   const f=document.getElementById('filtro-sup');
   f.innerHTML='<option value="">Todos os supervisores</option>'+SUPS.map(s=>`<option value="${s.id}">${JUMP.esc(s.nome||s.email)}</option>`).join('');
-  renderSups();renderUsers();carregarSolicAdm();
+  renderAdmins();renderSups();renderUsers();carregarSolicAdm();
+  // mostra a seção de admins; botões de criar/excluir admin só p/ o CEO (protegido)
+  document.getElementById('admins-sec').style.display='block';
+  const ehCEO=CTX.cliente&&CTX.cliente.protegido;
+  const bca=document.getElementById('btn-criar-admin');if(bca)bca.style.display=ehCEO?'inline-block':'none';
   /* logs */
   try{
     const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(12);
@@ -433,6 +451,25 @@ async function carregar(){
         `<div class="log-line"><span class="log-time">${new Date(l.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${JUMP.esc(l.acao||'')}</span></div>`).join('');
     }
   }catch(e){}
+}
+
+function renderAdmins(){
+  const admins=ALL.filter(c=>c.role==='admin');
+  const ehCEO=CTX.cliente&&CTX.cliente.protegido;
+  const tb=document.getElementById('tbody-admins');
+  if(!admins.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum admin.</td></tr>';return}
+  tb.innerHTML=admins.map(a=>{
+    const isCEO=a.protegido;
+    const euMesmo=a.id===CTX.user.id;
+    return `<tr>
+      <td><div class="u-cell"><strong>${JUMP.esc(a.nome||'—')}</strong><span class="u-mail">${JUMP.esc(a.email||'')}</span></div></td>
+      <td>${isCEO?'<span class="pill pill-g">CEO (principal)</span>':'<span class="pill">Admin</span>'}</td>
+      <td>${a.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
+      <td><div class="td-acts">
+        ${(ehCEO&&!isCEO)?`<button class="btn btn-r btn-sm" onclick="excluirConta('${a.id}','${JUMP.esc(a.email||'')}')">🗑 Excluir</button>`:''}
+        ${(isCEO||euMesmo)?'<span style="font-size:11px;color:var(--t3);font-family:var(--M)">'+(isCEO?'protegido':'você')+'</span>':''}
+      </div></td></tr>`;
+  }).join('');
 }
 
 function renderSups(){
@@ -450,6 +487,7 @@ function renderSups(){
       <td><div class="td-acts">
         <a class="btn btn-o btn-sm" href="dashboard-supervisor.html?ver=${s.id}">Administrar →</a>
         <button class="btn btn-o btn-sm" onclick="abrirCotas('${s.id}')">Cotas de plano</button>
+        <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${s.id}')">🪙 Limites</button>
         <button class="btn btn-o btn-sm" onclick="abrirAviso('${s.id}')">Enviar aviso</button>
         <button class="btn btn-o btn-sm" onclick="abrirSenha('${s.id}')">Senha</button>
         <button class="btn btn-r btn-sm" onclick="excluirConta('${s.id}','${JUMP.esc(s.email||'')}')">🗑</button>
@@ -642,7 +680,7 @@ async function salvarPlanos(){
 
 // ── ADICIONAR/AJUSTAR TOKENS (individual) ──
 function abrirAddTokens(id){
-  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const u=ALL.find(x=>x.id===id);if(!u)return;
   const lim=(u.limites||{}).tokens||0;const uso=(u.uso||{}).tokens||0;
   document.getElementById('at-id').value=id;
   const l=u.limites||{},us=u.uso||{};
@@ -656,7 +694,7 @@ function abrirAddTokens(id){
 }
 async function salvarAddTokens(){
   const id=document.getElementById('at-id').value;
-  const u=USERS.find(x=>x.id===id);
+  const u=ALL.find(x=>x.id===id);
   const limites=Object.assign({},u.limites||{},{
     imagens:+document.getElementById('at-imagens').value||0,
     reloads:+document.getElementById('at-reloads').value||0,
