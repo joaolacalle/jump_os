@@ -9,6 +9,12 @@
     },
     "api/admin-users.js": {
       "maxDuration": 30
+    },
+    "api/video-editar.js": {
+      "maxDuration": 60
+    },
+    "api/video-webhook.js": {
+      "maxDuration": 30
     }
   },
   "crons": [

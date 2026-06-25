@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Editor de Vídeo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.ev-grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+@media(max-width:920px){.ev-grid{grid-template-columns:1fr}}
+.ev-card{background:var(--ch2);border:1px solid var(--bd);border-radius:14px;padding:20px}
+.ev-drop{border:2px dashed var(--bd);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:.2s}
+.ev-drop:hover{border-color:rgba(var(--g-rgb),.5);background:rgba(var(--g-rgb),.04)}
+.ev-drop.has{border-color:var(--g);background:rgba(var(--g-rgb),.06)}
+.ev-opt{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid var(--bd)}
+.ev-opt:last-child{border:none}
+.ev-opt-i{font-size:20px;width:26px;text-align:center}
+.ev-opt-t{flex:1}
+.ev-opt-t strong{display:block;font-size:14px;color:var(--t1)}
+.ev-opt-t span{font-size:12px;color:var(--t3)}
+.ev-sw{position:relative;width:44px;height:24px;flex-shrink:0}
+.ev-sw input{opacity:0;width:0;height:0}
+.ev-sw label{position:absolute;inset:0;background:var(--ch3);border:1px solid var(--bd);border-radius:24px;cursor:pointer;transition:.2s}
+.ev-sw label::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--t3);top:2px;left:2px;transition:.2s}
+.ev-sw input:checked + label{background:var(--g);border-color:var(--g)}
+.ev-sw input:checked + label::after{background:#0f0e0d;transform:translateX(20px)}
+.ev-sub{margin:8px 0 0 37px;display:none}
+.ev-sub.show{display:block}
+.ev-job{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--bd);border-radius:11px;margin-bottom:10px}
+.ev-badge{font-size:10px;font-family:var(--M);text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:10px}
+.b-proc{background:rgba(251,191,36,.15);color:var(--yel)}
+.b-pronto{background:rgba(var(--g-rgb),.15);color:var(--g)}
+.b-erro{background:rgba(248,113,113,.15);color:var(--red)}
+.ev-fmt{display:flex;gap:8px;margin-top:6px}
+.ev-fmt button{flex:1;padding:9px;border:1px solid var(--bd);border-radius:9px;background:transparent;color:var(--t2);font-family:var(--B);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.ev-fmt button.on{border-color:var(--g);background:rgba(var(--g-rgb),.08);color:var(--t1)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando editor...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd"><div><div class="hd-hello" id="hd-hello">Editor de Vídeo</div><h1 class="hd-h">Transforme seu vídeo em <em>Reel</em></h1></div></div>
+  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Suba um vídeo cru e o JUMP edita pra você: legendas automáticas, cortes, trilha, logo e formato pronto para Reels. O processamento leva alguns minutos — você acompanha aqui embaixo.</p>
+
+  <div class="ev-grid">
+    <!-- COLUNA ESQUERDA: upload + opções -->
+    <div>
+      <div class="ev-card" style="margin-bottom:16px">
+        <div class="ev-drop" id="drop" onclick="document.getElementById('file').click()">
+          <input type="file" id="file" accept="video/*" style="display:none" onchange="selecionou(this)">
+          <div id="drop-empty">
+            <div style="font-size:36px;margin-bottom:10px">🎬</div>
+            <div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:4px">Clique para enviar seu vídeo</div>
+            <div style="font-size:12px;color:var(--t3)">MP4, MOV ou WebM · até 100 MB</div>
+          </div>
+          <div id="drop-has" style="display:none">
+            <div style="font-size:30px;margin-bottom:8px">✅</div>
+            <div id="file-nome" style="font-size:14px;color:var(--t1);font-weight:700"></div>
+            <div style="font-size:12px;color:var(--g);margin-top:4px">Pronto para editar</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ev-card">
+        <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px;margin-bottom:6px">O que fazer com o vídeo</div>
+
+        <div class="ev-opt">
+          <div class="ev-opt-i">💬</div>
+          <div class="ev-opt-t"><strong>Legendas automáticas</strong><span>Transcreve a fala e adiciona legendas no vídeo</span></div>
+          <div class="ev-sw"><input type="checkbox" id="op-legenda" checked><label for="op-legenda"></label></div>
+        </div>
+
+        <div class="ev-opt">
+          <div class="ev-opt-i">✂️</div>
+          <div class="ev-opt-t"><strong>Cortar trecho</strong><span>Escolha o início e o fim (em segundos)</span></div>
+          <div class="ev-sw"><input type="checkbox" id="op-corte" onchange="toggleSub('sub-corte',this)"><label for="op-corte"></label></div>
+        </div>
+        <div class="ev-sub" id="sub-corte">
+          <div style="display:flex;gap:10px">
+            <input class="f-input" id="corte-ini" type="number" min="0" placeholder="Início (s)" style="flex:1">
+            <input class="f-input" id="corte-fim" type="number" min="0" placeholder="Fim (s)" style="flex:1">
+          </div>
+        </div>
+
+        <div class="ev-opt">
+          <div class="ev-opt-i">🔤</div>
+          <div class="ev-opt-t"><strong>Texto na tela</strong><span>Um título sobreposto no início</span></div>
+          <div class="ev-sw"><input type="checkbox" id="op-texto" onchange="toggleSub('sub-texto',this)"><label for="op-texto"></label></div>
+        </div>
+        <div class="ev-sub" id="sub-texto">
+          <input class="f-input" id="texto-val" placeholder="Ex: PROMOÇÃO DA SEMANA" maxlength="60">
+        </div>
+
+        <div class="ev-opt">
+          <div class="ev-opt-i">🎵</div>
+          <div class="ev-opt-t"><strong>Trilha sonora</strong><span>Música de fundo (envie um áudio)</span></div>
+          <div class="ev-sw"><input type="checkbox" id="op-trilha" onchange="toggleSub('sub-trilha',this)"><label for="op-trilha"></label></div>
+        </div>
+        <div class="ev-sub" id="sub-trilha">
+          <input type="file" id="trilha-file" accept="audio/*" class="f-input" onchange="subiuTrilha(this)">
+          <div id="trilha-status" style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--M)"></div>
+        </div>
+
+        <div class="ev-opt">
+          <div class="ev-opt-i">🖼️</div>
+          <div class="ev-opt-t"><strong>Logo</strong><span>Sua marca no canto do vídeo</span></div>
+          <div class="ev-sw"><input type="checkbox" id="op-logo" onchange="toggleSub('sub-logo',this)"><label for="op-logo"></label></div>
+        </div>
+        <div class="ev-sub" id="sub-logo">
+          <input type="file" id="logo-file" accept="image/*" class="f-input" onchange="subiuLogo(this)">
+          <div id="logo-status" style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--M)"></div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div style="font-size:13px;color:var(--t2);margin-bottom:6px">Formato de saída</div>
+          <div class="ev-fmt">
+            <button id="fmt-reels" class="on" onclick="setFmt('reels')">📱 Reels (9:16)</button>
+            <button id="fmt-wide" onclick="setFmt('wide')">🖥️ Paisagem (16:9)</button>
+          </div>
+        </div>
+
+        <button class="btn btn-g" id="btn-editar" onclick="editar()" style="width:100%;margin-top:18px" disabled>Editar vídeo</button>
+        <div id="ev-msg" style="font-size:12.5px;margin-top:10px;text-align:center"></div>
+      </div>
+    </div>
+
+    <!-- COLUNA DIREITA: jobs -->
+    <div class="ev-card">
+      <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px;margin-bottom:12px">Seus vídeos</div>
+      <div id="ev-jobs"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX={}, videoUrl=null, trilhaUrl=null, logoUrl=null, formato='reels', pollTimer=null;
+
+(async function(){
+  const s=await JUMP.guard(['usuario','supervisor','admin']);
+  if(!s)return;
+  CTX=s;
+  JUMP.sidebar('editor-video');
+  JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+  document.getElementById('loading').classList.add('hide');
+  carregarJobs();
+})();
+
+function toggleSub(id,cb){document.getElementById(id).classList.toggle('show',cb.checked);}
+function setFmt(f){formato=f;document.getElementById('fmt-reels').classList.toggle('on',f==='reels');document.getElementById('fmt-wide').classList.toggle('on',f==='wide');}
+
+async function selecionou(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>100*1024*1024){JUMP.toast('Vídeo muito grande (máx 100 MB)','err');inp.value='';return;}
+  document.getElementById('drop-empty').style.display='none';
+  document.getElementById('drop-has').style.display='block';
+  document.getElementById('drop').classList.add('has');
+  document.getElementById('file-nome').textContent=f.name;
+  document.getElementById('btn-editar').disabled=true;
+  document.getElementById('ev-msg').innerHTML='<span style="color:var(--t3)">Enviando vídeo...</span>';
+  // upload pro Supabase Storage
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from('videos-crus').upload(path,f);
+    if(error)throw error;
+    const{data:pub}=JUMP.sb.storage.from('videos-crus').getPublicUrl(path);
+    videoUrl=pub.publicUrl;
+    document.getElementById('btn-editar').disabled=false;
+    document.getElementById('ev-msg').innerHTML='<span style="color:var(--g)">✓ Vídeo pronto para editar</span>';
+  }catch(e){
+    document.getElementById('ev-msg').innerHTML='<span style="color:var(--red)">Erro ao enviar. Tente de novo.</span>';
+  }
+}
+
+async function subiuTrilha(inp){
+  const f=inp.files[0];if(!f)return;
+  document.getElementById('trilha-status').textContent='Enviando áudio...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/trilha_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from('videos-crus').upload(path,f);
+    if(error)throw error;
+    trilhaUrl=JUMP.sb.storage.from('videos-crus').getPublicUrl(path).data.publicUrl;
+    document.getElementById('trilha-status').textContent='✓ Áudio enviado';
+  }catch(e){document.getElementById('trilha-status').textContent='Erro ao enviar áudio';}
+}
+
+async function subiuLogo(inp){
+  const f=inp.files[0];if(!f)return;
+  document.getElementById('logo-status').textContent='Enviando logo...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/logo_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from('videos-crus').upload(path,f);
+    if(error)throw error;
+    logoUrl=JUMP.sb.storage.from('videos-crus').getPublicUrl(path).data.publicUrl;
+    document.getElementById('logo-status').textContent='✓ Logo enviada';
+  }catch(e){document.getElementById('logo-status').textContent='Erro ao enviar logo';}
+}
+
+async function editar(){
+  if(!videoUrl){JUMP.toast('Envie um vídeo primeiro','err');return;}
+  const ops={formato};
+  if(document.getElementById('op-legenda').checked)ops.legenda=true;
+  if(document.getElementById('op-corte').checked){
+    ops.inicio=+document.getElementById('corte-ini').value||0;
+    ops.fim=+document.getElementById('corte-fim').value||null;
+  }
+  if(document.getElementById('op-texto').checked)ops.texto=document.getElementById('texto-val').value.trim();
+  if(document.getElementById('op-trilha').checked&&trilhaUrl)ops.trilha_url=trilhaUrl;
+  if(document.getElementById('op-logo').checked&&logoUrl)ops.logo_url=logoUrl;
+
+  const btn=document.getElementById('btn-editar');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  try{
+    const r=await fetch('/api/video-editar',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({origem_url:videoUrl,operacoes:ops,titulo:'Vídeo '+new Date().toLocaleDateString('pt-BR')})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){
+      document.getElementById('ev-msg').innerHTML='<span style="color:var(--g)">✓ Vídeo em processamento! Acompanhe ao lado.</span>';
+      // reset
+      videoUrl=null;trilhaUrl=null;logoUrl=null;
+      document.getElementById('drop-empty').style.display='block';
+      document.getElementById('drop-has').style.display='none';
+      document.getElementById('drop').classList.remove('has');
+      document.getElementById('file').value='';
+      carregarJobs();
+      iniciarPolling();
+    }else{
+      document.getElementById('ev-msg').innerHTML='<span style="color:var(--red)">'+(d.error||'Erro ao editar.')+'</span>';
+    }
+  }catch(e){
+    document.getElementById('ev-msg').innerHTML='<span style="color:var(--red)">Erro de conexão.</span>';
+  }
+  btn.disabled=false;btn.textContent='Editar vídeo';
+}
+
+async function carregarJobs(){
+  try{
+    const d=await JUMP.api('video_meus_jobs',{},CTX.token);
+    const wrap=document.getElementById('ev-jobs');
+    if(!d.jobs||!d.jobs.length){
+      wrap.innerHTML='<div style="font-size:12px;color:var(--t3);font-family:var(--M);line-height:1.5">Nenhum vídeo ainda. Suba um e clique em editar.</div>';
+      return;
+    }
+    wrap.innerHTML=d.jobs.map(j=>{
+      const badge=j.status==='pronto'?'<span class="ev-badge b-pronto">pronto</span>':j.status==='erro'?'<span class="ev-badge b-erro">erro</span>':'<span class="ev-badge b-proc">processando</span>';
+      const acao=j.status==='pronto'&&j.resultado_url?`<a href="${j.resultado_url}" target="_blank" class="btn btn-g btn-sm">Baixar</a>`:(j.status==='processando'?'<span class="spin-i"></span>':'');
+      return `<div class="ev-job">
+        <div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">${JUMP.esc(j.titulo||'Vídeo')}</div>
+        <div style="margin-top:3px">${badge}</div></div>${acao}</div>`;
+    }).join('');
+    // se há algum processando, mantém o polling
+    if(d.jobs.some(j=>j.status==='processando'))iniciarPolling();
+  }catch(e){}
+}
+
+function iniciarPolling(){
+  if(pollTimer)return;
+  pollTimer=setInterval(async()=>{
+    await carregarJobs();
+    const d=await JUMP.api('video_meus_jobs',{},CTX.token).catch(()=>({jobs:[]}));
+    if(!d.jobs||!d.jobs.some(j=>j.status==='processando')){clearInterval(pollTimer);pollTimer=null;}
+  },8000); // checa a cada 8s
+}
+</script>
+</body>
+</html>
