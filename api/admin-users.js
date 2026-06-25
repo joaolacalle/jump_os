@@ -124,8 +124,12 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Dados incompletos (nome, e-mail, senha 6+)' });
       }
       const novoRole = action === 'create_admin' ? 'admin' : (action === 'create_supervisor' ? 'supervisor' : 'usuario');
-      if ((novoRole === 'supervisor' || novoRole === 'admin') && !isAdmin) {
-        return res.status(403).json({ error: 'Apenas admin cria supervisores ou outros admins' });
+      if (novoRole === 'supervisor' && !isAdmin) {
+        return res.status(403).json({ error: 'Apenas admin cria supervisores' });
+      }
+      // Só o admin CEO (conta protegida) pode criar OUTROS admins
+      if (novoRole === 'admin' && !(me && me.protegido)) {
+        return res.status(403).json({ error: 'Apenas o administrador principal pode criar novos admins.' });
       }
       // Vagas do supervisor
       if (novoRole === 'usuario' && !isAdmin) {
@@ -360,8 +364,12 @@ module.exports = async (req, res) => {
     if (action === 'delete_user') {
       const { user_id } = req.body;
       await assertScope(user_id);
-      const [t] = await sbGet(`clientes?id=eq.${user_id}&select=role,email`);
-      if (t && t.role === 'admin') return res.status(403).json({ error: 'Não é possível excluir um admin' });
+      const [t] = await sbGet(`clientes?id=eq.${user_id}&select=role,email,protegido`);
+      if (t && t.protegido) return res.status(403).json({ error: 'Esta conta é protegida (administrador principal) e não pode ser excluída.' });
+      // Admins só podem ser excluídos pelo admin CEO (conta protegida)
+      if (t && t.role === 'admin' && !(me && me.protegido)) {
+        return res.status(403).json({ error: 'Apenas o administrador principal pode excluir admins.' });
+      }
       if (t && t.role === 'supervisor' && !isAdmin) return res.status(403).json({ error: 'Apenas admin exclui supervisores' });
       // Exclusão COMPLETA — remove de todas as tabelas + Auth (evita órfãos)
       await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
