@@ -152,7 +152,7 @@ window.JUMP=(function(){
     const L=[['dashboard-usuario.html','◈','Painel','painel'],['agentes.html','🤖','Meus agentes','agentes'],['ordens.html','📋','Central de Ordens','ordens'],
       ['calendario.html','📅','Calendário','calendario'],['aprovar.html','✓','Aprovações','aprovar'],
       ['historico.html','🕘','Histórico','historico'],['upload.html','🖼','Meus arquivos','upload'],
-      ['conectar-conta.html','🔗','Conexões','conexoes'],['editor-video.html','🎬','Editor de Vídeo','editor-video'],['suporte.html','💬','Suporte JUMP','suporte'],['configuracoes.html','⚙','Configurações','config']];
+      ['conectar-conta.html','🔗','Conexões','conexoes'],['suporte.html','💬','Suporte JUMP','suporte'],['configuracoes.html','⚙','Configurações','config']];
     const aside=document.createElement('aside');aside.className='sidebar';
     aside.innerHTML=`<div class="sb-logo"><img src="assets/logo.png" alt="JUMP OS"></div>
       <nav class="sb-nav">${L.map(l=>`<a href="${verLink(l[0])}" class="sb-link${l[3]===active?' a':''}"><span class="sb-ico">${l[1]}</span>${l[2]}</a>`).join('')}</nav>
