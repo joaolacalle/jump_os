@@ -163,8 +163,9 @@ module.exports = async (req, res) => {
     const sdata = await sres.json();
 
     if (!sres.ok || !sdata.success) {
-      if (jobId) await sbPatch(`video_jobs?id=eq.${jobId}`, { status: 'erro', erro: JSON.stringify(sdata).slice(0, 300) });
-      return res.status(502).json({ error: 'Falha ao iniciar a edição do vídeo. Tente novamente.' });
+      const detalhe = (sdata && (sdata.message || (sdata.response && sdata.response.error))) || JSON.stringify(sdata).slice(0, 250);
+      if (jobId) await sbPatch(`video_jobs?id=eq.${jobId}`, { status: 'erro', erro: String(detalhe).slice(0, 300) });
+      return res.status(502).json({ error: 'Shotstack recusou: ' + detalhe, http: sres.status, shotstack: sdata });
     }
 
     const renderId = sdata.response && sdata.response.id;
