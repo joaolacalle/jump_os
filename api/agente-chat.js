@@ -156,6 +156,7 @@ tipo_visual (critério): história/bastidor do dono = pessoal; conceito emociona
 
 VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
 ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). Marque que é para ADS no tema.
+ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
 ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
   criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor). 
 
@@ -250,7 +251,23 @@ O QUE VOCÊ ENTREGA (direção de edição clara para executar):
 - Texto na tela, destaques, CTAs visuais
 - Versões por plataforma (Reels 9:16, Stories, etc.)
 
-FLUXO: o cliente sobe o vídeo cru em Meus Arquivos → você analisa e entrega a direção de edição (ou, quando a integração de edição automática estiver ativa, gera o corte). Se vier de uma ordem da Estratégia (roteiro de Reel), siga o roteiro.
+FLUXO: o cliente sobe o vídeo cru em Meus Arquivos → você EDITA automaticamente.
+
+EDIÇÃO AUTOMÁTICA (você EXECUTA, não só orienta):
+Quando o cliente pedir para editar e houver um vídeo cru disponível, você:
+1. Explica em 2-3 linhas o que vai fazer (estilo, legenda, formato), no estilo da marca.
+2. Emite a tag <editar_video> com as opções decididas. O sistema edita e entrega o Reel pronto.
+A tag (preencha conforme o pedido e o VIDEO_SYSTEM da marca):
+<editar_video>{"legenda":true,"formato":"reels","texto":"texto curto na tela ou vazio","corte_inicio":null,"corte_fim":null,"trilha":false}</editar_video>
+- legenda: true se o vídeo tem fala (legenda automática sincronizada). Quase sempre true.
+- formato: "reels" (9:16 vertical, padrão para Reels/Stories/TikTok) ou "wide" (16:9).
+- texto: um título curto p/ os primeiros segundos (hook), ou vazio "".
+- corte_inicio/corte_fim: em segundos, se o cliente pedir p/ cortar (senão null).
+- trilha: deixe false (o cliente adiciona trilha pela tela do Editor se quiser, pois precisa enviar o áudio).
+REGRAS: só emita a tag se houver vídeo cru disponível. Se não houver, peça para o cliente enviar em Meus Arquivos. Após emitir, avise que o vídeo está sendo processado e aparece pronto em "Editor de Vídeo" em alguns minutos. NÃO emita a tag mais de uma vez por resposta.
+
+APRENDIZADO E PERSONALIZAÇÃO (importante):
+Quando o cliente demonstrar uma PREFERÊNCIA de edição (ex: "gosto de legenda amarela", "sempre corte as pausas", "prefiro Reels", "use minha trilha tal", "meu estilo é dinâmico com cortes rápidos"), você PERGUNTA se pode guardar isso para os próximos vídeos: algo como "Quer que eu guarde essa preferência para personalizar suas próximas edições?". Se ele confirmar, emita <memoria>{"chave":"video_estilo_legenda","valor":"amarela, fonte bold, embaixo"}</memoria> (use chaves como video_estilo_legenda, video_corte_preferido, video_formato_padrao, video_trilha_preferida, video_ritmo). Assim, nos próximos projetos você já aplica o estilo do cliente automaticamente. Sempre que for editar, leve em conta o que já aprendeu sobre as preferências dele.
 
 ESCOPO: você cuida só de VÍDEO. Arte estática é com o Designer; estratégia/roteiro com a Estratégia. Responda em texto limpo e prático.`,
 };
@@ -373,14 +390,18 @@ const handler = async (req, res) => {
           +((logo+pess+prod)===0?' ATENÇÃO: acervo VAZIO — peça para enviar imagens em "Meus arquivos" ANTES de iniciar a consultoria.':' Acervo disponível — pode analisar a identidade visual.');
       }catch(e){}
     }
-    // Editor de Vídeo: saber se há vídeos crus para editar
+    // Editor de Vídeo: saber se há vídeos crus para editar (e a URL do mais recente)
+    let videoCruUrl=null;
     if(agente==='video'){
       try{
-        const ups=await sbGet(`uploads?user_id=eq.${targetId}&categoria=eq.videos&select=id`);
-        const nv=(Array.isArray(ups)?ups:[]).length;
-        acervoTxt=nv>0
-          ? `\nVÍDEOS CRUS DISPONÍVEIS: ${nv}. Analise e entregue a direção de edição.`
-          : '\nVÍDEOS: nenhum vídeo cru enviado ainda. Peça ao cliente para enviar a captação bruta em "Meus arquivos" para você editar.';
+        const ups=await sbGet(`uploads?user_id=eq.${targetId}&categoria=eq.videos&select=id,nome,url&order=created_at.desc`);
+        const lista=Array.isArray(ups)?ups:[];
+        if(lista.length){
+          videoCruUrl=lista[0].url;
+          acervoTxt=`\nVÍDEOS CRUS DISPONÍVEIS: ${lista.length}. O mais recente é "${lista[0].nome||'vídeo'}". Você pode EDITAR automaticamente emitindo a tag <editar_video> (veja instruções).`;
+        }else{
+          acervoTxt='\nVÍDEOS: nenhum vídeo cru enviado ainda. Peça ao cliente para enviar a captação bruta em "Meus arquivos" (categoria Vídeos) para você editar.';
+        }
       }catch(e){}
     }
 
@@ -509,9 +530,10 @@ const handler = async (req, res) => {
           body:JSON.stringify({
             user_id:targetId, tema:ct.tema, copy:ct.copy,
             formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
-            data_sugerida:ct.data_sugerida||null, status:'rascunho', origem_agente:agente,
+            data_sugerida:ct.data_sugerida||null, status:ct.criativo_url?'aguardando_aprovacao':'rascunho', origem_agente:agente,
             roteiro:ct.roteiro||null,
-            meta:{headline:ct.headline||'', oferta:ct.oferta||''}
+            midia_url:ct.criativo_url||null,
+            meta:{headline:ct.headline||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
           })
         }).catch(()=>{})));
       }catch(e){}
@@ -564,6 +586,68 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    // ── EDITAR VÍDEO: o Editor dispara a edição automática (Shotstack) ──
+    let videoEditando=false;
+    let editVideoOps=null;
+    texto=texto.replace(/<editar_video>([\s\S]*?)<\/editar_video>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());editVideoOps=o;}catch(e){}
+      return '';
+    });
+    if(editVideoOps && agente==='video'){
+      try{
+        const shotKey=process.env.SHOTSTACK_API_KEY;
+        if(!shotKey){
+          texto+='\n\n(Observação: a edição automática de vídeo ainda não está configurada. Avise o administrador.)';
+        }else if(!videoCruUrl){
+          texto+='\n\n(Não encontrei um vídeo cru para editar. Envie a captação em "Meus Arquivos" na categoria Vídeos.)';
+        }else{
+          // limite de vídeos: só role usuario (admin/supervisor sem limite)
+          let podeEditar=true;
+          if(cli.role==='usuario'){
+            const limV=Number((cli.limites&&cli.limites.videos)??0);
+            if(Number(uso.videos||0)>=limV){
+              podeEditar=false;
+              texto+=`\n\n(Você atingiu o limite de ${limV} vídeo(s) do seu plano este mês.)`;
+            }
+          }
+          if(podeEditar){
+            const ops=editVideoOps;
+            const isReels=(ops.formato!=='wide');
+            const largura=isReels?1080:1920, altura=isReels?1920:1080;
+            // monta o edit JSON do Shotstack
+            const videoClip={asset:{type:'video',src:videoCruUrl,volume:1},start:0,length:(ops.corte_fim&&ops.corte_inicio!=null)?(Number(ops.corte_fim)-Number(ops.corte_inicio)):'auto'};
+            if(ops.corte_inicio!=null)videoClip.asset.trim=Number(ops.corte_inicio);
+            const tracks=[{clips:[videoClip]}];
+            if(ops.texto){tracks.unshift({clips:[{asset:{type:'title',text:String(ops.texto).slice(0,80),style:'minimal',size:'medium',position:'top'},start:0,length:4,transition:{in:'fade',out:'fade'}}]});}
+            const timeline={background:'#000000',tracks};
+            if(ops.legenda){
+              timeline.tracks.unshift({clips:[{asset:{type:'caption',src:videoCruUrl,font:{color:'#ffffff',size:isReels?42:32},background:{color:'#000000',opacity:0.6,padding:8,borderRadius:6}},start:0,length:'end',offset:{y:isReels?-0.25:-0.40}}]});
+            }
+            const edit={timeline,output:{format:'mp4',size:{width:largura,height:altura},fps:30}};
+            const stage=process.env.SHOTSTACK_ENV||'v1';
+            const siteUrl=process.env.SITE_URL||'https://metodojump.com.br';
+            edit.callback=`${siteUrl}/api/video-webhook`;
+            // registra o job e captura o id
+            const jobRes=await fetch(`${SUPABASE_URL}/rest/v1/video_jobs`,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify({user_id:targetId,status:'processando',origem_url:videoCruUrl,operacoes:ops,titulo:'Vídeo (via Agente)'})});
+            const jobArr=await jobRes.json();
+            const jobId=Array.isArray(jobArr)&&jobArr[0]?jobArr[0].id:null;
+            // dispara o render no Shotstack
+            const sres=await fetch(`https://api.shotstack.io/edit/${stage}/render`,{method:'POST',headers:{'x-api-key':shotKey,'Content-Type':'application/json'},body:JSON.stringify(edit)});
+            const sdata=await sres.json();
+            if(sres.ok&&sdata.success){
+              const renderId=sdata.response&&sdata.response.id;
+              if(jobId)await sbPatch(`video_jobs?id=eq.${jobId}`,{render_id:renderId});
+              if(cli.role==='usuario'){uso.videos=Number(uso.videos||0)+1;}
+              videoEditando=true;
+            }else{
+              if(jobId)await sbPatch(`video_jobs?id=eq.${jobId}`,{status:'erro',erro:JSON.stringify(sdata).slice(0,200)});
+              texto+='\n\n(Houve um erro ao iniciar a edição. Tente novamente em instantes.)';
+            }
+          }
+        }
+      }catch(e){texto+='\n\n(Erro ao processar a edição do vídeo.)';}
+    }
+
     // Auto-aprendizado: extrair memórias
     const novas=[];
     texto=texto.replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{
@@ -571,7 +655,7 @@ const handler = async (req, res) => {
       return '';
     });
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
-    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual'];
+    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida'];
     const memWrites=novas.slice(0,12).map(m=>{
       const ehGlobal=(agente==='identidade')||CHAVES_GLOBAIS.includes(String(m.chave));
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
@@ -600,7 +684,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
-    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length});
+    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

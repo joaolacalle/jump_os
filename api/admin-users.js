@@ -657,6 +657,55 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       return res.status(200).json({ ok: true, job: j });
     }
 
+    // ── ENVIAR CONTEÚDO: cria OS p/ a Estratégia gerar a copy do criativo ──
+    if (action === 'criar_os_copy') {
+      const uid = requester.id;
+      const { criativo_url, criativo_tipo, tema, data_sugerida, formato } = req.body;
+      if (!criativo_url || !tema) return res.status(400).json({ error: 'Envie o criativo e o tema.' });
+      const detalhe = `O cliente enviou um criativo (${criativo_tipo || 'imagem'}) pronto e quer a legenda/copy para ele. ` +
+        `Tema: ${tema}. Formato: ${formato || 'feed'}.${data_sugerida ? ` Data sugerida: ${data_sugerida}.` : ''} ` +
+        `Crie a copy completa (headline + legenda + hashtags + CTA) no tom da marca e registre com a tag <conteudo> usando este criativo. ` +
+        `URL do criativo: ${criativo_url}`;
+      await sbInsert('ordens_servico', {
+        user_id: uid, de_agente: 'publicacao', para_agente: 'estrategia',
+        tarefa: 'copy_para_criativo', detalhe, status: 'pendente',
+      });
+      // avisa que há uma ordem (registro leve; o Estrategista atende quando aberto)
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── INCLUIR ORDEM: usuário cria uma ordem que modela o negócio ──
+    if (action === 'criar_ordem_usuario') {
+      const uid = requester.id;
+      const { para_agente, tarefa, recorrencia } = req.body;
+      if (!para_agente || !tarefa) return res.status(400).json({ error: 'Informe o agente e a tarefa.' });
+      await sbInsert('ordens_servico', {
+        user_id: uid, de_agente: 'usuario', para_agente,
+        tarefa: recorrencia ? `recorrente_${recorrencia}` : 'tarefa_usuario',
+        detalhe: tarefa, status: 'pendente',
+        recorrencia: recorrencia || null,
+      });
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── CENTRAL DE ORDENS: lista as ordens do usuário (pendentes + concluídas) ──
+    if (action === 'minhas_ordens') {
+      const uid = requester.id;
+      const ordens = await sbGet(`ordens_servico?user_id=eq.${uid}&order=created_at.desc&limit=60&select=*`);
+      return res.status(200).json({ ok: true, ordens: Array.isArray(ordens) ? ordens : [] });
+    }
+
+    // ── CENTRAL DE ORDENS: cancelar/remover uma ordem ──
+    if (action === 'cancelar_ordem') {
+      const uid = requester.id;
+      const { ordem_id } = req.body;
+      if (!ordem_id) return res.status(400).json({ error: 'ordem_id obrigatório' });
+      const [o] = await sbGet(`ordens_servico?id=eq.${ordem_id}&select=user_id`);
+      if (!o || (o.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(400).json({ error: 'Ação desconhecida' });
   } catch (err) {
     console.error('admin-users error:', err.message);

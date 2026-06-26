@@ -149,6 +149,46 @@ module.exports = async (req, res) => {
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'não autorizado' });
   }
+async function jobOrdens() {
+  // Lembrete barato (sem IA): avisa usuários com ordens pendentes + ativa recorrentes do dia
+  const hoje = new Date().toISOString().slice(0, 10);
+  const diaDoMes = new Date().getDate();
+  const diaSemana = new Date().getDay(); // 0=domingo
+  let lembretes = 0, recCriadas = 0;
+
+  // 1) Ordens recorrentes: gera a ordem do ciclo (1x por período) com anti-duplicata
+  const recorrentes = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?recorrencia=not.is.null&select=*`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+  for (const o of (Array.isArray(recorrentes) ? recorrentes : [])) {
+    // mensal: dispara no dia 1; semanal: dispara na segunda (diaSemana 1)
+    const deveDisparar = (o.recorrencia === 'mensal' && diaDoMes === 1) || (o.recorrencia === 'semanal' && diaSemana === 1);
+    if (!deveDisparar) continue;
+    if (o.ultimo_lembrete === hoje) continue; // já disparou hoje
+    // cria a ordem do ciclo (pendente, avulsa, derivada da recorrente)
+    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({ user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario', detalhe: o.detalhe, status: 'pendente' }),
+    }).catch(()=>{});
+    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ ultimo_lembrete: hoje }) }).catch(()=>{});
+    recCriadas++;
+  }
+
+  // 2) Lembrete: para cada usuário com ordens pendentes, cria 1 recado (anti-duplicata por dia)
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.pendente&select=user_id`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+  const porUser = {};
+  for (const p of (Array.isArray(pend) ? pend : [])) { porUser[p.user_id] = (porUser[p.user_id] || 0) + 1; }
+  const tag = 'ord-' + hoje;
+  for (const uid of Object.keys(porUser)) {
+    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${uid}&tipo=eq.ordens&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (Array.isArray(existe) && existe.length) continue;
+    await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({ user_id: uid, tipo: 'ordens', titulo: 'Você tem ordens esperando', mensagem: `Você tem ${porUser[uid]} ordem(ns) pendente(s) na Central de Ordens. [${tag}]`, lido: false, resolvido: false }),
+    }).catch(()=>{});
+    lembretes++;
+  }
+  return { recorrentes_criadas: recCriadas, lembretes };
+}
+
   const job = (req.query && req.query.job) || '';
   try {
     if (job === 'estrategia') {
@@ -163,7 +203,11 @@ module.exports = async (req, res) => {
       const r = await jobSeguranca();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens ou seguranca)' });
+    if (job === 'ordens') {
+      const r = await jobOrdens();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca ou ordens)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
