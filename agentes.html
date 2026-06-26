@@ -565,23 +565,33 @@ async function vmUpload(inp,tipo){
   if(f.size>lim*1024*1024){JUMP.toast('Arquivo muito grande (máx '+lim+' MB)','err');inp.value='';return;}
   const statusEl=document.getElementById(tipo==='video'?'vm-v-status':tipo==='trilha'?'vm-t-status':'vm-l-status');
   statusEl.textContent='Enviando...';statusEl.style.color='var(--t3)';
+  // valida sessão antes (causa comum de erro: token expirado)
+  if(!CTX||!CTX.user){statusEl.textContent='Erro: sessão expirada. Recarregue a página e entre de novo.';statusEl.style.color='var(--red)';return;}
   try{
     const uid=CTX.viewId||CTX.user.id;
     const bucket=tipo==='logo'?'user-uploads':'videos-crus';
     const path=uid+'/'+tipo+'_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const{error}=await JUMP.sb.storage.from(bucket).upload(path,f);
-    if(error)throw error;
+    const upRes=await JUMP.sb.storage.from(bucket).upload(path,f,{upsert:true});
+    if(upRes.error){
+      // mostra o erro COMPLETO na tela p/ diagnóstico
+      const em=upRes.error.message||JSON.stringify(upRes.error);
+      statusEl.textContent='Erro no upload: '+em;
+      statusEl.style.color='var(--red)';
+      console.error('Storage upload error:',upRes.error);
+      return;
+    }
     const url=JUMP.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-    if(tipo==='video'){
-      vmVideoUrl=url;
-      await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url,path}).catch(()=>{});
-      document.getElementById('vm-editar').disabled=false;
-    }else if(tipo==='trilha')vmTrilhaUrl=url;
+    // registra na tabela uploads (não bloqueia se falhar)
+    try{await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url,path});}catch(ie){console.warn('insert uploads (ignorado):',ie);}
+    if(tipo==='video'){vmVideoUrl=url;document.getElementById('vm-editar').disabled=false;}
+    else if(tipo==='trilha')vmTrilhaUrl=url;
     else vmLogoUrl=url;
     statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--g)';
   }catch(e){
-    statusEl.textContent='Erro ao enviar. Verifique se você rodou o setup-video.sql no Supabase (bucket videos-crus).';
+    const msg=(e&&e.message)||String(e)||'erro desconhecido';
+    statusEl.textContent='Erro: '+msg;
     statusEl.style.color='var(--red)';
+    console.error('Upload erro completo:',e);
   }
 }
 
