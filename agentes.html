@@ -25,6 +25,8 @@
 .ag-db:hover{background:rgba(var(--ac,168,85,247),.2);border-color:rgba(var(--ac,168,85,247),.6)}
 .ct-ico{border:1.5px solid rgba(168,85,247,.45);transition:.2s}
 @media(max-width:760px){.ag-dash{max-width:100%;margin-left:0;margin-top:8px;justify-content:flex-start}.chat-top{flex-wrap:wrap}}
+.vm-opt{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--t1);cursor:pointer;font-weight:600}
+.vm-opt input{width:17px;height:17px;accent-color:var(--g)}
 .vc-chip{font-family:var(--B);font-size:12.5px;font-weight:600;padding:8px 13px;border:1px solid var(--bd);border-radius:18px;background:transparent;color:var(--t2);cursor:pointer;transition:.15s}
 .vc-chip.on{border-color:var(--g);background:rgba(var(--g-rgb),.1);color:var(--t1)}
 .mem-grp{font-family:var(--M);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:10px 0 5px;font-weight:700}
@@ -226,11 +228,119 @@
       <div style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--M)">Nas recorrentes, você recebe um lembrete no dia para executar.</div>
     </div>
 
+    <div class="f-row" style="display:flex;gap:10px;margin-bottom:14px">
+      <div class="f-group" style="flex:1"><label class="f-label">Consome (opcional)</label>
+        <select class="f-input" id="ordem-recurso" onchange="checarSaldoOrdem()">
+          <option value="">Nada específico</option>
+          <option value="imagens">Imagens</option>
+          <option value="videos">Vídeos</option>
+          <option value="dm">Palavras-chave DM</option>
+        </select>
+      </div>
+      <div class="f-group" style="flex:1"><label class="f-label">Quantidade</label>
+        <input class="f-input" id="ordem-qtd" type="number" min="1" placeholder="Ex: 5" oninput="checarSaldoOrdem()">
+      </div>
+    </div>
+    <div id="ordem-saldo" style="font-size:12px;margin-bottom:10px"></div>
+
     <div id="ordem-result" style="font-size:12.5px;margin-bottom:10px"></div>
     <div style="display:flex;gap:9px">
       <button class="btn btn-g" id="ordem-save" onclick="salvarIncluirOrdem()" style="flex:1">Criar ordem</button>
       <button class="btn btn-o" onclick="fecharIncluirOrdem()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL EDITOR DE VÍDEO (completo, no chat) -->
+<div id="video-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)vmFechar()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:520px;width:100%;padding:24px;max-height:92vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">🎬 Editar vídeo</div>
+      <button onclick="vmFechar()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Suba seu vídeo e escolha o que fazer. Eu edito no estilo da sua marca e o resultado fica pronto em alguns minutos.</p>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Seu vídeo</label>
+      <div style="border:2px dashed var(--bd);border-radius:10px;padding:18px;text-align:center;cursor:pointer" onclick="document.getElementById('vm-v-file').click()">
+        <input type="file" id="vm-v-file" accept="video/*" style="display:none" onchange="vmUpload(this,'video')">
+        <div style="font-size:24px;margin-bottom:5px">📹</div>
+        <div style="font-size:12.5px;color:var(--t1)">Clique para enviar (MP4, MOV · até 100 MB)</div>
+        <div id="vm-v-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+      </div>
+    </div>
+
+    <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:6px 0 8px">O que fazer</div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this)"> 💬 Legendas automáticas</label>
+    <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
+      <div style="display:flex;gap:8px">
+        <div style="flex:2"><label class="f-label" style="font-size:11px">Fonte</label>
+          <select class="f-input" id="vm-fonte" style="padding:8px"><option value="Montserrat ExtraBold">Montserrat (forte)</option>
+        <option value="Open Sans Bold">Open Sans</option>
+        <option value="Roboto Bold">Roboto</option>
+        <option value="Lato Bold">Lato</option>
+        <option value="Oswald Bold">Oswald (condensada)</option>
+        <option value="Poppins Bold">Poppins</option>
+        <option value="Bebas Neue">Bebas Neue (impacto)</option>
+        <option value="Raleway Bold">Raleway</option>
+        <option value="Montserrat SemiBold">Montserrat (média)</option>
+        <option value="Work Sans Bold">Work Sans</option>
+        <option value="Nunito Bold">Nunito (arredondada)</option>
+        <option value="Anton">Anton (bold display)</option>
+        <option value="Archivo Black">Archivo Black</option>
+        <option value="Permanent Marker">Permanent Marker (manuscrita)</option>
+        <option value="Pacifico">Pacifico (script)</option></select></div>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor</label>
+          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px"></div>
+      </div>
+    </div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-corte" onchange="vmToggleSub('vm-sub-corte',this)"> ✂️ Cortar trecho</label>
+    <div id="vm-sub-corte" style="display:none;margin:6px 0 12px 24px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input class="f-input" id="vm-corte-ini" type="number" min="0" placeholder="Início (s)" style="flex:1">
+        <input class="f-input" id="vm-corte-fim" type="number" min="0" placeholder="Fim (s)" style="flex:1">
+      </div>
+      <label class="f-label" style="font-size:11px">Estilo da transição</label>
+      <select class="f-input" id="vm-estilo-corte" style="padding:8px">
+        <option value="fade">Fade (suave)</option>
+        <option value="">Corte seco</option>
+        <option value="slideLeft">Slide</option>
+        <option value="zoom">Zoom</option>
+        <option value="wipeLeft">Wipe</option>
+        <option value="carouselLeft">Carrossel</option>
+      </select>
+    </div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-texto" onchange="vmToggleSub('vm-sub-texto',this)"> 🔤 Texto na tela (hook)</label>
+    <div id="vm-sub-texto" style="display:none;margin:6px 0 12px 24px">
+      <input class="f-input" id="vm-texto-val" placeholder="Ex: PROMOÇÃO DA SEMANA" maxlength="60">
+    </div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-trilha" onchange="vmToggleSub('vm-sub-trilha',this)"> 🎵 Trilha sonora</label>
+    <div id="vm-sub-trilha" style="display:none;margin:6px 0 12px 24px">
+      <input type="file" id="vm-t-file" accept="audio/*" class="f-input" onchange="vmUpload(this,'trilha')">
+      <div id="vm-t-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+    </div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this)"> 🖼️ Logo no canto</label>
+    <div id="vm-sub-logo" style="display:none;margin:6px 0 12px 24px">
+      <input type="file" id="vm-l-file" accept="image/*" class="f-input" onchange="vmUpload(this,'logo')">
+      <div id="vm-l-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+    </div>
+
+    <div style="margin:8px 0 12px">
+      <label class="f-label" style="font-size:11px">Formato de saída</label>
+      <div style="display:flex;gap:8px">
+        <button id="vm-fmt-reels" class="vc-chip vc-fmt on" onclick="vmSetFmt('reels')" style="flex:1">📱 Reels (9:16)</button>
+        <button id="vm-fmt-wide" class="vc-chip vc-fmt" onclick="vmSetFmt('wide')" style="flex:1">🖥️ Paisagem (16:9)</button>
+      </div>
+    </div>
+
+    <label class="vm-opt" style="background:rgba(var(--g-rgb),.06);border-radius:8px;padding:9px 11px;margin-bottom:14px"><input type="checkbox" id="vm-guardar"> 💾 Guardar este estilo para os próximos vídeos</label>
+
+    <button class="btn btn-g" id="vm-editar" onclick="vmEditar()" style="width:100%" disabled>🎬 Editar vídeo</button>
   </div>
 </div>
 </main>
@@ -443,64 +553,121 @@ function addMsg(cls,txt,meta){
 }
 // ── EDITOR DE VÍDEO no chat: subir vídeo + escolher o que fazer ──
 let videoChatUrl=null;
-async function subirVideoChat(inp){
+// ── EDITOR DE VÍDEO (modal completo no chat) ──
+let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
+function vmFechar(){document.getElementById('video-overlay').style.display='none';}
+function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
+function vmSetFmt(f){vmFormato=f;document.getElementById('vm-fmt-reels').classList.toggle('on',f==='reels');document.getElementById('vm-fmt-wide').classList.toggle('on',f==='wide');}
+
+async function vmUpload(inp,tipo){
   const f=inp.files[0];if(!f)return;
-  if(f.size>100*1024*1024){JUMP.toast('Vídeo muito grande (máx 100 MB)','err');inp.value='';return;}
-  addMsg('u','📹 '+f.name);
-  const w=document.getElementById('msgs');
-  const ty=document.createElement('div');ty.className='typing';ty.innerHTML='<span></span><span></span><span></span>';
-  w.appendChild(ty);w.scrollTop=w.scrollHeight;
+  const lim=tipo==='video'?100:tipo==='trilha'?30:10;
+  if(f.size>lim*1024*1024){JUMP.toast('Arquivo muito grande (máx '+lim+' MB)','err');inp.value='';return;}
+  const statusEl=document.getElementById(tipo==='video'?'vm-v-status':tipo==='trilha'?'vm-t-status':'vm-l-status');
+  statusEl.textContent='Enviando...';statusEl.style.color='var(--t3)';
   try{
     const uid=CTX.viewId||CTX.user.id;
-    const path=uid+'/'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const{error}=await JUMP.sb.storage.from('videos-crus').upload(path,f);
+    const bucket=tipo==='logo'?'user-uploads':'videos-crus';
+    const path=uid+'/'+tipo+'_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from(bucket).upload(path,f);
     if(error)throw error;
-    videoChatUrl=JUMP.sb.storage.from('videos-crus').getPublicUrl(path).data.publicUrl;
-    // registra como upload (categoria videos) p/ o agente achar como "mais recente"
-    await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url:videoChatUrl,path}).catch(()=>{});
-    ty.remove();
-    // mostra as opções de edição (botões)
-    const box=document.createElement('div');box.className='msg a';
-    box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">Vídeo recebido! O que você quer que eu faça? (toque nas opções e eu edito no estilo da sua marca)</div>'+
-      '<div id="vchat-opts" style="display:flex;flex-direction:column;gap:9px">'+
-      '<div style="display:flex;gap:7px;flex-wrap:wrap">'+
-      '<button class="vc-chip on" data-k="legenda" onclick="vcToggle(this)">💬 Legendas automáticas</button>'+
-      '<button class="vc-chip" data-k="texto" onclick="vcToggle(this)">🔤 Texto na tela</button>'+
-      '<button class="vc-chip" data-k="corte" onclick="vcToggle(this)">✂️ Cortar trecho</button>'+
-      '</div>'+
-      '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--t3)">Formato:</span>'+
-      '<button class="vc-chip vc-fmt on" data-f="reels" onclick="vcFmt(this)">📱 Reels (9:16)</button>'+
-      '<button class="vc-chip vc-fmt" data-f="wide" onclick="vcFmt(this)">🖥️ Paisagem</button>'+
-      '</div>'+
-      '<button class="btn btn-g btn-sm" style="align-self:flex-start;margin-top:4px" onclick="editarVideoChat()">🎬 Editar vídeo</button>'+
-      '</div>';
-    w.appendChild(box);w.scrollTop=w.scrollHeight;
+    const url=JUMP.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    if(tipo==='video'){
+      vmVideoUrl=url;
+      await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url,path}).catch(()=>{});
+      document.getElementById('vm-editar').disabled=false;
+    }else if(tipo==='trilha')vmTrilhaUrl=url;
+    else vmLogoUrl=url;
+    statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--g)';
   }catch(e){
-    ty.remove();
-    addMsg('a','⚠️ Não consegui receber o vídeo. Tente de novo.');
+    statusEl.textContent='Erro ao enviar. Verifique se você rodou o setup-video.sql no Supabase (bucket videos-crus).';
+    statusEl.style.color='var(--red)';
   }
-  inp.value='';
 }
-function vcToggle(b){b.classList.toggle('on');}
-function vcFmt(b){document.querySelectorAll('.vc-fmt').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
-function editarVideoChat(){
-  if(!videoChatUrl){JUMP.toast('Suba um vídeo primeiro','err');return;}
-  const opts=document.getElementById('vchat-opts');
-  const ativos=[...opts.querySelectorAll('.vc-chip.on:not(.vc-fmt)')].map(x=>x.dataset.k);
-  const fmt=(opts.querySelector('.vc-fmt.on')||{}).dataset?.f||'reels';
-  // monta um pedido em linguagem natural p/ o agente (ele decide o resto pelo estilo da marca)
-  let pedido='Edite o vídeo que acabei de enviar. Formato '+(fmt==='reels'?'Reels vertical 9:16':'paisagem 16:9')+'. ';
-  if(ativos.includes('legenda'))pedido+='Adicione legendas automáticas sincronizadas com a fala. ';
-  if(ativos.includes('texto'))pedido+='Coloque um texto/hook curto na tela no começo. ';
-  if(ativos.includes('corte'))pedido+='Corte as partes ruins/paradas para deixar dinâmico. ';
-  pedido+='Use o estilo visual da minha marca.';
-  // remove os botões (já escolheu) e envia
-  opts.parentElement.innerHTML='<div style="font-size:13px;color:var(--g)">✓ Enviado para edição</div>';
-  enviarTexto(pedido);
+
+async function vmEditar(){
+  if(!vmVideoUrl){JUMP.toast('Suba o vídeo primeiro','err');return;}
+  const ops={formato:vmFormato};
+  if(document.getElementById('vm-legenda').checked){
+    ops.legenda=true;
+    ops.legenda_fonte=document.getElementById('vm-fonte').value;
+    ops.legenda_cor=document.getElementById('vm-cor').value;
+  }
+  if(document.getElementById('vm-corte').checked){
+    ops.corte_inicio=+document.getElementById('vm-corte-ini').value||0;
+    ops.corte_fim=+document.getElementById('vm-corte-fim').value||null;
+  }
+  if(document.getElementById('vm-corte').checked)ops.estilo_corte=document.getElementById('vm-estilo-corte').value;
+  if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
+  if(document.getElementById('vm-trilha').checked&&vmTrilhaUrl)ops.trilha_url=vmTrilhaUrl;
+  if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
+  const guardar=document.getElementById('vm-guardar').checked;
+
+  const btn=document.getElementById('vm-editar');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  try{
+    const r=await fetch('/api/video-editar',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({origem_url:vmVideoUrl,operacoes:ops,titulo:'Vídeo '+new Date().toLocaleDateString('pt-BR'),ver_id:CTX.viewId||null,guardar_estilo:guardar})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){
+      vmFechar();
+      addMsg('a','🎬 Seu vídeo está sendo editado! Fica pronto em alguns minutos — eu te aviso aqui e você acompanha na Central de Ordens.');
+      JUMP.toast('🎬 Vídeo em processamento');
+      if(guardar)addMsg('a','✓ Guardei seu estilo de edição (fonte, cor e cortes) para os próximos vídeos ficarem com a sua cara.');
+      // reset
+      vmVideoUrl=null;vmTrilhaUrl=null;vmLogoUrl=null;
+      ['vm-v-status','vm-t-status','vm-l-status'].forEach(i=>document.getElementById(i).textContent='');
+      iniciarPollingVideo();
+    }else{
+      JUMP.toast(d.error||'Erro ao editar','err');
+    }
+  }catch(e){JUMP.toast('Erro de conexão','err');}
+  btn.disabled=false;btn.textContent='🎬 Editar vídeo';
+}
+
+let pollVid=null;
+function iniciarPollingVideo(){
+  if(pollVid)return;
+  let voltas=0;
+  pollVid=setInterval(async()=>{
+    voltas++;
+    try{
+      const d=await JUMP.api('video_meus_jobs',{},CTX.token);
+      const pronto=(d.jobs||[]).find(j=>j.status==='pronto'&&j.resultado_url);
+      const recente=(d.jobs||[])[0];
+      if(recente&&recente.status==='pronto'&&recente.resultado_url){
+        clearInterval(pollVid);pollVid=null;
+        const box=document.createElement('div');box.className='msg a';
+        box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><a class="btn btn-g btn-sm" href="'+recente.resultado_url+'" target="_blank">⬇ Baixar vídeo</a>';
+        const w=document.getElementById('msgs');w.appendChild(box);w.scrollTop=w.scrollHeight;
+      }else if(recente&&recente.status==='erro'){
+        clearInterval(pollVid);pollVid=null;
+        addMsg('a','⚠️ Houve um erro ao processar o vídeo. Tente novamente.');
+      }
+    }catch(e){}
+    if(voltas>40){clearInterval(pollVid);pollVid=null;} // para após ~5min
+  },8000);
 }
 
 // ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
-function subirVideoTrigger(){document.getElementById('video-file').click();}
+async function subirVideoTrigger(){
+  document.getElementById('video-overlay').style.display='flex';
+  // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
+  try{
+    const{data}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id).in('chave',['video_fonte','video_cor_legenda','video_estilo_legenda','video_formato_padrao']);
+    (data||[]).forEach(m=>{
+      if(m.chave==='video_fonte'&&m.valor){
+        const sel=document.getElementById('vm-fonte');
+        const op=[...sel.options].find(o=>m.valor.toLowerCase().includes(o.value.toLowerCase().split(' ')[0]));
+        if(op)sel.value=op.value;
+      }
+      if(m.chave==='video_cor_legenda'&&/^#[0-9A-Fa-f]{6}$/.test(m.valor.trim()))document.getElementById('vm-cor').value=m.valor.trim();
+      if(m.chave==='video_formato_padrao'&&m.valor.includes('wide'))vmSetFmt('wide');
+    });
+  }catch(e){}
+}
 function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
 function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
 function cmdCalendario(){enviarTexto('Gere o calendário de conteúdo do próximo mês para o meu nicho, com temas, formatos e datas sugeridas.');}
@@ -515,19 +682,50 @@ function abrirIncluirOrdem(){
   if(AG)document.getElementById('ordem-para').value=AG;
 }
 function fecharIncluirOrdem(){document.getElementById('ordem-overlay').style.display='none';}
+// calcula o saldo restante de um recurso (limite - uso do mês)
+function saldoRecurso(recurso){
+  const cli=CTX.viewCliente||CTX.cliente;
+  const lim=(cli.limites||{});
+  const uso=(cli.uso||{});
+  const mesAtual=new Date().toISOString().slice(0,7);
+  const usado=(uso.mes===mesAtual)?(Number(uso[recurso]||0)):0;
+  const total=Number(lim[recurso]??0);
+  return {total,usado,resta:Math.max(0,total-usado)};
+}
+function checarSaldoOrdem(){
+  const rec=document.getElementById('ordem-recurso').value;
+  const qtd=+document.getElementById('ordem-qtd').value||0;
+  const el=document.getElementById('ordem-saldo');
+  if(!rec||!qtd){el.innerHTML='';return true;}
+  const nome={imagens:'imagens',videos:'vídeos',dm:'palavras-chave de DM'}[rec]||rec;
+  const s=saldoRecurso(rec);
+  if(qtd>s.resta){
+    el.innerHTML=`<span style="color:var(--red)">⚠️ Você pediu ${qtd} ${nome}, mas só tem ${s.resta} de saldo este mês (${s.usado}/${s.total} usados). Reduza a quantidade ou peça mais ao seu gestor.</span>`;
+    return false;
+  }
+  el.innerHTML=`<span style="color:var(--g)">✓ Você tem saldo (${s.resta} ${nome} disponíveis).</span>`;
+  return true;
+}
 async function salvarIncluirOrdem(){
   const para=document.getElementById('ordem-para').value;
   const tarefa=document.getElementById('ordem-tarefa').value.trim();
   const recorrencia=document.getElementById('ordem-recorrencia').value;
+  const recurso=document.getElementById('ordem-recurso').value;
+  const qtd=+document.getElementById('ordem-qtd').value||0;
   const res=document.getElementById('ordem-result');
   if(tarefa.length<5){res.innerHTML='<span style="color:var(--red)">Descreva a ordem (o que você quer que o agente faça).</span>';return;}
+  // bloqueia se a quantidade excede o saldo
+  if(recurso&&qtd&&!checarSaldoOrdem()){
+    res.innerHTML='<span style="color:var(--red)">Ajuste a quantidade — ela excede seu saldo do mês.</span>';
+    return;
+  }
   const btn=document.getElementById('ordem-save');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Salvando...';
   try{
-    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia},CTX.token);
+    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null},CTX.token);
     res.innerHTML='<span style="color:var(--g)">✓ Ordem criada! Você acompanha na Central de Ordens.</span>';
     JUMP.toast('📋 Ordem registrada');
-    setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';},1400);
+    setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';document.getElementById('ordem-qtd').value='';document.getElementById('ordem-saldo').innerHTML='';},1400);
   }catch(e){res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro')+'</span>';btn.disabled=false;btn.textContent='Criar ordem';}
 }
 
