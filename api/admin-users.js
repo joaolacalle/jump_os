@@ -677,12 +677,25 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
     // ── INCLUIR ORDEM: usuário cria uma ordem que modela o negócio ──
     if (action === 'criar_ordem_usuario') {
       const uid = requester.id;
-      const { para_agente, tarefa, recorrencia } = req.body;
+      const { para_agente, tarefa, recorrencia, recurso, quantidade } = req.body;
       if (!para_agente || !tarefa) return res.status(400).json({ error: 'Informe o agente e a tarefa.' });
+      // valida saldo no servidor (defesa real, além do aviso no front)
+      if (recurso && quantidade) {
+        const [c2] = await sbGet(`clientes?id=eq.${uid}&select=limites,uso`);
+        const lim = (c2 && c2.limites) || {};
+        const uso = (c2 && c2.uso) || {};
+        const mesAtual = new Date().toISOString().slice(0, 7);
+        const usado = (uso.mes === mesAtual) ? Number(uso[recurso] || 0) : 0;
+        const resta = Math.max(0, Number(lim[recurso] ?? 0) - usado);
+        if (Number(quantidade) > resta) {
+          return res.status(400).json({ error: `Sua ordem pede ${quantidade}, mas você só tem ${resta} de saldo de ${recurso} este mês.` });
+        }
+      }
+      const detalheFull = (recurso && quantidade) ? `${tarefa} [consome ${quantidade} ${recurso}]` : tarefa;
       await sbInsert('ordens_servico', {
         user_id: uid, de_agente: 'usuario', para_agente,
         tarefa: recorrencia ? `recorrente_${recorrencia}` : 'tarefa_usuario',
-        detalhe: tarefa, status: 'pendente',
+        detalhe: detalheFull, status: 'pendente',
         recorrencia: recorrencia || null,
       });
       return res.status(200).json({ ok: true });

@@ -29,9 +29,11 @@ function montarEdit(origemUrl, ops) {
   const videoClip = {
     asset: { type: 'video', src: origemUrl, volume: 1 },
     start: 0,
-    length: ops.fim && ops.inicio != null ? (Number(ops.fim) - Number(ops.inicio)) : 'auto',
+    length: ops.corte_fim && ops.corte_inicio != null ? (Number(ops.corte_fim) - Number(ops.corte_inicio)) : 'auto',
   };
-  if (ops.inicio != null) videoClip.asset.trim = Number(ops.inicio);
+  if (ops.corte_inicio != null) videoClip.asset.trim = Number(ops.corte_inicio);
+  // estilo de transição do corte (se houver)
+  if (ops.estilo_corte) videoClip.transition = { in: ops.estilo_corte, out: ops.estilo_corte };
 
   const tracks = [{ clips: [videoClip] }];
 
@@ -69,8 +71,12 @@ function montarEdit(origemUrl, ops) {
   if (ops.legenda) {
     edit.timeline.tracks.unshift({ clips: [{
       asset: { type: 'caption', src: origemUrl, // transcreve a partir do próprio vídeo
-        font: { color: '#ffffff', size: ops.formato === 'reels' ? 42 : 32 },
-        background: { color: '#000000', opacity: 0.6, padding: 8, borderRadius: 6 },
+        font: {
+          family: ops.legenda_fonte || 'Montserrat ExtraBold',
+          color: ops.legenda_cor || '#ffffff',
+          size: ops.formato === 'reels' ? 42 : 32,
+        },
+        background: { color: '#000000', opacity: 0.55, padding: 8, borderRadius: 6 },
       },
       start: 0, length: 'end',
       offset: { y: ops.formato === 'reels' ? -0.25 : -0.40 },
@@ -93,12 +99,33 @@ module.exports = async (req, res) => {
     if (!uRes.ok) return res.status(401).json({ error: 'Não autenticado' });
     const user = await uRes.json();
 
-    const { origem_url, operacoes, titulo } = req.body;
+    const { origem_url, operacoes, titulo, ver_id, guardar_estilo } = req.body;
     if (!origem_url) return res.status(400).json({ error: 'Envie o vídeo primeiro.' });
     const ops = operacoes || {};
 
+    // alvo (impersonação): admin/supervisor pode editar para uma conta visualizada
+    let alvoId = user.id;
+    if (ver_id && ver_id !== user.id) {
+      const [me] = await sbGet(`clientes?id=eq.${user.id}&select=role`);
+      if (me && (me.role === 'admin' || me.role === 'supervisor')) alvoId = ver_id;
+    }
+
+    // guardar o estilo de edição no OS_DATA (memórias globais) p/ personalizar os próximos
+    if (guardar_estilo) {
+      const ups = [];
+      if (ops.legenda_fonte) ups.push({ chave: 'video_estilo_legenda', valor: `fonte ${ops.legenda_fonte}, cor ${ops.legenda_cor || '#fff'}` });
+      if (ops.estilo_corte != null) ups.push({ chave: 'video_corte_preferido', valor: ops.estilo_corte || 'corte seco' });
+      if (ops.formato) ups.push({ chave: 'video_formato_padrao', valor: ops.formato });
+      for (const m of ups) {
+        await fetch(`${SUPABASE_URL}/rest/v1/memorias`, {
+          method: 'POST', headers: { ...H(), Prefer: 'resolution=merge-duplicates' },
+          body: JSON.stringify({ user_id: alvoId, agente: 'global', chave: m.chave, valor: m.valor, updated_at: new Date().toISOString() }),
+        }).catch(() => {});
+      }
+    }
+
     // Conta e limite de vídeos
-    const [cli] = await sbGet(`clientes?id=eq.${user.id}&select=plano,limites,uso,bloqueado,role`);
+    const [cli] = await sbGet(`clientes?id=eq.${alvoId}&select=plano,limites,uso,bloqueado,role`);
     if (!cli) return res.status(404).json({ error: 'Conta não encontrada' });
     if (cli.bloqueado) return res.status(403).json({ error: 'Conta bloqueada' });
 
@@ -113,12 +140,12 @@ module.exports = async (req, res) => {
       }
       // incrementa o uso
       uso.videos = Number(uso.videos || 0) + 1;
-      await sbPatch(`clientes?id=eq.${user.id}`, { uso });
+      await sbPatch(`clientes?id=eq.${alvoId}`, { uso });
     }
 
     // Cria o registro do job
     const job = await sbInsert('video_jobs', {
-      user_id: user.id, status: 'processando', origem_url, operacoes: ops, titulo: titulo || 'Vídeo',
+      user_id: alvoId, status: 'processando', origem_url, operacoes: ops, titulo: titulo || 'Vídeo',
     });
     const jobId = Array.isArray(job) && job[0] ? job[0].id : null;
 

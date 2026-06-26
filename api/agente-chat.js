@@ -70,6 +70,8 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"video_rosto","valor":"SIM/NAO (o cliente aparece falando nos vídeos?)"}</memoria>
 <memoria>{"chave":"video_narracao","valor":"ENERGETICA/SERIA/PROXIMA (tom da narração)"}</memoria>
 <memoria>{"chave":"video_duracao","valor":"15s/30s/60s (duração padrão dos reels)"}</memoria>
+<memoria>{"chave":"video_fonte","valor":"nome da fonte da legenda conforme o estilo da marca (ex: Montserrat ExtraBold, Bebas Neue, Anton — fontes modernas p/ Reels)"}</memoria>
+<memoria>{"chave":"video_cor_legenda","valor":"#HEX da cor principal da legenda (geralmente branco #FFFFFF ou a cor de destaque da marca)"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
 ⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
 
@@ -655,7 +657,7 @@ const handler = async (req, res) => {
       return '';
     });
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
-    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida'];
+    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
     const memWrites=novas.slice(0,12).map(m=>{
       const ehGlobal=(agente==='identidade')||CHAVES_GLOBAIS.includes(String(m.chave));
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
