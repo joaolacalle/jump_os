@@ -631,9 +631,11 @@ async function vmEditar(){
       ['vm-v-status','vm-t-status','vm-l-status'].forEach(i=>document.getElementById(i).textContent='');
       iniciarPollingVideo();
     }else{
-      JUMP.toast(d.error||'Erro ao editar','err');
+      JUMP.toast('Erro ao editar','err');
+      addMsg('a','⚠️ '+(d.error||'Erro ao iniciar a edição.'));
+      console.error('Editar vídeo - resposta:',d);
     }
-  }catch(e){JUMP.toast('Erro de conexão','err');}
+  }catch(e){JUMP.toast('Erro de conexão','err');console.error(e);}
   btn.disabled=false;btn.textContent='🎬 Editar vídeo';
 }
 
