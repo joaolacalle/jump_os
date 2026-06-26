@@ -29,6 +29,10 @@
     {
       "path": "/api/cron?job=seguranca",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron?job=ordens",
+      "schedule": "0 8 * * *"
     }
   ]
 }

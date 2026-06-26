@@ -20,6 +20,13 @@
 /* CHAT */
 .chat-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
 .chat-top{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--bd)}
+.ag-dash{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end;align-items:center;max-width:62%}
+.ag-db{font-family:var(--B);font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid rgba(var(--ac,168,85,247),.35);background:rgba(var(--ac,168,85,247),.1);color:var(--t1);cursor:pointer;transition:.15s;white-space:nowrap}
+.ag-db:hover{background:rgba(var(--ac,168,85,247),.2);border-color:rgba(var(--ac,168,85,247),.6)}
+.ct-ico{border:1.5px solid rgba(168,85,247,.45);transition:.2s}
+@media(max-width:760px){.ag-dash{max-width:100%;margin-left:0;margin-top:8px;justify-content:flex-start}.chat-top{flex-wrap:wrap}}
+.vc-chip{font-family:var(--B);font-size:12.5px;font-weight:600;padding:8px 13px;border:1px solid var(--bd);border-radius:18px;background:transparent;color:var(--t2);cursor:pointer;transition:.15s}
+.vc-chip.on{border-color:var(--g);background:rgba(var(--g-rgb),.1);color:var(--t1)}
 .mem-grp{font-family:var(--M);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:10px 0 5px;font-weight:700}
 .mem-grp:first-child{margin-top:0}
 .ct-ico{width:36px;height:36px;border-radius:10px;background:rgba(var(--g-rgb),.12);border:1px solid rgba(var(--g-rgb),.3);display:flex;align-items:center;justify-content:center;font-size:17px}
@@ -80,11 +87,11 @@
   <div class="chat-layout">
     <div class="ag-list" id="ag-list"></div>
     <div class="chat-card">
-      <div class="chat-top">
+      <div class="chat-top" id="chat-top">
         <div class="ct-ico" id="ct-ico">🤖</div>
-        <div><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
-        <button class="mem-btn" id="promo-top-btn" onclick="abrirPromo()" style="display:none;margin-left:auto">🎯 Criar campanha DM</button>
-        <button class="mem-btn" id="mem-btn" onclick="toggleMem()" style="display:none">🧠 O que aprendi</button>
+        <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
+        <div class="ag-dash" id="ag-dash"></div>
+        <input type="file" id="video-file" accept="video/*" style="display:none" onchange="subirVideoChat(this)">
       </div>
       <div class="mem-pane" id="mem-pane"></div>
       <div class="chat-msgs" id="msgs">
@@ -143,6 +150,89 @@
     <div id="promo-list" style="margin-top:16px"></div>
   </div>
 </div>
+
+<!-- MODAL ENVIAR CONTEÚDO (Publicação → OS p/ Estratégia gerar a copy) -->
+<div id="conteudo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharEnviarConteudo()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📤 Enviar conteúdo</div>
+      <button onclick="fecharEnviarConteudo()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Suba seu criativo (imagem ou vídeo), defina a data e o tema. O Agente de Estratégia cria a legenda perfeita pra ele — sem você precisar digitar nada no chat.</p>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">Criativo (imagem ou vídeo)</label>
+      <div id="ct-drop" style="border:2px dashed var(--bd);border-radius:10px;padding:20px;text-align:center;cursor:pointer" onclick="document.getElementById('ct-file').click()">
+        <input type="file" id="ct-file" accept="image/*,video/*" style="display:none" onchange="ctSelecionou(this)">
+        <div id="ct-drop-empty"><div style="font-size:26px;margin-bottom:6px">📎</div><div style="font-size:13px;color:var(--t1)">Clique para enviar</div><div style="font-size:11px;color:var(--t3)">JPG, PNG, MP4 · até 100 MB</div></div>
+        <div id="ct-drop-has" style="display:none"><div style="font-size:22px">✅</div><div id="ct-nome" style="font-size:12.5px;color:var(--g);margin-top:4px"></div></div>
+      </div>
+    </div>
+
+    <div class="f-row" style="display:flex;gap:10px;margin-bottom:12px">
+      <div class="f-group" style="flex:1"><label class="f-label">Data de publicação</label><input class="f-input" id="ct-data" type="date"></div>
+      <div class="f-group" style="flex:1"><label class="f-label">Formato</label>
+        <select class="f-input" id="ct-formato"><option value="feed">Feed</option><option value="carrossel">Carrossel</option><option value="reels">Reels</option><option value="story">Story</option></select>
+      </div>
+    </div>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Tema / assunto do post</label>
+      <textarea class="f-input" id="ct-tema" rows="3" placeholder="Ex: lançamento da nova coleção de inverno, foco no conforto e no preço promocional" maxlength="400"></textarea>
+    </div>
+
+    <div id="ct-result" style="font-size:12.5px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-g" id="ct-save" onclick="enviarConteudo()" style="flex:1">Enviar para o Estrategista</button>
+      <button class="btn btn-o" onclick="fecharEnviarConteudo()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INCLUIR ORDEM (usuário cria ordens que modelam o negócio) -->
+<div id="ordem-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharIncluirOrdem()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📋 Incluir ordem</div>
+      <button onclick="fecharIncluirOrdem()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Crie uma tarefa para um agente executar — algo que modela o seu negócio (ex: "criar uma promoção", "montar um post do clube de desconto"). Ela fica na Central de Ordens e você executa quando quiser.</p>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">Para qual agente</label>
+      <select class="f-input" id="ordem-para">
+        <option value="estrategia">📋 Estratégia (planos, copy, calendário)</option>
+        <option value="criativo">🖼 Criativo (artes, posts)</option>
+        <option value="video">🎬 Editor de Vídeo (Reels)</option>
+        <option value="publicacao">📅 Publicação (agendamento, DM)</option>
+        <option value="trafego">📢 Tráfego (anúncios)</option>
+        <option value="diagnostico">📊 Diagnóstico (métricas)</option>
+        <option value="mercado">🔍 Mercado (concorrência)</option>
+      </select>
+    </div>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">O que você quer que ele faça</label>
+      <textarea class="f-input" id="ordem-tarefa" rows="3" placeholder="Ex: criar uma promoção de 20% para a primeira semana do mês, com post de feed e story" maxlength="500"></textarea>
+    </div>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Repetir</label>
+      <select class="f-input" id="ordem-recorrencia">
+        <option value="">Uma vez (avulsa)</option>
+        <option value="mensal">Todo mês</option>
+        <option value="semanal">Toda semana</option>
+      </select>
+      <div style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--M)">Nas recorrentes, você recebe um lembrete no dia para executar.</div>
+    </div>
+
+    <div id="ordem-result" style="font-size:12.5px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-g" id="ordem-save" onclick="salvarIncluirOrdem()" style="flex:1">Criar ordem</button>
+      <button class="btn btn-o" onclick="fecharIncluirOrdem()">Cancelar</button>
+    </div>
+  </div>
+</div>
 </main>
 </div>
 <script src="assets/jump-core.js"></script>
@@ -150,14 +240,14 @@
 let CTX=null,AG=null,BUSY=false;
 const LV={basico:1,plus:2,pro:3};
 const AGS=[
-  {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
-  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,sug:['Analise meu concorrente @perfil','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
-  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
-  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
-  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
-  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
-  {id:'trafego',ico:'📢',n:'Tráfego',r:'Meta Ads',min:3,sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?']},
-  {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
+  {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
+  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Analise meu concorrente @perfil','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
+  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Gerar calendário do mês',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
+  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  {id:'trafego',ico:'📢',n:'Tráfego',r:'Meta Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Ver campanhas',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?']},
+  {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
 (async()=>{
   try{
@@ -177,8 +267,8 @@ function nivel(){return LV[(CTX.viewCliente&&CTX.viewCliente.plano)||CTX.cliente
 function renderList(){
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
-    return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" ${ok?`onclick="selecionar('${a.id}')"`:''}>
-      <span class="ag-it-ico">${a.ico}</span>
+    return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" style="border-left:2px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.8':'.3'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
+      <span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
       <div><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${a.r}</div></div>
       ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
@@ -189,8 +279,16 @@ async function selecionar(id){
   const a=AGS.find(x=>x.id===id);
   document.getElementById('ct-ico').textContent=a.ico;
   document.getElementById('ct-n').textContent='Agente de '+a.n;
-  document.getElementById('mem-btn').style.display='inline-block';
-  document.getElementById('promo-top-btn').style.display=(id==='publicacao')?'inline-block':'none';
+  // cor fixa do agente (não muda com a customização do cliente)
+  const ct=document.getElementById('chat-top');
+  ct.style.setProperty('--ac', a.nc||'168,85,247');
+  document.getElementById('ct-ico').style.background='rgba('+(a.nc||'168,85,247')+',.14)';
+  document.getElementById('ct-ico').style.borderColor='rgba('+(a.nc||'168,85,247')+',.45)';
+  // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir ordem)
+  const btns=(a.btns||[]).map(b=>`<button class="ag-db" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
+  document.getElementById('ag-dash').innerHTML=btns+
+    `<button class="ag-db" onclick="abrirIncluirOrdem()">📋 Incluir ordem</button>`+
+    `<button class="ag-db" id="mem-btn" onclick="toggleMem()">🧠 O que aprendi</button>`;
   document.getElementById('mem-pane').classList.remove('show');
   document.getElementById('inp').disabled=false;
   document.getElementById('send').disabled=false;
@@ -343,12 +441,168 @@ function addMsg(cls,txt,meta){
   w.appendChild(d);w.scrollTop=w.scrollHeight;
   return d;
 }
+// ── EDITOR DE VÍDEO no chat: subir vídeo + escolher o que fazer ──
+let videoChatUrl=null;
+async function subirVideoChat(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>100*1024*1024){JUMP.toast('Vídeo muito grande (máx 100 MB)','err');inp.value='';return;}
+  addMsg('u','📹 '+f.name);
+  const w=document.getElementById('msgs');
+  const ty=document.createElement('div');ty.className='typing';ty.innerHTML='<span></span><span></span><span></span>';
+  w.appendChild(ty);w.scrollTop=w.scrollHeight;
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from('videos-crus').upload(path,f);
+    if(error)throw error;
+    videoChatUrl=JUMP.sb.storage.from('videos-crus').getPublicUrl(path).data.publicUrl;
+    // registra como upload (categoria videos) p/ o agente achar como "mais recente"
+    await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url:videoChatUrl,path}).catch(()=>{});
+    ty.remove();
+    // mostra as opções de edição (botões)
+    const box=document.createElement('div');box.className='msg a';
+    box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">Vídeo recebido! O que você quer que eu faça? (toque nas opções e eu edito no estilo da sua marca)</div>'+
+      '<div id="vchat-opts" style="display:flex;flex-direction:column;gap:9px">'+
+      '<div style="display:flex;gap:7px;flex-wrap:wrap">'+
+      '<button class="vc-chip on" data-k="legenda" onclick="vcToggle(this)">💬 Legendas automáticas</button>'+
+      '<button class="vc-chip" data-k="texto" onclick="vcToggle(this)">🔤 Texto na tela</button>'+
+      '<button class="vc-chip" data-k="corte" onclick="vcToggle(this)">✂️ Cortar trecho</button>'+
+      '</div>'+
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--t3)">Formato:</span>'+
+      '<button class="vc-chip vc-fmt on" data-f="reels" onclick="vcFmt(this)">📱 Reels (9:16)</button>'+
+      '<button class="vc-chip vc-fmt" data-f="wide" onclick="vcFmt(this)">🖥️ Paisagem</button>'+
+      '</div>'+
+      '<button class="btn btn-g btn-sm" style="align-self:flex-start;margin-top:4px" onclick="editarVideoChat()">🎬 Editar vídeo</button>'+
+      '</div>';
+    w.appendChild(box);w.scrollTop=w.scrollHeight;
+  }catch(e){
+    ty.remove();
+    addMsg('a','⚠️ Não consegui receber o vídeo. Tente de novo.');
+  }
+  inp.value='';
+}
+function vcToggle(b){b.classList.toggle('on');}
+function vcFmt(b){document.querySelectorAll('.vc-fmt').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+function editarVideoChat(){
+  if(!videoChatUrl){JUMP.toast('Suba um vídeo primeiro','err');return;}
+  const opts=document.getElementById('vchat-opts');
+  const ativos=[...opts.querySelectorAll('.vc-chip.on:not(.vc-fmt)')].map(x=>x.dataset.k);
+  const fmt=(opts.querySelector('.vc-fmt.on')||{}).dataset?.f||'reels';
+  // monta um pedido em linguagem natural p/ o agente (ele decide o resto pelo estilo da marca)
+  let pedido='Edite o vídeo que acabei de enviar. Formato '+(fmt==='reels'?'Reels vertical 9:16':'paisagem 16:9')+'. ';
+  if(ativos.includes('legenda'))pedido+='Adicione legendas automáticas sincronizadas com a fala. ';
+  if(ativos.includes('texto'))pedido+='Coloque um texto/hook curto na tela no começo. ';
+  if(ativos.includes('corte'))pedido+='Corte as partes ruins/paradas para deixar dinâmico. ';
+  pedido+='Use o estilo visual da minha marca.';
+  // remove os botões (já escolheu) e envia
+  opts.parentElement.innerHTML='<div style="font-size:13px;color:var(--g)">✓ Enviado para edição</div>';
+  enviarTexto(pedido);
+}
+
+// ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
+function subirVideoTrigger(){document.getElementById('video-file').click();}
+function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
+function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
+function cmdCalendario(){enviarTexto('Gere o calendário de conteúdo do próximo mês para o meu nicho, com temas, formatos e datas sugeridas.');}
+function cmdCriativosPend(){enviarTexto('Quais criativos estão pendentes para eu produzir? Liste as ordens de arte na fila e comece pela primeira.');}
+function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tráfego e o que precisa de ajuste agora.');}
+
+// ── INCLUIR ORDEM (usuário cria uma ordem que modela o negócio) ──
+function abrirIncluirOrdem(){
+  document.getElementById('ordem-overlay').style.display='flex';
+  document.getElementById('ordem-result').innerHTML='';
+  // pré-seleciona o agente atual como destino
+  if(AG)document.getElementById('ordem-para').value=AG;
+}
+function fecharIncluirOrdem(){document.getElementById('ordem-overlay').style.display='none';}
+async function salvarIncluirOrdem(){
+  const para=document.getElementById('ordem-para').value;
+  const tarefa=document.getElementById('ordem-tarefa').value.trim();
+  const recorrencia=document.getElementById('ordem-recorrencia').value;
+  const res=document.getElementById('ordem-result');
+  if(tarefa.length<5){res.innerHTML='<span style="color:var(--red)">Descreva a ordem (o que você quer que o agente faça).</span>';return;}
+  const btn=document.getElementById('ordem-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Salvando...';
+  try{
+    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia},CTX.token);
+    res.innerHTML='<span style="color:var(--g)">✓ Ordem criada! Você acompanha na Central de Ordens.</span>';
+    JUMP.toast('📋 Ordem registrada');
+    setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';},1400);
+  }catch(e){res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro')+'</span>';btn.disabled=false;btn.textContent='Criar ordem';}
+}
+
+// ── ENVIAR CONTEÚDO (Publicação → OS p/ Estratégia gerar a copy) ──
+let ctCriativoUrl=null, ctCriativoTipo=null;
+function abrirEnviarConteudo(){
+  document.getElementById('conteudo-overlay').style.display='flex';
+  document.getElementById('ct-result').innerHTML='';
+}
+function fecharEnviarConteudo(){document.getElementById('conteudo-overlay').style.display='none';}
+async function ctSelecionou(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>100*1024*1024){JUMP.toast('Arquivo muito grande (máx 100 MB)','err');inp.value='';return;}
+  document.getElementById('ct-drop-empty').style.display='none';
+  document.getElementById('ct-drop-has').style.display='block';
+  document.getElementById('ct-nome').textContent='Enviando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    ctCriativoTipo=f.type.startsWith('video')?'video':'imagem';
+    const bucket=ctCriativoTipo==='video'?'videos-crus':'user-uploads';
+    const path=uid+'/'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from(bucket).upload(path,f);
+    if(error)throw error;
+    ctCriativoUrl=JUMP.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    // registra em uploads (categoria conforme tipo)
+    await JUMP.sb.from('uploads').insert({user_id:uid,categoria:ctCriativoTipo==='video'?'videos':'criativos',nome:f.name,url:ctCriativoUrl,path}).catch(()=>{});
+    document.getElementById('ct-nome').textContent='✓ '+f.name;
+  }catch(e){
+    document.getElementById('ct-nome').textContent='Erro ao enviar';
+    ctCriativoUrl=null;
+  }
+}
+async function enviarConteudo(){
+  const tema=document.getElementById('ct-tema').value.trim();
+  const data=document.getElementById('ct-data').value;
+  const formato=document.getElementById('ct-formato').value;
+  const res=document.getElementById('ct-result');
+  if(!ctCriativoUrl){res.innerHTML='<span style="color:var(--red)">Suba o criativo primeiro.</span>';return;}
+  if(tema.length<3){res.innerHTML='<span style="color:var(--red)">Descreva o tema do post.</span>';return;}
+  const btn=document.getElementById('ct-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  try{
+    // dispara a OS pro Estrategista via backend (sem gastar conversa)
+    await JUMP.api('criar_os_copy',{
+      criativo_url:ctCriativoUrl, criativo_tipo:ctCriativoTipo,
+      tema, data_sugerida:data||null, formato
+    },CTX.token);
+    res.innerHTML='<span style="color:var(--g)">✓ Enviado! O Estrategista vai criar a legenda e ela aparece em Aprovar.</span>';
+    JUMP.toast('📨 Conteúdo enviado ao Estrategista');
+    setTimeout(()=>{
+      fecharEnviarConteudo();
+      // reset
+      ctCriativoUrl=null;ctCriativoTipo=null;
+      document.getElementById('ct-drop-empty').style.display='block';
+      document.getElementById('ct-drop-has').style.display='none';
+      document.getElementById('ct-file').value='';
+      document.getElementById('ct-tema').value='';document.getElementById('ct-data').value='';
+    },1500);
+  }catch(e){
+    res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro ao enviar.')+'</span>';
+    btn.disabled=false;btn.textContent='Enviar para o Estrategista';
+  }
+}
+
 async function enviar(){
   if(BUSY||!AG)return;
   const inp=document.getElementById('inp');
   const txt=inp.value.trim();
   if(!txt)return;
-  BUSY=true;inp.value='';inp.style.height='auto';
+  inp.value='';inp.style.height='auto';
+  enviarTexto(txt);
+}
+async function enviarTexto(txt){
+  if(BUSY||!AG)return;
+  BUSY=true;
   document.getElementById('send').disabled=true;
   addMsg('u',txt);
   const w=document.getElementById('msgs');
@@ -382,6 +636,13 @@ async function enviar(){
         w.appendChild(box);w.scrollTop=w.scrollHeight;
       }
       if(d.ordens)JUMP.toast('📨 Ordem enviada ao Agente Designer');
+      // Editor de Vídeo disparou uma edição automática
+      if(d.video_editando){
+        JUMP.toast('🎬 Vídeo em edição! Fica pronto em alguns minutos.');
+        const w=document.getElementById('msgs');const box=document.createElement('div');box.className='msg a';
+        box.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;padding:10px 12px;background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.25);border-radius:10px"><span style="font-size:13px">🎬 Seu vídeo está sendo editado. Acompanhe e baixe em:</span><a class="btn btn-g btn-sm" href="editor-video.html">Editor de Vídeo →</a></div>';
+        w.appendChild(box);w.scrollTop=w.scrollHeight;
+      }
     }
   }catch(e){
     ty.remove();
