@@ -615,9 +615,12 @@ async function vmEditar(){
 
   const btn=document.getElementById('vm-editar');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  // renova o token (evita 'Não autenticado' por sessão expirada durante o teste)
+  let tk=CTX.token;
+  try{const{data}=await JUMP.sb.auth.getSession();if(data&&data.session&&data.session.access_token){tk=data.session.access_token;CTX.token=tk;}}catch(e){}
   try{
     const r=await fetch('/api/video-editar',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
       body:JSON.stringify({origem_url:vmVideoUrl,operacoes:ops,titulo:'Vídeo '+new Date().toLocaleDateString('pt-BR'),ver_id:CTX.viewId||null,guardar_estilo:guardar})
     });
     const d=await r.json();
