@@ -341,6 +341,11 @@
     <label class="vm-opt" style="background:rgba(var(--g-rgb),.06);border-radius:8px;padding:9px 11px;margin-bottom:14px"><input type="checkbox" id="vm-guardar"> 💾 Guardar este estilo para os próximos vídeos</label>
 
     <button class="btn btn-g" id="vm-editar" onclick="vmEditar()" style="width:100%" disabled>🎬 Editar vídeo</button>
+
+    <div id="vm-lista-wrap" style="margin-top:18px;border-top:1px solid var(--bd);padding-top:14px;display:none">
+      <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:8px">Seus vídeos</div>
+      <div id="vm-lista"></div>
+    </div>
   </div>
 </div>
 </main>
@@ -642,33 +647,53 @@ async function vmEditar(){
   btn.disabled=false;btn.textContent='🎬 Editar vídeo';
 }
 
+async function carregarMeusVideos(){
+  try{
+    const d=await JUMP.api('video_meus_jobs',{},CTX.token);
+    const jobs=d.jobs||[];
+    const wrap=document.getElementById('vm-lista-wrap');
+    const el=document.getElementById('vm-lista');
+    if(!jobs.length){wrap.style.display='none';return;}
+    wrap.style.display='block';
+    el.innerHTML=jobs.slice(0,6).map(j=>{
+      const badge=j.status==='pronto'?'<span style="color:var(--g);font-size:11px;font-family:var(--M)">pronto</span>':j.status==='erro'?'<span style="color:var(--red);font-size:11px;font-family:var(--M)">erro</span>':'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">processando...</span>';
+      const acao=j.status==='pronto'&&j.resultado_url?`<a class="btn btn-g btn-sm" href="${j.resultado_url}" target="_blank">⬇ Baixar</a>`:'';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;color:var(--t1)">${JUMP.esc(j.titulo||'Vídeo')}</div>${badge}</div>${acao}</div>`;
+    }).join('');
+    // se há algum processando, agenda nova checagem
+    if(jobs.some(j=>j.status==='processando'))setTimeout(carregarMeusVideos,8000);
+  }catch(e){}
+}
 let pollVid=null;
 function iniciarPollingVideo(){
   if(pollVid)return;
   let voltas=0;
-  pollVid=setInterval(async()=>{
+  const checar=async()=>{
     voltas++;
     try{
       const d=await JUMP.api('video_meus_jobs',{},CTX.token);
-      const pronto=(d.jobs||[]).find(j=>j.status==='pronto'&&j.resultado_url);
       const recente=(d.jobs||[])[0];
       if(recente&&recente.status==='pronto'&&recente.resultado_url){
         clearInterval(pollVid);pollVid=null;
         const box=document.createElement('div');box.className='msg a';
         box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><a class="btn btn-g btn-sm" href="'+recente.resultado_url+'" target="_blank">⬇ Baixar vídeo</a>';
         const w=document.getElementById('msgs');w.appendChild(box);w.scrollTop=w.scrollHeight;
+        JUMP.toast('✅ Seu vídeo ficou pronto!');
       }else if(recente&&recente.status==='erro'){
         clearInterval(pollVid);pollVid=null;
-        addMsg('a','⚠️ Houve um erro ao processar o vídeo. Tente novamente.');
+        addMsg('a','⚠️ Houve um erro ao processar o vídeo: '+(recente.erro||'tente novamente.'));
       }
     }catch(e){}
-    if(voltas>40){clearInterval(pollVid);pollVid=null;} // para após ~5min
-  },8000);
+    if(voltas>90){clearInterval(pollVid);pollVid=null;addMsg('a','⏳ O vídeo está demorando mais que o normal. Ele continua processando — confira em instantes recarregando, ou clique em "Subir vídeo" para ver o status.');} // para após ~12min
+  };
+  checar(); // checa imediatamente
+  pollVid=setInterval(checar,8000);
 }
 
 // ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
 async function subirVideoTrigger(){
   document.getElementById('video-overlay').style.display='flex';
+  carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
   try{
     const{data}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id).in('chave',['video_fonte','video_cor_legenda','video_estilo_legenda','video_formato_padrao']);
