@@ -92,12 +92,14 @@ module.exports = async (req, res) => {
   if (!apiKey) return res.status(500).json({ error: 'Editor de vídeo não configurado (falta a chave do Shotstack).' });
 
   try {
-    // Auth do usuário
-    const auth = req.headers.authorization || '';
-    const token = auth.replace('Bearer ', '');
-    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } });
-    if (!uRes.ok) return res.status(401).json({ error: 'Não autenticado' });
+    // Auth do usuário (idêntico ao admin-users que funciona)
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autenticado: token ausente. Recarregue a página e entre de novo.' });
+    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` },
+    });
     const user = await uRes.json();
+    if (!uRes.ok || !user.id) return res.status(401).json({ error: 'Não autenticado: sessão inválida ou expirada (HTTP ' + uRes.status + '). Saia e entre de novo.' });
 
     const { origem_url, operacoes, titulo, ver_id, guardar_estilo } = req.body;
     if (!origem_url) return res.status(400).json({ error: 'Envie o vídeo primeiro.' });
