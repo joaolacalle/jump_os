@@ -645,7 +645,33 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
     if (action === 'video_meus_jobs') {
       const uid = requester.id;
       const jobs = await sbGet(`video_jobs?user_id=eq.${uid}&order=created_at.desc&limit=30&select=*`);
-      return res.status(200).json({ ok: true, jobs: Array.isArray(jobs) ? jobs : [] });
+      const lista = Array.isArray(jobs) ? jobs : [];
+      // Para jobs ainda 'processando' com render_id, consulta o Shotstack DIRETO
+      // (não depende do webhook — fix definitivo do "ficou processando pra sempre")
+      const shotKey = process.env.SHOTSTACK_API_KEY;
+      const stage = process.env.SHOTSTACK_ENV || 'stage';
+      if (shotKey) {
+        for (const j of lista) {
+          if (j.status === 'processando' && j.render_id) {
+            try {
+              const sr = await fetch(`https://api.shotstack.io/edit/${stage}/render/${j.render_id}`, {
+                headers: { 'x-api-key': shotKey, 'Accept': 'application/json' },
+              });
+              const sd = await sr.json();
+              const st = sd && sd.response && sd.response.status;
+              const url = sd && sd.response && sd.response.url;
+              if (st === 'done' && url) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: url, updated_at: new Date().toISOString() });
+                j.status = 'pronto'; j.resultado_url = url;
+              } else if (st === 'failed') {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Render falhou no Shotstack.', updated_at: new Date().toISOString() });
+                j.status = 'erro';
+              }
+            } catch (e) { /* ignora, tenta na próxima */ }
+          }
+        }
+      }
+      return res.status(200).json({ ok: true, jobs: lista });
     }
     // ── EDITOR DE VÍDEO: status de um job (polling) ──
     if (action === 'video_status') {
