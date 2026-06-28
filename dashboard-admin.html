@@ -63,6 +63,7 @@
     <div class="ptab" id="tab-users" onclick="trocarTab('users')">👥 Todos os usuários</div>
     <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">💬 Suporte & Segurança</div>
     <div class="ptab" id="tab-back" onclick="trocarTab('back')">⚙ Backend</div>
+    <div class="ptab" id="tab-precos" onclick="trocarTab('precos')" style="display:none">💰 Preços</div>
   </div>
 
   <!-- TAB SUPERVISORES -->
@@ -211,6 +212,56 @@
           <a class="lf" href="https://github.com" target="_blank" rel="noopener">GitHub</a>
         </div>
         <div class="bk-b" style="margin-top:6px">Status: <span style="color:var(--g);font-weight:800">● Operacional</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE PREÇOS (só CEO) -->
+  <div class="tabpane" id="pane-precos">
+    <div class="bk-grid">
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">💰 Preços da página inicial</div>
+        <div class="bk-b">Defina os valores dos planos que aparecem na home. As mentorias calculam os meses grátis automaticamente.</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+          <div style="flex:1;min-width:130px"><label class="f-label">Básico (R$/mês)</label><input class="f-input" id="pr-basico" type="number" step="0.01" oninput="recalcMentorias()"></div>
+          <div style="flex:1;min-width:130px"><label class="f-label">Plus (R$/mês)</label><input class="f-input" id="pr-plus" type="number" step="0.01" oninput="recalcMentorias()"></div>
+          <div style="flex:1;min-width:130px"><label class="f-label">Pro (R$/mês)</label><input class="f-input" id="pr-pro" type="number" step="0.01" oninput="recalcMentorias()"></div>
+        </div>
+      </div>
+
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
+        <div class="bk-b">Escolha qual plano cada mentoria dá de bônus. O sistema calcula o valor de "2 meses grátis" sozinho com base nos preços acima.</div>
+
+        <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
+          <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
+              <select class="f-input" id="pr-ment-pres" onchange="recalcMentorias()">
+                <option value="plus">Plus</option><option value="basico">Básico</option><option value="pro">Pro</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-pres-m" type="number" value="2" oninput="recalcMentorias()"></div>
+            <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-pres-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding:14px;border:1px solid var(--bd);border-radius:11px">
+          <div style="font-weight:800;color:var(--t1);margin-bottom:8px">💻 Mentoria Digital</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
+              <select class="f-input" id="pr-ment-dig" onchange="recalcMentorias()">
+                <option value="basico">Básico</option><option value="plus">Plus</option><option value="pro">Pro</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-dig-m" type="number" value="2" oninput="recalcMentorias()"></div>
+            <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-dig-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
+          </div>
+        </div>
+
+        <button class="btn btn-g" onclick="salvarPrecos()" style="margin-top:16px">Salvar preços →</button>
+        <div id="pr-msg" style="font-size:12.5px;margin-top:10px"></div>
+        <div class="bk-b" style="margin-top:10px;font-size:11px">⚠️ Os valores aqui controlam o texto exibido na home. Lembre-se de também ajustar os valores reais no PayPal (são sistemas separados).</div>
       </div>
     </div>
   </div>
@@ -416,12 +467,14 @@ let CTX=null,ALL=[],SUPS=[],USERS=[];
 })();
 
 function trocarTab(t){
-  ['sups','users','seg','back'].forEach(x=>{
-    document.getElementById('tab-'+x).classList.toggle('on',x===t);
-    document.getElementById('pane-'+x).classList.toggle('on',x===t);
+  ['sups','users','seg','back','precos'].forEach(x=>{
+    const tb=document.getElementById('tab-'+x),pn=document.getElementById('pane-'+x);
+    if(tb)tb.classList.toggle('on',x===t);
+    if(pn)pn.classList.toggle('on',x===t);
   });
   if(t==='back')carregarPlanos();
   if(t==='seg'){carregarSeguranca();carregarSuporte();}
+  if(t==='precos')carregarPrecos();
 }
 function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
@@ -442,6 +495,8 @@ async function carregar(){
   // mostra a seção de admins; botões de criar/excluir admin só p/ o CEO (protegido)
   document.getElementById('admins-sec').style.display='block';
   const ehCEO=CTX.cliente&&CTX.cliente.protegido;
+  // libera a aba de Preços apenas para o CEO (conta protegida)
+  if(ehCEO){const tp=document.getElementById('tab-precos');if(tp)tp.style.display='';}
   const bca=document.getElementById('btn-criar-admin');if(bca)bca.style.display=ehCEO?'inline-block':'none';
   /* logs */
   try{
@@ -645,6 +700,50 @@ const PLANOS_CAMPOS=[
   {k:'dm',label:'Palavras-chave de DM/promo'},
   {k:'tokens',label:'Tokens de texto/mês'},
 ];
+function fmtBRLnum(n){return 'R$ '+Number(n||0).toFixed(2).replace('.',',');}
+function recalcMentorias(){
+  const p={basico:+document.getElementById('pr-basico').value||0,plus:+document.getElementById('pr-plus').value||0,pro:+document.getElementById('pr-pro').value||0};
+  // presencial
+  const pPres=document.getElementById('pr-ment-pres').value, mPres=+document.getElementById('pr-ment-pres-m').value||0;
+  const vPres=p[pPres]*mPres;
+  document.getElementById('pr-pres-calc').textContent=mPres+' meses de '+pPres.charAt(0).toUpperCase()+pPres.slice(1)+' = '+fmtBRLnum(vPres);
+  // digital
+  const pDig=document.getElementById('pr-ment-dig').value, mDig=+document.getElementById('pr-ment-dig-m').value||0;
+  const vDig=p[pDig]*mDig;
+  document.getElementById('pr-dig-calc').textContent=mDig+' meses de '+pDig.charAt(0).toUpperCase()+pDig.slice(1)+' = '+fmtBRLnum(vDig);
+}
+async function carregarPrecos(){
+  try{
+    const d=await JUMP.api('get_config',{},CTX.token);
+    const pr=(d.config&&d.config.precos_home)||{};
+    document.getElementById('pr-basico').value=pr.basico??129.90;
+    document.getElementById('pr-plus').value=pr.plus??399.90;
+    document.getElementById('pr-pro').value=pr.pro??799.90;
+    document.getElementById('pr-ment-pres').value=pr.ment_pres_plano||'plus';
+    document.getElementById('pr-ment-pres-m').value=pr.ment_pres_meses??2;
+    document.getElementById('pr-ment-dig').value=pr.ment_dig_plano||'basico';
+    document.getElementById('pr-ment-dig-m').value=pr.ment_dig_meses??2;
+  }catch(e){
+    document.getElementById('pr-basico').value=129.90;document.getElementById('pr-plus').value=399.90;document.getElementById('pr-pro').value=799.90;
+  }
+  recalcMentorias();
+}
+async function salvarPrecos(){
+  const p={basico:+document.getElementById('pr-basico').value||0,plus:+document.getElementById('pr-plus').value||0,pro:+document.getElementById('pr-pro').value||0};
+  const pPres=document.getElementById('pr-ment-pres').value, mPres=+document.getElementById('pr-ment-pres-m').value||0;
+  const pDig=document.getElementById('pr-ment-dig').value, mDig=+document.getElementById('pr-ment-dig-m').value||0;
+  const valor={
+    basico:p.basico, plus:p.plus, pro:p.pro,
+    ment_pres_plano:pPres, ment_pres_meses:mPres, ment_pres_valor:+(p[pPres]*mPres).toFixed(2),
+    ment_dig_plano:pDig, ment_dig_meses:mDig, ment_dig_valor:+(p[pDig]*mDig).toFixed(2),
+  };
+  const msg=document.getElementById('pr-msg');
+  try{
+    await JUMP.api('set_config',{chave:'precos_home',valor},CTX.token);
+    msg.innerHTML='<span style="color:var(--g)">✓ Preços salvos! A home já reflete os novos valores.</span>';
+    JUMP.toast('💰 Preços atualizados');
+  }catch(e){msg.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro ao salvar')+'</span>';}
+}
 async function carregarPlanos(){
   try{
     const d=await JUMP.api('get_planos',{},CTX.token);

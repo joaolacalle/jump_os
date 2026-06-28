@@ -944,7 +944,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pf-lbl">Plano</div>
             <div class="pf-name">Básico</div>
             <div class="pf-price-b">
-              <div class="pf-price-row"><div class="pf-val"><span class="pf-sup">R$</span>129<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-basico"><span class="pf-sup">R$</span>129<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
               <div class="pf-recorr">Cobrança recorrente mensal</div>
             </div>
@@ -985,7 +985,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pf-lbl">Plano</div>
             <div class="pf-name">Plus</div>
             <div class="pf-price-b">
-              <div class="pf-price-row"><div class="pf-val"><span class="pf-sup">R$</span>399<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-plus"><span class="pf-sup">R$</span>399<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
               <div class="pf-recorr">Cobrança recorrente mensal</div>
             </div>
@@ -1023,10 +1023,10 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       <div class="pf-wrap" id="pfw-2">
         <div class="pf-inner">
           <div class="pf-front pro-card">
-            <div class="pf-lbl" style="color:rgba(168,85,247,.7)">Plano</div>
+            <div class="pf-lbl" style="color:rgba(168,85,247,.7)">Em breve</div>
             <div class="pf-name" style="color:rgba(168,85,247,.8)">Pro</div>
             <div class="pf-price-b" style="background:rgba(168,85,247,.06)">
-              <div class="pf-price-row"><div class="pf-val" style="color:rgba(168,85,247,.8)"><span class="pf-sup">R$</span>799<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-pro" style="color:rgba(168,85,247,.8)"><span class="pf-sup">R$</span>799<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
               <div class="pf-recorr" style="color:rgba(168,85,247,.5)">Cobrança recorrente mensal</div>
             </div>
@@ -1091,7 +1091,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                 </div>
                 <div style="display:flex;align-items:center;gap:9px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)">2 meses Plus grátis</div>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-pres-badge">2 meses Plus grátis</div>
                 </div>
               </div>
               <button class="mf-ver" style="margin-top:12px" onclick="flipMent(0)">Ver o que inclui →</button>
@@ -1105,7 +1105,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                   <li>Aplicação com customização pro seu nicho</li>
                   <li>Treinamento captação e edição dinâmica</li>
                   <li>Material Didático JUMP (exclusivo)</li>
-                  <li>🎁 2 meses de plano Plus grátis (R$799,80)</li>
+                  <li id="ment-pres-li">🎁 2 meses de plano Plus grátis (R$799,80)</li>
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
@@ -1128,7 +1128,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                 </div>
                 <div style="display:flex;align-items:center;gap:9px;background:rgba(185,117,249,.07);border:1px solid rgba(185,117,249,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)">2 meses Básico grátis</div>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-dig-badge">2 meses Básico grátis</div>
                 </div>
               </div>
               <button class="mf-ver" style="margin-top:12px" onclick="flipMent(1)">Ver o que inclui →</button>
@@ -1142,7 +1142,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
                   <li>Customização para aplicação remota</li>
                   <li>Material Didático JUMP (exclusivo)</li>
                   <li>Suporte entre sessões</li>
-                  <li>🎁 2 meses de plano Básico grátis (R$259,80)</li>
+                  <li id="ment-dig-li">🎁 2 meses de plano Básico grátis (R$259,80)</li>
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
@@ -1507,5 +1507,37 @@ document.addEventListener('click',e=>{
 });
 </script>
 <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" class="wa-float" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2z"/></svg></a>
+<script>
+// Atualiza os preços da home a partir da config 'precos_home' (definida no painel admin)
+(async function(){
+  const SB='https://fcdjzubdxikpvcqvalnt.supabase.co';
+  const AK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
+  function brl(n){return Number(n||0).toFixed(2).replace('.',',');}
+  function setPreco(id,valor){
+    const el=document.getElementById(id);if(!el||valor==null)return;
+    const v=brl(valor),p=v.split(',');
+    el.innerHTML='<span class="pf-sup">R$</span>'+p[0]+'<span style="font-size:clamp(22px,3vw,30px)">,'+p[1]+'</span>';
+  }
+  try{
+    const r=await fetch(SB+'/rest/v1/config?chave=eq.precos_home&select=valor',{headers:{apikey:AK,Authorization:'Bearer '+AK}});
+    const rows=await r.json();
+    if(!Array.isArray(rows)||!rows.length||!rows[0].valor)return; // sem config: mantém os valores do HTML
+    const pr=rows[0].valor;
+    setPreco('preco-basico',pr.basico);
+    setPreco('preco-plus',pr.plus);
+    setPreco('preco-pro',pr.pro);
+    // mentorias (meses grátis)
+    const nome={basico:'Básico',plus:'Plus',pro:'Pro'};
+    if(pr.ment_pres_plano){
+      const b=document.getElementById('ment-pres-badge');if(b)b.textContent=(pr.ment_pres_meses||2)+' meses '+nome[pr.ment_pres_plano]+' grátis';
+      const li=document.getElementById('ment-pres-li');if(li)li.textContent='🎁 '+(pr.ment_pres_meses||2)+' meses de plano '+nome[pr.ment_pres_plano]+' grátis (R$'+brl(pr.ment_pres_valor)+')';
+    }
+    if(pr.ment_dig_plano){
+      const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||2)+' meses '+nome[pr.ment_dig_plano]+' grátis';
+      const li=document.getElementById('ment-dig-li');if(li)li.textContent='🎁 '+(pr.ment_dig_meses||2)+' meses de plano '+nome[pr.ment_dig_plano]+' grátis (R$'+brl(pr.ment_dig_valor)+')';
+    }
+  }catch(e){/* mantém os valores do HTML em caso de erro */}
+})();
+</script>
 </body>
 </html>
