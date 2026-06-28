@@ -161,9 +161,20 @@ window.JUMP=(function(){
     const app=document.querySelector('.app');
     if(app)app.insertBefore(aside,app.firstChild);
     const mt=document.createElement('div');mt.className='mob-top';
-    mt.innerHTML=`<img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button>`;
+    mt.innerHTML=`<button class="mob-burger" aria-label="Menu" onclick="JUMP.toggleSidebar(true)">☰</button><img src="assets/logo.png" alt="JUMP OS"><button class="mob-out" onclick="JUMP.logout()">Sair</button>`;
     document.body.insertBefore(mt,document.body.firstChild);
+    // overlay p/ fechar a sidebar ao tocar fora (mobile)
+    const ov=document.createElement('div');ov.className='sb-overlay';ov.onclick=()=>JUMP.toggleSidebar(false);
+    document.body.appendChild(ov);
+  }
+  function toggleSidebar(abrir){
+    const sb=document.querySelector('.sidebar');const ov=document.querySelector('.sb-overlay');
+    if(!sb)return;
+    const mostrar = abrir===undefined ? !sb.classList.contains('open') : abrir;
+    sb.classList.toggle('open',mostrar);
+    if(ov)ov.classList.toggle('show',mostrar);
+    document.body.style.overflow=mostrar?'hidden':'';
   }
 
-  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink};
+  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
 })();
