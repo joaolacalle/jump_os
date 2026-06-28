@@ -23,7 +23,8 @@
     <div class="ptab" id="t-produtos" onclick="trocar('produtos')">📦 Produtos</div>
     <div class="ptab" id="t-pessoais" onclick="trocar('pessoais')">📸 Fotos pessoais</div>
     <div class="ptab" id="t-videos" onclick="trocar('videos')">🎬 Vídeos <span class="pill pill-p" style="margin-left:5px;font-size:8px;padding:2px 7px">Pro</span></div>
-    <div class="ptab" id="t-gerados" onclick="trocar('gerados')">✨ Gerados por IA</div>
+    <div class="ptab" id="t-gerados" onclick="trocar('gerados')">✨ Imagens geradas</div>
+    <div class="ptab" id="t-gerados_video" onclick="trocar('gerados_video')">🎞 Vídeos editados</div>
   </div>
   <div class="up-zone" id="zone" onclick="document.getElementById('file-in').click()">
     <div style="font-size:26px;margin-bottom:7px">⬆</div>
@@ -43,6 +44,7 @@ const CFG={
   pessoais:{t:'Enviar fotos pessoais/da equipe',b:'Para conteúdo com rosto, bastidores e autoridade',accept:'image/*'},
   videos:{t:'Enviar vídeo bruto',b:'O Agente Editor corta, legenda e exporta (plano Pro)',accept:'video/*'},
   gerados:{t:'Imagens criadas pelos agentes',b:'As artes geradas pela IA ficam salvas aqui — baixe ou reaproveite',accept:'image/*',somenteLeitura:true},
+  gerados_video:{t:'Vídeos editados pelo Editor',b:'Seus vídeos prontos ficam aqui por 60 dias — baixe para guardar',accept:'video/*',somenteLeitura:true},
 };
 (async()=>{
   try{
@@ -55,7 +57,7 @@ const CFG={
 })();
 function trocar(c){
   CAT=c;
-  ['logo','produtos','pessoais','videos','gerados'].forEach(x=>document.getElementById('t-'+x).classList.toggle('on',x===c));
+  ['logo','produtos','pessoais','videos','gerados','gerados_video'].forEach(x=>document.getElementById('t-'+x).classList.toggle('on',x===c));
   const cfg=CFG[c];
   document.getElementById('zone-t').textContent=cfg.t;
   document.getElementById('zone-b').textContent=cfg.b;
@@ -71,9 +73,21 @@ async function listar(){
   }catch(e){FILES=[]}
   render();
 }
-function render(){
-  const rows=FILES.filter(f=>f.categoria===CAT);
+async function render(){
   const g=document.getElementById('grid');
+  // Aba especial: Vídeos editados (vem do video_jobs, não de uploads)
+  if(CAT==='gerados_video'){
+    let jobs=[];
+    try{const d=await JUMP.api('video_meus_jobs',{},CTX.token);jobs=(d.jobs||[]).filter(j=>j.status==='pronto'&&j.resultado_url);}catch(e){}
+    if(!jobs.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum vídeo editado ainda. Use o Editor de Vídeo no chat dos agentes.</div>';return}
+    g.innerHTML=jobs.map(j=>`<div class="up-item" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px">
+      <div style="font-size:30px">🎞</div>
+      <div style="font-size:11px;color:var(--t2);text-align:center">${JUMP.esc(j.titulo||'Vídeo')}</div>
+      <a class="btn btn-g btn-sm" href="${j.resultado_url}" target="_blank">⬇ Baixar</a>
+    </div>`).join('');
+    return;
+  }
+  const rows=FILES.filter(f=>f.categoria===CAT);
   if(!rows.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum arquivo nesta categoria ainda.</div>';return}
   g.innerHTML=rows.map(f=>`<div class="up-item">
     ${CAT==='videos'?`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:30px">🎬</div>`:`<img src="${f.url}" alt="">`}

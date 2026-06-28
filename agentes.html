@@ -313,6 +313,31 @@
       </select>
     </div>
 
+    <div style="display:flex;gap:8px;margin:10px 0">
+      <div style="flex:1"><label class="f-label" style="font-size:11px">Velocidade</label>
+        <select class="f-input" id="vm-velocidade" style="padding:8px">
+          <option value="1">Normal (1x)</option>
+          <option value="0.75">Mais devagar (0.75x)</option>
+          <option value="1.25">Um pouco rápido (1.25x)</option>
+          <option value="1.5">Rápido (1.5x)</option>
+          <option value="2">Muito rápido (2x)</option>
+        </select>
+      </div>
+      <div style="flex:1"><label class="f-label" style="font-size:11px">Filtro</label>
+        <select class="f-input" id="vm-filtro" style="padding:8px">
+          <option value="">Nenhum</option>
+          <option value="boost">Vívido (boost)</option>
+          <option value="contrast">Mais contraste</option>
+          <option value="lighten">Clarear</option>
+          <option value="darken">Escurecer</option>
+          <option value="muted">Suave (muted)</option>
+          <option value="greyscale">Preto e branco</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-vsl" onchange="ajustarVsl(this)"> 🎯 É uma VSL (legenda mais ao centro)</label>
+
     <label class="vm-opt"><input type="checkbox" id="vm-texto" onchange="vmToggleSub('vm-sub-texto',this)"> 🔤 Texto na tela (hook)</label>
     <div id="vm-sub-texto" style="display:none;margin:6px 0 12px 24px">
       <input class="f-input" id="vm-texto-val" placeholder="Ex: PROMOÇÃO DA SEMANA" maxlength="60">
@@ -561,6 +586,7 @@ let videoChatUrl=null;
 // ── EDITOR DE VÍDEO (modal completo no chat) ──
 let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
 function vmFechar(){document.getElementById('video-overlay').style.display='none';}
+function ajustarVsl(cb){/* VSL: a legenda vai mais ao centro; o backend aplica via ops.vsl */}
 function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
 function vmSetFmt(f){vmFormato=f;document.getElementById('vm-fmt-reels').classList.toggle('on',f==='reels');document.getElementById('vm-fmt-wide').classList.toggle('on',f==='wide');}
 
@@ -613,6 +639,9 @@ async function vmEditar(){
     ops.corte_fim=+document.getElementById('vm-corte-fim').value||null;
   }
   if(document.getElementById('vm-corte').checked)ops.estilo_corte=document.getElementById('vm-estilo-corte').value;
+  const vel=document.getElementById('vm-velocidade').value;if(vel&&vel!=='1')ops.velocidade=+vel;
+  const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
+  if(document.getElementById('vm-vsl').checked)ops.vsl=true;
   if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
   if(document.getElementById('vm-trilha').checked&&vmTrilhaUrl)ops.trilha_url=vmTrilhaUrl;
   if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
@@ -631,7 +660,7 @@ async function vmEditar(){
     const d=await r.json();
     if(r.ok&&d.ok){
       vmFechar();
-      addMsg('a','🎬 Seu vídeo está sendo editado! Fica pronto em alguns minutos — eu te aviso aqui e você acompanha na Central de Ordens.');
+      addMsg('a','🎬 Recebi seu vídeo! '+(ops.legenda?'Estou gerando as legendas e depois editando':'Estou editando')+' — fica pronto em alguns minutos e eu te aviso aqui.');
       JUMP.toast('🎬 Vídeo em processamento');
       if(guardar)addMsg('a','✓ Guardei seu estilo de edição (fonte, cor e cortes) para os próximos vídeos ficarem com a sua cara.');
       // reset
@@ -656,12 +685,13 @@ async function carregarMeusVideos(){
     if(!jobs.length){wrap.style.display='none';return;}
     wrap.style.display='block';
     el.innerHTML=jobs.slice(0,6).map(j=>{
-      const badge=j.status==='pronto'?'<span style="color:var(--g);font-size:11px;font-family:var(--M)">pronto</span>':j.status==='erro'?'<span style="color:var(--red);font-size:11px;font-family:var(--M)">erro</span>':'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">processando...</span>';
+      const stTxt=j.status==='pronto'?'<span style="color:var(--g);font-size:11px;font-family:var(--M)">pronto</span>':j.status==='erro'?('<span style="color:var(--red);font-size:11px;font-family:var(--M)">erro</span>'):j.status==='transcrevendo'?'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">gerando legendas...</span>':'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">processando...</span>';
+      const badge=stTxt;
       const acao=j.status==='pronto'&&j.resultado_url?`<a class="btn btn-g btn-sm" href="${j.resultado_url}" target="_blank">⬇ Baixar</a>`:'';
       return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;color:var(--t1)">${JUMP.esc(j.titulo||'Vídeo')}</div>${badge}</div>${acao}</div>`;
     }).join('');
     // se há algum processando, agenda nova checagem
-    if(jobs.some(j=>j.status==='processando'))setTimeout(carregarMeusVideos,8000);
+    if(jobs.some(j=>j.status==='processando'||j.status==='transcrevendo'))setTimeout(carregarMeusVideos,8000);
   }catch(e){}
 }
 let pollVid=null;
@@ -683,6 +713,7 @@ function iniciarPollingVideo(){
         clearInterval(pollVid);pollVid=null;
         addMsg('a','⚠️ Houve um erro ao processar o vídeo: '+(recente.erro||'tente novamente.'));
       }
+      // 'transcrevendo' e 'processando' continuam no loop
     }catch(e){}
     if(voltas>90){clearInterval(pollVid);pollVid=null;addMsg('a','⏳ O vídeo está demorando mais que o normal. Ele continua processando — confira em instantes recarregando, ou clique em "Subir vídeo" para ver o status.');} // para após ~12min
   };
