@@ -1,6 +1,7 @@
 // api/admin-users.js — Backend de gestão (supervisor/admin)
 // ENV: SUPABASE_SERVICE_KEY (service role). Valida o JWT do solicitante e aplica escopo.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+const { montarEdit, checarTranscricao, iniciarRender, checarRender } = require('./_video-lib');
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
 const H = () => ({
@@ -646,29 +647,43 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       const uid = requester.id;
       const jobs = await sbGet(`video_jobs?user_id=eq.${uid}&order=created_at.desc&limit=30&select=*`);
       const lista = Array.isArray(jobs) ? jobs : [];
-      // Para jobs ainda 'processando' com render_id, consulta o Shotstack DIRETO
-      // (não depende do webhook — fix definitivo do "ficou processando pra sempre")
-      const shotKey = process.env.SHOTSTACK_API_KEY;
-      const stage = process.env.SHOTSTACK_ENV || 'stage';
-      if (shotKey) {
+      // Máquina de estados (não depende de webhook): avança cada job a cada chamada
+      if (process.env.SHOTSTACK_API_KEY) {
         for (const j of lista) {
-          if (j.status === 'processando' && j.render_id) {
-            try {
-              const sr = await fetch(`https://api.shotstack.io/edit/${stage}/render/${j.render_id}`, {
-                headers: { 'x-api-key': shotKey, 'Accept': 'application/json' },
-              });
-              const sd = await sr.json();
-              const st = sd && sd.response && sd.response.status;
-              const url = sd && sd.response && sd.response.url;
-              if (st === 'done' && url) {
-                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: url, updated_at: new Date().toISOString() });
-                j.status = 'pronto'; j.resultado_url = url;
-              } else if (st === 'failed') {
-                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Render falhou no Shotstack.', updated_at: new Date().toISOString() });
+          try {
+            // ESTADO 'transcrevendo': render_id começa com 'src:' (é o source_id da transcrição)
+            if (j.status === 'transcrevendo' && j.render_id && j.render_id.startsWith('src:')) {
+              const sourceId = j.render_id.slice(4);
+              const tr = await checarTranscricao(sourceId);
+              if (tr.ready && tr.srt_url) {
+                // transcrição pronta → dispara o render com o SRT
+                const edit = montarEdit(j.origem_url, j.operacoes || {}, tr.srt_url);
+                const rn = await iniciarRender(edit);
+                if (rn.error) {
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: ('Render: ' + rn.error).slice(0, 300) });
+                  j.status = 'erro';
+                } else {
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'processando', render_id: rn.render_id });
+                  j.status = 'processando'; j.render_id = rn.render_id;
+                }
+              } else if (tr.failed) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'A transcrição falhou.' });
                 j.status = 'erro';
               }
-            } catch (e) { /* ignora, tenta na próxima */ }
-          }
+              // se waiting, deixa como está (tenta na próxima)
+            }
+            // ESTADO 'processando': consulta o render
+            else if (j.status === 'processando' && j.render_id && !j.render_id.startsWith('src:')) {
+              const rr = await checarRender(j.render_id);
+              if (rr.done && rr.url) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
+                j.status = 'pronto'; j.resultado_url = rr.url;
+              } else if (rr.failed) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'O render falhou no Shotstack.' });
+                j.status = 'erro';
+              }
+            }
+          } catch (e) { /* ignora, tenta na próxima batida */ }
         }
       }
       return res.status(200).json({ ok: true, jobs: lista });

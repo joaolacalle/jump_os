@@ -189,6 +189,33 @@ async function jobOrdens() {
   return { recorrentes_criadas: recCriadas, lembretes };
 }
 
+async function jobLimpeza() {
+  // Remove arquivos com +60 dias (protege o Supabase grátis). Barato, sem IA.
+  const LIMITE_DIAS = 60;
+  const corte = new Date(Date.now() - LIMITE_DIAS * 24 * 60 * 60 * 1000).toISOString();
+  let removidos = 0;
+
+  // 1) Vídeos crus e imagens geradas antigas (tabela uploads)
+  const antigos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?created_at=lt.${corte}&categoria=in.(videos,gerados)&select=id,path,categoria`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  for (const u of (Array.isArray(antigos) ? antigos : [])) {
+    try {
+      // remove do Storage (bucket conforme a categoria)
+      const bucket = u.categoria === 'videos' ? 'videos-crus' : 'user-uploads';
+      if (u.path) {
+        await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${u.path}`, { method: 'DELETE', headers: SBH() }).catch(() => {});
+      }
+      // remove o registro
+      await fetch(`${SUPABASE_URL}/rest/v1/uploads?id=eq.${u.id}`, { method: 'DELETE', headers: SBH() }).catch(() => {});
+      removidos++;
+    } catch (e) { /* ignora */ }
+  }
+
+  // 2) Jobs de vídeo antigos (libera a tabela; o vídeo no Shotstack já expirou)
+  await fetch(`${SUPABASE_URL}/rest/v1/video_jobs?created_at=lt.${corte}`, { method: 'DELETE', headers: SBH() }).catch(() => {});
+
+  return { removidos };
+}
+
   const job = (req.query && req.query.job) || '';
   try {
     if (job === 'estrategia') {
@@ -207,7 +234,11 @@ async function jobOrdens() {
       const r = await jobOrdens();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca ou ordens)' });
+    if (job === 'limpeza') {
+      const r = await jobLimpeza();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca, ordens ou limpeza)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
