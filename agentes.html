@@ -687,12 +687,22 @@ async function carregarMeusVideos(){
     el.innerHTML=jobs.slice(0,6).map(j=>{
       const stTxt=j.status==='pronto'?'<span style="color:var(--g);font-size:11px;font-family:var(--M)">pronto</span>':j.status==='erro'?('<span style="color:var(--red);font-size:11px;font-family:var(--M)">erro</span>'):j.status==='transcrevendo'?'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">gerando legendas...</span>':'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">processando...</span>';
       const badge=stTxt;
-      const acao=j.status==='pronto'&&j.resultado_url?`<a class="btn btn-g btn-sm" href="${j.resultado_url}" target="_blank">⬇ Baixar</a>`:'';
+      const dlUrl=j.salvo_url||j.resultado_url;
+      const acao=j.status==='pronto'&&dlUrl?`<button class="btn btn-g btn-sm" onclick="baixarVideoJob('${j.id}','${j.salvo_url||''}','${j.resultado_url||''}')">⬇ Baixar</button>`:'';
       return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;color:var(--t1)">${JUMP.esc(j.titulo||'Vídeo')}</div>${badge}</div>${acao}</div>`;
     }).join('');
     // se há algum processando, agenda nova checagem
     if(jobs.some(j=>j.status==='processando'||j.status==='transcrevendo'))setTimeout(carregarMeusVideos,8000);
   }catch(e){}
+}
+async function baixarVideoJob(jobId,salvoUrl,shotUrl){
+  // prefere a URL salva no nosso banco (não expira); cai pra do Shotstack se não tiver
+  const url=salvoUrl||shotUrl;
+  if(!url){JUMP.toast('Vídeo indisponível','err');return;}
+  // abre o download
+  window.open(url,'_blank');
+  // marca como baixado no servidor → apaga o vídeo cru (libera espaço)
+  try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
 }
 let pollVid=null;
 function iniciarPollingVideo(){
@@ -706,7 +716,7 @@ function iniciarPollingVideo(){
       if(recente&&recente.status==='pronto'&&recente.resultado_url){
         clearInterval(pollVid);pollVid=null;
         const box=document.createElement('div');box.className='msg a';
-        box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><a class="btn btn-g btn-sm" href="'+recente.resultado_url+'" target="_blank">⬇ Baixar vídeo</a>';
+        box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><button class="btn btn-g btn-sm" onclick="baixarVideoJob(\''+recente.id+'\',\''+(recente.salvo_url||'')+'\',\''+(recente.resultado_url||'')+'\')">⬇ Baixar vídeo</button>';
         const w=document.getElementById('msgs');w.appendChild(box);w.scrollTop=w.scrollHeight;
         JUMP.toast('✅ Seu vídeo ficou pronto!');
       }else if(recente&&recente.status==='erro'){

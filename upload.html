@@ -78,12 +78,12 @@ async function render(){
   // Aba especial: Vídeos editados (vem do video_jobs, não de uploads)
   if(CAT==='gerados_video'){
     let jobs=[];
-    try{const d=await JUMP.api('video_meus_jobs',{},CTX.token);jobs=(d.jobs||[]).filter(j=>j.status==='pronto'&&j.resultado_url);}catch(e){}
+    try{const d=await JUMP.api('video_meus_jobs',{},CTX.token);jobs=(d.jobs||[]).filter(j=>j.status==='pronto'&&(j.salvo_url||j.resultado_url));}catch(e){}
     if(!jobs.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum vídeo editado ainda. Use o Editor de Vídeo no chat dos agentes.</div>';return}
     g.innerHTML=jobs.map(j=>`<div class="up-item" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px">
       <div style="font-size:30px">🎞</div>
       <div style="font-size:11px;color:var(--t2);text-align:center">${JUMP.esc(j.titulo||'Vídeo')}</div>
-      <a class="btn btn-g btn-sm" href="${j.resultado_url}" target="_blank">⬇ Baixar</a>
+      <a class="btn btn-g btn-sm" href="${j.salvo_url||j.resultado_url}" target="_blank">⬇ Baixar</a>
     </div>`).join('');
     return;
   }
