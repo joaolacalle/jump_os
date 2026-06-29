@@ -112,6 +112,18 @@ window.JUMP=(function(){
     if(!r.ok)throw new Error(d.error||'Erro na operação');
     return d;
   }
+  // versão que nunca lança erro (p/ polling em background, não assusta o usuário)
+  async function apiSilencioso(action,payload,token){
+    try{
+      const r=await fetch('/api/admin-users',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({action,...payload})
+      });
+      if(!r.ok)return null;
+      return await r.json();
+    }catch(e){return null;}
+  }
 
   function fmtNum(n){
     if(n===null||n===undefined)return'0';
@@ -176,5 +188,5 @@ window.JUMP=(function(){
     document.body.style.overflow=mostrar?'hidden':'';
   }
 
-  return{sb,guard,logout,toast,api,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
+  return{sb,guard,logout,toast,api,apiSilencioso,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
 })();
