@@ -13,6 +13,36 @@ function shotHeaders() {
 
 // Mapeia a posição da legenda. Para VSL, "centro" sobe a legenda (margin.top menor faz descer; usamos margin.bottom).
 // offset.y: 0 = centro, negativo = mais pra baixo. Usamos margin que é o recomendado p/ caption.
+
+// Biblioteca de trilhas royalty-free por estilo (FreePD - CC0, livres de direitos).
+// O agente escolhe uma variação aleatória pra não repetir entre vídeos.
+const TRILHAS = {
+  animada: [
+    'https://feeds.shotstack.io/music/freepd/upbeat.mp3',
+    'https://feeds.shotstack.io/music/freepd/energetic.mp3',
+  ],
+  calma: [
+    'https://feeds.shotstack.io/music/freepd/relaxing.mp3',
+    'https://feeds.shotstack.io/music/freepd/ambient.mp3',
+  ],
+  reflexiva: [
+    'https://feeds.shotstack.io/music/freepd/emotional.mp3',
+    'https://feeds.shotstack.io/music/freepd/cinematic.mp3',
+  ],
+  corporativa: [
+    'https://feeds.shotstack.io/music/freepd/corporate.mp3',
+    'https://feeds.shotstack.io/music/freepd/motivational.mp3',
+  ],
+  inspiradora: [
+    'https://feeds.shotstack.io/music/freepd/inspiring.mp3',
+    'https://feeds.shotstack.io/music/freepd/uplifting.mp3',
+  ],
+};
+function escolherTrilha(estilo) {
+  const lista = TRILHAS[estilo] || TRILHAS.animada;
+  return lista[Math.floor(Math.random() * lista.length)];
+}
+
 function montarEdit(origemUrl, ops, srtUrl) {
   const isReels = ops.formato !== 'wide';
   const largura = isReels ? 1080 : 1920;
@@ -58,9 +88,11 @@ function montarEdit(origemUrl, ops, srtUrl) {
 
   const timeline = { background: '#000000', tracks };
 
-  // trilha sonora
-  if (ops.trilha_url) {
-    timeline.soundtrack = { src: ops.trilha_url, effect: 'fadeInFadeOut', volume: ops.trilha_volume != null ? Number(ops.trilha_volume) : 0.3 };
+  // trilha sonora: por estilo (agente escolhe variação) ou URL direta (legado)
+  let trilhaSrc = ops.trilha_url;
+  if (!trilhaSrc && ops.trilha_estilo) trilhaSrc = escolherTrilha(ops.trilha_estilo);
+  if (trilhaSrc) {
+    timeline.soundtrack = { src: trilhaSrc, effect: 'fadeInFadeOut', volume: ops.trilha_volume != null ? Number(ops.trilha_volume) : 0.25 };
   }
 
   // LEGENDA: usa o arquivo .srt gerado pela transcrição (srtUrl)

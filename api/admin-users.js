@@ -785,6 +785,34 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       return res.status(200).json({ ok: true });
     }
 
+    // ── DIAGNÓSTICO: mostra o estado real do vídeo no Shotstack (debug) ──
+    if (action === 'video_diagnostico') {
+      const uid = requester.id;
+      const jobs = await sbGet(`video_jobs?user_id=eq.${uid}&order=created_at.desc&limit=1&select=*`);
+      const j = Array.isArray(jobs) && jobs[0];
+      if (!j) return res.status(200).json({ ok: true, msg: 'Nenhum vídeo encontrado.' });
+      const out = { job: { id: j.id, status: j.status, render_id: j.render_id, erro: j.erro, criado: j.created_at } };
+      const stage = process.env.SHOTSTACK_ENV || 'stage';
+      const key = process.env.SHOTSTACK_API_KEY;
+      try {
+        if (j.render_id && j.render_id.startsWith('src:')) {
+          const sid = j.render_id.slice(4);
+          const sr = await fetch(`https://api.shotstack.io/ingest/${stage}/sources/${sid}`, { headers: { 'x-api-key': key, Accept: 'application/json' } });
+          const sd = await sr.json();
+          out.http_status = sr.status;
+          out.source = sd && sd.data && sd.data.attributes ? {
+            status: sd.data.attributes.status,
+            transcription: sd.data.attributes.outputs && sd.data.attributes.outputs.transcription,
+          } : sd;
+        } else if (j.render_id) {
+          const rr = await fetch(`https://api.shotstack.io/edit/${stage}/render/${j.render_id}`, { headers: { 'x-api-key': key, Accept: 'application/json' } });
+          const rd = await rr.json();
+          out.render = rd && rd.response ? { status: rd.response.status, url: rd.response.url, error: rd.response.error } : rd;
+        }
+      } catch (e) { out.erro_diag = e.message; }
+      return res.status(200).json({ ok: true, diagnostico: out });
+    }
+
     // ── VÍDEO BAIXADO: marca como baixado e apaga o vídeo CRU (libera espaço) ──
     if (action === 'video_baixado') {
       const uid = requester.id;
