@@ -647,9 +647,12 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       const uid = requester.id;
       const jobs = await sbGet(`video_jobs?user_id=eq.${uid}&order=created_at.desc&limit=30&select=*`);
       const lista = Array.isArray(jobs) ? jobs : [];
-      // Máquina de estados (não depende de webhook): avança cada job a cada chamada
+      // Máquina de estados (não depende de webhook): processa SÓ os jobs pendentes
+      // e no MÁXIMO 1 por chamada (evita timeout/erro de conexão na Vercel 60s)
       if (process.env.SHOTSTACK_API_KEY) {
-        for (const j of lista) {
+        const pendentes = lista.filter(j => j.status === 'transcrevendo' || j.status === 'processando');
+        const aProcessar = pendentes.slice(0, 1); // só o mais recente pendente
+        for (const j of aProcessar) {
           try {
             // ESTADO 'transcrevendo': render_id começa com 'src:' (é o source_id da transcrição)
             if (j.status === 'transcrevendo' && j.render_id && j.render_id.startsWith('src:')) {
@@ -696,13 +699,10 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
             else if (j.status === 'processando' && j.render_id && !j.render_id.startsWith('src:')) {
               const rr = await checarRender(j.render_id);
               if (rr.done && rr.url) {
-                // copia o vídeo pro nosso Storage (resolve a expiração de 24h do Shotstack)
-                let salvo = {};
-                try { salvo = await salvarVideoNoBanco(rr.url, j.user_id, SUPABASE_URL, KEY()); } catch (e) { salvo = { error: e.message }; }
-                const patch = { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() };
-                if (salvo && salvo.url) { patch.salvo_url = salvo.url; patch.salvo_path = salvo.path; }
-                await sbPatch(`video_jobs?id=eq.${j.id}`, patch);
-                j.status = 'pronto'; j.resultado_url = rr.url; if (salvo && salvo.url) { j.salvo_url = salvo.url; j.salvo_path = salvo.path; }
+                // marca pronto JÁ com a URL do Shotstack (rápido); o salvamento no banco
+                // acontece numa ação separada (video_salvar) p/ não travar esta chamada
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
+                j.status = 'pronto'; j.resultado_url = rr.url;
               } else if (rr.failed) {
                 await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'O render falhou no Shotstack.' });
                 j.status = 'erro';
@@ -783,6 +783,24 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       if (!o || (o.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
       await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
       return res.status(200).json({ ok: true });
+    }
+
+    // ── SALVAR VÍDEO NO BANCO: copia o pronto do Shotstack pro nosso Storage ──
+    if (action === 'video_salvar') {
+      const uid = requester.id;
+      const { job_id } = req.body;
+      if (!job_id) return res.status(400).json({ error: 'job_id obrigatório' });
+      const [j] = await sbGet(`video_jobs?id=eq.${job_id}&select=user_id,resultado_url,salvo_url,status`);
+      if (!j || (j.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
+      if (j.salvo_url) return res.status(200).json({ ok: true, salvo_url: j.salvo_url, ja: true });
+      if (j.status !== 'pronto' || !j.resultado_url) return res.status(400).json({ error: 'Vídeo ainda não está pronto' });
+      let salvo = {};
+      try { salvo = await salvarVideoNoBanco(j.resultado_url, j.user_id, SUPABASE_URL, KEY()); } catch (e) { salvo = { error: e.message }; }
+      if (salvo && salvo.url) {
+        await sbPatch(`video_jobs?id=eq.${job_id}`, { salvo_url: salvo.url, salvo_path: salvo.path });
+        return res.status(200).json({ ok: true, salvo_url: salvo.url });
+      }
+      return res.status(200).json({ ok: false, erro: (salvo && salvo.error) || 'não foi possível salvar', resultado_url: j.resultado_url });
     }
 
     // ── DIAGNÓSTICO: mostra o estado real do vídeo no Shotstack (debug) ──
