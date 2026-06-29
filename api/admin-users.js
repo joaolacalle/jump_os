@@ -1,7 +1,7 @@
 // api/admin-users.js — Backend de gestão (supervisor/admin)
 // ENV: SUPABASE_SERVICE_KEY (service role). Valida o JWT do solicitante e aplica escopo.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const { montarEdit, checarTranscricao, iniciarRender, checarRender } = require('./_video-lib');
+const { montarEdit, checarTranscricao, iniciarRender, checarRender, salvarVideoNoBanco } = require('./_video-lib');
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
 const H = () => ({
@@ -656,19 +656,39 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
               const sourceId = j.render_id.slice(4);
               const tr = await checarTranscricao(sourceId);
               if (tr.ready && tr.srt_url) {
-                // transcrição pronta → dispara o render com o SRT
                 const edit = montarEdit(j.origem_url, j.operacoes || {}, tr.srt_url);
                 const rn = await iniciarRender(edit);
                 if (rn.error) {
                   await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: ('Render: ' + rn.error).slice(0, 300) });
-                  j.status = 'erro';
+                  j.status = 'erro'; j.erro = 'Render: ' + rn.error;
                 } else {
                   await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'processando', render_id: rn.render_id });
                   j.status = 'processando'; j.render_id = rn.render_id;
                 }
               } else if (tr.failed) {
-                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'A transcrição falhou.' });
-                j.status = 'erro';
+                // transcrição falhou → FALLBACK: renderiza sem legenda (usuário recebe o vídeo)
+                const opsSemLeg = { ...(j.operacoes || {}), legenda: false };
+                const edit = montarEdit(j.origem_url, opsSemLeg, null);
+                const rn = await iniciarRender(edit);
+                if (rn.error) {
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: ('Transcrição falhou e render também: ' + rn.error).slice(0, 300) });
+                  j.status = 'erro';
+                } else {
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'processando', render_id: rn.render_id, erro: 'Legenda indisponível (transcrição falhou); vídeo gerado sem legenda.' });
+                  j.status = 'processando'; j.render_id = rn.render_id;
+                }
+              } else {
+                // ainda transcrevendo: se passou de ~6min, faz fallback sem legenda (evita travar eterno)
+                const idadeMin = (Date.now() - new Date(j.created_at).getTime()) / 60000;
+                if (idadeMin > 6) {
+                  const opsSemLeg = { ...(j.operacoes || {}), legenda: false };
+                  const edit = montarEdit(j.origem_url, opsSemLeg, null);
+                  const rn = await iniciarRender(edit);
+                  if (!rn.error) {
+                    await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'processando', render_id: rn.render_id, erro: 'Transcrição demorou; vídeo gerado sem legenda.' });
+                    j.status = 'processando'; j.render_id = rn.render_id;
+                  }
+                }
               }
               // se waiting, deixa como está (tenta na próxima)
             }
@@ -676,8 +696,13 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
             else if (j.status === 'processando' && j.render_id && !j.render_id.startsWith('src:')) {
               const rr = await checarRender(j.render_id);
               if (rr.done && rr.url) {
-                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
-                j.status = 'pronto'; j.resultado_url = rr.url;
+                // copia o vídeo pro nosso Storage (resolve a expiração de 24h do Shotstack)
+                let salvo = {};
+                try { salvo = await salvarVideoNoBanco(rr.url, j.user_id, SUPABASE_URL, KEY()); } catch (e) { salvo = { error: e.message }; }
+                const patch = { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() };
+                if (salvo && salvo.url) { patch.salvo_url = salvo.url; patch.salvo_path = salvo.path; }
+                await sbPatch(`video_jobs?id=eq.${j.id}`, patch);
+                j.status = 'pronto'; j.resultado_url = rr.url; if (salvo && salvo.url) { j.salvo_url = salvo.url; j.salvo_path = salvo.path; }
               } else if (rr.failed) {
                 await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'O render falhou no Shotstack.' });
                 j.status = 'erro';
@@ -757,6 +782,27 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       const [o] = await sbGet(`ordens_servico?id=eq.${ordem_id}&select=user_id`);
       if (!o || (o.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
       await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── VÍDEO BAIXADO: marca como baixado e apaga o vídeo CRU (libera espaço) ──
+    if (action === 'video_baixado') {
+      const uid = requester.id;
+      const { job_id } = req.body;
+      if (!job_id) return res.status(400).json({ error: 'job_id obrigatório' });
+      const [j] = await sbGet(`video_jobs?id=eq.${job_id}&select=user_id,origem_url,cru_apagado`);
+      if (!j || (j.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
+      // apaga o vídeo cru do Storage (se ainda não apagou)
+      if (!j.cru_apagado && j.origem_url) {
+        try {
+          // extrai o path do bucket videos-crus a partir da URL pública
+          const m = j.origem_url.match(/videos-crus\/(.+)$/);
+          if (m && m[1]) {
+            await fetch(`${SUPABASE_URL}/storage/v1/object/videos-crus/${m[1]}`, { method: 'DELETE', headers: H() }).catch(() => {});
+          }
+        } catch (e) { /* ignora */ }
+      }
+      await sbPatch(`video_jobs?id=eq.${job_id}`, { baixado: true, cru_apagado: true });
       return res.status(200).json({ ok: true });
     }
 

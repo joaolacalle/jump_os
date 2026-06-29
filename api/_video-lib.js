@@ -111,13 +111,14 @@ async function checarTranscricao(sourceId) {
   const r = await fetch(`${SHOTSTACK_BASE}/ingest/${shotEnv()}/sources/${sourceId}`, { headers: shotHeaders() });
   const d = await r.json();
   const attr = d && d.data && d.data.attributes;
-  if (!attr) return { waiting: true };
-  // a transcrição fica em attributes.outputs.transcription
+  if (!attr) return { waiting: true, debug: JSON.stringify(d).slice(0, 200) };
+  // o source precisa estar 'ready' primeiro; depois a transcrição aparece em outputs.transcription
   const tr = attr.outputs && attr.outputs.transcription;
   if (tr && tr.status === 'ready' && tr.url) return { ready: true, srt_url: tr.url };
-  if (tr && tr.status === 'failed') return { failed: true };
-  if (attr.status === 'failed') return { failed: true };
-  return { waiting: true };
+  if (tr && tr.status === 'failed') return { failed: true, motivo: 'transcrição falhou' };
+  if (attr.status === 'failed') return { failed: true, motivo: 'ingest do vídeo falhou (formato/URL?)' };
+  // ainda processando (source importando ou transcrição em andamento)
+  return { waiting: true, debug: 'source:' + (attr.status||'?') + ' trans:' + ((tr&&tr.status)||'pendente') };
 }
 
 // ETAPA 3 — dispara o render. Retorna { render_id } ou { error }.
@@ -146,4 +147,28 @@ async function checarRender(renderId) {
   return { rendering: true };
 }
 
-module.exports = { montarEdit, iniciarTranscricao, checarTranscricao, iniciarRender, checarRender, shotEnv, shotHeaders };
+
+// Copia o vídeo final do Shotstack para o nosso Supabase Storage (resolve as 24h).
+// Retorna { url, path } ou { error }. Usa stream-ish (arrayBuffer) — ok p/ Reels (curtos).
+async function salvarVideoNoBanco(shotstackUrl, userId, supabaseUrl, serviceKey) {
+  try {
+    const resp = await fetch(shotstackUrl);
+    if (!resp.ok) return { error: 'download falhou: ' + resp.status };
+    const buf = Buffer.from(await resp.arrayBuffer());
+    // limite de segurança: 45MB (Reels costuma ser bem menor; evita timeout/memória)
+    if (buf.length > 45 * 1024 * 1024) return { error: 'vídeo grande demais p/ copiar (>45MB)', tooBig: true };
+    const path = `${userId}/pronto_${Date.now()}.mp4`;
+    const up = await fetch(`${supabaseUrl}/storage/v1/object/videos-prontos/${path}`, {
+      method: 'POST',
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'video/mp4', 'x-upsert': 'true' },
+      body: buf,
+    });
+    if (!up.ok) { const t = await up.text(); return { error: 'upload Supabase falhou: ' + t.slice(0, 120) }; }
+    const url = `${supabaseUrl}/storage/v1/object/public/videos-prontos/${path}`;
+    return { url, path };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+module.exports = { montarEdit, iniciarTranscricao, checarTranscricao, iniciarRender, checarRender, shotEnv, shotHeaders, salvarVideoNoBanco };
