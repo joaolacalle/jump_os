@@ -697,7 +697,8 @@ async function vmDiagnostico(){
 }
 async function carregarMeusVideos(){
   try{
-    const d=await JUMP.api('video_meus_jobs',{},CTX.token);
+    const d=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);
+    if(!d){if(document.getElementById('video-overlay').style.display==='flex')setTimeout(carregarMeusVideos,10000);return;}
     const jobs=d.jobs||[];
     const wrap=document.getElementById('vm-lista-wrap');
     const el=document.getElementById('vm-lista');
@@ -730,10 +731,12 @@ function iniciarPollingVideo(){
   const checar=async()=>{
     voltas++;
     try{
-      const d=await JUMP.api('video_meus_jobs',{},CTX.token);
+      const d=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);
       const recente=(d.jobs||[])[0];
       if(recente&&recente.status==='pronto'&&recente.resultado_url){
         clearInterval(pollVid);pollVid=null;
+        // salva no nosso banco em background (não trava nada)
+        JUMP.api('video_salvar',{job_id:recente.id},CTX.token).catch(()=>{});
         const box=document.createElement('div');box.className='msg a';
         box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><button class="btn btn-g btn-sm" onclick="baixarVideoJob(\''+recente.id+'\',\''+(recente.salvo_url||'')+'\',\''+(recente.resultado_url||'')+'\')">⬇ Baixar vídeo</button>';
         const w=document.getElementById('msgs');w.appendChild(box);w.scrollTop=w.scrollHeight;
