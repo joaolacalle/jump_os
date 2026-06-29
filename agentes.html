@@ -318,8 +318,10 @@
         <select class="f-input" id="vm-velocidade" style="padding:8px">
           <option value="1">Normal (1x)</option>
           <option value="0.75">Mais devagar (0.75x)</option>
-          <option value="1.25">Um pouco rápido (1.25x)</option>
-          <option value="1.5">Rápido (1.5x)</option>
+          <option value="1.1">Levemente rápido (1.1x)</option>
+          <option value="1.2">Um pouco rápido (1.2x)</option>
+          <option value="1.25">Rápido (1.25x)</option>
+          <option value="1.5">Bem rápido (1.5x)</option>
           <option value="2">Muito rápido (2x)</option>
         </select>
       </div>
@@ -345,8 +347,15 @@
 
     <label class="vm-opt"><input type="checkbox" id="vm-trilha" onchange="vmToggleSub('vm-sub-trilha',this)"> 🎵 Trilha sonora</label>
     <div id="vm-sub-trilha" style="display:none;margin:6px 0 12px 24px">
-      <input type="file" id="vm-t-file" accept="audio/*" class="f-input" onchange="vmUpload(this,'trilha')">
-      <div id="vm-t-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+      <label class="f-label" style="font-size:11px">Estilo da música (escolho uma variação pra você)</label>
+      <select class="f-input" id="vm-trilha-estilo" style="padding:8px">
+        <option value="animada">⚡ Animada / Energética</option>
+        <option value="calma">🌊 Calma / Suave</option>
+        <option value="reflexiva">🌙 Reflexiva / Emotiva</option>
+        <option value="corporativa">💼 Corporativa / Profissional</option>
+        <option value="inspiradora">✨ Inspiradora / Motivacional</option>
+      </select>
+      <div style="font-size:10.5px;color:var(--t3);margin-top:5px;font-family:var(--M)">A cada vídeo eu escolho uma faixa diferente do estilo, pra não repetir.</div>
     </div>
 
     <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this)"> 🖼️ Logo no canto</label>
@@ -366,6 +375,8 @@
     <label class="vm-opt" style="background:rgba(var(--g-rgb),.06);border-radius:8px;padding:9px 11px;margin-bottom:14px"><input type="checkbox" id="vm-guardar"> 💾 Guardar este estilo para os próximos vídeos</label>
 
     <button class="btn btn-g" id="vm-editar" onclick="vmEditar()" style="width:100%" disabled>🎬 Editar vídeo</button>
+    <button onclick="vmDiagnostico()" style="width:100%;margin-top:8px;background:none;border:1px solid var(--bd);color:var(--t3);font-family:var(--M);font-size:11px;padding:7px;border-radius:8px;cursor:pointer">🔍 Diagnosticar último vídeo (se deu erro)</button>
+    <div id="vm-diag" style="font-family:var(--M);font-size:10.5px;color:var(--t2);margin-top:8px;white-space:pre-wrap;word-break:break-word"></div>
 
     <div id="vm-lista-wrap" style="margin-top:18px;border-top:1px solid var(--bd);padding-top:14px;display:none">
       <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:8px">Seus vídeos</div>
@@ -643,7 +654,7 @@ async function vmEditar(){
   const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
   if(document.getElementById('vm-vsl').checked)ops.vsl=true;
   if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
-  if(document.getElementById('vm-trilha').checked&&vmTrilhaUrl)ops.trilha_url=vmTrilhaUrl;
+  if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
   if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
   const guardar=document.getElementById('vm-guardar').checked;
 
@@ -676,6 +687,14 @@ async function vmEditar(){
   btn.disabled=false;btn.textContent='🎬 Editar vídeo';
 }
 
+async function vmDiagnostico(){
+  const el=document.getElementById('vm-diag');
+  el.textContent='Consultando o Shotstack...';
+  try{
+    const d=await JUMP.api('video_diagnostico',{},CTX.token);
+    el.textContent=JSON.stringify(d.diagnostico||d,null,2);
+  }catch(e){el.textContent='Erro: '+(e.message||e);}
+}
 async function carregarMeusVideos(){
   try{
     const d=await JUMP.api('video_meus_jobs',{},CTX.token);
