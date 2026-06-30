@@ -99,6 +99,8 @@ function montarEdit(origemUrl, ops, srtUrl) {
   // posição: VSL = mais ao centro (margin.bottom maior sobe a legenda)
   if (ops.legenda && srtUrl) {
     const ehVsl = !!ops.vsl;
+    // Formato do caption conforme a doc oficial (mínimo que funciona + estilo seguro).
+    // Posição via 'position' + 'offset' no CLIP (não 'margin' no asset, que quebrava).
     const caption = {
       asset: {
         type: 'caption',
@@ -107,14 +109,15 @@ function montarEdit(origemUrl, ops, srtUrl) {
           family: ops.legenda_fonte || 'Montserrat ExtraBold',
           color: ops.legenda_cor || '#ffffff',
           size: isReels ? 42 : 34,
-          stroke: '#000000',
-          strokeWidth: 1,
+          lineHeight: 1,
         },
-        background: { color: '#000000', opacity: 0.5, padding: 10, borderRadius: 8 },
-        // margin.bottom maior = legenda mais alta (centro) p/ VSL; menor = mais embaixo (Reels)
-        margin: { bottom: ehVsl ? 0.42 : 0.12, left: 0.08, right: 0.08 },
+        background: { color: '#000000', opacity: 0.6 },
       },
-      start: 0, length: 'end',
+      start: 0,
+      length: 'end',
+      // VSL = legenda ao centro; Reels = mais embaixo. offset.y negativo desce, positivo sobe.
+      position: 'center',
+      offset: { y: ehVsl ? 0 : -0.32 },
     };
     timeline.tracks.unshift({ clips: [caption] });
   }
@@ -126,10 +129,20 @@ function montarEdit(origemUrl, ops, srtUrl) {
 }
 
 // ETAPA 1 — dispara a transcrição (Ingest API). Retorna { source_id } ou { error }.
-async function iniciarTranscricao(origemUrl) {
+async function iniciarTranscricao(origemUrl, ops) {
+  ops = ops || {};
+  const outputs = { transcription: { format: 'srt' } };
+  // tratamento de voz: gera uma rendition com áudio melhorado (Dolby) que será usada no render
+  if (ops.melhorar_voz) {
+    outputs.renditions = [{
+      format: 'mp4',
+      enhance: { audio: { provider: 'dolby', options: { preset: 'studio' } } },
+      filename: 'voz-melhorada',
+    }];
+  }
   const r = await fetch(`${SHOTSTACK_BASE}/ingest/${shotEnv()}/sources`, {
     method: 'POST', headers: shotHeaders(),
-    body: JSON.stringify({ url: origemUrl, outputs: { transcription: { format: 'srt' } } }),
+    body: JSON.stringify({ url: origemUrl, outputs }),
   });
   const d = await r.json();
   if (!r.ok) return { error: (d && (d.message || JSON.stringify(d))) || 'erro no ingest' };

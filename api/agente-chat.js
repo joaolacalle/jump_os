@@ -202,6 +202,9 @@ PEDIDO AVULSO / PROMOÇÃO: se o cliente pedir uma arte fora do cronograma (ex: 
 
 CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceituais mantendo a identidade.
 
+=== AUTO-CHECK OBRIGATÓRIO (antes de emitir a tag) ===
+Antes de gerar a imagem, confira MENTALMENTE que o prompt contém TODOS os 12 pontos do Content Engine 6.0: (1) formato+dpi, (2) safe zones, (3) layout por posição com label/headline/visual/copy/cta, (4) limite de 18 palavras conferido, (5) paleta travada com HEX reais do OS_DATA, (6) profundidade 3 camadas, (7) espaço negativo conforme intensidade, (8) foco fotográfico se houver foto, (9) modo humano (grain/noise), (10) tratamento de texto português correto, (11) parâmetros de intensidade/complexidade/temperatura, (12) DNA visual da marca. Se QUALQUER ponto estiver faltando, complete o prompt ANTES de emitir. O prompt NUNCA pode sair incompleto — é isso que garante qualidade de agência. Se faltar dado do OS_DATA (ex: HEX da paleta), use o que existe nas memórias; nunca invente cores que não foram informadas.
+
 Ao gerar, emita a tag: <gerar_imagem>{"prompt":"<prompt completo em inglês seguindo a arquitetura acima>","tamanho":"4:5","tipo":"pessoal|pessoa_conceito|produto|conceitual","slide":1,"reload":true}</gerar_imagem>
 (use "reload":true SOMENTE para artes avulsas/promoções fora do cronograma ou recriações; para posts do plano mensal, não inclua reload)
 Gere no máximo 1 imagem por resposta. Responda ao cliente de forma limpa e curta (sem markdown).`,
@@ -277,6 +280,7 @@ ESCOPO: você cuida só de VÍDEO. Arte estática é com o Designer; estratégia
 const REGRAS_GERAIS = `
 REGRAS DO JUMP OS:
 - Responda SEMPRE em português brasileiro, direto e aplicável ao nicho do cliente (use as MEMÓRIAS abaixo).
+- ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
 - ENTREGUE PRIMEIRO, PERGUNTE DEPOIS: se as memórias dão base mínima, produza a entrega completa AGORA assumindo o mais provável (deixe claro o que assumiu). No máximo 1 pergunta opcional AO FINAL para refinar. NUNCA responda só com lista de perguntas — exceto o check-in do Agente de Identidade, que é guiado.
 - Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
@@ -284,6 +288,7 @@ REGRAS DO JUMP OS:
 - AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
 <memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
 (uma tag por aprendizado, no máximo 8 por resposta; não repita memórias já listadas)
+- FECHAMENTO COM APRENDIZADO (ao CONCLUIR uma entrega): sempre que você ENTREGAR algo concreto (um calendário, uma arte, uma campanha, um diagnóstico, o OS_DATA), faça um fechamento curto consolidando o que ficou definido e registre na memória o que for durável (preferências, decisões, dados confirmados). Isso economiza tokens nas próximas conversas (você não re-pergunta o que já sabe) e melhora os resultados. Não precisa anunciar "vou salvar" — só emita a(s) tag(s) <memoria> ao final, de forma natural.
 
 ═══ VERACIDADE (REGRA ABSOLUTA — nunca invente) ═══
 Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNCA invente nomes de planos, ofertas, números, garantias, preços, prêmios ou benefícios que o cliente não informou. Se uma informação não existe, NÃO crie — deixe de fora ou pergunte. Exemplos PROIBIDOS: inventar "PLANO PLUS", "50% OFF", "+1000 clientes", "cobertura total" se isso não veio do cliente. Em artes/selos, só inclua provas/ofertas REAIS confirmadas. Marca pessoal: use o nome exato da marca do OS_DATA, nunca um genérico.
@@ -557,6 +562,28 @@ const handler = async (req, res) => {
       }
     }catch(e){}
 
+    // ═══ REGISTRO DE EXECUÇÃO (Critério 3: cada criação dos agentes recorrentes vira
+    // uma ordem CONCLUÍDA, p/ o painel de Ordens ser confiável e em tempo real — a VOLTA) ═══
+    try{
+      const registros=[];
+      if(agente==='estrategia'&&conteudos.length>0){
+        registros.push({tarefa:'calendario_gerado',detalhe:conteudos.length+' post(s) planejado(s) e enviados para aprovação'});
+      }
+      if(agente==='criativo'&&imgReq){
+        registros.push({tarefa:'arte_criada',detalhe:'arte gerada pelo Designer (Content Engine 6.0)'});
+      }
+      if(agente==='trafego'&&ordens.some(o=>o.tarefa==='novo_criativo_ads')){
+        registros.push({tarefa:'campanha_planejada',detalhe:'estratégia de anúncio (público, orçamento, criativo) entregue'});
+      }
+      // registra cada execução como ordem concluída (de_agente = para_agente = o próprio agente)
+      if(registros.length){
+        await Promise.all(registros.map(r=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:agente,tarefa:r.tarefa,detalhe:r.detalhe,status:'concluida',concluida_em:new Date().toISOString()})
+        }).catch(()=>{})));
+      }
+    }catch(e){}
+
     // Extrair automações de DM (Publicação cria; respeita limite do plano)
     const automacoes=[];
     texto=texto.replace(/<automacao_dm>([\s\S]*?)<\/automacao_dm>/g,(_,j)=>{
@@ -585,6 +612,11 @@ const handler = async (req, res) => {
             body:JSON.stringify({user_id:targetId,palavra_chave:a.palavra_chave,mensagem:a.mensagem,objetivo:a.objetivo||'lead',gatilho:a.gatilho||'comentario',origem:a.origem||'ambos',ativo:true})
           }).catch(()=>{});
         }
+        // registro de execução (Critério 3): Publicação configurou automação → ordem concluída
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({user_id:targetId,de_agente:'publicacao',para_agente:'publicacao',tarefa:'automacao_configurada',detalhe:Math.min(automacoes.length,podem)+' automação(ões) de DM configurada(s)',status:'concluida',concluida_em:new Date().toISOString()})
+        }).catch(()=>{});
       }catch(e){}
     }
 

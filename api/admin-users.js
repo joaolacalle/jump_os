@@ -263,6 +263,25 @@ module.exports = async (req, res) => {
     if (action === 'set_limits') {
       const { user_id, limites } = req.body;
       await assertScope(user_id);
+      // TETO DE TOKENS: se quem está definindo é supervisor (não admin), a soma de
+      // tokens de TODAS as contas dele não pode ultrapassar o teto definido pelo admin.
+      if (!isAdmin) {
+        const teto = Number((me && me.teto_tokens) || 0);
+        if (teto > 0) {
+          // soma os tokens das outras contas do supervisor (exceto a que está sendo editada)
+          const minhas = await sbGet(`clientes?supervisor_id=eq.${requester.id}&select=id,limites`);
+          let somaOutras = 0;
+          for (const cc of (Array.isArray(minhas) ? minhas : [])) {
+            if (cc.id === user_id) continue;
+            somaOutras += Number((cc.limites && cc.limites.tokens) || 0);
+          }
+          const novoTotal = somaOutras + Number((limites && limites.tokens) || 0);
+          if (novoTotal > teto) {
+            const disp = Math.max(0, teto - somaOutras);
+            return res.status(400).json({ error: `Teto de tokens excedido. Seu limite total é ${teto.toLocaleString('pt-BR')} tokens; já distribuiu ${somaOutras.toLocaleString('pt-BR')} nas outras contas. Disponível para esta conta: ${disp.toLocaleString('pt-BR')}.` });
+          }
+        }
+      }
       await sbPatch(`clientes?id=eq.${user_id}`, { limites });
       return res.status(200).json({ ok: true });
     }
@@ -406,8 +425,10 @@ module.exports = async (req, res) => {
 
     if (action === 'set_cotas') {
       if (!isAdmin) return res.status(403).json({ error: 'Apenas admin define cotas' });
-      const { user_id, cotas } = req.body;
-      await sbPatch(`clientes?id=eq.${user_id}`, { cotas });
+      const { user_id, cotas, teto_tokens } = req.body;
+      const patch = { cotas };
+      if (teto_tokens !== undefined) patch.teto_tokens = Number(teto_tokens) || 0;
+      await sbPatch(`clientes?id=eq.${user_id}`, patch);
       return res.status(200).json({ ok: true });
     }
 
@@ -431,6 +452,12 @@ module.exports = async (req, res) => {
     // Manual do sistema (base de conhecimento da IA)
     const MANUAL_JUMP = `MANUAL DO JUMP OS (para responder dúvidas dos usuários):
 
+═══ COMO COMEÇAR (ONBOARDING) ═══
+Ao entrar pela primeira vez, o usuário faz o CHECK-IN com o Agente de Identidade (conta o que faz, público, objetivos). A partir daí há DOIS caminhos:
+- CAMINHO A (estratégia do zero): a pessoa quer que a IA monte tudo. Oriente: 1) faça o check-in no Agente de Identidade; 2) peça ao Agente de Mercado pra analisar concorrentes; 3) vá ao Agente de Estratégia e peça o calendário do mês; 4) o Criativo gera as artes; 5) aprove em "Aprovar". O sistema sugere e a pessoa só aprova.
+- CAMINHO B (já tem estratégia própria): a pessoa já sabe o que postar. Oriente: faça o check-in rápido, depois leve seu conteúdo direto ao Agente de Estratégia (ou Publicação) preenchendo o que já tem; o sistema adapta as copies e organiza. Use o botão "Enviar conteúdo" no Agente de Publicação pra subir um criativo pronto e gerar a copy.
+Em ambos: o objetivo é não deixar dúvida. Se a pessoa estiver perdida, pergunte em qual caminho ela se encaixa e guie passo a passo.
+
 CONECTAR INSTAGRAM: Menu "Conectar contas". A conta precisa ser Business ou Creator (não pessoal). O token dura 60 dias e o sistema renova sozinho. Se aparecer "reconecte", é só refazer a conexão.
 
 OS 8 AGENTES:
@@ -453,7 +480,34 @@ TRIAL E COBRANÇA: Novos assinantes têm 7 dias de teste com cota reduzida. Apó
 
 PROMOÇÃO/DM: No Agente de Publicação, botão "Criar campanha DM" no topo. Define palavra-chave + mensagem + link. Quando alguém comenta a palavra, o sistema responde no direct.
 
-PROBLEMAS COMUNS: Se algo não carregar, recarregue a página. Se o Instagram desconectar, reconecte. Para aumentar limites ou relatar bugs, use este chat que eu encaminho ao suporte.`;
+═══ PASSO A PASSO: SUBIR E EDITAR UM VÍDEO ═══
+1. Abra o Agente "Editor de Vídeo" (plano Pro).
+2. Clique em "Subir vídeo" — abre o pop-up.
+3. Clique na área de upload e escolha o vídeo (MP4/MOV, até 100 MB).
+4. Marque o que quer: Legendas automáticas (escolha a fonte e a cor), Cortar trecho, Velocidade, Filtro, Texto na tela, Trilha sonora (escolha o estilo), Logo, e o Formato (Reels 9:16 ou Paisagem). Se for vídeo de vendas, marque "É uma VSL" (legenda mais ao centro).
+5. Clique em "Editar vídeo". O sistema gera as legendas, processa e fica pronto em alguns minutos.
+6. Acompanhe o andamento na Central de Ordens (aba "Vídeos"): mostra se está gerando legenda, processando, pronto ou se deu erro.
+
+═══ PASSO A PASSO: BAIXAR UM VÍDEO ═══
+Quando o vídeo fica pronto, aparece o botão "Baixar" (no chat, na Central de Ordens aba Vídeos, e em Meus Arquivos aba "Vídeos editados"). Clique para baixar. Dica: baixe logo que ficar pronto. Ao baixar, o vídeo original (cru) é apagado para liberar espaço.
+
+═══ PASSO A PASSO: CALENDÁRIO / PLANNER ═══
+O calendário de conteúdo fica no menu "Calendário". O Agente de Estratégia gera os posts do mês (botão "Gerar calendário do mês"). Os itens aparecem no calendário e em "Aprovar". Você revisa, aprova ou pede pra recriar.
+
+═══ PASSO A PASSO: CONFIGURAR META ADS (parte manual do usuário) ═══
+O Agente de Tráfego (Pro) monta a ESTRATÉGIA do anúncio (público, orçamento, copy), mas a criação da campanha no Gerenciador de Anúncios da Meta é feita por você, manualmente. Passos gerais:
+1. Tenha uma conta no Gerenciador de Anúncios (business.facebook.com) e um método de pagamento configurado.
+2. No Gerenciador, clique em "Criar" e escolha o objetivo (ex: Tráfego, Engajamento ou Conversões) conforme o Agente de Tráfego sugerir.
+3. Defina o público (o Agente de Tráfego te dá as características: idade, localização, interesses).
+4. Defina o orçamento diário e o período.
+5. No anúncio, use a copy e o criativo que os agentes geraram.
+6. Revise e publique. Acompanhe os resultados e traga as métricas de volta ao Agente de Tráfego pra ele sugerir ajustes.
+Se a pessoa tiver dúvida específica de algum botão da Meta, oriente de forma geral e sugira a central de ajuda da Meta, pois a interface deles muda com frequência.
+
+═══ TAREFAS E ORDENS ═══
+Qualquer agente tem o botão "Incluir ordem" pra criar uma tarefa (ex: "criar promoção toda 1ª semana"). As ordens ficam na Central de Ordens, onde dá pra executar ("Executar agora"), ver o andamento dos vídeos e acompanhar o histórico.
+
+PROBLEMAS COMUNS: Se algo não carregar, recarregue a página (no celular, force o recarregamento ou use aba anônima). Se o Instagram desconectar, reconecte em "Conectar contas". No celular, o menu lateral abre pelo botão ☰ no topo. Para aumentar limites/tokens, relatar bugs, reembolso ou cancelamento, use este chat que eu encaminho ao suporte humano.`;
 
     // USUÁRIO conversa com o Suporte JUMP (IA responde; abre ticket se necessário)
     if (action === 'suporte_chat') {

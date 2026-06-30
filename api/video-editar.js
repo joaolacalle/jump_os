@@ -73,7 +73,7 @@ module.exports = async (req, res) => {
 
     // ── COM LEGENDA: transcreve primeiro ──
     if (ops.legenda) {
-      const tr = await iniciarTranscricao(origem_url);
+      const tr = await iniciarTranscricao(origem_url, ops);
       if (tr.error) return res.status(502).json({ error: 'Falha ao transcrever: ' + tr.error });
       const job = await sbInsert('video_jobs', {
         user_id: alvoId, status: 'transcrevendo', origem_url, operacoes: ops,
