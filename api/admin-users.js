@@ -758,7 +758,7 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
                 await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
                 j.status = 'pronto'; j.resultado_url = rr.url;
               } else if (rr.failed) {
-                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'O render falhou no Shotstack.' });
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Render falhou: ' + (rr.motivo || 'sem detalhe') });
                 j.status = 'erro';
               }
             }

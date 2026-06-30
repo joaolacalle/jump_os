@@ -16,27 +16,14 @@ function shotHeaders() {
 
 // Biblioteca de trilhas royalty-free por estilo (FreePD - CC0, livres de direitos).
 // O agente escolhe uma variação aleatória pra não repetir entre vídeos.
+// URLs REAIS confirmadas na doc/templates do Shotstack (shotstack-assets S3).
+const A = 'https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/music/';
 const TRILHAS = {
-  animada: [
-    'https://feeds.shotstack.io/music/freepd/upbeat.mp3',
-    'https://feeds.shotstack.io/music/freepd/energetic.mp3',
-  ],
-  calma: [
-    'https://feeds.shotstack.io/music/freepd/relaxing.mp3',
-    'https://feeds.shotstack.io/music/freepd/ambient.mp3',
-  ],
-  reflexiva: [
-    'https://feeds.shotstack.io/music/freepd/emotional.mp3',
-    'https://feeds.shotstack.io/music/freepd/cinematic.mp3',
-  ],
-  corporativa: [
-    'https://feeds.shotstack.io/music/freepd/corporate.mp3',
-    'https://feeds.shotstack.io/music/freepd/motivational.mp3',
-  ],
-  inspiradora: [
-    'https://feeds.shotstack.io/music/freepd/inspiring.mp3',
-    'https://feeds.shotstack.io/music/freepd/uplifting.mp3',
-  ],
+  animada: [ A+'unminus/lit.mp3', A+'disco.mp3' ],
+  calma: [ A+'unminus/palmtrees.mp3', A+'freepd/motions.mp3' ],
+  reflexiva: [ A+'unminus/berlin.mp3', A+'freepd/motions.mp3' ],
+  corporativa: [ A+'unminus/palmtrees.mp3', A+'unminus/berlin.mp3' ],
+  inspiradora: [ A+'unminus/lit.mp3', A+'unminus/palmtrees.mp3' ],
 };
 function escolherTrilha(estilo) {
   const lista = TRILHAS[estilo] || TRILHAS.animada;
@@ -187,8 +174,9 @@ async function checarRender(renderId) {
   const d = await r.json();
   const st = d && d.response && d.response.status;
   const url = d && d.response && d.response.url;
+  const err = d && d.response && (d.response.error || d.response.data && d.response.data.message);
   if (st === 'done' && url) return { done: true, url };
-  if (st === 'failed') return { failed: true };
+  if (st === 'failed') return { failed: true, motivo: err || 'sem detalhe do Shotstack' };
   return { rendering: true };
 }
 
