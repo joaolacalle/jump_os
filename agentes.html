@@ -4,6 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Meus agentes</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&family=Open+Sans:wght@700&family=Roboto:wght@700&family=Lato:wght@700&family=Poppins:wght@700&family=Raleway:wght@700&family=Work+Sans:wght@700&family=Nunito:wght@700&family=Anton&family=Archivo+Black&family=Permanent+Marker&family=Pacifico&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -270,29 +271,43 @@
       </div>
     </div>
 
+    <!-- PRÉVIA (frame do vídeo + filtro/legenda via CSS, sem gastar render) -->
+    <div id="vm-previa-wrap" style="display:none;margin-bottom:14px">
+      <label class="f-label">Prévia aproximada <span style="opacity:.6;font-weight:400">· como vai ficar (sem gastar créditos)</span></label>
+      <div style="position:relative;width:100%;max-width:220px;margin:6px auto 0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:9/16" id="vm-previa-box">
+        <canvas id="vm-previa-canvas" style="width:100%;height:100%;object-fit:cover;display:block"></canvas>
+        <div id="vm-previa-legenda" style="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;pointer-events:none">
+          <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">Sua legenda aqui</span>
+        </div>
+      </div>
+      <video id="vm-previa-video" style="display:none" muted playsinline crossorigin="anonymous"></video>
+    </div>
+
     <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:6px 0 8px">O que fazer</div>
 
-    <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this)"> 💬 Legendas automáticas</label>
+    <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this);ajustarPreviaLegenda()"> 💬 Legendas automáticas</label>
     <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
       <div style="display:flex;gap:8px">
         <div style="flex:2"><label class="f-label" style="font-size:11px">Fonte</label>
-          <select class="f-input" id="vm-fonte" style="padding:8px"><option value="Montserrat ExtraBold">Montserrat (forte)</option>
-        <option value="Open Sans Bold">Open Sans</option>
-        <option value="Roboto Bold">Roboto</option>
-        <option value="Lato Bold">Lato</option>
-        <option value="Oswald Bold">Oswald (condensada)</option>
-        <option value="Poppins Bold">Poppins</option>
-        <option value="Bebas Neue">Bebas Neue (impacto)</option>
-        <option value="Raleway Bold">Raleway</option>
-        <option value="Montserrat SemiBold">Montserrat (média)</option>
-        <option value="Work Sans Bold">Work Sans</option>
-        <option value="Nunito Bold">Nunito (arredondada)</option>
-        <option value="Anton">Anton (bold display)</option>
-        <option value="Archivo Black">Archivo Black</option>
-        <option value="Permanent Marker">Permanent Marker (manuscrita)</option>
-        <option value="Pacifico">Pacifico (script)</option></select></div>
+          <select class="f-input" id="vm-fonte" style="padding:8px;font-size:14px">
+        <option value="Montserrat ExtraBold" style="font-family:'Montserrat';font-weight:800">Montserrat (forte)</option>
+        <option value="Open Sans Bold" style="font-family:'Open Sans';font-weight:700">Open Sans</option>
+        <option value="Roboto Bold" style="font-family:'Roboto';font-weight:700">Roboto</option>
+        <option value="Lato Bold" style="font-family:'Lato';font-weight:700">Lato</option>
+        <option value="Oswald Bold" style="font-family:'Oswald';font-weight:700">Oswald (condensada)</option>
+        <option value="Poppins Bold" style="font-family:'Poppins';font-weight:700">Poppins</option>
+        <option value="Bebas Neue" style="font-family:'Bebas Neue'">Bebas Neue (impacto)</option>
+        <option value="Raleway Bold" style="font-family:'Raleway';font-weight:700">Raleway</option>
+        <option value="Montserrat SemiBold" style="font-family:'Montserrat';font-weight:600">Montserrat (média)</option>
+        <option value="Work Sans Bold" style="font-family:'Work Sans';font-weight:700">Work Sans</option>
+        <option value="Nunito Bold" style="font-family:'Nunito';font-weight:700">Nunito (arredondada)</option>
+        <option value="Anton" style="font-family:'Anton'">Anton (bold display)</option>
+        <option value="Archivo Black" style="font-family:'Archivo Black'">Archivo Black</option>
+        <option value="Permanent Marker" style="font-family:'Permanent Marker'">Permanent Marker (manuscrita)</option>
+        <option value="Pacifico" style="font-family:'Pacifico'">Pacifico (script)</option>
+      </select></div>
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor</label>
-          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px"></div>
+          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
       </div>
     </div>
 
@@ -326,7 +341,7 @@
         </select>
       </div>
       <div style="flex:1"><label class="f-label" style="font-size:11px">Filtro</label>
-        <select class="f-input" id="vm-filtro" style="padding:8px">
+        <select class="f-input" id="vm-filtro" style="padding:8px" onchange="aplicarPreviaFiltro()">
           <option value="">Nenhum</option>
           <option value="boost">Vívido (boost)</option>
           <option value="contrast">Mais contraste</option>
@@ -337,6 +352,8 @@
         </select>
       </div>
     </div>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-voz"> 🎙️ Melhorar áudio da voz (reduz ruído)</label>
 
     <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-vsl" onchange="ajustarVsl(this)"> 🎯 É uma VSL (legenda mais ao centro)</label>
 
@@ -378,9 +395,8 @@
     <button id="vm-diag-btn" onclick="vmDiagnostico()" style="display:none;width:100%;margin-top:8px;background:none;border:1px solid var(--bd);color:var(--t3);font-family:var(--M);font-size:11px;padding:7px;border-radius:8px;cursor:pointer">🔍 Diagnosticar último vídeo (admin)</button>
     <div id="vm-diag" style="font-family:var(--M);font-size:10.5px;color:var(--t2);margin-top:8px;white-space:pre-wrap;word-break:break-word"></div>
 
-    <div id="vm-lista-wrap" style="margin-top:18px;border-top:1px solid var(--bd);padding-top:14px;display:none">
-      <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:8px">Seus vídeos</div>
-      <div id="vm-lista"></div>
+    <div style="margin-top:16px;border-top:1px solid var(--bd);padding-top:12px;text-align:center">
+      <a href="ordens.html" style="font-size:12px;font-family:var(--M);color:var(--g);text-decoration:none">🎬 Ver seus vídeos e o andamento na Central de Ordens →</a>
     </div>
   </div>
 </div>
@@ -597,12 +613,61 @@ let videoChatUrl=null;
 // ── EDITOR DE VÍDEO (modal completo no chat) ──
 let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
 function vmFechar(){document.getElementById('video-overlay').style.display='none';}
-function ajustarVsl(cb){/* VSL: a legenda vai mais ao centro; o backend aplica via ops.vsl */}
+// PRÉVIA: captura um frame do vídeo local e mostra com filtro/legenda (CSS, sem render)
+function gerarPreviaVideo(file){
+  const vid=document.getElementById('vm-previa-video');
+  const canvas=document.getElementById('vm-previa-canvas');
+  const wrap=document.getElementById('vm-previa-wrap');
+  try{
+    const url=URL.createObjectURL(file);
+    vid.src=url;
+    vid.onloadeddata=()=>{
+      // pega um frame ~1s (ou no início se o vídeo for curtíssimo)
+      try{vid.currentTime=Math.min(1,(vid.duration||2)/2);}catch(e){vid.currentTime=0;}
+    };
+    vid.onseeked=()=>{
+      const ctx=canvas.getContext('2d');
+      canvas.width=vid.videoWidth||720;canvas.height=vid.videoHeight||1280;
+      ctx.drawImage(vid,0,0,canvas.width,canvas.height);
+      wrap.style.display='block';
+      aplicarPreviaFiltro();
+      ajustarPreviaLegenda();
+      URL.revokeObjectURL(url);
+    };
+  }catch(e){/* prévia é opcional; se falhar, ignora */}
+}
+const FILTROS_CSS={
+  '':'none', boost:'saturate(1.5) contrast(1.1)', contrast:'contrast(1.4)',
+  lighten:'brightness(1.3)', darken:'brightness(0.7)', muted:'saturate(0.6)', greyscale:'grayscale(1)'
+};
+function aplicarPreviaFiltro(){
+  const canvas=document.getElementById('vm-previa-canvas');
+  if(!canvas)return;
+  const fEl=document.getElementById('vm-filtro');
+  const f=fEl?fEl.value:'';
+  canvas.style.filter=FILTROS_CSS[f]||'none';
+}
+function ajustarPreviaLegenda(){
+  const leg=document.getElementById('vm-previa-legenda');
+  const txtEl=document.getElementById('vm-previa-texto');
+  if(!leg||!txtEl)return;
+  const temLeg=document.getElementById('vm-legenda')&&document.getElementById('vm-legenda').checked;
+  leg.style.display=temLeg?'block':'none';
+  if(!temLeg)return;
+  // VSL = legenda mais ao centro; senão embaixo
+  const vsl=document.getElementById('vm-vsl')&&document.getElementById('vm-vsl').checked;
+  leg.style.bottom=vsl?'42%':'12%';
+  // cor escolhida
+  const corEl=document.getElementById('vm-cor');
+  if(corEl)txtEl.style.color=corEl.value||'#fff';
+}
+function ajustarVsl(cb){ajustarPreviaLegenda();}
 function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
 function vmSetFmt(f){vmFormato=f;document.getElementById('vm-fmt-reels').classList.toggle('on',f==='reels');document.getElementById('vm-fmt-wide').classList.toggle('on',f==='wide');}
 
 async function vmUpload(inp,tipo){
   const f=inp.files[0];if(!f)return;
+  if(tipo==='video')gerarPreviaVideo(f); // prévia local (sem custo)
   const lim=tipo==='video'?100:tipo==='trilha'?30:10;
   if(f.size>lim*1024*1024){JUMP.toast('Arquivo muito grande (máx '+lim+' MB)','err');inp.value='';return;}
   const statusEl=document.getElementById(tipo==='video'?'vm-v-status':tipo==='trilha'?'vm-t-status':'vm-l-status');
@@ -653,6 +718,7 @@ async function vmEditar(){
   const vel=document.getElementById('vm-velocidade').value;if(vel&&vel!=='1')ops.velocidade=+vel;
   const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
   if(document.getElementById('vm-vsl').checked)ops.vsl=true;
+  if(document.getElementById('vm-voz').checked)ops.melhorar_voz=true;
   if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
   if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
   if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
@@ -696,33 +762,9 @@ async function vmDiagnostico(){
   }catch(e){el.textContent='Erro: '+(e.message||e);}
 }
 async function carregarMeusVideos(){
-  try{
-    const d=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);
-    if(!d){if(document.getElementById('video-overlay').style.display==='flex')setTimeout(carregarMeusVideos,10000);return;}
-    const jobs=d.jobs||[];
-    const wrap=document.getElementById('vm-lista-wrap');
-    const el=document.getElementById('vm-lista');
-    if(!jobs.length){wrap.style.display='none';return;}
-    wrap.style.display='block';
-    el.innerHTML=jobs.slice(0,6).map(j=>{
-      const stTxt=j.status==='pronto'?'<span style="color:var(--g);font-size:11px;font-family:var(--M)">pronto</span>':j.status==='erro'?('<span style="color:var(--red);font-size:11px;font-family:var(--M)">erro</span>'):j.status==='transcrevendo'?'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">gerando legendas...</span>':'<span style="color:var(--yel);font-size:11px;font-family:var(--M)">processando...</span>';
-      const badge=stTxt;
-      const dlUrl=j.salvo_url||j.resultado_url;
-      const acao=j.status==='pronto'&&dlUrl?`<button class="btn btn-g btn-sm" onclick="baixarVideoJob('${j.id}','${j.salvo_url||''}','${j.resultado_url||''}')">⬇ Baixar</button>`:'';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;color:var(--t1)">${JUMP.esc(j.titulo||'Vídeo')}</div>${badge}</div>${acao}</div>`;
-    }).join('');
-    // se há algum processando, agenda nova checagem
-    if(jobs.some(j=>j.status==='processando'||j.status==='transcrevendo'))setTimeout(carregarMeusVideos,8000);
-  }catch(e){}
-}
-async function baixarVideoJob(jobId,salvoUrl,shotUrl){
-  // prefere a URL salva no nosso banco (não expira); cai pra do Shotstack se não tiver
-  const url=salvoUrl||shotUrl;
-  if(!url){JUMP.toast('Vídeo indisponível','err');return;}
-  // abre o download
-  window.open(url,'_blank');
-  // marca como baixado no servidor → apaga o vídeo cru (libera espaço)
-  try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
+  // o histórico agora fica na Central de Ordens; aqui só mantém o polling
+  // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
+  return;
 }
 let pollVid=null;
 function iniciarPollingVideo(){

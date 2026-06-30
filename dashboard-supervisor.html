@@ -63,6 +63,14 @@
     <button class="btn btn-g" id="btn-criar" onclick="abrirCriar()">+ Criar conta de usuário</button>
   </div>
 
+  <!-- PAINEL DE COTAS POR PLANO (visível, definido pelo admin) -->
+  <div id="cotas-painel" style="display:none;margin-top:14px">
+    <div style="font-size:12px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--t3);margin-bottom:10px">Suas cotas de contas <span style="opacity:.6">· definidas pelo admin</span></div>
+    <div id="cotas-cards" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+  </div>
+
+  <div id="teto-tokens-info" style="display:none;background:var(--ch2);border:1px solid var(--bd);border-radius:11px;padding:13px 16px;margin-top:12px;max-width:520px"></div>
+
   <!-- TABELA -->
   <div class="tbl-wrap">
     <table>
@@ -121,7 +129,7 @@
       <div class="f-group"><label class="f-label">Sugestões de tráfego / mês</label><input class="f-input" id="ml-traf" type="number" min="0"></div>
     </div>
     <div class="f-row">
-      <div class="f-group"><label class="f-label">Tokens / mês</label><input class="f-input" id="ml-tok" type="number" min="0"></div>
+      <div class="f-group"><label class="f-label">Tokens / mês</label><input class="f-input" id="ml-tok" type="number" min="0" oninput="checarTetoTokens()"><div id="ml-teto-aviso" style="font-size:11px;font-family:var(--M);margin-top:4px"></div></div>
       <div class="f-group"></div>
     </div>
     <div class="modal-acts">
@@ -157,10 +165,10 @@ let CTX=null,USERS=[],SUPID=null,LIMITE=0;
     const ver=new URLSearchParams(location.search).get('ver');
     if(ver&&CTX.role==='admin'){
       const{data:s}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
-      if(s){SUPID=s.id;LIMITE=s.limite_contas||0;window._supCotas=s.cotas||{};
+      if(s){SUPID=s.id;LIMITE=s.limite_contas||0;window._supCotas=s.cotas||{};window._tetoTokens=s.teto_tokens||0;
         document.getElementById('imp-banner').style.display='flex';
         document.getElementById('imp-email').textContent=s.email||ver;}
-    }else{LIMITE=CTX.cliente.limite_contas||0;window._supCotas=CTX.cliente.cotas||{}}
+    }else{LIMITE=CTX.cliente.limite_contas||0;window._supCotas=CTX.cliente.cotas||{};window._tetoTokens=CTX.cliente.teto_tokens||0}
     const sn=document.getElementById('sup-nome');
     if(sn)sn.textContent=(CTX.cliente.nome||CTX.user.email||'').toUpperCase();
     await carregar();
@@ -168,6 +176,35 @@ let CTX=null,USERS=[],SUPID=null,LIMITE=0;
   }catch(e){}
 })();
 
+const PLANO_INFO={
+  basico:{nome:'Básico',cor:'34,211,238',emoji:'🟢'},
+  plus:{nome:'Plus',cor:'251,191,36',emoji:'⭐'},
+  pro:{nome:'Pro',cor:'168,85,247',emoji:'💎'},
+};
+function renderCotasPainel(COTAS){
+  const painel=document.getElementById('cotas-painel');
+  const cards=document.getElementById('cotas-cards');
+  if(!painel||!cards)return;
+  const planos=['basico','plus','pro'].filter(p=>Number(COTAS[p])>0);
+  if(!planos.length){painel.style.display='none';return;}
+  painel.style.display='block';
+  cards.innerHTML=planos.map(p=>{
+    const info=PLANO_INFO[p];
+    const total=Number(COTAS[p]);
+    const usadas=USERS.filter(u=>u.plano===p).length;
+    const pct=Math.min(100,Math.round(usadas/total*100));
+    const esgotou=usadas>=total;
+    const cor=esgotou?'248,113,113':info.cor;
+    return `<div style="flex:1;min-width:150px;background:var(--ch2);border:1px solid rgba(${cor},.35);border-radius:13px;padding:15px 17px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--t1)">${info.emoji} ${info.nome}</span>
+        <span style="font-family:var(--M);font-size:18px;font-weight:800;color:rgb(${cor})">${usadas}/${total}</span>
+      </div>
+      <div style="height:7px;background:var(--bd);border-radius:4px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${pct}%;background:rgb(${cor});transition:width .3s"></div></div>
+      <div style="font-size:11px;font-family:var(--M);color:var(--t3)">${esgotou?'Cota esgotada':(total-usadas)+' disponíveis'}</div>
+    </div>`;
+  }).join('');
+}
 async function carregar(){
   const{data}=await JUMP.sb.from('clientes').select('*').eq('supervisor_id',SUPID).order('created_at',{ascending:false});
   USERS=data||[];
@@ -181,11 +218,26 @@ async function carregar(){
   const vagas=LIMITE?Math.max(0,LIMITE-USERS.length):'∞';
   document.getElementById('vagas-txt').textContent=vagas+' disponíveis';
   const COTAS=(window._supCotas)||{};
+  // resumo curto no topo (ao lado de Vagas)
   const ctxt=['basico','plus','pro'].filter(p=>Number(COTAS[p])>0).map(p=>{
     const usadas=USERS.filter(u=>u.plano===p).length;
     return p.charAt(0).toUpperCase()+p.slice(1)+' '+usadas+'/'+COTAS[p];
   }).join(' · ');
   document.getElementById('cotas-txt').textContent=ctxt?('('+ctxt+')'):'';
+  // painel de cards por plano (visível e em bom tamanho)
+  renderCotasPainel(COTAS);
+  // teto de tokens: mostra quanto já foi distribuído
+  const teto=Number(window._tetoTokens||0);
+  const distrib=USERS.reduce((s,u)=>s+Number((u.limites&&u.limites.tokens)||0),0);
+  const tt=document.getElementById('teto-tokens-info');
+  if(tt){
+    if(teto>0){
+      const pct=Math.min(100,Math.round(distrib/teto*100));
+      const cor=pct>=90?'var(--red)':pct>=70?'var(--yel)':'var(--g)';
+      tt.innerHTML='<div style="font-size:12px;color:var(--t2);margin-bottom:4px">Tokens distribuídos: <strong style="color:'+cor+'">'+distrib.toLocaleString('pt-BR')+'</strong> de '+teto.toLocaleString('pt-BR')+' ('+pct+'%)</div><div style="height:6px;background:var(--bd);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+cor+'"></div></div>';
+      tt.style.display='block';
+    }else{tt.style.display='none';}
+  }
   document.getElementById('btn-criar').disabled=(LIMITE&&USERS.length>=LIMITE);
   renderTable();
   carregarSolic();
@@ -316,7 +368,25 @@ function abrirLimites(id){
   document.getElementById('ml-vid').value=l.videos??20;
   document.getElementById('ml-traf').value=l.trafego_sugestoes??10;
   document.getElementById('ml-tok').value=l.tokens??1000000;
+  checarTetoTokens();
   document.getElementById('modal-lim').classList.add('show');
+}
+function checarTetoTokens(){
+  const teto=Number(window._tetoTokens||0);
+  const el=document.getElementById('ml-teto-aviso');
+  if(!teto){el.textContent='';return;}
+  const id=document.getElementById('ml-id').value;
+  // soma tokens das OUTRAS contas (exceto a que está sendo editada)
+  const outras=USERS.filter(u=>u.id!==id).reduce((s,u)=>s+Number((u.limites&&u.limites.tokens)||0),0);
+  const atual=+document.getElementById('ml-tok').value||0;
+  const disp=Math.max(0,teto-outras);
+  if(atual>disp){
+    el.style.color='var(--red)';
+    el.textContent='⚠️ Excede o teto. Disponível para esta conta: '+disp.toLocaleString('pt-BR')+' tokens.';
+  }else{
+    el.style.color='var(--g)';
+    el.textContent='✓ Dentro do teto. Disponível: '+disp.toLocaleString('pt-BR')+' tokens.';
+  }
 }
 async function salvarLimites(){
   const id=document.getElementById('ml-id').value;

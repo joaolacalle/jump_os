@@ -38,6 +38,7 @@
     <button class="ord-f" data-f="" onclick="filtrar('',this)">Todas</button>
     <button class="ord-f" data-f="concluida" onclick="filtrar('concluida',this)">Concluídas</button>
     <button class="ord-f" data-f="recorrente" onclick="filtrar('recorrente',this)">Recorrentes</button>
+    <button class="ord-f" data-f="videos" onclick="filtrar('videos',this)">🎬 Vídeos</button>
   </div>
 
   <div id="ord-lista"><div style="font-size:13px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
@@ -77,10 +78,13 @@ function tempoDecorrido(iso){
   return'há '+Math.floor(dif/86400)+' dia(s)';
 }
 
+let VIDEOS=[];
 async function carregar(){
   try{
     const d=await JUMP.api('minhas_ordens',{},CTX.token);
     TODAS=d.ordens||[];
+    // carrega também os vídeos (histórico de execuções)
+    try{const dv=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);VIDEOS=(dv&&dv.jobs)||[];}catch(e){VIDEOS=[];}
     render();
   }catch(e){document.getElementById('ord-lista').innerHTML='<div class="ord-empty">Erro ao carregar.</div>';}
 }
@@ -93,12 +97,14 @@ function filtrar(f,btn){
 }
 
 function render(){
+  const wrap=document.getElementById('ord-lista');
+  // FILTRO ESPECIAL: vídeos (histórico de execuções do Editor)
+  if(FILTRO==='videos'){renderVideos(wrap);return;}
   let lista=TODAS;
   if(FILTRO==='pendente')lista=TODAS.filter(o=>o.status==='pendente');
   else if(FILTRO==='concluida')lista=TODAS.filter(o=>o.status==='concluida');
   else if(FILTRO==='recorrente')lista=TODAS.filter(o=>o.recorrencia);
 
-  const wrap=document.getElementById('ord-lista');
   if(!lista.length){
     wrap.innerHTML='<div class="ord-empty"><div style="font-size:40px;margin-bottom:12px">📋</div><div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">Nenhuma ordem '+(FILTRO==='pendente'?'pendente':'aqui')+'</div><div style="font-size:13px">Crie ordens pelo botão "Incluir ordem" no chat de qualquer agente.</div></div>';
     return;
@@ -109,10 +115,12 @@ function render(){
     const badge=o.status==='concluida'?'<span class="ord-badge b-feito">concluída</span>':'<span class="ord-badge b-pend">pendente</span>';
     const rec=o.recorrencia?`<span class="ord-badge b-rec">↻ ${o.recorrencia}</span>`:'';
     const tempo=o.status==='concluida'&&o.concluida_em?'concluída '+tempoDecorrido(o.concluida_em):'criada '+tempoDecorrido(o.created_at);
+    // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
+    const rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
     return `<div class="ord-card" style="--ac:${ag.nc}">
       <div class="ord-ico">${ag.ico}</div>
       <div class="ord-body">
-        <div class="ord-rota">${de.n||'—'} → ${ag.n}</div>
+        <div class="ord-rota">${rota}</div>
         <div class="ord-tarefa">${JUMP.esc(o.detalhe||o.tarefa||'')}</div>
         <div class="ord-meta">${badge}${rec}<span class="ord-tempo">${tempo}</span></div>
       </div>
@@ -124,6 +132,48 @@ function render(){
   }).join('');
 }
 
+function renderVideos(wrap){
+  const ehGestor=CTX.cliente&&(CTX.cliente.role==='admin'||CTX.cliente.role==='supervisor');
+  if(!VIDEOS.length){
+    wrap.innerHTML='<div class="ord-empty"><div style="font-size:40px;margin-bottom:12px">🎬</div><div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">Nenhum vídeo ainda</div><div style="font-size:13px">Use o Editor de Vídeo no chat dos agentes para criar.</div></div>';
+    return;
+  }
+  const stInfo={
+    pronto:{txt:'pronto',cls:'b-feito'},
+    erro:{txt:'erro',cls:'b-pend',cor:'var(--red)'},
+    transcrevendo:{txt:'gerando legendas...',cls:'b-pend'},
+    processando:{txt:'processando...',cls:'b-pend'},
+  };
+  wrap.innerHTML=VIDEOS.map(j=>{
+    const st=stInfo[j.status]||{txt:j.status,cls:'b-pend'};
+    const dl=j.salvo_url||j.resultado_url;
+    const baixar=(j.status==='pronto'&&dl)?`<button class="btn btn-g btn-sm" onclick="baixarVid('${j.id}','${j.salvo_url||''}','${j.resultado_url||''}')">⬇ Baixar</button>`:'';
+    const diag=(ehGestor&&j.status==='erro')?`<button class="btn btn-o btn-sm" onclick="diagVid('${j.id}')">🔍 Diagnóstico</button>`:'';
+    const errInfo=(j.status==='erro'&&j.erro)?`<div style="font-size:11px;color:var(--red);font-family:var(--M);margin-top:4px">${JUMP.esc(j.erro).slice(0,120)}</div>`:'';
+    return `<div class="ord-card" style="--ac:163,230,53">
+      <div class="ord-ico">🎬</div>
+      <div class="ord-body">
+        <div class="ord-rota">Editor de Vídeo</div>
+        <div class="ord-tarefa">${JUMP.esc(j.titulo||'Vídeo')}</div>
+        <div class="ord-meta"><span class="ord-badge ${st.cls}" ${st.cor?`style="color:${st.cor}"`:''}>${st.txt}</span><span class="ord-tempo">criado ${tempoDecorrido(j.created_at)}</span></div>
+        ${errInfo}
+      </div>
+      <div class="ord-acts">${baixar}${diag}</div>
+    </div>`;
+  }).join('');
+}
+async function baixarVid(jobId,salvoUrl,shotUrl){
+  const url=salvoUrl||shotUrl;
+  if(!url){JUMP.toast('Vídeo indisponível','err');return;}
+  window.open(url,'_blank');
+  try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
+}
+async function diagVid(jobId){
+  try{
+    const d=await JUMP.api('video_diagnostico',{},CTX.token);
+    alert(JSON.stringify(d.diagnostico||d,null,2));
+  }catch(e){JUMP.toast('Erro no diagnóstico','err');}
+}
 async function cancelar(id){
   if(!confirm('Remover esta ordem?'))return;
   try{

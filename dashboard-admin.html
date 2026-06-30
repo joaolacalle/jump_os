@@ -420,6 +420,8 @@
       <div class="f-group"><label class="f-label">Contas Plus</label><input class="f-input" id="mc-plus" type="number" min="0"></div>
     </div>
     <div class="f-group"><label class="f-label">Contas Pro</label><input class="f-input" id="mc-pro" type="number" min="0"></div>
+    <div class="bk-b" style="margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--bd)">Teto de tokens: o total que este supervisor pode distribuir entre TODAS as contas dele. 0 = sem teto.</div>
+    <div class="f-group"><label class="f-label">Teto de tokens / mês</label><input class="f-input" id="mc-teto-tok" type="number" min="0" placeholder="Ex: 2000000"></div>
     <div class="modal-acts">
       <button class="btn btn-o" onclick="fechar('modal-cotas')">Cancelar</button>
       <button class="btn btn-g" onclick="salvarCotas()">Salvar cotas</button>
@@ -814,6 +816,7 @@ function abrirCotas(id){
   document.getElementById('mc-basico').value=co.basico||0;
   document.getElementById('mc-plus').value=co.plus||0;
   document.getElementById('mc-pro').value=co.pro||0;
+  document.getElementById('mc-teto-tok').value=s.teto_tokens||0;
   document.getElementById('modal-cotas').classList.add('show');
 }
 async function salvarCotas(){
@@ -823,7 +826,7 @@ async function salvarCotas(){
       basico:+document.getElementById('mc-basico').value||0,
       plus:+document.getElementById('mc-plus').value||0,
       pro:+document.getElementById('mc-pro').value||0,
-    }},CTX.token);
+    },teto_tokens:+document.getElementById('mc-teto-tok').value||0},CTX.token);
     JUMP.toast('✓ Cotas salvas');fechar('modal-cotas');await carregar();
   }catch(e){JUMP.toast(e.message,'err')}
 }
