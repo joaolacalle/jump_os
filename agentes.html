@@ -375,7 +375,7 @@
     <label class="vm-opt" style="background:rgba(var(--g-rgb),.06);border-radius:8px;padding:9px 11px;margin-bottom:14px"><input type="checkbox" id="vm-guardar"> 💾 Guardar este estilo para os próximos vídeos</label>
 
     <button class="btn btn-g" id="vm-editar" onclick="vmEditar()" style="width:100%" disabled>🎬 Editar vídeo</button>
-    <button onclick="vmDiagnostico()" style="width:100%;margin-top:8px;background:none;border:1px solid var(--bd);color:var(--t3);font-family:var(--M);font-size:11px;padding:7px;border-radius:8px;cursor:pointer">🔍 Diagnosticar último vídeo (se deu erro)</button>
+    <button id="vm-diag-btn" onclick="vmDiagnostico()" style="display:none;width:100%;margin-top:8px;background:none;border:1px solid var(--bd);color:var(--t3);font-family:var(--M);font-size:11px;padding:7px;border-radius:8px;cursor:pointer">🔍 Diagnosticar último vídeo (admin)</button>
     <div id="vm-diag" style="font-family:var(--M);font-size:10.5px;color:var(--t2);margin-top:8px;white-space:pre-wrap;word-break:break-word"></div>
 
     <div id="vm-lista-wrap" style="margin-top:18px;border-top:1px solid var(--bd);padding-top:14px;display:none">
@@ -756,6 +756,10 @@ function iniciarPollingVideo(){
 // ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
 async function subirVideoTrigger(){
   document.getElementById('video-overlay').style.display='flex';
+  // botão de diagnóstico só p/ admin e supervisor
+  const role=(CTX.cliente&&CTX.cliente.role)||'usuario';
+  const db=document.getElementById('vm-diag-btn');
+  if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
   carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
   try{

@@ -1521,8 +1521,11 @@ document.addEventListener('click',e=>{
   try{
     const r=await fetch(SB+'/rest/v1/config?chave=eq.precos_home&select=valor',{headers:{apikey:AK,Authorization:'Bearer '+AK}});
     const rows=await r.json();
-    if(!Array.isArray(rows)||!rows.length||!rows[0].valor)return; // sem config: mantém os valores do HTML
+    console.log('[JUMP precos] resposta:',rows);
+    if(!Array.isArray(rows)){console.warn('[JUMP precos] RLS bloqueou ou erro. Rode setup-precos-publico.sql');return;}
+    if(!rows.length||!rows[0].valor){console.warn('[JUMP precos] config precos_home vazia. Salve no painel admin.');return;}
     const pr=rows[0].valor;
+    console.log('[JUMP precos] aplicando:',pr);
     setPreco('preco-basico',pr.basico);
     setPreco('preco-plus',pr.plus);
     setPreco('preco-pro',pr.pro);
