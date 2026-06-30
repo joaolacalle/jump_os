@@ -683,7 +683,7 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
               } else {
                 // ainda transcrevendo: se passou de ~6min, faz fallback sem legenda (evita travar eterno)
                 const idadeMin = (Date.now() - new Date(j.created_at).getTime()) / 60000;
-                if (idadeMin > 6) {
+                if (idadeMin > 10) {
                   const opsSemLeg = { ...(j.operacoes || {}), legenda: false };
                   const edit = montarEdit(j.origem_url, opsSemLeg, null);
                   const rn = await iniciarRender(edit);
