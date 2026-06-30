@@ -289,7 +289,7 @@
     <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
       <div style="display:flex;gap:8px">
         <div style="flex:2"><label class="f-label" style="font-size:11px">Fonte</label>
-          <select class="f-input" id="vm-fonte" style="padding:8px;font-size:14px">
+          <select class="f-input" id="vm-fonte" style="padding:8px;font-size:14px" onchange="atualizarFontePreview()">
         <option value="Montserrat ExtraBold" style="font-family:'Montserrat';font-weight:800">Montserrat (forte)</option>
         <option value="Open Sans Bold" style="font-family:'Open Sans';font-weight:700">Open Sans</option>
         <option value="Roboto Bold" style="font-family:'Roboto';font-weight:700">Roboto</option>
@@ -305,7 +305,9 @@
         <option value="Archivo Black" style="font-family:'Archivo Black'">Archivo Black</option>
         <option value="Permanent Marker" style="font-family:'Permanent Marker'">Permanent Marker (manuscrita)</option>
         <option value="Pacifico" style="font-family:'Pacifico'">Pacifico (script)</option>
-      </select></div>
+      </select>
+      <div id="vm-fonte-preview" style="margin-top:6px;padding:8px 10px;background:var(--ch2);border:1px solid var(--bd);border-radius:6px;text-align:center;font-size:18px;color:var(--t1)">Exemplo da legenda</div>
+      </div>
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor</label>
           <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
       </div>
@@ -613,6 +615,30 @@ let videoChatUrl=null;
 // ── EDITOR DE VÍDEO (modal completo no chat) ──
 let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
 function vmFechar(){document.getElementById('video-overlay').style.display='none';}
+// Mostra erro do vídeo numa caixa SELECIONÁVEL com botão copiar
+function mostrarErroVideo(msg, objErro){
+  const det = objErro ? (typeof objErro==='string'?objErro:JSON.stringify(objErro,null,2)) : '';
+  const full = msg + (det && det!=='{}' ? ('\n\nDetalhes técnicos:\n'+det) : '');
+  let box=document.getElementById('vm-erro-box');
+  if(!box){
+    box=document.createElement('div');box.id='vm-erro-box';
+    box.style.cssText='margin:10px 0;padding:12px;border:1px solid var(--red);border-radius:10px;background:rgba(248,113,113,.08)';
+    const ed=document.getElementById('vm-v-status');
+    if(ed&&ed.parentNode)ed.parentNode.parentNode.insertBefore(box,ed.parentNode.nextSibling);
+  }
+  box.innerHTML='<div style="font-size:12px;color:var(--red);font-weight:700;margin-bottom:6px">⚠️ Ocorreu um erro</div>'+
+    '<textarea readonly onclick="this.select()" style="width:100%;min-height:70px;font-family:var(--M);font-size:11px;color:var(--t1);background:var(--ch2);border:1px solid var(--bd);border-radius:6px;padding:8px;resize:vertical">'+JUMP.esc(full)+'</textarea>'+
+    '<button onclick="copiarErroVideo()" style="margin-top:6px;font-size:11px;font-family:var(--M);background:var(--g);color:#0F0E0D;border:none;border-radius:6px;padding:6px 12px;cursor:pointer">📋 Copiar erro</button>';
+  box.style.display='block';
+}
+function copiarErroVideo(){
+  const ta=document.querySelector('#vm-erro-box textarea');
+  if(!ta)return;
+  ta.select();
+  try{
+    navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Erro copiado!'),()=>{document.execCommand('copy');JUMP.toast('Erro copiado!');});
+  }catch(e){try{document.execCommand('copy');JUMP.toast('Erro copiado!');}catch(_){}}
+}
 // PRÉVIA: captura um frame do vídeo local e mostra com filtro/legenda (CSS, sem render)
 function gerarPreviaVideo(file){
   const vid=document.getElementById('vm-previa-video');
@@ -631,6 +657,7 @@ function gerarPreviaVideo(file){
       ctx.drawImage(vid,0,0,canvas.width,canvas.height);
       wrap.style.display='block';
       aplicarPreviaFiltro();
+      atualizarFontePreview();
       ajustarPreviaLegenda();
       URL.revokeObjectURL(url);
     };
@@ -640,6 +667,35 @@ const FILTROS_CSS={
   '':'none', boost:'saturate(1.5) contrast(1.1)', contrast:'contrast(1.4)',
   lighten:'brightness(1.3)', darken:'brightness(0.7)', muted:'saturate(0.6)', greyscale:'grayscale(1)'
 };
+// mapeia o nome da fonte (valor do select) para família + peso CSS
+const FONTE_CSS={
+  'Montserrat ExtraBold':["'Montserrat',sans-serif",800],
+  'Montserrat SemiBold':["'Montserrat',sans-serif",600],
+  'Open Sans Bold':["'Open Sans',sans-serif",700],
+  'Roboto Bold':["'Roboto',sans-serif",700],
+  'Lato Bold':["'Lato',sans-serif",700],
+  'Oswald Bold':["'Oswald',sans-serif",700],
+  'Poppins Bold':["'Poppins',sans-serif",700],
+  'Bebas Neue':["'Bebas Neue',sans-serif",400],
+  'Raleway Bold':["'Raleway',sans-serif",700],
+  'Work Sans Bold':["'Work Sans',sans-serif",700],
+  'Nunito Bold':["'Nunito',sans-serif",700],
+  'Anton':["'Anton',sans-serif",400],
+  'Archivo Black':["'Archivo Black',sans-serif",400],
+  'Permanent Marker':["'Permanent Marker',cursive",400],
+  'Pacifico':["'Pacifico',cursive",400],
+};
+function fonteEscolhidaCSS(){
+  const sel=document.getElementById('vm-fonte');
+  const v=sel?sel.value:'Montserrat ExtraBold';
+  return FONTE_CSS[v]||["'Montserrat',sans-serif",800];
+}
+function atualizarFontePreview(){
+  const [fam,peso]=fonteEscolhidaCSS();
+  const prev=document.getElementById('vm-fonte-preview');
+  if(prev){prev.style.fontFamily=fam;prev.style.fontWeight=peso;}
+  ajustarPreviaLegenda(); // reflete também na prévia do vídeo
+}
 function aplicarPreviaFiltro(){
   const canvas=document.getElementById('vm-previa-canvas');
   if(!canvas)return;
@@ -656,10 +712,13 @@ function ajustarPreviaLegenda(){
   if(!temLeg)return;
   // VSL = legenda mais ao centro; senão embaixo
   const vsl=document.getElementById('vm-vsl')&&document.getElementById('vm-vsl').checked;
-  leg.style.bottom=vsl?'42%':'12%';
+  leg.style.bottom=vsl?'30%':'12%';
   // cor escolhida
   const corEl=document.getElementById('vm-cor');
   if(corEl)txtEl.style.color=corEl.value||'#fff';
+  // fonte escolhida (aplica na prévia)
+  const [fam,peso]=fonteEscolhidaCSS();
+  txtEl.style.fontFamily=fam;txtEl.style.fontWeight=peso;
 }
 function ajustarVsl(cb){ajustarPreviaLegenda();}
 function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
@@ -680,10 +739,9 @@ async function vmUpload(inp,tipo){
     const path=uid+'/'+tipo+'_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
     const upRes=await JUMP.sb.storage.from(bucket).upload(path,f,{upsert:true});
     if(upRes.error){
-      // mostra o erro COMPLETO na tela p/ diagnóstico
       const em=upRes.error.message||JSON.stringify(upRes.error);
-      statusEl.textContent='Erro no upload: '+em;
-      statusEl.style.color='var(--red)';
+      mostrarErroVideo('Erro no upload: '+em, upRes.error);
+      statusEl.textContent='';
       console.error('Storage upload error:',upRes.error);
       return;
     }
@@ -696,8 +754,8 @@ async function vmUpload(inp,tipo){
     statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--g)';
   }catch(e){
     const msg=(e&&e.message)||String(e)||'erro desconhecido';
-    statusEl.textContent='Erro: '+msg;
-    statusEl.style.color='var(--red)';
+    mostrarErroVideo('Erro: '+msg, e);
+    statusEl.textContent='';
     console.error('Upload erro completo:',e);
   }
 }
