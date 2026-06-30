@@ -117,7 +117,7 @@ function montarEdit(origemUrl, ops, srtUrl) {
       length: 'end',
       // VSL = legenda ao centro; Reels = mais embaixo. offset.y negativo desce, positivo sobe.
       position: 'center',
-      offset: { y: ehVsl ? 0 : -0.32 },
+      offset: { y: ehVsl ? -0.15 : -0.32 },
     };
     timeline.tracks.unshift({ clips: [caption] });
   }
