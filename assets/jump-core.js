@@ -112,6 +112,23 @@ window.JUMP=(function(){
     if(!r.ok)throw new Error(d.error||'Erro na operação');
     return d;
   }
+  // baixa um arquivo de verdade (força download, não abre em nova aba)
+  async function baixarArquivo(url,nome){
+    try{
+      const r=await fetch(url);
+      const blob=await r.blob();
+      const a=document.createElement('a');
+      const objUrl=URL.createObjectURL(blob);
+      a.href=objUrl;a.download=nome||('video_'+Date.now()+'.mp4');
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(objUrl);a.remove();},1000);
+      return true;
+    }catch(e){
+      // fallback: tenta link direto com download
+      try{const a=document.createElement('a');a.href=url;a.download=nome||'video.mp4';a.click();}catch(_){}
+      return false;
+    }
+  }
   // versão que nunca lança erro (p/ polling em background, não assusta o usuário)
   async function apiSilencioso(action,payload,token){
     try{
@@ -188,5 +205,5 @@ window.JUMP=(function(){
     document.body.style.overflow=mostrar?'hidden':'';
   }
 
-  return{sb,guard,logout,toast,api,apiSilencioso,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
+  return{sb,guard,logout,toast,api,apiSilencioso,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
 })();
