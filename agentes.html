@@ -808,6 +808,9 @@ async function vmEditar(){
 
   const btn=document.getElementById('vm-editar');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  // fecha o popup IMEDIATAMENTE ao clicar (o acompanhamento aparece no chat/Ordens)
+  vmFechar();
+  addMsg('a','🎬 Recebi seu vídeo! Estou editando — fica pronto em alguns minutos e aparece aqui e na Central de Ordens.');
   // renova o token (evita 'Não autenticado' por sessão expirada durante o teste)
   let tk=CTX.token;
   try{const{data}=await JUMP.sb.auth.getSession();if(data&&data.session&&data.session.access_token){tk=data.session.access_token;CTX.token=tk;}}catch(e){}
@@ -818,8 +821,6 @@ async function vmEditar(){
     });
     const d=await r.json();
     if(r.ok&&d.ok){
-      vmFechar();
-      addMsg('a','🎬 Recebi seu vídeo! '+(ops.legenda?'Estou gerando as legendas e depois editando':'Estou editando')+' — fica pronto em alguns minutos e eu te aviso aqui.');
       JUMP.toast('🎬 Vídeo em processamento');
       if(guardar)addMsg('a','✓ Guardei seu estilo de edição (fonte, cor e cortes) para os próximos vídeos ficarem com a sua cara.');
       // reset
