@@ -43,6 +43,8 @@ function montarEdit(origemUrl, ops, srtUrl) {
       volume: ops.mutar ? 0 : 1,
     },
     start: 0,
+    // sem corte = 'auto' (vídeo inteiro). A legenda (caption) segue o SRT com os
+    // timestamps reais, então cobre toda a fala do vídeo do início ao fim.
     length: (ops.corte_fim && ops.corte_inicio != null) ? (Number(ops.corte_fim) - Number(ops.corte_inicio)) : 'auto',
   };
   if (ops.corte_inicio != null) videoClip.asset.trim = Number(ops.corte_inicio);
@@ -66,10 +68,18 @@ function montarEdit(origemUrl, ops, srtUrl) {
     tracks.unshift({ clips: [{
       asset: {
         type: 'title', text: String(ops.texto).slice(0, 80),
-        style: 'minimal', size: 'medium', position: 'top',
+        style: 'minimal', size: 'medium',
+        font: {
+          family: ops.legenda_fonte || 'Montserrat ExtraBold',
+          color: ops.legenda_cor || '#ffffff',
+          size: isReels ? 44 : 40,
+        },
       },
       start: 0, length: ops.texto_duracao ? Number(ops.texto_duracao) : 4,
       transition: { in: 'fade', out: 'fade' },
+      // zona segura: não cola no topo (offset positivo sobe a partir do centro)
+      position: 'center',
+      offset: { y: 0.28 },
     }] });
   }
 
@@ -88,21 +98,27 @@ function montarEdit(origemUrl, ops, srtUrl) {
     const ehVsl = !!ops.vsl;
     // Formato do caption conforme a doc oficial (mínimo que funciona + estilo seguro).
     // Posição via 'position' + 'offset' no CLIP (não 'margin' no asset, que quebrava).
-    const caption = {
-      asset: {
-        type: 'caption',
-        src: srtUrl,
-        font: {
-          family: ops.legenda_fonte || 'Montserrat ExtraBold',
-          color: ops.legenda_cor || '#ffffff',
-          size: isReels ? 42 : 34,
-          lineHeight: 1,
-        },
-        background: { color: '#000000', opacity: 0.6 },
+    const capAsset = {
+      type: 'caption',
+      src: srtUrl,
+      font: {
+        family: ops.legenda_fonte || 'Montserrat ExtraBold',
+        color: ops.legenda_cor || '#ffffff',
+        size: isReels ? 42 : 34,
+        lineHeight: 1,
       },
+    };
+    // fundo: só adiciona se o usuário quiser (senão fica sem fundo, com contorno via stroke)
+    if (ops.legenda_fundo === false) {
+      capAsset.font.stroke = '#000000';
+      capAsset.font.strokeWidth = 2;
+    } else {
+      capAsset.background = { color: ops.legenda_fundo_cor || '#000000', opacity: 0.6 };
+    }
+    const caption = {
+      asset: capAsset,
       start: 0,
       length: 'end',
-      // VSL = legenda ao centro; Reels = mais embaixo. offset.y negativo desce, positivo sobe.
       position: 'center',
       offset: { y: ehVsl ? -0.15 : -0.32 },
     };
@@ -118,7 +134,7 @@ function montarEdit(origemUrl, ops, srtUrl) {
 // ETAPA 1 — dispara a transcrição (Ingest API). Retorna { source_id } ou { error }.
 async function iniciarTranscricao(origemUrl, ops) {
   ops = ops || {};
-  const outputs = { transcription: { format: 'srt' } };
+  const outputs = { transcription: { format: 'srt', language: 'pt' } };
   // tratamento de voz: gera uma rendition com áudio melhorado (Dolby) que será usada no render
   if (ops.melhorar_voz) {
     outputs.renditions = [{
