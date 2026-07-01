@@ -2,6 +2,7 @@
 // ENV: SUPABASE_SERVICE_KEY (service role). Valida o JWT do solicitante e aplica escopo.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const { salvarVideoNoBanco, zapCheckTask } = require('./_video-lib');
+const { emailContaCriada } = require('./_email-lib');
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
 const H = () => ({
@@ -190,6 +191,11 @@ module.exports = async (req, res) => {
       // upsert: a trigger handle_new_user já pode ter criado a linha — fazemos merge
       await sbUpsert('clientes', row);
       await sbInsert('logs', { acao: `${role} criou ${novoRole}: ${email}`, user_id: requester.id }).catch(() => {});
+      // envia o email de boas-vindas com os dados de acesso (só p/ conta de usuário)
+      if (novoRole === 'usuario') {
+        const nomeSup = (me && (me.nome || me.email)) || 'seu gestor';
+        emailContaCriada(email, { nomeSupervisor: nomeSup, email, senha }).catch(() => {});
+      }
       return res.status(200).json({ ok: true, id: novo.id });
     }
 

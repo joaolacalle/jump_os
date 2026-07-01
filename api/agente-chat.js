@@ -5,6 +5,7 @@
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
+const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
@@ -631,8 +632,8 @@ const handler = async (req, res) => {
     });
     if(editVideoOps && agente==='video'){
       try{
-        const shotKey=process.env.SHOTSTACK_API_KEY;
-        if(!shotKey){
+        const zapKey=process.env.ZAPCAP_API_KEY;
+        if(!zapKey){
           texto+='\n\n(Observação: a edição automática de vídeo ainda não está configurada. Avise o administrador.)';
         }else if(!videoCruUrl){
           texto+='\n\n(Não encontrei um vídeo cru para editar. Envie a captação em "Meus Arquivos" na categoria Vídeos.)';
@@ -648,36 +649,20 @@ const handler = async (req, res) => {
           }
           if(podeEditar){
             const ops=editVideoOps;
-            const isReels=(ops.formato!=='wide');
-            const largura=isReels?1080:1920, altura=isReels?1920:1080;
-            // monta o edit JSON do Shotstack
-            const videoClip={asset:{type:'video',src:videoCruUrl,volume:1},start:0,length:(ops.corte_fim&&ops.corte_inicio!=null)?(Number(ops.corte_fim)-Number(ops.corte_inicio)):'auto'};
-            if(ops.corte_inicio!=null)videoClip.asset.trim=Number(ops.corte_inicio);
-            const tracks=[{clips:[videoClip]}];
-            if(ops.texto){tracks.unshift({clips:[{asset:{type:'title',text:String(ops.texto).slice(0,80),style:'minimal',size:'medium',position:'top'},start:0,length:4,transition:{in:'fade',out:'fade'}}]});}
-            const timeline={background:'#000000',tracks};
-            if(ops.legenda){
-              timeline.tracks.unshift({clips:[{asset:{type:'caption',src:videoCruUrl,font:{color:'#ffffff',size:isReels?42:32},background:{color:'#000000',opacity:0.6,padding:8,borderRadius:6}},start:0,length:'end',offset:{y:isReels?-0.25:-0.40}}]});
-            }
-            const edit={timeline,output:{format:'mp4',size:{width:largura,height:altura},fps:30}};
-            const stage=process.env.SHOTSTACK_ENV||'v1';
-            const siteUrl=process.env.SITE_URL||'https://metodojump.com.br';
-            edit.callback=`${siteUrl}/api/video-webhook`;
-            // registra o job e captura o id
-            const jobRes=await fetch(`${SUPABASE_URL}/rest/v1/video_jobs`,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify({user_id:targetId,status:'processando',origem_url:videoCruUrl,operacoes:ops,titulo:'Vídeo (via Agente)'})});
-            const jobArr=await jobRes.json();
-            const jobId=Array.isArray(jobArr)&&jobArr[0]?jobArr[0].id:null;
-            // dispara o render no Shotstack
-            const sres=await fetch(`https://api.shotstack.io/edit/${stage}/render`,{method:'POST',headers:{'x-api-key':shotKey,'Content-Type':'application/json'},body:JSON.stringify(edit)});
-            const sdata=await sres.json();
-            if(sres.ok&&sdata.success){
-              const renderId=sdata.response&&sdata.response.id;
-              if(jobId)await sbPatch(`video_jobs?id=eq.${jobId}`,{render_id:renderId});
-              if(cli.role==='usuario'){uso.videos=Number(uso.videos||0)+1;}
-              videoEditando=true;
+            // FLUXO ZAPCAP: upload (URL) → task
+            const up=await zapUpload(videoCruUrl);
+            if(up.error){
+              texto+='\n\n(Houve um erro ao enviar o vídeo para edição. Tente novamente.)';
             }else{
-              if(jobId)await sbPatch(`video_jobs?id=eq.${jobId}`,{status:'erro',erro:JSON.stringify(sdata).slice(0,200)});
-              texto+='\n\n(Houve um erro ao iniciar a edição. Tente novamente em instantes.)';
+              const tk=await zapCriarTask(up.videoId,ops);
+              if(tk.error){
+                texto+='\n\n(Houve um erro ao processar o vídeo. Tente novamente.)';
+              }else{
+                const jobRes=await fetch(`${SUPABASE_URL}/rest/v1/video_jobs`,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify({user_id:targetId,status:'processando',origem_url:videoCruUrl,operacoes:ops,titulo:'Vídeo (via Agente)',render_id:'zap:'+up.videoId+':'+tk.taskId})});
+                const jobArr=await jobRes.json();
+                if(cli.role==='usuario'){uso.videos=Number(uso.videos||0)+1;}
+                videoEditando=true;
+              }
             }
           }
         }

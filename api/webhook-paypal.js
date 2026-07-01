@@ -1,6 +1,7 @@
 // api/webhook-paypal.js — ativa a conta no Supabase quando a assinatura é ativada
 // ENV: SUPABASE_SERVICE_KEY (já existe na Vercel), SUPABASE_URL opcional
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+const { emailCompra } = require('./_email-lib');
 
 // Limites por plano (espelham os defaults do admin-users.js / config 'planos')
 const LIMS_DEFAULT = {
@@ -89,6 +90,11 @@ module.exports = async (req, res) => {
           headers: { ...H(), 'Prefer': 'return=minimal' },
           body: JSON.stringify(patch),
         });
+        // envia o email de confirmação de compra (só no início da assinatura)
+        if (type === 'BILLING.SUBSCRIPTION.ACTIVATED' && email) {
+          const nomePlano = plano ? (plano.charAt(0).toUpperCase() + plano.slice(1)) : 'JUMP';
+          emailCompra(email, { plano: nomePlano, valor: '', data: new Date().toLocaleDateString('pt-BR') }).catch(() => {});
+        }
       }
     }
     if (type === 'BILLING.SUBSCRIPTION.CANCELLED' || type === 'BILLING.SUBSCRIPTION.SUSPENDED') {

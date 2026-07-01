@@ -24,7 +24,7 @@ async function sbPatch(path, body) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!process.env.SHOTSTACK_API_KEY) return res.status(500).json({ error: 'Editor de vídeo não configurado (falta a chave do Shotstack).' });
+  if (!process.env.ZAPCAP_API_KEY) return res.status(500).json({ error: 'Editor de vídeo não configurado (falta a chave do ZapCap).' });
 
   try {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
