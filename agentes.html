@@ -287,6 +287,11 @@
 
     <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this);ajustarPreviaLegenda()"> 💬 Legendas automáticas</label>
     <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
+      <div style="margin-bottom:8px">
+        <label class="f-label" style="font-size:11px">Estilo da legenda</label>
+        <select class="f-input" id="vm-template" style="padding:8px;font-size:13px"><option value="">Padrão (carregando estilos...)</option></select>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Estilos virais prontos (tipo Hormozi, MrBeast). A fonte/cor abaixo ajustam por cima.</div>
+      </div>
       <div style="display:flex;gap:8px">
         <div style="flex:2"><label class="f-label" style="font-size:11px">Fonte</label>
           <select class="f-input" id="vm-fonte" style="padding:8px;font-size:14px" onchange="atualizarFontePreview()">
@@ -356,6 +361,8 @@
         </select>
       </div>
     </div>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-cortar-silencio"> ✂️ Cortar silêncios e pausas (deixa o vídeo dinâmico)</label>
 
     <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-voz"> 🎙️ Melhorar áudio (reduz ruído de fundo)</label>
 
@@ -801,6 +808,8 @@ async function vmEditar(){
   const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
   if(document.getElementById('vm-vsl').checked)ops.vsl=true;
   if(document.getElementById('vm-voz').checked)ops.melhorar_voz=true;
+  if(document.getElementById('vm-cortar-silencio').checked)ops.cortar_silencio=true;
+  const tpl=document.getElementById('vm-template').value;if(tpl)ops.zapcap_template=tpl;
   if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
   if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
   if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
@@ -880,6 +889,27 @@ function copiarDiag(){
     navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Diagnóstico copiado!'),()=>{document.execCommand('copy');JUMP.toast('Copiado!');});
   }catch(e){try{document.execCommand('copy');JUMP.toast('Copiado!');}catch(_){}}
 }
+let TEMPLATES_CACHE=null;
+async function carregarTemplatesLegenda(){
+  const sel=document.getElementById('vm-template');
+  if(!sel)return;
+  if(TEMPLATES_CACHE){popularTemplates(TEMPLATES_CACHE);return;}
+  try{
+    const d=await JUMP.apiSilencioso('video_templates',{},CTX.token);
+    const tpls=(d&&d.templates)||[];
+    TEMPLATES_CACHE=tpls;
+    popularTemplates(tpls);
+  }catch(e){/* mantém o padrão */}
+}
+function popularTemplates(tpls){
+  const sel=document.getElementById('vm-template');
+  if(!sel)return;
+  if(!tpls.length){sel.innerHTML='<option value="">Padrão do sistema</option>';return;}
+  sel.innerHTML='<option value="">Padrão do sistema</option>'+tpls.map(t=>{
+    const nome=t.name||t.title||('Estilo '+(t.id||'').slice(0,6));
+    return '<option value="'+(t.id||'')+'">'+JUMP.esc(nome)+'</option>';
+  }).join('');
+}
 async function carregarMeusVideos(){
   // o histórico agora fica na Central de Ordens; aqui só mantém o polling
   // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
@@ -921,6 +951,7 @@ async function subirVideoTrigger(){
   const role=(CTX.cliente&&CTX.cliente.role)||'usuario';
   const db=document.getElementById('vm-diag-btn');
   if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
+  carregarTemplatesLegenda();
   carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
   try{
