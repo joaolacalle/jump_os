@@ -798,6 +798,21 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       return res.status(200).json({ ok: true });
     }
 
+    // ── TEMPLATES ZAPCAP: lista os estilos de legenda disponíveis ──
+    if (action === 'video_templates') {
+      const key = process.env.ZAPCAP_API_KEY;
+      if (!key) return res.status(200).json({ ok: true, templates: [] });
+      try {
+        const r = await fetch('https://api.zapcap.ai/templates', { headers: { 'x-api-key': key } });
+        const d = await r.json();
+        // a API retorna um array de {id, name, previewUrl?}
+        const templates = Array.isArray(d) ? d : (d.templates || d.data || []);
+        return res.status(200).json({ ok: true, templates });
+      } catch (e) {
+        return res.status(200).json({ ok: true, templates: [], erro: e.message });
+      }
+    }
+
     // ── SALVAR VÍDEO NO BANCO: copia o pronto do Shotstack pro nosso Storage ──
     if (action === 'video_salvar') {
       const uid = requester.id;

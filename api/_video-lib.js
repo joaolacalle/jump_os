@@ -17,7 +17,7 @@ function shotHeaders() {
 // ═══════════════════════════════════════════════════════════════
 const ZAPCAP_BASE = 'https://api.zapcap.ai';
 // template padrão (estilo de legenda). João pode trocar depois vendo GET /templates.
-const ZAPCAP_TEMPLATE_PADRAO = process.env.ZAPCAP_TEMPLATE_ID || 'a24e0eb7-e5c8-4c8d-9e5f-1c2b3a4d5e6f';
+const ZAPCAP_TEMPLATE_PADRAO = process.env.ZAPCAP_TEMPLATE_ID || 'a51c5222-47a7-4c37-b052-7b9853d66bf6';
 
 function zapHeaders() {
   return { 'x-api-key': process.env.ZAPCAP_API_KEY, 'Content-Type': 'application/json' };
@@ -50,14 +50,14 @@ async function zapCriarTask(videoId, ops) {
   };
   // cor da legenda
   if (ops.legenda_cor) body.renderOptions.styleOptions.fontColor = ops.legenda_cor;
-  // posição: VSL = mais ao centro (top menor sobe); ZapCap usa "position" (top/center/bottom) via y
-  body.renderOptions.styleOptions.top = ops.vsl ? 40 : 70; // % do topo: 70=embaixo, 40=mais central
-  // CORTAR SILÊNCIO (a dor resolvida) — intensity 0.2 tight, 0.6 natural
+  // posição: top = Y em % (70=embaixo p/ Reels, 45=mais central p/ VSL)
+  body.renderOptions.styleOptions.top = ops.vsl ? 45 : 70;
+  // contorno preto (legibilidade) se o usuário escolheu SEM fundo
+  if (ops.legenda_fundo === false) { body.renderOptions.styleOptions.stroke = 's'; body.renderOptions.styleOptions.strokeColor = '#000000'; }
+  // CORTAR SILÊNCIO (a dor resolvida) — autoCutSettings.silenceRemoval 0-1 (0.3 = bom padrão)
   if (ops.cortar_silencio) {
-    body.removeSilence = { intensity: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.4 };
+    body.autoCutSettings = { silenceRemoval: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.3 };
   }
-  // B-ROLL automático (se pedido) — percentual
-  if (ops.broll) body.brollPercent = Number(ops.broll_percent != null ? ops.broll_percent : 30);
 
   const r = await fetch(`${ZAPCAP_BASE}/videos/${videoId}/task`, {
     method: 'POST', headers: zapHeaders(), body: JSON.stringify(body),
