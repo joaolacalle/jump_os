@@ -308,8 +308,13 @@
       </select>
       <div id="vm-fonte-preview" style="margin-top:6px;padding:8px 10px;background:var(--ch2);border:1px solid var(--bd);border-radius:6px;text-align:center;font-size:18px;color:var(--t1)">Exemplo da legenda</div>
       </div>
-        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor</label>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do texto</label>
           <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end">
+        <label class="vm-opt" style="flex:1;margin:0"><input type="checkbox" id="vm-fundo-on" checked onchange="ajustarPreviaLegenda()"> Fundo atrás do texto</label>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do fundo</label>
+          <input class="f-input" id="vm-fundo-cor" type="color" value="#000000" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
       </div>
     </div>
 
@@ -334,13 +339,10 @@
       <div style="flex:1"><label class="f-label" style="font-size:11px">Velocidade</label>
         <select class="f-input" id="vm-velocidade" style="padding:8px">
           <option value="1">Normal (1x)</option>
-          <option value="0.75">Mais devagar (0.75x)</option>
           <option value="1.1">Levemente rápido (1.1x)</option>
           <option value="1.2">Um pouco rápido (1.2x)</option>
-          <option value="1.25">Rápido (1.25x)</option>
-          <option value="1.5">Bem rápido (1.5x)</option>
-          <option value="2">Muito rápido (2x)</option>
         </select>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Acelerar altera levemente o tom da voz.</div>
       </div>
       <div style="flex:1"><label class="f-label" style="font-size:11px">Filtro</label>
         <select class="f-input" id="vm-filtro" style="padding:8px" onchange="aplicarPreviaFiltro()">
@@ -355,7 +357,7 @@
       </div>
     </div>
 
-    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-voz"> 🎙️ Melhorar áudio da voz (reduz ruído)</label>
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-voz"> 🎙️ Melhorar áudio (reduz ruído de fundo)</label>
 
     <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-vsl" onchange="ajustarVsl(this)"> 🎯 É uma VSL (legenda mais ao centro)</label>
 
@@ -734,6 +736,11 @@ function ajustarPreviaLegenda(){
   // fonte escolhida (aplica na prévia)
   const [fam,peso]=fonteEscolhidaCSS();
   txtEl.style.fontFamily=fam;txtEl.style.fontWeight=peso;
+  // fundo da legenda
+  const fundoOn=document.getElementById('vm-fundo-on');
+  const fundoCor=document.getElementById('vm-fundo-cor');
+  if(fundoOn&&!fundoOn.checked){txtEl.style.background='transparent';txtEl.style.textShadow='0 1px 3px rgba(0,0,0,.9)';}
+  else{txtEl.style.background=(fundoCor?fundoCor.value:'#000')+'99';txtEl.style.textShadow='none';}
 }
 function ajustarVsl(cb){ajustarPreviaLegenda();}
 function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
@@ -782,6 +789,8 @@ async function vmEditar(){
     ops.legenda=true;
     ops.legenda_fonte=document.getElementById('vm-fonte').value;
     ops.legenda_cor=document.getElementById('vm-cor').value;
+    ops.legenda_fundo=document.getElementById('vm-fundo-on').checked;
+    ops.legenda_fundo_cor=document.getElementById('vm-fundo-cor').value;
   }
   if(document.getElementById('vm-corte').checked){
     ops.corte_inicio=+document.getElementById('vm-corte-ini').value||0;
@@ -826,6 +835,13 @@ async function vmEditar(){
   btn.disabled=false;btn.textContent='🎬 Editar vídeo';
 }
 
+async function baixarVideoJob(jobId,salvoUrl,shotUrl){
+  const url=salvoUrl||shotUrl;
+  if(!url){JUMP.toast('Vídeo indisponível','err');return;}
+  JUMP.toast('Baixando...');
+  await JUMP.baixarArquivo(url,'video_jump_'+jobId+'.mp4');
+  try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
+}
 async function vmDiagnostico(){
   document.getElementById('diag-overlay').style.display='flex';
   const ta=document.getElementById('diag-texto');

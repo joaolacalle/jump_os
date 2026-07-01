@@ -73,6 +73,7 @@ async function listar(){
   }catch(e){FILES=[]}
   render();
 }
+async function baixarVidUp(url){if(!url)return;JUMP.toast('Baixando...');await JUMP.baixarArquivo(url,'video_jump.mp4');}
 async function render(){
   const g=document.getElementById('grid');
   // Aba especial: Vídeos editados (vem do video_jobs, não de uploads)
@@ -83,7 +84,7 @@ async function render(){
     g.innerHTML=jobs.map(j=>`<div class="up-item" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px">
       <div style="font-size:30px">🎞</div>
       <div style="font-size:11px;color:var(--t2);text-align:center">${JUMP.esc(j.titulo||'Vídeo')}</div>
-      <a class="btn btn-g btn-sm" href="${j.salvo_url||j.resultado_url}" target="_blank">⬇ Baixar</a>
+      <button class="btn btn-g btn-sm" onclick="baixarVidUp('${j.salvo_url||j.resultado_url}')">⬇ Baixar</button>
     </div>`).join('');
     return;
   }

@@ -165,7 +165,8 @@ function renderVideos(wrap){
 async function baixarVid(jobId,salvoUrl,shotUrl){
   const url=salvoUrl||shotUrl;
   if(!url){JUMP.toast('Vídeo indisponível','err');return;}
-  window.open(url,'_blank');
+  JUMP.toast('Baixando...');
+  await JUMP.baixarArquivo(url,'video_jump_'+jobId+'.mp4');
   try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
 }
 async function diagVid(jobId){
