@@ -11,6 +11,74 @@ function shotHeaders() {
   return { 'x-api-key': process.env.SHOTSTACK_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ZAPCAP — API principal do Editor (legenda viral PT + cortar silêncio + b-roll)
+// Fluxo: upload (URL) → task → poll → downloadUrl. Doc: platform.zapcap.ai
+// ═══════════════════════════════════════════════════════════════
+const ZAPCAP_BASE = 'https://api.zapcap.ai';
+// template padrão (estilo de legenda). João pode trocar depois vendo GET /templates.
+const ZAPCAP_TEMPLATE_PADRAO = process.env.ZAPCAP_TEMPLATE_ID || 'a24e0eb7-e5c8-4c8d-9e5f-1c2b3a4d5e6f';
+
+function zapHeaders() {
+  return { 'x-api-key': process.env.ZAPCAP_API_KEY, 'Content-Type': 'application/json' };
+}
+
+// 1. Upload do vídeo por URL (a URL pública do nosso Supabase). Retorna { videoId } | { error }.
+async function zapUpload(videoUrl) {
+  const r = await fetch(`${ZAPCAP_BASE}/videos/url`, {
+    method: 'POST', headers: zapHeaders(),
+    body: JSON.stringify({ url: videoUrl }),
+  });
+  const d = await r.json();
+  if (!r.ok) return { error: (d && (d.detail || (d.errors && d.errors[0] && d.errors[0].detail) || JSON.stringify(d))) || 'erro no upload ZapCap' };
+  const videoId = d && (d.id || d.videoId);
+  if (!videoId) return { error: 'ZapCap sem videoId: ' + JSON.stringify(d).slice(0, 150) };
+  return { videoId };
+}
+
+// 2. Cria a task de legenda/edição. Mapeia nossas opções → parâmetros ZapCap.
+async function zapCriarTask(videoId, ops) {
+  ops = ops || {};
+  const body = {
+    templateId: ops.zapcap_template || ZAPCAP_TEMPLATE_PADRAO,
+    autoApprove: true,
+    language: 'pt',
+    renderOptions: {
+      subsOptions: { emoji: false, emphasizeKeywords: true, animation: true },
+      styleOptions: {},
+    },
+  };
+  // cor da legenda
+  if (ops.legenda_cor) body.renderOptions.styleOptions.fontColor = ops.legenda_cor;
+  // posição: VSL = mais ao centro (top menor sobe); ZapCap usa "position" (top/center/bottom) via y
+  body.renderOptions.styleOptions.top = ops.vsl ? 40 : 70; // % do topo: 70=embaixo, 40=mais central
+  // CORTAR SILÊNCIO (a dor resolvida) — intensity 0.2 tight, 0.6 natural
+  if (ops.cortar_silencio) {
+    body.removeSilence = { intensity: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.4 };
+  }
+  // B-ROLL automático (se pedido) — percentual
+  if (ops.broll) body.brollPercent = Number(ops.broll_percent != null ? ops.broll_percent : 30);
+
+  const r = await fetch(`${ZAPCAP_BASE}/videos/${videoId}/task`, {
+    method: 'POST', headers: zapHeaders(), body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) return { error: (d && (d.detail || (d.errors && d.errors[0] && d.errors[0].detail) || JSON.stringify(d))) || 'erro na task ZapCap' };
+  const taskId = d && (d.taskId || d.id);
+  if (!taskId) return { error: 'ZapCap sem taskId: ' + JSON.stringify(d).slice(0, 150) };
+  return { taskId };
+}
+
+// 3. Consulta a task. Retorna { done, url } | { failed, motivo } | { processing }.
+async function zapCheckTask(videoId, taskId) {
+  const r = await fetch(`${ZAPCAP_BASE}/videos/${videoId}/task/${taskId}`, { headers: zapHeaders() });
+  const d = await r.json();
+  const st = d && d.status;
+  if (st === 'completed' && d.downloadUrl) return { done: true, url: d.downloadUrl };
+  if (st === 'failed' || st === 'error') return { failed: true, motivo: (d && (d.error || d.detail)) || 'ZapCap falhou' };
+  return { processing: true, status: st || '?' };
+}
+
 // Mapeia a posição da legenda. Para VSL, "centro" sobe a legenda (margin.top menor faz descer; usamos margin.bottom).
 // offset.y: 0 = centro, negativo = mais pra baixo. Usamos margin que é o recomendado p/ caption.
 
@@ -134,7 +202,7 @@ function montarEdit(origemUrl, ops, srtUrl) {
 // ETAPA 1 — dispara a transcrição (Ingest API). Retorna { source_id } ou { error }.
 async function iniciarTranscricao(origemUrl, ops) {
   ops = ops || {};
-  const outputs = { transcription: { format: 'srt', language: 'pt' } };
+  const outputs = { transcription: { format: 'srt' } };
   // tratamento de voz: gera uma rendition com áudio melhorado (Dolby) que será usada no render
   if (ops.melhorar_voz) {
     outputs.renditions = [{
@@ -220,4 +288,4 @@ async function salvarVideoNoBanco(shotstackUrl, userId, supabaseUrl, serviceKey)
   }
 }
 
-module.exports = { montarEdit, iniciarTranscricao, checarTranscricao, iniciarRender, checarRender, shotEnv, shotHeaders, salvarVideoNoBanco };
+module.exports = { montarEdit, iniciarTranscricao, checarTranscricao, iniciarRender, checarRender, shotEnv, shotHeaders, salvarVideoNoBanco, zapUpload, zapCriarTask, zapCheckTask };
