@@ -37,10 +37,24 @@ async function zapUpload(videoUrl) {
 }
 
 // 2. Cria a task de legenda/edição. Mapeia nossas opções → parâmetros ZapCap.
+// Busca o primeiro template real da conta (fallback quando nenhum foi escolhido)
+async function zapPrimeiroTemplate() {
+  try {
+    const r = await fetch(`${ZAPCAP_BASE}/templates`, { headers: zapHeaders() });
+    const d = await r.json();
+    const arr = Array.isArray(d) ? d : (d.templates || d.data || []);
+    return arr[0] && arr[0].id ? arr[0].id : null;
+  } catch (e) { return null; }
+}
+
 async function zapCriarTask(videoId, ops) {
   ops = ops || {};
+  // template: escolhido pelo usuário > ENV > 1º da conta (garante que existe)
+  let templateId = ops.zapcap_template || process.env.ZAPCAP_TEMPLATE_ID || null;
+  if (!templateId) templateId = await zapPrimeiroTemplate();
+  if (!templateId) templateId = ZAPCAP_TEMPLATE_PADRAO; // último recurso
   const body = {
-    templateId: ops.zapcap_template || ZAPCAP_TEMPLATE_PADRAO,
+    templateId,
     autoApprove: true,
     language: 'pt',
     renderOptions: {
@@ -116,38 +130,20 @@ function montarEdit(origemUrl, ops, srtUrl) {
     length: (ops.corte_fim && ops.corte_inicio != null) ? (Number(ops.corte_fim) - Number(ops.corte_inicio)) : 'auto',
   };
   if (ops.corte_inicio != null) videoClip.asset.trim = Number(ops.corte_inicio);
-  if (ops.velocidade && Number(ops.velocidade) !== 1) videoClip.asset.speed = Number(ops.velocidade);
+
   if (ops.filtro) videoClip.filter = ops.filtro; // greyscale, boost, contrast, darken, lighten, muted, negative
   if (ops.estilo_corte) videoClip.transition = { in: ops.estilo_corte, out: ops.estilo_corte };
 
   const tracks = [{ clips: [videoClip] }];
 
-  // logo (overlay) — fica acima do vídeo
+  // logo (overlay) no canto — posição configurável (padrão: canto superior direito)
   if (ops.logo_url) {
+    const pos = { 'top-right': { x: 0.38, y: 0.42 }, 'top-left': { x: -0.38, y: 0.42 }, 'bottom-right': { x: 0.38, y: -0.42 }, 'bottom-left': { x: -0.38, y: -0.42 } };
+    const off = pos[ops.logo_posicao] || pos['top-right'];
     tracks.unshift({ clips: [{
       asset: { type: 'image', src: ops.logo_url },
       start: 0, length: 'end',
-      offset: { x: 0.35, y: 0.40 }, scale: 0.15, opacity: 0.92,
-    }] });
-  }
-
-  // texto/hook no início
-  if (ops.texto) {
-    tracks.unshift({ clips: [{
-      asset: {
-        type: 'title', text: String(ops.texto).slice(0, 80),
-        style: 'minimal', size: 'medium',
-        font: {
-          family: ops.legenda_fonte || 'Montserrat ExtraBold',
-          color: ops.legenda_cor || '#ffffff',
-          size: isReels ? 44 : 40,
-        },
-      },
-      start: 0, length: ops.texto_duracao ? Number(ops.texto_duracao) : 4,
-      transition: { in: 'fade', out: 'fade' },
-      // zona segura: não cola no topo (offset positivo sobe a partir do centro)
-      position: 'center',
-      offset: { y: 0.28 },
+      offset: off, scale: 0.14, opacity: 0.95,
     }] });
   }
 
@@ -160,38 +156,8 @@ function montarEdit(origemUrl, ops, srtUrl) {
     timeline.soundtrack = { src: trilhaSrc, effect: 'fadeInFadeOut', volume: ops.trilha_volume != null ? Number(ops.trilha_volume) : 0.25 };
   }
 
-  // LEGENDA: usa o arquivo .srt gerado pela transcrição (srtUrl)
-  // posição: VSL = mais ao centro (margin.bottom maior sobe a legenda)
-  if (ops.legenda && srtUrl) {
-    const ehVsl = !!ops.vsl;
-    // Formato do caption conforme a doc oficial (mínimo que funciona + estilo seguro).
-    // Posição via 'position' + 'offset' no CLIP (não 'margin' no asset, que quebrava).
-    const capAsset = {
-      type: 'caption',
-      src: srtUrl,
-      font: {
-        family: ops.legenda_fonte || 'Montserrat ExtraBold',
-        color: ops.legenda_cor || '#ffffff',
-        size: isReels ? 42 : 34,
-        lineHeight: 1,
-      },
-    };
-    // fundo: só adiciona se o usuário quiser (senão fica sem fundo, com contorno via stroke)
-    if (ops.legenda_fundo === false) {
-      capAsset.font.stroke = '#000000';
-      capAsset.font.strokeWidth = 2;
-    } else {
-      capAsset.background = { color: ops.legenda_fundo_cor || '#000000', opacity: 0.6 };
-    }
-    const caption = {
-      asset: capAsset,
-      start: 0,
-      length: 'end',
-      position: 'center',
-      offset: { y: ehVsl ? -0.15 : -0.32 },
-    };
-    timeline.tracks.unshift({ clips: [caption] });
-  }
+  // NOTA: a LEGENDA é feita pelo ZapCap (fase 2), não pelo Shotstack.
+  // Aqui o Shotstack só faz a COMPOSIÇÃO visual (trilha, filtro, logo).
 
   return {
     timeline,

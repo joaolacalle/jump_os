@@ -71,7 +71,6 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"video_rosto","valor":"SIM/NAO (o cliente aparece falando nos vídeos?)"}</memoria>
 <memoria>{"chave":"video_narracao","valor":"ENERGETICA/SERIA/PROXIMA (tom da narração)"}</memoria>
 <memoria>{"chave":"video_duracao","valor":"15s/30s/60s (duração padrão dos reels)"}</memoria>
-<memoria>{"chave":"video_fonte","valor":"nome da fonte da legenda conforme o estilo da marca (ex: Montserrat ExtraBold, Bebas Neue, Anton — fontes modernas p/ Reels)"}</memoria>
 <memoria>{"chave":"video_cor_legenda","valor":"#HEX da cor principal da legenda (geralmente branco #FFFFFF ou a cor de destaque da marca)"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
 ⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
@@ -259,20 +258,20 @@ O QUE VOCÊ ENTREGA (direção de edição clara para executar):
 
 FLUXO: o cliente sobe o vídeo cru em Meus Arquivos → você EDITA automaticamente.
 
-DICA IMPORTANTE DE CORTE (oriente o cliente): o corte automático de silêncios/pausas não é 100% preciso. Para o melhor resultado, oriente o cliente a JÁ SUBIR o vídeo com os cortes principais feitos (remover pausas longas, "é...", erros e partes mortas) usando o próprio celular (apps como CapCut, ou o editor da galeria) OU informando os timestamps de início/fim que ele quer manter. Você faz o restante (legenda, ritmo, trilha, formato). Explique isso de forma leve quando fizer sentido — assim o Reel fica com ritmo profissional sem risco de cortes errados. Passo a passo rápido que você pode dar: 1) abra o vídeo no editor do celular; 2) corte as pausas e erros; 3) exporte; 4) suba aqui que eu finalizo com legendas e trilha.
+DICA IMPORTANTE DE CORTE (oriente o cliente): o corte automático de silêncios/pausas não é 100% preciso. Para o melhor resultado, oriente o cliente a JÁ SUBIR o vídeo com os cortes principais feitos (remover pausas longas, "é...", erros e partes mortas) usando o próprio celular (apps como CapCut, ou o editor da galeria) OU informando os timestamps de início/fim que ele quer manter. Você faz o restante (legenda, corte de silêncio, formato). Explique isso de forma leve quando fizer sentido — assim o Reel fica com ritmo profissional sem risco de cortes errados. Passo a passo rápido que você pode dar: 1) abra o vídeo no editor do celular; 2) corte as pausas e erros; 3) exporte; 4) suba aqui que eu finalizo com legendas e ritmo.
 
 EDIÇÃO AUTOMÁTICA (você EXECUTA, não só orienta):
 Quando o cliente pedir para editar e houver um vídeo cru disponível, você:
 1. Explica em 2-3 linhas o que vai fazer (estilo, legenda, formato), no estilo da marca.
 2. Emite a tag <editar_video> com as opções decididas. O sistema edita e entrega o Reel pronto.
 A tag (preencha conforme o pedido e o VIDEO_SYSTEM da marca):
-<editar_video>{"legenda":true,"formato":"reels","texto":"texto curto na tela ou vazio","corte_inicio":null,"corte_fim":null,"trilha":false}</editar_video>
-- legenda: true se o vídeo tem fala (legenda automática sincronizada). Quase sempre true.
+<editar_video>{"legenda":true,"formato":"reels","cortar_silencio":false,"vsl":false}</editar_video>
+- legenda: true se o vídeo tem fala (legenda automática sincronizada em português). Quase sempre true.
 - formato: "reels" (9:16 vertical, padrão para Reels/Stories/TikTok) ou "wide" (16:9).
-- texto: um título curto p/ os primeiros segundos (hook), ou vazio "".
-- corte_inicio/corte_fim: em segundos, se o cliente pedir p/ cortar (senão null).
-- trilha: deixe false (o cliente adiciona trilha pela tela do Editor se quiser, pois precisa enviar o áudio).
-REGRAS: só emita a tag se houver vídeo cru disponível. Se não houver, peça para o cliente enviar em Meus Arquivos. Após emitir, avise que o vídeo está sendo processado e aparece pronto em "Editor de Vídeo" em alguns minutos. NÃO emita a tag mais de uma vez por resposta.
+- cortar_silencio: true se o cliente pedir para remover pausas/respirações (deixa o ritmo dinâmico).
+- vsl: true se for vídeo de vendas (legenda mais ao centro da tela).
+Estilo da legenda, cor, trilha, filtro e logo no canto: o cliente escolhe na TELA DO EDITOR (pop-up de upload) — oriente-o a usar por lá quando quiser personalizar; a prévia mostra como fica.
+REGRAS: só emita a tag se houver vídeo cru disponível. Se não houver, peça para o cliente enviar em Meus Arquivos. Após emitir, avise que o vídeo está sendo processado e aparece pronto em "Tarefas de Serviço → Vídeos por IA" em alguns minutos. NÃO emita a tag mais de uma vez por resposta.
 
 APRENDIZADO E PERSONALIZAÇÃO (importante):
 Quando o cliente demonstrar uma PREFERÊNCIA de edição (ex: "gosto de legenda amarela", "sempre corte as pausas", "prefiro Reels", "use minha trilha tal", "meu estilo é dinâmico com cortes rápidos"), você PERGUNTA se pode guardar isso para os próximos vídeos: algo como "Quer que eu guarde essa preferência para personalizar suas próximas edições?". Se ele confirmar, emita <memoria>{"chave":"video_estilo_legenda","valor":"amarela, fonte bold, embaixo"}</memoria> (use chaves como video_estilo_legenda, video_corte_preferido, video_formato_padrao, video_trilha_preferida, video_ritmo). Assim, nos próximos projetos você já aplica o estilo do cliente automaticamente. Sempre que for editar, leve em conta o que já aprendeu sobre as preferências dele.
@@ -359,7 +358,36 @@ const handler = async (req, res) => {
       await sbPatch(`clientes?id=eq.${targetId}`,{uso});
     }
     const lim=cli.limites||{};
-    // Texto/tokens LIVRE (custo baixo) — não bloqueia conversa. O controle é por imagem e vídeo.
+    // Texto/tokens LIVRE p/ pagantes (custo baixo). No TRIAL, há um limite diário por janela.
+
+    // ── ESTADO DO TRIAL (usado aqui e mais abaixo nas regras dos agentes) ──
+    const emTrial = !!(cli.tipo_cortesia === 'trial' && cli.cortesia_ate && new Date(cli.cortesia_ate).getTime() > Date.now());
+
+    // ── LIMITE DE MENSAGENS NO TRIAL (estilo IA gratuita: usa um tanto, espera 3h, libera) ──
+    // Só para role 'usuario' em trial. Admin/supervisor livres. Não é apertado — evita desperdício.
+    if (emTrial && cli.role === 'usuario') {
+      const LIM_MSG_TRIAL = 25;      // mensagens por janela
+      const JANELA_MIN = 180;        // 3 horas
+      const agoraMs = Date.now();
+      let janela = uso.msg_janela || null; // { inicio: ISO, count: N }
+      // se não há janela ou já passou das 3h, abre nova
+      if (!janela || (agoraMs - new Date(janela.inicio).getTime()) >= JANELA_MIN * 60000) {
+        janela = { inicio: new Date().toISOString(), count: 0 };
+      }
+      if (janela.count >= LIM_MSG_TRIAL) {
+        const liberaMs = new Date(janela.inicio).getTime() + JANELA_MIN * 60000;
+        const faltaMin = Math.max(1, Math.ceil((liberaMs - agoraMs) / 60000));
+        const h = Math.floor(faltaMin / 60), m = faltaMin % 60;
+        const quando = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'min' : ''}` : `${m}min`;
+        return res.status(429).json({
+          error: `Você usou as mensagens do período de teste por agora. Elas liberam em ${quando}. No plano ativo, o uso é liberado. 😉`,
+          limite: true, tipo_limite: 'mensagens_trial', libera_em_min: faltaMin,
+        });
+      }
+      // conta esta mensagem; a persistência acontece no PATCH único do fim (junto com os tokens)
+      janela.count += 1;
+      uso.msg_janela = janela;
+    }
 
     // Acervo de imagens (pré-requisito do Identidade)
     let acervoTxt='';
@@ -472,7 +500,34 @@ const handler = async (req, res) => {
       }
     }catch(e){}
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}`;
+    // ── REGRAS DO TRIAL (7 dias) por agente (emTrial já calculado no topo) ──
+    let trialTxt = '';
+    if (emTrial) {
+      const planoTrial = cli.plano || 'basico';
+      const limImg = { basico: 1, plus: 2, pro: 3 }[planoTrial] || 1;
+      const limVid = { basico: 1, plus: 2, pro: 3 }[planoTrial] || 1;
+      const regrasTrial = {
+        identidade: 'Você atua NORMALMENTE no trial. Faça a consultoria completa de identidade — isso é essencial para o restante funcionar.',
+        mercado: 'Você atua NORMALMENTE no trial. Faça a análise de mercado completa — é a base para os outros agentes.',
+        diagnostico: 'Você atua NORMALMENTE no trial. Faça o diagnóstico completo.',
+        estrategia: `PERÍODO DE TESTE (7 dias): gere a estratégia de conteúdo APENAS para os PRÓXIMOS 7 DIAS (não o mês inteiro). Ao montar o calendário, RESPEITE o limite de ${limImg} imagem(ns) no total do plano de teste — não peça ao Designer mais imagens que isso. Avise o cliente, de forma natural, que esta é uma amostra de 7 dias e que, ao ativar o plano, você desenvolve o mês completo automaticamente com todas as tarefas.`,
+        publicacao: 'PERÍODO DE TESTE (7 dias): NÃO agende conteúdos que o próprio cliente subiu (uploads dele). Publique/agende SOMENTE o que vier das tarefas dos outros agentes. Configurar DM e automações funciona normalmente.',
+        trafego: 'PERÍODO DE TESTE (7 dias): faça APENAS análise e sugestões ao cliente (para os próximos 7 dias). NÃO gere tarefas nem ordens para outros agentes durante o teste. Explique o que faria e recomende ativar o plano para executar.',
+        criativo: `PERÍODO DE TESTE (7 dias): você gera no máximo ${limImg} imagem(ns) no total, e SOMENTE quando vier de uma TAREFA de outro agente (não gere imagens avulsas/aleatórias a pedido direto solto). Se o cliente pedir uma imagem solta sem onboarding feito, oriente-o gentilmente a completar a estratégia primeiro.`,
+        video: `PERÍODO DE TESTE (7 dias): você edita no máximo ${limVid} vídeo(s) no total do período.`,
+      };
+      if (regrasTrial[agente]) {
+        trialTxt = `\n\n[MODO DE TESTE ATIVO — plano ${planoTrial}]\n${regrasTrial[agente]}\nO cliente está nos 7 dias gratuitos. A ideia é mostrar o valor real do JUMP para ele ativar a assinatura. Seja excelente no que entrega, dentro destes limites.`;
+      }
+    }
+
+    // PÓS-TRIAL: se o cliente saiu do trial e ainda não gerou o mês completo, orienta a Estratégia
+    let completarTxt = '';
+    if (agente === 'estrategia' && !emTrial && cli.onboarding && cli.onboarding.completar_estrategia && !cli.onboarding.estrategia_completada) {
+      completarTxt = `\n\n[ATIVAÇÃO DO PLANO] O cliente acabou de sair do período de teste e o plano está ativo. Agora gere o CALENDÁRIO COMPLETO DO MÊS (não só 7 dias), com todos os posts e disparando as tarefas para os respectivos agentes (Designer, etc). Comece já nesta resposta, de forma natural, celebrando a ativação. Ao concluir a geração do mês, emita <memoria>{"chave":"estrategia_completada","valor":"true"}</memoria> para não repetir.`;
+    }
+
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
@@ -513,11 +568,14 @@ const handler = async (req, res) => {
     }
 
     // Extrair ordens de serviço entre agentes (registra para execução)
-    const ordens=[];
+    let ordens=[];
+    const AGENTES_VALIDOS=['identidade','mercado','diagnostico','estrategia','criativo','publicacao','trafego','video'];
     texto=texto.replace(/<ordem_servico>([\s\S]*?)<\/ordem_servico>/g,(_,j)=>{
-      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa)ordens.push(o)}catch(e){}
+      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa&&AGENTES_VALIDOS.includes(String(o.para)))ordens.push(o)}catch(e){}
       return '';
     });
+    // TRIAL: o Tráfego NÃO dispara tarefas para outros agentes (só análise/sugestão).
+    if(emTrial&&agente==='trafego'){ ordens=[]; }
     if(ordens.length){
       try{
         await Promise.all(ordens.map(o=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
@@ -641,10 +699,14 @@ const handler = async (req, res) => {
           // limite de vídeos: só role usuario (admin/supervisor sem limite)
           let podeEditar=true;
           if(cli.role==='usuario'){
-            const limV=Number((cli.limites&&cli.limites.videos)??0);
+            let limV=Number((cli.limites&&cli.limites.videos)??0);
+            // no trial: limite reduzido por plano (básico1/plus2/pro3)
+            if(emTrial){ limV=Math.min(limV||99,{basico:1,plus:2,pro:3}[cli.plano||'basico']||1); }
             if(Number(uso.videos||0)>=limV){
               podeEditar=false;
-              texto+=`\n\n(Você atingiu o limite de ${limV} vídeo(s) do seu plano este mês.)`;
+              texto+=emTrial
+                ? `\n\n(No período de teste você pode editar até ${limV} vídeo(s). Ative seu plano para liberar a cota completa.)`
+                : `\n\n(Você atingiu o limite de ${limV} vídeo(s) do seu plano este mês.)`;
             }
           }
           if(podeEditar){
@@ -675,6 +737,13 @@ const handler = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.chave&&o.valor)novas.push(o)}catch(e){}
       return '';
     });
+    // PÓS-TRIAL: se a Estratégia marcou que completou o mês, grava no onboarding (encerra a flag)
+    if (novas.some(m => String(m.chave) === 'estrategia_completada')) {
+      try {
+        const onb = Object.assign({}, cli.onboarding || {}, { estrategia_completada: true, completar_estrategia: false });
+        await sbPatch(`clientes?id=eq.${targetId}`, { onboarding: onb });
+      } catch (e) {}
+    }
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
     const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
     const memWrites=novas.slice(0,12).map(m=>{

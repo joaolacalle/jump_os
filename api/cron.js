@@ -19,11 +19,13 @@ async function jobEstrategia() {
   const mesProx = MESES[proxIdx];
   const tagMes = `estrategia_${agora.getFullYear()}_${proxIdx}`;
   const clientes = await fetch(
-    `${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,nome,plano`, { headers: SBH() }
+    `${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,nome,plano,tipo_cortesia,cortesia_ate`, { headers: SBH() }
   ).then(r => r.json());
   if (!Array.isArray(clientes)) return { avisos: 0 };
   let criados = 0;
   for (const c of clientes) {
+    // pula quem está no período de teste (a estratégia do trial é de 7 dias, não mensal)
+    if (c.tipo_cortesia === 'trial' && c.cortesia_ate && new Date(c.cortesia_ate).getTime() > Date.now()) continue;
     const existe = await fetch(
       `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&titulo=eq.${encodeURIComponent('Estratégia do mês pronta')}&mensagem=like=*${tagMes}*&select=id&limit=1`,
       { headers: SBH() }
@@ -186,7 +188,29 @@ async function jobOrdens() {
     }).catch(()=>{});
     lembretes++;
   }
-  return { recorrentes_criadas: recCriadas, lembretes };
+  // 3) CONVERSÃO PÓS-TRIAL: quem tinha trial e o período já venceu → marca p/ completar estratégia
+  //    (o agente Estratégia, no próximo acesso, gera o mês completo + tarefas). Anti-duplicata por flag.
+  let convertidos = 0;
+  const exTrial = await fetch(`${SUPABASE_URL}/rest/v1/clientes?tipo_cortesia=eq.trial&status=eq.ativo&select=id,onboarding,cortesia_ate`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+  const agora = Date.now();
+  for (const c of (Array.isArray(exTrial) ? exTrial : [])) {
+    if (!c.cortesia_ate || new Date(c.cortesia_ate).getTime() > agora) continue; // ainda no trial
+    const onb = c.onboarding || {};
+    if (onb.completar_estrategia || onb.estrategia_completada) continue; // já marcado/feito
+    // marca a flag e encerra o trial (tipo_cortesia deixa de ser 'trial')
+    await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${c.id}`, {
+      method: 'PATCH', headers: SBH(),
+      body: JSON.stringify({ tipo_cortesia: null, onboarding: { ...onb, completar_estrategia: true } }),
+    }).catch(()=>{});
+    // avisa o cliente que a conta foi ativada e o mês completo será gerado
+    await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({ user_id: c.id, tipo: 'sistema', titulo: 'Seu plano está ativo! 🎉', mensagem: 'Seu período de teste terminou e sua assinatura está ativa. Fale com o agente de Estratégia para gerar seu calendário completo do mês.', lido: false, resolvido: false }),
+    }).catch(()=>{});
+    convertidos++;
+  }
+
+  return { recorrentes_criadas: recCriadas, lembretes, convertidos };
 }
 
 async function jobLimpeza() {

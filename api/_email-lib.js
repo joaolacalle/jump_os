@@ -43,6 +43,26 @@ function botao(url, texto) {
   return `<div style="text-align:center;margin:28px 0;"><a href="${url}" style="display:inline-block;background:#A855F7;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 40px;border-radius:10px;">${texto}</a></div>`;
 }
 
+// ── EMAIL: início do período de teste (7 dias grátis) ──
+async function emailTrialIniciado(para, { plano }) {
+  const conteudo = `
+    <div style="text-align:center;margin-bottom:8px;font-size:44px;">🎁</div>
+    <h1 style="font-size:22px;color:#ffffff;margin:0 0 16px;text-align:center;">Seus 7 dias grátis começaram!</h1>
+    <p style="font-size:15px;color:#c9c2ba;line-height:1.6;margin:0 0 20px;">Bem-vindo ao JUMP! Sua assinatura do plano <strong style="color:#A855F7;">${plano || 'JUMP'}</strong> foi iniciada com <strong style="color:#FBBF24;">7 dias gratuitos</strong>. Nada será cobrado agora.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#221d19;border:1px solid #3a332d;border-radius:12px;margin:22px 0;"><tr><td style="padding:20px 22px;">
+      <div style="font-size:14px;font-weight:700;color:#FBBF24;margin-bottom:10px;">✨ Como aproveitar seus 7 dias:</div>
+      <div style="font-size:14px;color:#c9c2ba;line-height:1.9;">
+        1. Converse com o agente de <strong style="color:#ffffff;">Identidade</strong> (ele monta a base da sua marca)<br>
+        2. Deixe a <strong style="color:#ffffff;">Estratégia</strong> criar seu plano de conteúdo<br>
+        3. Veja o <strong style="color:#ffffff;">Designer</strong> gerar suas artes e aprove<br>
+        4. Suba um vídeo e receba ele legendado e editado
+      </div>
+    </td></tr></table>
+    <p style="font-size:13px;color:#c9c2ba;line-height:1.6;margin:0 0 4px;">Ao final dos 7 dias, sua assinatura é ativada automaticamente e tudo é liberado. Se não quiser continuar, é só cancelar antes — sem burocracia.</p>
+    ${botao(SITE_URL + '/dashboard-usuario.html', 'Começar agora')}`;
+  return enviarEmail(para, '🎁 Seus 7 dias grátis no JUMP começaram', layout(conteudo));
+}
+
 // ── EMAIL 2: confirmação de compra ──
 async function emailCompra(para, { plano, valor, data }) {
   const conteudo = `
@@ -79,4 +99,4 @@ async function emailContaCriada(para, { nomeSupervisor, email, senha }) {
   return enviarEmail(para, 'Sua conta JUMP foi criada', layout(conteudo));
 }
 
-module.exports = { enviarEmail, emailCompra, emailContaCriada, layout };
+module.exports = { enviarEmail, emailCompra, emailContaCriada, emailTrialIniciado, layout };

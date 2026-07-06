@@ -3,7 +3,7 @@
 // ENV: ZAPCAP_API_KEY, ZAPCAP_TEMPLATE_ID (opcional), SUPABASE_SERVICE_KEY, SITE_URL
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-const { zapUpload, zapCriarTask } = require('./_video-lib');
+const { zapUpload, zapCriarTask, montarEdit, iniciarRender } = require('./_video-lib');
 
 function H() {
   return { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
@@ -24,7 +24,7 @@ async function sbPatch(path, body) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!process.env.ZAPCAP_API_KEY) return res.status(500).json({ error: 'Editor de vídeo não configurado (falta a chave do ZapCap).' });
+  if (!process.env.ZAPCAP_API_KEY && !process.env.SHOTSTACK_API_KEY) return res.status(500).json({ error: 'Editor de vídeo não configurado (falta a chave do ZapCap/Shotstack).' });
 
   try {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -71,22 +71,69 @@ module.exports = async (req, res) => {
       await sbPatch(`clientes?id=eq.${alvoId}`, { uso });
     }
 
-    // ── FLUXO ZAPCAP: upload → task (legenda PT + cortar silêncio + b-roll) ──
-    // 1. Envia a URL do vídeo (nosso Supabase) pro ZapCap
-    const up = await zapUpload(origem_url);
-    if (up.error) return res.status(502).json({ error: 'Falha ao enviar o vídeo: ' + up.error });
+    // ── FLUXO HÍBRIDO: Shotstack (composição) → ZapCap (legenda + corte silêncio) ──
+    // Shotstack: composição visual (trilha, filtro, logo, melhoria de áudio).
+    // Shotstack faz composição visual. Separamos FILTRO (afeta a imagem/legenda) do resto.
+    const temFiltro = !!ops.filtro;
+    const temComposicao = !!(ops.trilha_estilo || ops.trilha_url || ops.logo_url || ops.melhorar_voz);
+    const precisaShotstack = temFiltro || temComposicao;
+    const precisaZapcap = !!(ops.legenda || ops.cortar_silencio);
 
-    // 2. Cria a task de edição/legenda
-    const tk = await zapCriarTask(up.videoId, ops);
-    if (tk.error) return res.status(502).json({ error: 'Falha ao processar: ' + tk.error });
+    // ORDEM INTELIGENTE:
+    // - COM filtro + legenda: Shotstack PRIMEIRO (o filtro é aplicado antes; a legenda é
+    //   queimada depois, limpa, com a cor exata escolhida). fase2:zapcap
+    // - SEM filtro, mas com legenda/corte + composição (trilha/logo/áudio): ZapCap PRIMEIRO
+    //   (corta o silêncio → vídeo menor → Shotstack processa menos = ECONOMIZA). fase2:shot
+    // - Só um dos dois: direto.
 
-    // 3. Guarda o job (videoId + taskId no render_id, separados por :)
-    const job = await sbInsert('video_jobs', {
-      user_id: alvoId, status: 'processando', origem_url, operacoes: ops,
-      titulo: titulo || 'Vídeo', render_id: 'zap:' + up.videoId + ':' + tk.taskId,
-    });
-    const jobId = Array.isArray(job) && job[0] ? job[0].id : null;
-    return res.status(200).json({ ok: true, job_id: jobId, status: 'processando' });
+    const temZap = !!process.env.ZAPCAP_API_KEY;
+    const temShot = !!process.env.SHOTSTACK_API_KEY;
+
+    async function iniciarPorShotstack(fase2) {
+      const edit = montarEdit(origem_url, ops, null);
+      const rn = await iniciarRender(edit);
+      if (rn.error) return { error: 'Falha ao compor o vídeo: ' + rn.error };
+      const job = await sbInsert('video_jobs', {
+        user_id: alvoId, status: 'processando', origem_url, operacoes: ops,
+        titulo: titulo || 'Vídeo', render_id: 'shot:' + rn.render_id,
+        salvo_path: fase2 ? 'fase2:zapcap' : null,
+      });
+      return { jobId: Array.isArray(job) && job[0] ? job[0].id : null };
+    }
+    async function iniciarPorZapcap(fase2) {
+      const up = await zapUpload(origem_url);
+      if (up.error) return { error: 'Falha ao enviar o vídeo: ' + up.error };
+      const tk = await zapCriarTask(up.videoId, ops);
+      if (tk.error) return { error: 'Falha ao processar: ' + tk.error };
+      const job = await sbInsert('video_jobs', {
+        user_id: alvoId, status: 'processando', origem_url, operacoes: ops,
+        titulo: titulo || 'Vídeo', render_id: 'zap:' + up.videoId + ':' + tk.taskId,
+        salvo_path: fase2 ? 'fase2:shot' : null,
+      });
+      return { jobId: Array.isArray(job) && job[0] ? job[0].id : null };
+    }
+
+    let out;
+    // CASO A: precisa dos dois
+    if (precisaShotstack && precisaZapcap && temShot && temZap) {
+      // com filtro → Shotstack 1º (protege legenda). sem filtro → ZapCap 1º (economiza).
+      out = temFiltro ? await iniciarPorShotstack(true) : await iniciarPorZapcap(true);
+    }
+    // CASO B: só Shotstack
+    else if (precisaShotstack && temShot) {
+      out = await iniciarPorShotstack(false);
+    }
+    // CASO C: só ZapCap
+    else if (precisaZapcap && temZap) {
+      out = await iniciarPorZapcap(false);
+    }
+    if (out) {
+      if (out.error) return res.status(502).json({ error: out.error });
+      return res.status(200).json({ ok: true, job_id: out.jobId, status: 'processando' });
+    }
+
+    // Nenhuma opção que exija processamento (ex: só quer o vídeo como está) — não deveria ocorrer
+    return res.status(400).json({ error: 'Selecione ao menos uma opção de edição.' });
   } catch (e) {
     console.error('video-editar error:', e.message);
     return res.status(500).json({ error: 'Erro interno: ' + e.message });

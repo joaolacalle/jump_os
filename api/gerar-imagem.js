@@ -64,13 +64,20 @@ module.exports = async (req, res) => {
         emTrial = true;
         const tRes = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: SBH() });
         const tj = await tRes.json();
-        const trial = (Array.isArray(tj) && tj[0] && tj[0].valor) ? tj[0].valor : { imagens: 5, reloads: 2, videos: 0 };
+        const trial = (Array.isArray(tj) && tj[0] && tj[0].valor) ? tj[0].valor : { reloads: 2 };
+        // TRIAL: limite de imagens por plano (básico 1, plus 2, pro 3) — o funil mostra qualidade, não quantidade
+        // Gate do funil: no trial, o Designer só trabalha DEPOIS do onboarding (check-in concluído).
+        // Evita uso avulso sem estratégia — a imagem do trial deve mostrar o sistema funcionando.
+        const fezOnboarding = !!(cli.onboarding && cli.onboarding.checkin);
+        if (!fezOnboarding && cli.role === 'usuario') {
+          return res.status(403).json({ error: 'Durante o teste, complete primeiro a consultoria com o agente de Identidade (o check-in). Assim o Designer cria artes com a cara da SUA marca. 😉', limite: true });
+        }
+        const imgTrial = { basico: 1, plus: 2, pro: 3 }[cli.plano || 'basico'] || 1;
         // limite efetivo = o MENOR entre a cota do plano e a cota de trial
         lim = {
           ...lim,
-          imagens: Math.min(Number(lim.imagens ?? 0), Number(trial.imagens ?? 5)),
+          imagens: Math.min(Number(lim.imagens ?? 0), imgTrial),
           reloads: Math.min(Number(lim.reloads ?? 0), Number(trial.reloads ?? 2)),
-          videos:  Math.min(Number(lim.videos  ?? 0), Number(trial.videos  ?? 0)),
         };
       }
     } catch (e) {}

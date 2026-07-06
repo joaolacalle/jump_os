@@ -1,7 +1,7 @@
 // api/admin-users.js — Backend de gestão (supervisor/admin)
 // ENV: SUPABASE_SERVICE_KEY (service role). Valida o JWT do solicitante e aplica escopo.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const { salvarVideoNoBanco, zapCheckTask } = require('./_video-lib');
+const { salvarVideoNoBanco, zapCheckTask, checarRender, zapUpload, zapCriarTask, montarEdit, iniciarRender } = require('./_video-lib');
 const { emailContaCriada } = require('./_email-lib');
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
@@ -709,24 +709,58 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
       const lista = Array.isArray(jobs) ? jobs : [];
       // Máquina de estados (não depende de webhook): processa SÓ os jobs pendentes
       // e no MÁXIMO 1 por chamada (evita timeout/erro de conexão na Vercel 60s)
-      // FLUXO ZAPCAP: render_id = 'zap:videoId:taskId'. Só consulta a task (1 por chamada).
-      if (process.env.ZAPCAP_API_KEY) {
-        const pendentes = lista.filter(j => j.status === 'processando' && j.render_id && j.render_id.startsWith('zap:'));
+      // FLUXO HÍBRIDO: processa 1 job pendente por chamada.
+      // render_id pode ser 'shot:renderId' (fase Shotstack) ou 'zap:videoId:taskId' (fase ZapCap).
+      if (process.env.ZAPCAP_API_KEY || process.env.SHOTSTACK_API_KEY) {
+        const pendentes = lista.filter(j => j.status === 'processando' && j.render_id);
         const aProcessar = pendentes.slice(0, 1);
         for (const j of aProcessar) {
           try {
-            const partes = j.render_id.split(':'); // ['zap', videoId, taskId]
-            const videoId = partes[1], taskId = partes[2];
-            const rr = await zapCheckTask(videoId, taskId);
-            if (rr.done && rr.url) {
-              // marca pronto JÁ com a URL do ZapCap; o salvamento no nosso banco é separado (video_salvar)
-              await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
-              j.status = 'pronto'; j.resultado_url = rr.url;
-            } else if (rr.failed) {
-              await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Erro ao processar: ' + (rr.motivo || 'sem detalhe') });
-              j.status = 'erro';
+            // ── FASE SHOTSTACK (composição) ──
+            if (j.render_id.startsWith('shot:')) {
+              const renderId = j.render_id.slice(5);
+              const rr = await checarRender(renderId);
+              if (rr.done && rr.url) {
+                // Shotstack terminou. Precisa ir pro ZapCap (legenda/corte)?
+                if (j.salvo_path === 'fase2:zapcap' && process.env.ZAPCAP_API_KEY) {
+                  const up = await zapUpload(rr.url);
+                  if (up.error) { await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Falha ao enviar p/ legenda: ' + up.error }); j.status = 'erro'; }
+                  else {
+                    const tk = await zapCriarTask(up.videoId, j.operacoes || {});
+                    if (tk.error) { await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Falha na legenda: ' + tk.error }); j.status = 'erro'; }
+                    else { await sbPatch(`video_jobs?id=eq.${j.id}`, { render_id: 'zap:' + up.videoId + ':' + tk.taskId, salvo_path: null }); j.render_id = 'zap:' + up.videoId + ':' + tk.taskId; }
+                  }
+                } else {
+                  // Só Shotstack (sem legenda): terminou, está pronto.
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
+                  j.status = 'pronto'; j.resultado_url = rr.url;
+                }
+              } else if (rr.failed) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Falha ao compor: ' + (rr.motivo || 'sem detalhe') });
+                j.status = 'erro';
+              }
             }
-            // se processing, deixa como está (tenta na próxima batida)
+            // ── FASE ZAPCAP (legenda + corte silêncio) ──
+            else if (j.render_id.startsWith('zap:')) {
+              const partes = j.render_id.split(':');
+              const videoId = partes[1], taskId = partes[2];
+              const rr = await zapCheckTask(videoId, taskId);
+              if (rr.done && rr.url) {
+                // ZapCap terminou. Precisa ir pro Shotstack (composição: trilha/logo/áudio)?
+                if (j.salvo_path === 'fase2:shot' && process.env.SHOTSTACK_API_KEY) {
+                  const edit = montarEdit(rr.url, j.operacoes || {}, null);
+                  const rn = await iniciarRender(edit);
+                  if (rn.error) { await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Falha na composição: ' + rn.error }); j.status = 'erro'; }
+                  else { await sbPatch(`video_jobs?id=eq.${j.id}`, { render_id: 'shot:' + rn.render_id, salvo_path: null }); j.render_id = 'shot:' + rn.render_id; }
+                } else {
+                  await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'pronto', resultado_url: rr.url, updated_at: new Date().toISOString() });
+                  j.status = 'pronto'; j.resultado_url = rr.url;
+                }
+              } else if (rr.failed) {
+                await sbPatch(`video_jobs?id=eq.${j.id}`, { status: 'erro', erro: 'Erro na legenda: ' + (rr.motivo || 'sem detalhe') });
+                j.status = 'erro';
+              }
+            }
           } catch (e) { /* ignora, tenta na próxima batida */ }
         }
       }
