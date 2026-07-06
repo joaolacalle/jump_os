@@ -72,6 +72,15 @@
     </div>
     <div class="pill pill-g" style="padding:10px 16px"><span class="dot"></span><span id="pp-plan">—</span></div>
   </div>
+  <div id="trial-banner" style="display:none;margin:0 0 18px;padding:14px 18px;border-radius:12px;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(251,191,36,.12));border:1px solid rgba(168,85,247,.35)">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:22px">✨</div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:800;font-size:14px;color:var(--t1)" id="trial-titulo">Período de teste</div>
+        <div style="font-size:12px;color:var(--t2);font-family:var(--M)" id="trial-sub">Aproveite os agentes no seu teste gratuito.</div>
+      </div>
+    </div>
+  </div>
 
   <!-- PRIMEIROS PASSOS / TAREFAS -->
   <div class="tasks-box" id="tasks-box" style="display:none">
@@ -220,6 +229,21 @@ function flipCard(id,nr,num,lbl,backT,backX){
     document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
     document.getElementById('hd-status').textContent=(_conta.status==='ativo')?'operando.':'aguardando ativação.';
     const uid=viewing?viewing.id:user.id;
+
+    /* Banner do período de teste (7 dias) */
+    try{
+      if(_conta.tipo_cortesia==='trial'&&_conta.cortesia_ate){
+        const fim=new Date(_conta.cortesia_ate).getTime();
+        const agora=Date.now();
+        const diasRest=Math.ceil((fim-agora)/86400000);
+        const bn=document.getElementById('trial-banner');
+        if(diasRest>0&&bn){
+          bn.style.display='block';
+          document.getElementById('trial-titulo').textContent='🎁 Teste grátis — '+diasRest+(diasRest===1?' dia restante':' dias restantes');
+          document.getElementById('trial-sub').textContent='Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+'. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
+        }
+      }
+    }catch(e){}
 
     /* Banner pagamento */
     if(params.get('pagamento')==='sucesso'){JUMP.toast('🎉 Pagamento confirmado! Agentes em ativação.');history.replaceState(null,'','dashboard-usuario.html')}

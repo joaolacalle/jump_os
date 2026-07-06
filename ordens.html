@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JUMP OS — Central de Ordens</title>
+<title>JUMP OS — Tarefas de Serviço</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -30,7 +30,7 @@
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando ordens...</div></div>
 <div class="app">
 <main class="main">
-  <div class="hd"><div><div class="hd-hello" id="hd-hello">Central de Ordens</div><h1 class="hd-h">Suas <em>ordens de serviço</em></h1></div></div>
+  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div></div>
   <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tudo que os agentes têm para fazer fica aqui — as ordens que você criou e as que um agente passou para outro. Clique em "Executar agora" para abrir o agente e tocar a tarefa.</p>
 
   <div class="ord-filtros">
@@ -38,7 +38,7 @@
     <button class="ord-f" data-f="" onclick="filtrar('',this)">Todas</button>
     <button class="ord-f" data-f="concluida" onclick="filtrar('concluida',this)">Concluídas</button>
     <button class="ord-f" data-f="recorrente" onclick="filtrar('recorrente',this)">Recorrentes</button>
-    <button class="ord-f" data-f="videos" onclick="filtrar('videos',this)">🎬 Vídeos</button>
+    <button class="ord-f" data-f="videos" onclick="filtrar('videos',this)">🎬 Vídeos por IA</button>
   </div>
 
   <div id="ord-lista"><div style="font-size:13px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>

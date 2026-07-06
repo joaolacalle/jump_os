@@ -81,7 +81,9 @@
 <div class="app">
 <main class="main">
   <div class="hd" style="margin-bottom:16px">
-    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1></div>
+    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1>
+      <div id="trial-pill" style="display:none;margin-top:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(251,191,36,.14));border:1px solid rgba(168,85,247,.4);font-size:12px;font-family:var(--M);color:var(--t1);width:fit-content">✨ <span id="trial-pill-txt">Teste grátis</span></div>
+    </div>
     <div style="min-width:170px">
       <div class="bar"><div class="bar-f" id="tok-bar" style="width:0%"></div></div>
       <div class="bar-l" id="tok-txt">uso do mês</div>
@@ -94,7 +96,6 @@
         <div class="ct-ico" id="ct-ico">🤖</div>
         <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
         <div class="ag-dash" id="ag-dash"></div>
-        <input type="file" id="video-file" accept="video/*" style="display:none" onchange="subirVideoChat(this)">
       </div>
       <div class="mem-pane" id="mem-pane"></div>
       <div class="chat-msgs" id="msgs">
@@ -199,7 +200,7 @@
       <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📋 Incluir ordem</div>
       <button onclick="fecharIncluirOrdem()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
     </div>
-    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Crie uma tarefa para um agente executar — algo que modela o seu negócio (ex: "criar uma promoção", "montar um post do clube de desconto"). Ela fica na Central de Ordens e você executa quando quiser.</p>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Crie uma tarefa para um agente executar — algo que modela o seu negócio (ex: "criar uma promoção", "montar um post do clube de desconto"). Ela fica em Tarefas de Serviço e você executa quando quiser.</p>
 
     <div class="f-group" style="margin-bottom:12px">
       <label class="f-label">Para qual agente</label>
@@ -277,7 +278,7 @@
       <div style="position:relative;width:100%;max-width:220px;margin:6px auto 0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:9/16" id="vm-previa-box">
         <canvas id="vm-previa-canvas" style="width:100%;height:100%;object-fit:cover;display:block"></canvas>
         <div id="vm-previa-legenda" style="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;pointer-events:none">
-          <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">Sua legenda aqui</span>
+          <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">posição da legenda</span>
         </div>
       </div>
       <video id="vm-previa-video" style="display:none" muted playsinline crossorigin="anonymous"></video>
@@ -289,32 +290,16 @@
     <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
       <div style="margin-bottom:8px">
         <label class="f-label" style="font-size:11px">Estilo da legenda</label>
-        <select class="f-input" id="vm-template" style="padding:8px;font-size:13px"><option value="">Padrão (carregando estilos...)</option></select>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Estilos virais prontos (tipo Hormozi, MrBeast). A fonte/cor abaixo ajustam por cima.</div>
+        <select class="f-input" id="vm-template" style="padding:8px;font-size:13px" onchange="mostrarPreviewTemplate()"><option value="">Padrão (carregando estilos...)</option></select>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Escolha o estilo da legenda. A prévia abaixo mostra como fica.</div>
+        <div id="vm-tpl-preview-wrap" style="display:none;margin-top:8px;text-align:center">
+          <div style="font-size:10px;color:var(--t3);margin-bottom:4px;font-family:var(--M)">Prévia do estilo escolhido:</div>
+          <video id="vm-tpl-preview" muted loop playsinline autoplay style="width:100%;max-width:180px;border-radius:8px;background:#000"></video>
+        </div>
       </div>
       <div style="display:flex;gap:8px">
-        <div style="flex:2"><label class="f-label" style="font-size:11px">Fonte</label>
-          <select class="f-input" id="vm-fonte" style="padding:8px;font-size:14px" onchange="atualizarFontePreview()">
-        <option value="Montserrat ExtraBold" style="font-family:'Montserrat';font-weight:800">Montserrat (forte)</option>
-        <option value="Open Sans Bold" style="font-family:'Open Sans';font-weight:700">Open Sans</option>
-        <option value="Roboto Bold" style="font-family:'Roboto';font-weight:700">Roboto</option>
-        <option value="Lato Bold" style="font-family:'Lato';font-weight:700">Lato</option>
-        <option value="Oswald Bold" style="font-family:'Oswald';font-weight:700">Oswald (condensada)</option>
-        <option value="Poppins Bold" style="font-family:'Poppins';font-weight:700">Poppins</option>
-        <option value="Bebas Neue" style="font-family:'Bebas Neue'">Bebas Neue (impacto)</option>
-        <option value="Raleway Bold" style="font-family:'Raleway';font-weight:700">Raleway</option>
-        <option value="Montserrat SemiBold" style="font-family:'Montserrat';font-weight:600">Montserrat (média)</option>
-        <option value="Work Sans Bold" style="font-family:'Work Sans';font-weight:700">Work Sans</option>
-        <option value="Nunito Bold" style="font-family:'Nunito';font-weight:700">Nunito (arredondada)</option>
-        <option value="Anton" style="font-family:'Anton'">Anton (bold display)</option>
-        <option value="Archivo Black" style="font-family:'Archivo Black'">Archivo Black</option>
-        <option value="Permanent Marker" style="font-family:'Permanent Marker'">Permanent Marker (manuscrita)</option>
-        <option value="Pacifico" style="font-family:'Pacifico'">Pacifico (script)</option>
-      </select>
-      <div id="vm-fonte-preview" style="margin-top:6px;padding:8px 10px;background:var(--ch2);border:1px solid var(--bd);border-radius:6px;text-align:center;font-size:18px;color:var(--t1)">Exemplo da legenda</div>
-      </div>
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do texto</label>
-          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
+          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end">
         <label class="vm-opt" style="flex:1;margin:0"><input type="checkbox" id="vm-fundo-on" checked onchange="ajustarPreviaLegenda()"> Fundo atrás do texto</label>
@@ -323,33 +308,9 @@
       </div>
     </div>
 
-    <label class="vm-opt"><input type="checkbox" id="vm-corte" onchange="vmToggleSub('vm-sub-corte',this)"> ✂️ Cortar trecho</label>
-    <div id="vm-sub-corte" style="display:none;margin:6px 0 12px 24px">
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input class="f-input" id="vm-corte-ini" type="number" min="0" placeholder="Início (s)" style="flex:1">
-        <input class="f-input" id="vm-corte-fim" type="number" min="0" placeholder="Fim (s)" style="flex:1">
-      </div>
-      <label class="f-label" style="font-size:11px">Estilo da transição</label>
-      <select class="f-input" id="vm-estilo-corte" style="padding:8px">
-        <option value="fade">Fade (suave)</option>
-        <option value="">Corte seco</option>
-        <option value="slideLeft">Slide</option>
-        <option value="zoom">Zoom</option>
-        <option value="wipeLeft">Wipe</option>
-        <option value="carouselLeft">Carrossel</option>
-      </select>
-    </div>
 
-    <div style="display:flex;gap:8px;margin:10px 0">
-      <div style="flex:1"><label class="f-label" style="font-size:11px">Velocidade</label>
-        <select class="f-input" id="vm-velocidade" style="padding:8px">
-          <option value="1">Normal (1x)</option>
-          <option value="1.1">Levemente rápido (1.1x)</option>
-          <option value="1.2">Um pouco rápido (1.2x)</option>
-        </select>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Acelerar altera levemente o tom da voz.</div>
-      </div>
-      <div style="flex:1"><label class="f-label" style="font-size:11px">Filtro</label>
+    <div style="margin:10px 0">
+      <div><label class="f-label" style="font-size:11px">Filtro</label>
         <select class="f-input" id="vm-filtro" style="padding:8px" onchange="aplicarPreviaFiltro()">
           <option value="">Nenhum</option>
           <option value="boost">Vívido (boost)</option>
@@ -368,11 +329,6 @@
 
     <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-vsl" onchange="ajustarVsl(this)"> 🎯 É uma VSL (legenda mais ao centro)</label>
 
-    <label class="vm-opt"><input type="checkbox" id="vm-texto" onchange="vmToggleSub('vm-sub-texto',this)"> 🔤 Texto na tela (hook)</label>
-    <div id="vm-sub-texto" style="display:none;margin:6px 0 12px 24px">
-      <input class="f-input" id="vm-texto-val" placeholder="Ex: PROMOÇÃO DA SEMANA" maxlength="60">
-    </div>
-
     <label class="vm-opt"><input type="checkbox" id="vm-trilha" onchange="vmToggleSub('vm-sub-trilha',this)"> 🎵 Trilha sonora</label>
     <div id="vm-sub-trilha" style="display:none;margin:6px 0 12px 24px">
       <label class="f-label" style="font-size:11px">Estilo da música (escolho uma variação pra você)</label>
@@ -386,9 +342,16 @@
       <div style="font-size:10.5px;color:var(--t3);margin-top:5px;font-family:var(--M)">A cada vídeo eu escolho uma faixa diferente do estilo, pra não repetir.</div>
     </div>
 
-    <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this)"> 🖼️ Logo no canto</label>
+    <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this);ajustarPreviaLogo()"> 🖼️ Logo no canto</label>
     <div id="vm-sub-logo" style="display:none;margin:6px 0 12px 24px">
-      <input type="file" id="vm-l-file" accept="image/*" class="f-input" onchange="vmUpload(this,'logo')">
+      <div style="font-size:10.5px;color:var(--t3);margin:0 0 8px;font-family:var(--M)">Usa a logo da sua empresa que está em Meus Arquivos → Logos. Deixe lá apenas a logo oficial (a mesma usada nos infográficos).</div>
+      <label class="f-label" style="font-size:11px">Posição</label>
+      <select class="f-input" id="vm-logo-pos" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
+        <option value="top-right">Canto superior direito</option>
+        <option value="top-left">Canto superior esquerdo</option>
+        <option value="bottom-right">Canto inferior direito</option>
+        <option value="bottom-left">Canto inferior esquerdo</option>
+      </select>
       <div id="vm-l-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
     </div>
 
@@ -407,7 +370,7 @@
     <div id="vm-diag" style="font-family:var(--M);font-size:10.5px;color:var(--t2);margin-top:8px;white-space:pre-wrap;word-break:break-word"></div>
 
     <div style="margin-top:16px;border-top:1px solid var(--bd);padding-top:12px;text-align:center">
-      <a href="ordens.html" style="font-size:12px;font-family:var(--M);color:var(--g);text-decoration:none">🎬 Ver seus vídeos e o andamento na Central de Ordens →</a>
+      <a href="ordens.html" style="font-size:12px;font-family:var(--M);color:var(--g);text-decoration:none">🎬 Ver seus vídeos em Tarefas de Serviço → Vídeos por IA →</a>
     </div>
   </div>
 </div>
@@ -447,6 +410,14 @@ const AGS=[
     JUMP.sidebar('agentes');
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    // pill do período de teste
+    try{
+      const _ct=CTX.viewCliente||CTX.cliente;
+      if(_ct.tipo_cortesia==='trial'&&_ct.cortesia_ate){
+        const dr=Math.ceil((new Date(_ct.cortesia_ate).getTime()-Date.now())/86400000);
+        if(dr>0){document.getElementById('trial-pill').style.display='inline-block';document.getElementById('trial-pill-txt').textContent='Teste grátis — '+dr+(dr===1?' dia restante':' dias restantes');}
+      }
+    }catch(e){}
     renderList();
     atualizarUso(Number((CTX.cliente.uso||{}).tokens||0));
     const verP=new URLSearchParams(location.search).get('ver');
@@ -638,7 +609,12 @@ function addMsg(cls,txt,meta){
 let videoChatUrl=null;
 // ── EDITOR DE VÍDEO (modal completo no chat) ──
 let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
-function vmFechar(){document.getElementById('video-overlay').style.display='none';}
+function vmFechar(){
+  document.getElementById('video-overlay').style.display='none';
+  // limpa prévias (evita vídeo do template tocando de fundo e logo antigo ao reabrir)
+  try{const tv=document.getElementById('vm-tpl-preview');if(tv){tv.pause();tv.removeAttribute('src');}document.getElementById('vm-tpl-preview-wrap').style.display='none';}catch(e){}
+  try{const lg=document.getElementById('vm-previa-logo');if(lg)lg.style.display='none';}catch(e){}
+}
 // Mostra erro do vídeo numa caixa SELECIONÁVEL com botão copiar
 function mostrarErroVideo(msg, objErro){
   const det = objErro ? (typeof objErro==='string'?objErro:JSON.stringify(objErro,null,2)) : '';
@@ -664,6 +640,16 @@ function copiarErroVideo(){
   }catch(e){try{document.execCommand('copy');JUMP.toast('Erro copiado!');}catch(_){}}
 }
 // PRÉVIA: captura um frame do vídeo local e mostra com filtro/legenda (CSS, sem render)
+function duracaoVideo(file){
+  return new Promise((resolve,reject)=>{
+    try{
+      const v=document.createElement('video');v.preload='metadata';
+      v.onloadedmetadata=()=>{URL.revokeObjectURL(v.src);resolve(v.duration||0);};
+      v.onerror=()=>{URL.revokeObjectURL(v.src);reject(new Error('meta'));};
+      v.src=URL.createObjectURL(file);
+    }catch(e){reject(e);}
+  });
+}
 function gerarPreviaVideo(file){
   const vid=document.getElementById('vm-previa-video');
   const canvas=document.getElementById('vm-previa-canvas');
@@ -681,7 +667,6 @@ function gerarPreviaVideo(file){
       ctx.drawImage(vid,0,0,canvas.width,canvas.height);
       wrap.style.display='block';
       aplicarPreviaFiltro();
-      atualizarFontePreview();
       ajustarPreviaLegenda();
       URL.revokeObjectURL(url);
     };
@@ -691,35 +676,6 @@ const FILTROS_CSS={
   '':'none', boost:'saturate(1.5) contrast(1.1)', contrast:'contrast(1.4)',
   lighten:'brightness(1.3)', darken:'brightness(0.7)', muted:'saturate(0.6)', greyscale:'grayscale(1)'
 };
-// mapeia o nome da fonte (valor do select) para família + peso CSS
-const FONTE_CSS={
-  'Montserrat ExtraBold':["'Montserrat',sans-serif",800],
-  'Montserrat SemiBold':["'Montserrat',sans-serif",600],
-  'Open Sans Bold':["'Open Sans',sans-serif",700],
-  'Roboto Bold':["'Roboto',sans-serif",700],
-  'Lato Bold':["'Lato',sans-serif",700],
-  'Oswald Bold':["'Oswald',sans-serif",700],
-  'Poppins Bold':["'Poppins',sans-serif",700],
-  'Bebas Neue':["'Bebas Neue',sans-serif",400],
-  'Raleway Bold':["'Raleway',sans-serif",700],
-  'Work Sans Bold':["'Work Sans',sans-serif",700],
-  'Nunito Bold':["'Nunito',sans-serif",700],
-  'Anton':["'Anton',sans-serif",400],
-  'Archivo Black':["'Archivo Black',sans-serif",400],
-  'Permanent Marker':["'Permanent Marker',cursive",400],
-  'Pacifico':["'Pacifico',cursive",400],
-};
-function fonteEscolhidaCSS(){
-  const sel=document.getElementById('vm-fonte');
-  const v=sel?sel.value:'Montserrat ExtraBold';
-  return FONTE_CSS[v]||["'Montserrat',sans-serif",800];
-}
-function atualizarFontePreview(){
-  const [fam,peso]=fonteEscolhidaCSS();
-  const prev=document.getElementById('vm-fonte-preview');
-  if(prev){prev.style.fontFamily=fam;prev.style.fontWeight=peso;}
-  ajustarPreviaLegenda(); // reflete também na prévia do vídeo
-}
 function aplicarPreviaFiltro(){
   const canvas=document.getElementById('vm-previa-canvas');
   if(!canvas)return;
@@ -740,9 +696,6 @@ function ajustarPreviaLegenda(){
   // cor escolhida
   const corEl=document.getElementById('vm-cor');
   if(corEl)txtEl.style.color=corEl.value||'#fff';
-  // fonte escolhida (aplica na prévia)
-  const [fam,peso]=fonteEscolhidaCSS();
-  txtEl.style.fontFamily=fam;txtEl.style.fontWeight=peso;
   // fundo da legenda
   const fundoOn=document.getElementById('vm-fundo-on');
   const fundoCor=document.getElementById('vm-fundo-cor');
@@ -755,6 +708,17 @@ function vmSetFmt(f){vmFormato=f;document.getElementById('vm-fmt-reels').classLi
 
 async function vmUpload(inp,tipo){
   const f=inp.files[0];if(!f)return;
+  // LIMITE DE DURAÇÃO: vídeo no máximo 1 minuto (controla custo e evita erro)
+  if(tipo==='video'){
+    const dur=await duracaoVideo(f).catch(()=>null);
+    if(dur!==null&&dur>62){ // 62s = 60 + folga p/ arredondamento
+      JUMP.toast('Vídeo muito longo. O máximo é 1 minuto.','err');
+      inp.value='';
+      const st=document.getElementById('vm-v-status');
+      if(st){st.textContent='⚠️ Seu vídeo tem '+Math.round(dur)+'s. Corte para até 60s (no CapCut/galeria) e envie de novo.';st.style.color='var(--red)';}
+      return;
+    }
+  }
   if(tipo==='video')gerarPreviaVideo(f); // prévia local (sem custo)
   const lim=tipo==='video'?100:tipo==='trilha'?30:10;
   if(f.size>lim*1024*1024){JUMP.toast('Arquivo muito grande (máx '+lim+' MB)','err');inp.value='';return;}
@@ -794,32 +758,28 @@ async function vmEditar(){
   const ops={formato:vmFormato};
   if(document.getElementById('vm-legenda').checked){
     ops.legenda=true;
-    ops.legenda_fonte=document.getElementById('vm-fonte').value;
     ops.legenda_cor=document.getElementById('vm-cor').value;
     ops.legenda_fundo=document.getElementById('vm-fundo-on').checked;
     ops.legenda_fundo_cor=document.getElementById('vm-fundo-cor').value;
   }
-  if(document.getElementById('vm-corte').checked){
-    ops.corte_inicio=+document.getElementById('vm-corte-ini').value||0;
-    ops.corte_fim=+document.getElementById('vm-corte-fim').value||null;
-  }
-  if(document.getElementById('vm-corte').checked)ops.estilo_corte=document.getElementById('vm-estilo-corte').value;
-  const vel=document.getElementById('vm-velocidade').value;if(vel&&vel!=='1')ops.velocidade=+vel;
   const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
   if(document.getElementById('vm-vsl').checked)ops.vsl=true;
   if(document.getElementById('vm-voz').checked)ops.melhorar_voz=true;
   if(document.getElementById('vm-cortar-silencio').checked)ops.cortar_silencio=true;
   const tpl=document.getElementById('vm-template').value;if(tpl)ops.zapcap_template=tpl;
-  if(document.getElementById('vm-texto').checked)ops.texto=document.getElementById('vm-texto-val').value.trim();
+
   if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
-  if(document.getElementById('vm-logo').checked&&vmLogoUrl)ops.logo_url=vmLogoUrl;
+  if(document.getElementById('vm-logo').checked){
+    const logoUrl=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
+    if(logoUrl){ops.logo_url=logoUrl;ops.logo_posicao=document.getElementById('vm-logo-pos').value;}
+  }
   const guardar=document.getElementById('vm-guardar').checked;
 
   const btn=document.getElementById('vm-editar');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
   // fecha o popup IMEDIATAMENTE ao clicar (o acompanhamento aparece no chat/Ordens)
   vmFechar();
-  addMsg('a','🎬 Recebi seu vídeo! Estou editando — fica pronto em alguns minutos e aparece aqui e na Central de Ordens.');
+  addMsg('a','🎬 Recebi seu vídeo! Aguarde alguns minutos enquanto edito. Para acompanhar e baixar, vá em <b>Tarefas de Serviço → Vídeos por IA</b>.');
   // renova o token (evita 'Não autenticado' por sessão expirada durante o teste)
   let tk=CTX.token;
   try{const{data}=await JUMP.sb.auth.getSession();if(data&&data.session&&data.session.access_token){tk=data.session.access_token;CTX.token=tk;}}catch(e){}
@@ -890,6 +850,34 @@ function copiarDiag(){
   }catch(e){try{document.execCommand('copy');JUMP.toast('Copiado!');}catch(_){}}
 }
 let TEMPLATES_CACHE=null;
+let LOGOS_USER={principal:null};
+async function carregarLogosUser(){
+  try{
+    const uid=CTX.viewId||CTX.cliente&&CTX.cliente.id||CTX.user&&CTX.user.id;
+    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).eq('categoria','logos').order('created_at',{ascending:false});
+    const arr=data||[];
+    if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
+  }catch(e){}
+}
+function ajustarPreviaLogo(){
+  const box=document.getElementById('vm-previa-box');
+  if(!box)return;
+  let logoEl=document.getElementById('vm-previa-logo');
+  const on=document.getElementById('vm-logo')&&document.getElementById('vm-logo').checked;
+  if(!on){if(logoEl)logoEl.style.display='none';return;}
+  const url=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
+  if(!logoEl){
+    logoEl=document.createElement('img');logoEl.id='vm-previa-logo';
+    logoEl.style.cssText='position:absolute;width:22%;opacity:.95;z-index:3';
+    box.appendChild(logoEl);
+  }
+  if(url){logoEl.src=url;logoEl.style.display='block';}else{logoEl.style.display='none';return;}
+  const pos=document.getElementById('vm-logo-pos').value;
+  logoEl.style.top=pos.includes('top')?'6%':'auto';
+  logoEl.style.bottom=pos.includes('bottom')?'6%':'auto';
+  logoEl.style.left=pos.includes('left')?'6%':'auto';
+  logoEl.style.right=pos.includes('right')?'6%':'auto';
+}
 async function carregarTemplatesLegenda(){
   const sel=document.getElementById('vm-template');
   if(!sel)return;
@@ -901,17 +889,29 @@ async function carregarTemplatesLegenda(){
     popularTemplates(tpls);
   }catch(e){/* mantém o padrão */}
 }
+let TPL_PREVIEWS={}; // id -> previewUrl
 function popularTemplates(tpls){
   const sel=document.getElementById('vm-template');
   if(!sel)return;
+  TPL_PREVIEWS={};
   if(!tpls.length){sel.innerHTML='<option value="">Padrão do sistema</option>';return;}
+  tpls.forEach(t=>{ if(t.id&&(t.previewUrl||t.preview_url||t.preview))TPL_PREVIEWS[t.id]=t.previewUrl||t.preview_url||t.preview; });
   sel.innerHTML='<option value="">Padrão do sistema</option>'+tpls.map(t=>{
     const nome=t.name||t.title||('Estilo '+(t.id||'').slice(0,6));
     return '<option value="'+(t.id||'')+'">'+JUMP.esc(nome)+'</option>';
   }).join('');
 }
+function mostrarPreviewTemplate(){
+  const sel=document.getElementById('vm-template');
+  const wrap=document.getElementById('vm-tpl-preview-wrap');
+  const vid=document.getElementById('vm-tpl-preview');
+  if(!sel||!wrap||!vid)return;
+  const url=TPL_PREVIEWS[sel.value];
+  if(url){vid.src=url;wrap.style.display='block';vid.play().catch(()=>{});}
+  else{wrap.style.display='none';vid.removeAttribute('src');}
+}
 async function carregarMeusVideos(){
-  // o histórico agora fica na Central de Ordens; aqui só mantém o polling
+  // o histórico agora fica em Tarefas de Serviço; aqui só mantém o polling
   // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
   return;
 }
@@ -952,16 +952,12 @@ async function subirVideoTrigger(){
   const db=document.getElementById('vm-diag-btn');
   if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
   carregarTemplatesLegenda();
+  carregarLogosUser();
   carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
   try{
     const{data}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id).in('chave',['video_fonte','video_cor_legenda','video_estilo_legenda','video_formato_padrao']);
     (data||[]).forEach(m=>{
-      if(m.chave==='video_fonte'&&m.valor){
-        const sel=document.getElementById('vm-fonte');
-        const op=[...sel.options].find(o=>m.valor.toLowerCase().includes(o.value.toLowerCase().split(' ')[0]));
-        if(op)sel.value=op.value;
-      }
       if(m.chave==='video_cor_legenda'&&/^#[0-9A-Fa-f]{6}$/.test(m.valor.trim()))document.getElementById('vm-cor').value=m.valor.trim();
       if(m.chave==='video_formato_padrao'&&m.valor.includes('wide'))vmSetFmt('wide');
     });
@@ -1022,7 +1018,7 @@ async function salvarIncluirOrdem(){
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Salvando...';
   try{
     await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null},CTX.token);
-    res.innerHTML='<span style="color:var(--g)">✓ Ordem criada! Você acompanha na Central de Ordens.</span>';
+    res.innerHTML='<span style="color:var(--g)">✓ Tarefa criada! Você acompanha em Tarefas de Serviço.</span>';
     JUMP.toast('📋 Ordem registrada');
     setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';document.getElementById('ordem-qtd').value='';document.getElementById('ordem-saldo').innerHTML='';},1400);
   }catch(e){res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro')+'</span>';btn.disabled=false;btn.textContent='Criar ordem';}
@@ -1118,7 +1114,8 @@ async function enviarTexto(txt){
     }
     ty.remove();
     if(!r.ok){
-      if(d&&d.limite){limiteMsg()}
+      if(d&&d.tipo_limite==='mensagens_trial'){addMsg('a','⏳ '+(d.error||'Você usou as mensagens do teste por agora.'))}
+      else if(d&&d.limite){limiteMsg()}
       else addMsg('a','⚠️ '+(d.error||'Erro no agente'));
     }else{
       addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
