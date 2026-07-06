@@ -178,7 +178,7 @@ window.JUMP=(function(){
 
   /* Sidebar padrão do usuário — páginas novas chamam JUMP.sidebar('id-ativo') */
   function sidebar(active){
-    const L=[['dashboard-usuario.html','◈','Painel','painel'],['agentes.html','🤖','Meus agentes','agentes'],['ordens.html','📋','Central de Ordens','ordens'],
+    const L=[['dashboard-usuario.html','◈','Painel','painel'],['agentes.html','🤖','Meus agentes','agentes'],['ordens.html','📋','Tarefas de Serviço','ordens'],
       ['calendario.html','📅','Calendário','calendario'],['aprovar.html','✓','Aprovações','aprovar'],
       ['historico.html','🕘','Histórico','historico'],['upload.html','🖼','Meus arquivos','upload'],
       ['conectar-conta.html','🔗','Conexões','conexoes'],['suporte.html','💬','Suporte JUMP','suporte'],['configuracoes.html','⚙','Configurações','config']];
