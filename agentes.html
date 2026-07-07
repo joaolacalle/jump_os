@@ -197,7 +197,7 @@
 <div id="ordem-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharIncluirOrdem()">
   <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📋 Incluir ordem</div>
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📋 Incluir tarefa</div>
       <button onclick="fecharIncluirOrdem()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
     </div>
     <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Crie uma tarefa para um agente executar — algo que modela o seu negócio (ex: "criar uma promoção", "montar um post do clube de desconto"). Ela fica em Tarefas de Serviço e você executa quando quiser.</p>
@@ -277,6 +277,8 @@
       <label class="f-label">Prévia aproximada <span style="opacity:.6;font-weight:400">· como vai ficar (sem gastar créditos)</span></label>
       <div style="position:relative;width:100%;max-width:220px;margin:6px auto 0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:9/16" id="vm-previa-box">
         <canvas id="vm-previa-canvas" style="width:100%;height:100%;object-fit:cover;display:block"></canvas>
+        <video id="vm-previa-tpl" muted loop playsinline autoplay style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;background:#000"></video>
+        <div id="vm-previa-tpl-tag" style="display:none;position:absolute;top:6px;left:6px;z-index:4;font-family:var(--M);font-size:9px;letter-spacing:1px;background:rgba(0,0,0,.65);color:#fff;padding:3px 7px;border-radius:5px">PRÉVIA DO ESTILO</div>
         <div id="vm-previa-legenda" style="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;pointer-events:none">
           <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">posição da legenda</span>
         </div>
@@ -292,10 +294,7 @@
         <label class="f-label" style="font-size:11px">Estilo da legenda</label>
         <select class="f-input" id="vm-template" style="padding:8px;font-size:13px" onchange="mostrarPreviewTemplate()"><option value="">Padrão (carregando estilos...)</option></select>
         <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Escolha o estilo da legenda. A prévia abaixo mostra como fica.</div>
-        <div id="vm-tpl-preview-wrap" style="display:none;margin-top:8px;text-align:center">
-          <div style="font-size:10px;color:var(--t3);margin-bottom:4px;font-family:var(--M)">Prévia do estilo escolhido:</div>
-          <video id="vm-tpl-preview" muted loop playsinline autoplay style="width:100%;max-width:180px;border-radius:8px;background:#000"></video>
-        </div>
+
       </div>
       <div style="display:flex;gap:8px">
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do texto</label>
@@ -448,10 +447,10 @@ async function selecionar(id){
   ct.style.setProperty('--ac', a.nc||'168,85,247');
   document.getElementById('ct-ico').style.background='rgba('+(a.nc||'168,85,247')+',.14)';
   document.getElementById('ct-ico').style.borderColor='rgba('+(a.nc||'168,85,247')+',.45)';
-  // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir ordem)
+  // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir tarefa)
   const btns=(a.btns||[]).map(b=>`<button class="ag-db" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
   document.getElementById('ag-dash').innerHTML=btns+
-    `<button class="ag-db" onclick="abrirIncluirOrdem()">📋 Incluir ordem</button>`+
+    `<button class="ag-db" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button>`+
     `<button class="ag-db" id="mem-btn" onclick="toggleMem()">🧠 O que aprendi</button>`;
   document.getElementById('mem-pane').classList.remove('show');
   document.getElementById('inp').disabled=false;
@@ -612,7 +611,7 @@ let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
 function vmFechar(){
   document.getElementById('video-overlay').style.display='none';
   // limpa prévias (evita vídeo do template tocando de fundo e logo antigo ao reabrir)
-  try{const tv=document.getElementById('vm-tpl-preview');if(tv){tv.pause();tv.removeAttribute('src');}document.getElementById('vm-tpl-preview-wrap').style.display='none';}catch(e){}
+  try{const tv=document.getElementById('vm-previa-tpl');if(tv){tv.pause();tv.removeAttribute('src');tv.style.display='none';}const tg=document.getElementById('vm-previa-tpl-tag');if(tg)tg.style.display='none';const tx=document.getElementById('vm-previa-legenda');if(tx)tx.style.display='';}catch(e){}
   try{const lg=document.getElementById('vm-previa-logo');if(lg)lg.style.display='none';}catch(e){}
 }
 // Mostra erro do vídeo numa caixa SELECIONÁVEL com botão copiar
@@ -896,19 +895,32 @@ function popularTemplates(tpls){
   TPL_PREVIEWS={};
   if(!tpls.length){sel.innerHTML='<option value="">Padrão do sistema</option>';return;}
   tpls.forEach(t=>{ if(t.id&&(t.previewUrl||t.preview_url||t.preview))TPL_PREVIEWS[t.id]=t.previewUrl||t.preview_url||t.preview; });
-  sel.innerHTML='<option value="">Padrão do sistema</option>'+tpls.map(t=>{
+  // curadoria: os estilos mais usados do mercado primeiro (Hormozi, MrBeast, Ali...)
+  const FAMOSOS=['hormozi','beast','ali','abdaal','devin','grace','william','sara','umi','luke','dan','karl','ella','noah','maya'];
+  const rank=t=>{const n=(t.name||t.title||'').toLowerCase();const i=FAMOSOS.findIndex(f=>n.includes(f));return i<0?99:i;};
+  const ordenados=[...tpls].sort((a,b)=>rank(a)-rank(b)||String(a.name||'').localeCompare(String(b.name||'')));
+  sel.innerHTML='<option value="">Padrão do sistema</option>'+ordenados.map(t=>{
     const nome=t.name||t.title||('Estilo '+(t.id||'').slice(0,6));
     return '<option value="'+(t.id||'')+'">'+JUMP.esc(nome)+'</option>';
   }).join('');
 }
 function mostrarPreviewTemplate(){
   const sel=document.getElementById('vm-template');
-  const wrap=document.getElementById('vm-tpl-preview-wrap');
-  const vid=document.getElementById('vm-tpl-preview');
-  if(!sel||!wrap||!vid)return;
+  const vid=document.getElementById('vm-previa-tpl');
+  const tag=document.getElementById('vm-previa-tpl-tag');
+  const txt=document.getElementById('vm-previa-legenda');
+  if(!sel||!vid)return;
   const url=TPL_PREVIEWS[sel.value];
-  if(url){vid.src=url;wrap.style.display='block';vid.play().catch(()=>{});}
-  else{wrap.style.display='none';vid.removeAttribute('src');}
+  if(url){
+    // mostra o vídeo REAL do estilo sobre a miniatura (o usuário vê a fonte/animação de verdade)
+    vid.src=url;vid.style.display='block';if(tag)tag.style.display='block';
+    if(txt)txt.style.display='none';
+    vid.play().catch(()=>{});
+  }else{
+    vid.pause();vid.removeAttribute('src');vid.style.display='none';
+    if(tag)tag.style.display='none';
+    if(txt)txt.style.display='';
+  }
 }
 async function carregarMeusVideos(){
   // o histórico agora fica em Tarefas de Serviço; aqui só mantém o polling
@@ -1115,6 +1127,7 @@ async function enviarTexto(txt){
     ty.remove();
     if(!r.ok){
       if(d&&d.tipo_limite==='mensagens_trial'){addMsg('a','⏳ '+(d.error||'Você usou as mensagens do teste por agora.'))}
+      else if(d&&d.tipo_limite==='mensagens_mes'){addMsg('a','📅 '+(d.error||'Você usou as mensagens do seu plano este mês.'))}
       else if(d&&d.limite){limiteMsg()}
       else addMsg('a','⚠️ '+(d.error||'Erro no agente'));
     }else{

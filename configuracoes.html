@@ -36,7 +36,11 @@
       </div>
       <div class="cp-row">
         <label class="cp-sw"><input type="color" id="c3" value="#FFFFFF" oninput="preview()"></label>
-        <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Recursos Pro e detalhes</div></div>
+        <div><div style="font-size:13px;font-weight:800">Cor terciária</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Textos de apoio, legendas e fontes menores</div></div>
+      </div>
+      <div class="cp-row">
+        <label class="cp-sw"><input type="color" id="t1" value="#F5F2EC" oninput="preview()"></label>
+        <div><div style="font-size:13px;font-weight:800">Cor dos textos</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">Títulos e textos principais de todo o painel</div></div>
       </div>
       <div class="cp-row">
         <label class="cp-sw"><input type="color" id="c5" value="#343434" oninput="preview()"></label>
@@ -105,7 +109,7 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null;
-const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',bg:'escuro'};
+const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',bg:'escuro',t1:'#F5F2EC'};
 (async()=>{
   try{
     JUMP.sidebar('config');
@@ -117,6 +121,7 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
     document.getElementById('c3').value=t.c3||PADRAO.c3;
     document.getElementById('c4').value=t.c4||PADRAO.c4;
     document.getElementById('c5').value=t.c5||PADRAO.c5;
+    document.getElementById('t1').value=t.t1||PADRAO.t1||'#F5F2EC';
       document.getElementById('cfg-nome').value=(CTX.viewCliente&&CTX.viewCliente.nome)||CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
@@ -143,7 +148,7 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
   }catch(e){}
 })();
 function temaAtual(){
-  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,c5:document.getElementById('c5').value,bg:'escuro'};
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,c5:document.getElementById('c5').value,t1:document.getElementById('t1').value,bg:'escuro'};
 }
 function preview(){JUMP.applyTheme(temaAtual())}
 function restaurar(){
@@ -152,6 +157,7 @@ function restaurar(){
   document.getElementById('c3').value=PADRAO.c3;
   document.getElementById('c4').value=PADRAO.c4;
   document.getElementById('c5').value=PADRAO.c5;
+  document.getElementById('t1').value=PADRAO.t1||'#F5F2EC';
   JUMP.applyTheme(PADRAO);
   JUMP.toast('Padrão JUMP restaurado — clique em Salvar para manter.');
 }
