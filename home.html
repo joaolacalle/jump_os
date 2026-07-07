@@ -337,20 +337,20 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .pl-head{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,60px);align-items:end;margin-bottom:clamp(44px,7vw,68px)}
 .pl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,2vw,20px)}
 .pf-deliv{list-style:none;margin:14px 0 4px;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
-.pf-deliv li{font-size:12.5px;line-height:1.45;color:var(--ink2,#4a453e);display:flex;gap:8px;align-items:flex-start}
+.pf-deliv li{font-size:12.5px;line-height:1.45;display:flex;gap:8px;align-items:flex-start}
 .pf-deliv li b{color:inherit;font-weight:800}
 .pf-deliv li::before{content:'✓';font-weight:900;color:#16a34a;flex-shrink:0}
 .pf-deliv li.plus-all{color:var(--g);font-weight:700}.pf-deliv li.plus-all::before{content:'★';color:var(--g)}
-.pl-custom{margin-top:clamp(16px,2.5vw,24px);border-radius:16px;padding:clamp(20px,3vw,30px) clamp(20px,3.5vw,38px);background:#141312;border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;gap:clamp(16px,3vw,34px);flex-wrap:wrap;position:relative;overflow:hidden}
+.pl-custom{position:relative;z-index:2;clear:both;margin-top:clamp(26px,3.5vw,40px);border-radius:16px;padding:clamp(20px,3vw,30px) clamp(20px,3.5vw,38px);background:#141312;border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;gap:clamp(16px,3vw,34px);flex-wrap:wrap;position:relative;overflow:hidden}
 .pl-custom::before{content:'';position:absolute;inset:0;background:radial-gradient(600px circle at 12% 50%,rgba(168,85,247,.14),transparent 55%);pointer-events:none}
 .pl-custom-lbl{font-family:var(--M);font-size:10px;letter-spacing:3px;color:var(--g);text-transform:uppercase;margin-bottom:6px}
 .pl-custom-name{font-family:var(--D);font-size:clamp(26px,3.4vw,36px);letter-spacing:1px;color:#F5F2EC;line-height:1}
 .pl-custom-txt{flex:1;min-width:260px;font-size:13.5px;line-height:1.65;color:rgba(245,242,236,.72)}
-.pl-custom-cta{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:#25D366;color:#06281a;border-radius:9px;font-weight:800;font-size:14px;letter-spacing:.3px;transition:transform .2s,box-shadow .2s;white-space:nowrap}
-.pl-custom-cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(37,211,102,.35)}
+.pl-custom-cta{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:var(--g);color:#0F0E0D;border-radius:9px;font-weight:800;font-size:14px;letter-spacing:.3px;transition:transform .2s,box-shadow .2s;white-space:nowrap}
+.pl-custom-cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(168,85,247,.4)}
 @media(max-width:900px){.pl-custom{flex-direction:column;align-items:flex-start}}
 /* Flip container */
-.pf-wrap{perspective:1100px;height:clamp(500px,66vw,580px)}
+.pf-wrap{perspective:1100px;height:clamp(575px,74vw,645px);isolation:isolate}
 .pf-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.22,1,.36,1)}
 .pf-wrap.flipped .pf-inner{transform:rotateY(180deg)}
 .pf-front,.pf-back{
@@ -359,7 +359,11 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
   display:flex;flex-direction:column;overflow:hidden;
 }
 /* FRONT — minimalista, só nome + preço */
-.pf-front{background:var(--ch2);border:1px solid var(--bd);padding:clamp(28px,4vw,42px)}
+.pf-front{background:var(--ch2);border:1px solid var(--bd);padding:clamp(24px,3.2vw,34px)}
+.pf-front .pf-ver{margin-top:auto}
+.pf-deliv{flex:0 1 auto;overflow:hidden}
+.pf-deliv li{color:inherit;opacity:.9}.pf-deliv li b{opacity:1}
+.pf-back{overflow-y:auto;scrollbar-width:thin}
 .pf-front.feat{background:var(--ch);border-color:rgba(168,85,247,.3)}
 .pf-front.feat::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--g),var(--g2))}
 /* BACK */
@@ -1149,7 +1153,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
         <div class="pl-custom-name">PLANO CUSTOM</div>
       </div>
       <div class="pl-custom-txt">Todos os agentes com <b style="color:#F5F2EC">tokens e configurações sob medida</b> — para empresas com mais de uma conta ou agências que buscam automação em escala. Limites, contas e permissões desenhados para a sua operação.</div>
-      <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20PLANO%20CUSTOM%20do%20JUMP%20OS" target="_blank" rel="noopener" class="pl-custom-cta">💬 Saiba mais no WhatsApp →</a>
+      <a href="mailto:suporte@metodojump.com.br?subject=Quero%20saber%20mais%20sobre%20o%20PLANO%20CUSTOM" class="pl-custom-cta">✉️ Saiba mais: suporte@metodojump.com.br →</a>
     </div>
   </div>
 </section>

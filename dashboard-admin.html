@@ -488,7 +488,7 @@ async function carregar(){
   USERS=ALL.filter(c=>c.role==='usuario');
   document.getElementById('st-sups').textContent=ALL.filter(c=>c.role==='supervisor').length;
   document.getElementById('st-users').textContent=USERS.length;
-  document.getElementById('st-ativos').textContent=ALL.filter(c=>c.status==='ativo'&&!c.bloqueado).length;
+  document.getElementById('st-ativos').textContent=ALL.filter(c=>c.role==='usuario'&&c.status==='ativo'&&!c.bloqueado).length; // assinaturas reais = contas de usuário (admin/supervisor têm cards próprios)
   document.getElementById('st-bloq').textContent=ALL.filter(c=>c.bloqueado).length;
   /* filtro de supervisores */
   const f=document.getElementById('filtro-sup');

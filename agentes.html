@@ -277,8 +277,6 @@
       <label class="f-label">Prévia aproximada <span style="opacity:.6;font-weight:400">· como vai ficar (sem gastar créditos)</span></label>
       <div style="position:relative;width:100%;max-width:220px;margin:6px auto 0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:9/16" id="vm-previa-box">
         <canvas id="vm-previa-canvas" style="width:100%;height:100%;object-fit:cover;display:block"></canvas>
-        <video id="vm-previa-tpl" muted loop playsinline autoplay style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;background:#000"></video>
-        <div id="vm-previa-tpl-tag" style="display:none;position:absolute;top:6px;left:6px;z-index:4;font-family:var(--M);font-size:9px;letter-spacing:1px;background:rgba(0,0,0,.65);color:#fff;padding:3px 7px;border-radius:5px">PRÉVIA DO ESTILO</div>
         <div id="vm-previa-legenda" style="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;pointer-events:none">
           <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">posição da legenda</span>
         </div>
@@ -291,9 +289,20 @@
     <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this);ajustarPreviaLegenda()"> 💬 Legendas automáticas</label>
     <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
       <div style="margin-bottom:8px">
-        <label class="f-label" style="font-size:11px">Estilo da legenda</label>
-        <select class="f-input" id="vm-template" style="padding:8px;font-size:13px" onchange="mostrarPreviewTemplate()"><option value="">Padrão (carregando estilos...)</option></select>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">Escolha o estilo da legenda. A prévia abaixo mostra como fica.</div>
+        <label class="f-label" style="font-size:11px">Fonte da legenda</label>
+        <select class="f-input" id="vm-fonte-leg" style="padding:8px;font-size:14px" onchange="ajustarPreviaLegenda()">
+          <option value="" style="font-family:'Montserrat';font-weight:800">Padrão (Montserrat forte)</option>
+          <option value="anton" style="font-family:'Anton'">Anton (impacto)</option>
+          <option value="bebas" style="font-family:'Bebas Neue'">Bebas Neue (condensada)</option>
+          <option value="archivo" style="font-family:'Archivo Black'">Archivo Black</option>
+          <option value="oswald" style="font-family:'Oswald';font-weight:700">Oswald</option>
+          <option value="poppins" style="font-family:'Poppins';font-weight:700">Poppins</option>
+          <option value="roboto" style="font-family:'Roboto';font-weight:700">Roboto</option>
+          <option value="lato" style="font-family:'Lato';font-weight:700">Lato</option>
+          <option value="opensans" style="font-family:'Open Sans';font-weight:700">Open Sans</option>
+          <option value="montserrat" style="font-family:'Montserrat';font-weight:600">Montserrat (média)</option>
+        </select>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">A prévia na miniatura mostra a fonte, a cor e a posição em tempo real.</div>
 
       </div>
       <div style="display:flex;gap:8px">
@@ -611,7 +620,6 @@ let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
 function vmFechar(){
   document.getElementById('video-overlay').style.display='none';
   // limpa prévias (evita vídeo do template tocando de fundo e logo antigo ao reabrir)
-  try{const tv=document.getElementById('vm-previa-tpl');if(tv){tv.pause();tv.removeAttribute('src');tv.style.display='none';}const tg=document.getElementById('vm-previa-tpl-tag');if(tg)tg.style.display='none';const tx=document.getElementById('vm-previa-legenda');if(tx)tx.style.display='';}catch(e){}
   try{const lg=document.getElementById('vm-previa-logo');if(lg)lg.style.display='none';}catch(e){}
 }
 // Mostra erro do vídeo numa caixa SELECIONÁVEL com botão copiar
@@ -692,6 +700,12 @@ function ajustarPreviaLegenda(){
   // VSL = legenda mais ao centro; senão embaixo
   const vsl=document.getElementById('vm-vsl')&&document.getElementById('vm-vsl').checked;
   leg.style.bottom=vsl?'30%':'12%';
+  // fonte escolhida (simulação fiel: família, peso e caixa alta)
+  const FONTES_LEG={'':["'Montserrat',sans-serif",800],'montserrat':["'Montserrat',sans-serif",600],'anton':["'Anton',sans-serif",400],'bebas':["'Bebas Neue',sans-serif",400],'archivo':["'Archivo Black',sans-serif",400],'oswald':["'Oswald',sans-serif",700],'poppins':["'Poppins',sans-serif",700],'roboto':["'Roboto',sans-serif",700],'lato':["'Lato',sans-serif",700],'opensans':["'Open Sans',sans-serif",700]};
+  const fsel=document.getElementById('vm-fonte-leg');
+  const fdef=FONTES_LEG[(fsel&&fsel.value)||'']||FONTES_LEG[''];
+  txtEl.style.fontFamily=fdef[0];txtEl.style.fontWeight=fdef[1];txtEl.style.textTransform='uppercase';
+  txtEl.textContent='Seu vídeo com legenda';
   // cor escolhida
   const corEl=document.getElementById('vm-cor');
   if(corEl)txtEl.style.color=corEl.value||'#fff';
@@ -765,7 +779,8 @@ async function vmEditar(){
   if(document.getElementById('vm-vsl').checked)ops.vsl=true;
   if(document.getElementById('vm-voz').checked)ops.melhorar_voz=true;
   if(document.getElementById('vm-cortar-silencio').checked)ops.cortar_silencio=true;
-  const tpl=document.getElementById('vm-template').value;if(tpl)ops.zapcap_template=tpl;
+  const PESO_LEG={'':800,'montserrat':600,'anton':900,'bebas':900,'archivo':900,'oswald':700,'poppins':700,'roboto':700,'lato':700,'opensans':700};
+  const fleg=document.getElementById('vm-fonte-leg');if(fleg&&ops.legenda)ops.legenda_peso=PESO_LEG[fleg.value]||800;
 
   if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
   if(document.getElementById('vm-logo').checked){
@@ -848,80 +863,6 @@ function copiarDiag(){
     navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Diagnóstico copiado!'),()=>{document.execCommand('copy');JUMP.toast('Copiado!');});
   }catch(e){try{document.execCommand('copy');JUMP.toast('Copiado!');}catch(_){}}
 }
-let TEMPLATES_CACHE=null;
-let LOGOS_USER={principal:null};
-async function carregarLogosUser(){
-  try{
-    const uid=CTX.viewId||CTX.cliente&&CTX.cliente.id||CTX.user&&CTX.user.id;
-    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).eq('categoria','logos').order('created_at',{ascending:false});
-    const arr=data||[];
-    if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
-  }catch(e){}
-}
-function ajustarPreviaLogo(){
-  const box=document.getElementById('vm-previa-box');
-  if(!box)return;
-  let logoEl=document.getElementById('vm-previa-logo');
-  const on=document.getElementById('vm-logo')&&document.getElementById('vm-logo').checked;
-  if(!on){if(logoEl)logoEl.style.display='none';return;}
-  const url=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
-  if(!logoEl){
-    logoEl=document.createElement('img');logoEl.id='vm-previa-logo';
-    logoEl.style.cssText='position:absolute;width:22%;opacity:.95;z-index:3';
-    box.appendChild(logoEl);
-  }
-  if(url){logoEl.src=url;logoEl.style.display='block';}else{logoEl.style.display='none';return;}
-  const pos=document.getElementById('vm-logo-pos').value;
-  logoEl.style.top=pos.includes('top')?'6%':'auto';
-  logoEl.style.bottom=pos.includes('bottom')?'6%':'auto';
-  logoEl.style.left=pos.includes('left')?'6%':'auto';
-  logoEl.style.right=pos.includes('right')?'6%':'auto';
-}
-async function carregarTemplatesLegenda(){
-  const sel=document.getElementById('vm-template');
-  if(!sel)return;
-  if(TEMPLATES_CACHE){popularTemplates(TEMPLATES_CACHE);return;}
-  try{
-    const d=await JUMP.apiSilencioso('video_templates',{},CTX.token);
-    const tpls=(d&&d.templates)||[];
-    TEMPLATES_CACHE=tpls;
-    popularTemplates(tpls);
-  }catch(e){/* mantém o padrão */}
-}
-let TPL_PREVIEWS={}; // id -> previewUrl
-function popularTemplates(tpls){
-  const sel=document.getElementById('vm-template');
-  if(!sel)return;
-  TPL_PREVIEWS={};
-  if(!tpls.length){sel.innerHTML='<option value="">Padrão do sistema</option>';return;}
-  tpls.forEach(t=>{ if(t.id&&(t.previewUrl||t.preview_url||t.preview))TPL_PREVIEWS[t.id]=t.previewUrl||t.preview_url||t.preview; });
-  // curadoria: os estilos mais usados do mercado primeiro (Hormozi, MrBeast, Ali...)
-  const FAMOSOS=['hormozi','beast','ali','abdaal','devin','grace','william','sara','umi','luke','dan','karl','ella','noah','maya'];
-  const rank=t=>{const n=(t.name||t.title||'').toLowerCase();const i=FAMOSOS.findIndex(f=>n.includes(f));return i<0?99:i;};
-  const ordenados=[...tpls].sort((a,b)=>rank(a)-rank(b)||String(a.name||'').localeCompare(String(b.name||'')));
-  sel.innerHTML='<option value="">Padrão do sistema</option>'+ordenados.map(t=>{
-    const nome=t.name||t.title||('Estilo '+(t.id||'').slice(0,6));
-    return '<option value="'+(t.id||'')+'">'+JUMP.esc(nome)+'</option>';
-  }).join('');
-}
-function mostrarPreviewTemplate(){
-  const sel=document.getElementById('vm-template');
-  const vid=document.getElementById('vm-previa-tpl');
-  const tag=document.getElementById('vm-previa-tpl-tag');
-  const txt=document.getElementById('vm-previa-legenda');
-  if(!sel||!vid)return;
-  const url=TPL_PREVIEWS[sel.value];
-  if(url){
-    // mostra o vídeo REAL do estilo sobre a miniatura (o usuário vê a fonte/animação de verdade)
-    vid.src=url;vid.style.display='block';if(tag)tag.style.display='block';
-    if(txt)txt.style.display='none';
-    vid.play().catch(()=>{});
-  }else{
-    vid.pause();vid.removeAttribute('src');vid.style.display='none';
-    if(tag)tag.style.display='none';
-    if(txt)txt.style.display='';
-  }
-}
 async function carregarMeusVideos(){
   // o histórico agora fica em Tarefas de Serviço; aqui só mantém o polling
   // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
@@ -963,7 +904,6 @@ async function subirVideoTrigger(){
   const role=(CTX.cliente&&CTX.cliente.role)||'usuario';
   const db=document.getElementById('vm-diag-btn');
   if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
-  carregarTemplatesLegenda();
   carregarLogosUser();
   carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
