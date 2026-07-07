@@ -107,7 +107,10 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .h1 em{font-style:normal;color:var(--g);text-shadow:0 0 50px rgba(168,85,247,.35)}
 .h-sub{font-size:clamp(17px,2vw,21px);color:var(--t2);line-height:1.75;max-width:620px;margin:0 auto clamp(28px,4.5vw,44px);opacity:0}
 .h-btns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:clamp(32px,5vw,50px);opacity:0;justify-content:center}
-.btn-mg{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);background:var(--g);color:#000;border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:800;letter-spacing:.3px;transition:background .2s,box-shadow .2s}
+.btn-mg{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);background:var(--g);color:#000;border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:800;letter-spacing:.3px;transition:background .2s,box-shadow .2s,transform .2s;position:relative;overflow:hidden}
+.btn-mg::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);transition:left .55s ease}
+.btn-mg:hover::after{left:130%}
+.btn-mg:hover{transform:translateY(-2px)}
 .btn-mg:hover{background:var(--g2);box-shadow:0 12px 32px var(--glow)}
 .btn-ol{display:inline-flex;align-items:center;gap:9px;padding:clamp(14px,2vw,17px) clamp(28px,4vw,44px);border:1px solid var(--bd);color:var(--t1);border-radius:9px;font-size:clamp(14px,1.7vw,16px);font-weight:700;transition:.2s}
 .btn-ol:hover{border-color:#FBBF24;color:#FBBF24}
@@ -333,6 +336,19 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 /* ══ PLANOS — FLIP CARDS LADO A LADO ══ */
 .pl-head{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,60px);align-items:end;margin-bottom:clamp(44px,7vw,68px)}
 .pl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,2vw,20px)}
+.pf-deliv{list-style:none;margin:14px 0 4px;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
+.pf-deliv li{font-size:12.5px;line-height:1.45;color:var(--ink2,#4a453e);display:flex;gap:8px;align-items:flex-start}
+.pf-deliv li b{color:inherit;font-weight:800}
+.pf-deliv li::before{content:'✓';font-weight:900;color:#16a34a;flex-shrink:0}
+.pf-deliv li.plus-all{color:var(--g);font-weight:700}.pf-deliv li.plus-all::before{content:'★';color:var(--g)}
+.pl-custom{margin-top:clamp(16px,2.5vw,24px);border-radius:16px;padding:clamp(20px,3vw,30px) clamp(20px,3.5vw,38px);background:#141312;border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;gap:clamp(16px,3vw,34px);flex-wrap:wrap;position:relative;overflow:hidden}
+.pl-custom::before{content:'';position:absolute;inset:0;background:radial-gradient(600px circle at 12% 50%,rgba(168,85,247,.14),transparent 55%);pointer-events:none}
+.pl-custom-lbl{font-family:var(--M);font-size:10px;letter-spacing:3px;color:var(--g);text-transform:uppercase;margin-bottom:6px}
+.pl-custom-name{font-family:var(--D);font-size:clamp(26px,3.4vw,36px);letter-spacing:1px;color:#F5F2EC;line-height:1}
+.pl-custom-txt{flex:1;min-width:260px;font-size:13.5px;line-height:1.65;color:rgba(245,242,236,.72)}
+.pl-custom-cta{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:#25D366;color:#06281a;border-radius:9px;font-weight:800;font-size:14px;letter-spacing:.3px;transition:transform .2s,box-shadow .2s;white-space:nowrap}
+.pl-custom-cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(37,211,102,.35)}
+@media(max-width:900px){.pl-custom{flex-direction:column;align-items:flex-start}}
 /* Flip container */
 .pf-wrap{perspective:1100px;height:clamp(500px,66vw,580px)}
 .pf-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.22,1,.36,1)}
@@ -378,6 +394,44 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 /* ══ HERO BACKGROUND DINÂMICO ══ */
 /* Aurora blobs animados */
 .hero-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+/* ── JUMP OS LIVE (signature) ── */
+.h-os{max-width:760px;margin:clamp(10px,2vw,18px) auto 0;opacity:0;text-align:left;position:relative;perspective:1400px}
+.h-os::before{content:'';position:absolute;inset:-40px -60px;background:radial-gradient(ellipse at 50% 30%,rgba(168,85,247,.14),transparent 60%);pointer-events:none;z-index:0}
+.os-win{position:relative;z-index:1;background:#171512;border:1px solid rgba(245,242,236,.1);border-radius:14px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.65),0 0 0 1px rgba(168,85,247,.08);transform-style:preserve-3d;transition:box-shadow .35s;will-change:transform;animation:osFloat 7s ease-in-out infinite}
+.h-os.tilting .os-win{animation:none}
+@keyframes osFloat{0%,100%{transform:translateY(0) rotateX(0)}50%{transform:translateY(-7px) rotateX(.6deg)}}
+.os-glare{position:absolute;inset:0;pointer-events:none;border-radius:14px;background:radial-gradient(560px circle at var(--gx,50%) var(--gy,30%),rgba(255,255,255,.09),transparent 46%);opacity:0;transition:opacity .35s;z-index:6}
+.h-os.tilting .os-glare{opacity:1}
+.h-os.tilting .os-win{box-shadow:0 46px 110px rgba(0,0,0,.75),0 0 60px rgba(168,85,247,.12),0 0 0 1px rgba(168,85,247,.16)}
+@media(prefers-reduced-motion:reduce){.os-win{animation:none!important}}
+.os-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0F0E0D;border-bottom:1px solid rgba(245,242,236,.07)}
+.os-dots{display:flex;gap:6px}
+.os-dots i{width:9px;height:9px;border-radius:50%;background:rgba(245,242,236,.14)}
+.os-title{font-family:var(--M);font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.os-live{display:flex;align-items:center;gap:6px;font-family:var(--M);font-size:9.5px;letter-spacing:2px;color:#4ade80}
+.os-live i{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:hpulse 2s infinite}
+.os-body{display:grid;grid-template-columns:158px 1fr;min-height:262px}
+.os-side{border-right:1px solid rgba(245,242,236,.06);padding:12px 10px;display:flex;flex-direction:column;gap:2px;background:rgba(0,0,0,.25)}
+.os-ag{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-family:var(--M);font-size:10px;letter-spacing:.5px;color:var(--t3);transition:.3s}
+.os-ag i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;flex-shrink:0}
+.os-ag.on{color:var(--t1);background:rgba(245,242,236,.05)}
+.os-ag.on i{opacity:1;box-shadow:0 0 8px currentColor}
+.os-feed{padding:16px 18px;display:flex;flex-direction:column;gap:11px;justify-content:flex-end;overflow:hidden}
+.os-msg{display:flex;gap:10px;align-items:flex-start;opacity:0;transform:translateY(10px);animation:osIn .45s ease forwards}
+@keyframes osIn{to{opacity:1;transform:none}}
+.os-av{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:1px solid}
+.os-txt{flex:1;min-width:0}
+.os-who{font-family:var(--M);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.os-what{font-size:13px;color:var(--t1);line-height:1.5}
+.os-cursor{display:inline-block;width:7px;height:13px;background:var(--g);vertical-align:-2px;animation:osBlink .7s steps(1) infinite;margin-left:2px}
+@keyframes osBlink{50%{opacity:0}}
+.os-chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--M);font-size:9px;letter-spacing:1.5px;padding:3px 8px;border-radius:5px;margin-top:6px}
+.os-art{width:74px;height:74px;border-radius:9px;margin-top:8px;background:linear-gradient(135deg,#A855F7,#4c1d95 60%,#FBBF24);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 22px rgba(168,85,247,.35);opacity:0;transform:scale(.6);animation:osArt .5s .15s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes osArt{to{opacity:1;transform:scale(1)}}
+.h-assure{font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);margin:-18px auto clamp(26px,4vw,40px);opacity:0}
+.h-assure b{color:#4ade80;font-weight:700}
+@media(max-width:640px){.os-body{grid-template-columns:1fr}.os-side{display:none}.os-feed{min-height:250px}}
+@media(prefers-reduced-motion:reduce){.os-msg,.os-art{animation:none;opacity:1;transform:none}.os-cursor{display:none}}
 .aurora-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;will-change:transform}
 .ab-1{width:520px;height:520px;background:radial-gradient(circle,rgba(168,85,247,.16),transparent 65%);top:-15%;right:-5%;animation:ab1 16s ease-in-out infinite}
 .ab-2{width:420px;height:420px;background:radial-gradient(circle,rgba(0,150,255,.08),transparent 65%);bottom:-10%;left:-8%;animation:ab2 20s ease-in-out infinite}
@@ -820,11 +874,6 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 
 <!-- HERO -->
 <section class="hero" id="inicio">
-  <div class="hero-aurora">
-    <div class="aurora-blob ab-1"></div>
-    <div class="aurora-blob ab-2"></div>
-    <div class="aurora-blob ab-3"></div>
-  </div>
   <div class="hero-lines" id="hero-lines"></div>
   <div class="h-wrap">
     <div>
@@ -837,8 +886,24 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       </h1>
       <p class="h-sub">8 agentes de IA que analisam, planejam, criam e publicam no seu Instagram. Você aprova. Os resultados aparecem.</p>
       <div class="h-btns">
-        <a href="login.html?plano=plus" class="btn-mg">Ativar meu sistema →</a>
+        <a href="login.html?plano=plus" class="btn-mg">Começar 7 dias grátis →</a>
         <a href="#como-funciona" class="btn-ol">Ver como funciona</a>
+      </div>
+      <div class="h-assure"><b>✓</b> 7 dias grátis em todos os planos &nbsp;·&nbsp; cancele quando quiser</div>
+
+      <div class="h-os" id="h-os">
+        <div class="os-win">
+          <div class="os-glare"></div>
+          <div class="os-bar">
+            <div class="os-dots"><i></i><i></i><i></i></div>
+            <div class="os-title">JUMP OS — seus agentes trabalhando</div>
+            <div class="os-live"><i></i>AO VIVO</div>
+          </div>
+          <div class="os-body">
+            <div class="os-side" id="os-side"></div>
+            <div class="os-feed" id="os-feed"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -866,7 +931,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <!-- Dots + CTA -->
   <div class="mb-right-side">
     <div class="mb-dots" id="mb-dots"></div>
-    <a href="login.html?plano=plus" class="mb-cta">Ativar agora →</a>
+    <a href="login.html?plano=plus" class="mb-cta">7 dias grátis →</a>
   </div>
 </div>
 
@@ -934,7 +999,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
         <div class="tg-l rv">Planos</div>
         <h2 class="sh-l rv">Simples assim.</h2>
       </div>
-      <p class="ss-l rv" style="margin:0">Sem contrato. Sem surpresa. Cobrança recorrente — cancele quando quiser. Clique em "Ver mais" para ver tudo que está incluso.</p>
+      <p class="ss-l rv" style="margin:0"><b style="color:#4ade80">Todos os planos começam com 7 dias grátis</b> — você só é cobrado depois. Sem contrato, sem surpresa; cancele quando quiser. Clique em "Ver mais" para ver tudo que está incluso.</p>
     </div>
     <div class="pl-grid">
       <!-- BÁSICO -->
@@ -948,6 +1013,13 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <div class="pf-period">/mês</div>
               <div class="pf-recorr">Cobrança recorrente mensal</div>
             </div>
+            <ul class="pf-deliv">
+              <li>Consultoria de <b>identidade</b> + análise <b>mensal de mercado</b></li>
+              <li><b>Estratégia mensal completa</b> de conteúdo</li>
+              <li><b>15 imagens/mês</b> prontas para postar</li>
+              <li>Designer de <b>infográficos</b> incluído</li>
+              <li>Social media com aprovação (postagem manual)</li>
+            </ul>
             <button class="pf-ver" onclick="flipPlan(0)">Ver o que inclui →</button>
           </div>
           <div class="pf-back">
@@ -971,7 +1043,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               </ul>
             </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=basico" class="pfb-cta pfb-g">Ativar Básico →</a>
+              <a href="login.html?plano=basico" class="pfb-cta pfb-g">Testar Básico grátis →</a>
               <button class="pfb-back" onclick="flipPlan(0)">← Voltar</button>
             </div>
           </div>
@@ -989,6 +1061,13 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <div class="pf-period">/mês</div>
               <div class="pf-recorr">Cobrança recorrente mensal</div>
             </div>
+            <ul class="pf-deliv">
+              <li class="plus-all">Tudo do Básico</li>
+              <li><b>20 imagens/mês</b> prontas para postar</li>
+              <li><b>Publicação automática</b> no Instagram</li>
+              <li><b>100 DMs automáticas</b>/mês</li>
+              <li><b>2 vídeos editados por IA</b>/mês (legenda + cortes)</li>
+            </ul>
             <button class="pf-ver feat" onclick="flipPlan(1)">Ver o que inclui →</button>
           </div>
           <div class="pf-back">
@@ -1013,7 +1092,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               </ul>
             </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=plus" class="pfb-cta pfb-g">Ativar Plus →</a>
+              <a href="login.html?plano=plus" class="pfb-cta pfb-g">Testar Plus grátis →</a>
               <button class="pfb-back" onclick="flipPlan(1)">← Voltar</button>
             </div>
           </div>
@@ -1030,6 +1109,13 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <div class="pf-period">/mês</div>
               <div class="pf-recorr" style="color:rgba(168,85,247,.5)">Cobrança recorrente mensal</div>
             </div>
+            <ul class="pf-deliv">
+              <li class="plus-all">Tudo do Plus</li>
+              <li><b>30 imagens</b> + <b>10 vídeos por IA</b>/mês</li>
+              <li><b>Gestor de tráfego</b>: campanha a um clique</li>
+              <li><b>300 DMs automáticas</b>/mês</li>
+              <li>Análises de campanha <b>semanais</b></li>
+            </ul>
             <button class="pf-ver" style="border-color:rgba(168,85,247,.3);color:rgba(168,85,247,.8)" onclick="flipPlan(2)">Ver o que inclui →</button>
           </div>
           <div class="pf-back" style="border-color:rgba(168,85,247,.2)">
@@ -1048,12 +1134,22 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               </div>
             </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=pro" class="pfb-cta" style="background:rgba(168,85,247,.9);color:#fff">Ativar Pro →</a>
+              <a href="login.html?plano=pro" class="pfb-cta" style="background:rgba(168,85,247,.9);color:#fff">Testar Pro grátis →</a>
               <button class="pfb-back" onclick="flipPlan(2)">← Voltar</button>
             </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- PLANO CUSTOM (agências / multi-contas) -->
+    <div class="pl-custom rv">
+      <div>
+        <div class="pl-custom-lbl">Para agências e empresas</div>
+        <div class="pl-custom-name">PLANO CUSTOM</div>
+      </div>
+      <div class="pl-custom-txt">Todos os agentes com <b style="color:#F5F2EC">tokens e configurações sob medida</b> — para empresas com mais de uma conta ou agências que buscam automação em escala. Limites, contas e permissões desenhados para a sua operação.</div>
+      <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20PLANO%20CUSTOM%20do%20JUMP%20OS" target="_blank" rel="noopener" class="pl-custom-cta">💬 Saiba mais no WhatsApp →</a>
     </div>
   </div>
 </section>
@@ -1177,7 +1273,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <h2 class="cta-h rv">Seu negócio<br>não <em>espera.</em></h2>
     <p class="cta-sub rv">Ative o sistema hoje. Em 48h, seus agentes já estão operando.</p>
     <div class="cta-bs rv">
-      <a href="login.html?plano=plus" class="btn-mg" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Começar agora →</a>
+      <a href="login.html?plano=plus" class="btn-mg" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Começar meus 7 dias grátis →</a>
       <a href="login.html?plano=basico" class="btn-ol" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Ver plano Básico</a>
     </div>
     <div class="cta-note rv">7 dias grátis · Cancele quando quiser · CDC Art. 49</div>
@@ -1280,6 +1376,8 @@ const tl=gsap.timeline({delay:.1});
 tl.to('.h1 .l span',{y:'0%',duration:.88,stagger:.1,ease:'power4.out'})
   .to('.h-sub',{opacity:1,y:0,duration:.7,ease:'power3.out'},'-=.35')
   .to('.h-btns',{opacity:1,y:0,duration:.65,ease:'power3.out'},'-=.28')
+  .to('.h-assure',{opacity:1,duration:.5,ease:'power2.out'},'-=.2')
+  .to('.h-os',{opacity:1,y:0,duration:.85,ease:'power3.out',onComplete:()=>{try{osStart()}catch(e){}}},'-=.15')
   
   
 
@@ -1541,6 +1639,92 @@ document.addEventListener('click',e=>{
     }
   }catch(e){/* mantém os valores do HTML em caso de erro */}
 })();
+
+/* ══ JUMP OS AO VIVO (hero) — os agentes se demonstrando ══ */
+const OS_AGENTS=[
+  ['Identidade','#22D3EE','🧬'],['Mercado','#4F7CFF','📡'],['Diagnóstico','#2DD4BF','🩺'],['Estratégia','#FBBF24','♟️'],
+  ['Designer','#F472B6','🎨'],['Publicação','#FB923C','📤'],['Tráfego','#F87171','📈'],['Editor','#A3E635','🎬']
+];
+const OS_SCRIPT=[
+  {a:0,txt:'Check-in concluído — tom de voz e paleta da marca registrados.',ok:'IDENTIDADE PRONTA'},
+  {a:3,txt:'Calendário da semana: 3 Reels, 2 carrosséis, 1 story. Tarefa enviada ao Designer.',ok:'TAREFA CRIADA'},
+  {a:4,txt:'Arte do carrossel "Antes e Depois" pronta para sua aprovação.',art:true,ok:'AGUARDANDO APROVAÇÃO'},
+  {a:5,txt:'Reel agendado — quinta, 19h. Legenda e hashtags aplicadas.',ok:'AGENDADO · QUI 19H'},
+  {a:6,txt:'Análise da semana: alcance +38%. Sugestão de otimização enviada.',ok:'INSIGHT ENTREGUE'}
+];
+let osOn=false;
+function osStart(){
+  if(osOn)return;osOn=true;
+  const side=document.getElementById('os-side'),feed=document.getElementById('os-feed');
+  if(!side||!feed)return;
+  side.innerHTML=OS_AGENTS.map((a,i)=>`<div class="os-ag" id="os-ag-${i}" style="color:${a[1]}"><i></i>${a[0]}</div>`).join('');
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){OS_SCRIPT.forEach(s=>osRender(s,true));return;}
+  let step=0;
+  const run=()=>{
+    if(step>=OS_SCRIPT.length){
+      setTimeout(()=>{feed.style.transition='opacity .5s';feed.style.opacity='0';
+        setTimeout(()=>{feed.innerHTML='';feed.style.opacity='1';document.querySelectorAll('.os-ag').forEach(el=>el.classList.remove('on'));step=0;run();},550);
+      },3400);return;
+    }
+    const s=OS_SCRIPT[step];
+    document.querySelectorAll('.os-ag').forEach(el=>el.classList.remove('on'));
+    const agEl=document.getElementById('os-ag-'+s.a);if(agEl)agEl.classList.add('on');
+    osRender(s,false,()=>{step++;setTimeout(run,900);});
+    // mantém no máximo 3 mensagens visíveis
+    while(feed.children.length>3)feed.removeChild(feed.firstChild);
+  };
+  run();
+}
+function osRender(s,inst,done){
+  const feed=document.getElementById('os-feed');if(!feed)return;
+  const A=OS_AGENTS[s.a];
+  const m=document.createElement('div');m.className='os-msg';
+  m.innerHTML=`<div class="os-av" style="border-color:${A[1]}55;background:${A[1]}14">${A[2]}</div>
+    <div class="os-txt"><div class="os-who" style="color:${A[1]}">${A[0]}</div>
+    <div class="os-what"><span class="os-w"></span>${inst?'':'<span class="os-cursor"></span>'}</div></div>`;
+  feed.appendChild(m);
+  const w=m.querySelector('.os-w');
+  const fin=()=>{
+    const cur=m.querySelector('.os-cursor');if(cur)cur.remove();
+    if(s.art){const art=document.createElement('div');art.className='os-art';art.textContent='✨';m.querySelector('.os-txt').appendChild(art);}
+    if(s.ok){const ch=document.createElement('div');ch.className='os-chip';ch.style.cssText=`color:${A[1]};background:${A[1]}14;border:1px solid ${A[1]}33`;ch.textContent='✓ '+s.ok;m.querySelector('.os-txt').appendChild(ch);}
+    if(done)setTimeout(done,s.art?750:250);
+  };
+  if(inst){w.textContent=s.txt;fin();return;}
+  let j=0;const type=()=>{if(j<s.txt.length){w.textContent+=s.txt[j++];setTimeout(type,18);}else fin();};
+  setTimeout(type,350);
+}
+// ── TILT 3D interativo na janela do OS (desktop, sem reduced-motion) ──
+(function(){
+  const wrap=document.getElementById('h-os');if(!wrap)return;
+  const fine=window.matchMedia&&window.matchMedia('(pointer:fine)').matches;
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!fine||reduced)return;
+  const win=wrap.querySelector('.os-win');if(!win)return;
+  let raf=null;
+  wrap.addEventListener('mousemove',e=>{
+    const r=wrap.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width, py=(e.clientY-r.top)/r.height;
+    if(raf)cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>{
+      wrap.classList.add('tilting');
+      const rx=(py-.5)*-7, ry=(px-.5)*9; // graus máx ~5-7 (sutil e premium)
+      win.style.transform=`rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateZ(6px)`;
+      win.style.setProperty('--gx',(px*100).toFixed(1)+'%');
+      win.style.setProperty('--gy',(py*100).toFixed(1)+'%');
+    });
+  });
+  wrap.addEventListener('mouseleave',()=>{
+    wrap.classList.remove('tilting');
+    win.style.transition='transform .5s cubic-bezier(.22,1,.36,1),box-shadow .35s';
+    win.style.transform='';
+    setTimeout(()=>{win.style.transition='box-shadow .35s';},520);
+  });
+})();
+
+// fallback: se o GSAP não disparar, inicia sozinho
+setTimeout(()=>{const el=document.getElementById('h-os');if(el&&!osOn){el.style.opacity='1';osStart();}},3000);
 </script>
 </body>
 </html>
