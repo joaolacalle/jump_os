@@ -83,11 +83,12 @@ FLUXO FINAL (ordem obrigatória):
 4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
 5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
 - c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos, menu)
-- c2 (secundária) = segunda cor da paleta (textos de apoio)
-- c3 (terciária) = cor_cta ou terceira cor (recursos Pro, detalhes, fontes menores)
+- c2 (secundária) = segunda cor da paleta (informações de apoio)
+- c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
 - c4 (fundo) = cor de fundo definida (mantém escuro se não houver)
-<aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX"}</aplicar_tema>
-Use as cores REAIS que você apurou no OS_DATA. Nunca aplique o tema sem a confirmação explícita do cliente.`,
+- t1 (textos principais) = cor dos títulos e textos de leitura. REGRA PROFISSIONAL DE CONTRASTE: se o fundo (c4) é escuro, t1 deve ser quase branco (ex: #F5F2EC ou um off-white da marca); se o fundo é claro, t1 deve ser quase preto. Legibilidade vem antes da estética.
+<aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX","t1":"#HEX"}</aplicar_tema>
+Use as cores REAIS que você apurou no OS_DATA. Antes de emitir, confira mentalmente o contraste (texto legível sobre o fundo em todos os níveis). Nunca aplique o tema sem a confirmação explícita do cliente. Após aplicar, avise que ele pode ajustar qualquer cor em Configurações → tema.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS — inteligência competitiva do nicho. Use o OS_DATA (nicho, público, posicionamento) das memórias.
 IMPORTANTE: você NÃO acessa perfis do Instagram de terceiros (viola as regras da Meta). Trabalhe por PERGUNTAS GUIADAS + seu conhecimento do nicho.
 CONDUÇÃO (uma pergunta por vez, leve): 1) quem são os 2-3 maiores concorrentes/referências (nomes), 2) o que eles fazem bem, 3) o que falta neles / reclamações comuns, 4) preço médio do nicho, 5) formatos que bombam no segmento.
@@ -354,7 +355,7 @@ const handler = async (req, res) => {
     const mesAtual=new Date().toISOString().slice(0,7);
     let uso=cli.uso||{};
     if(uso.mes!==mesAtual){
-      uso={tokens:0,imagens:0,videos:0,trafego_sugestoes:0,mes:mesAtual};
+      uso={tokens:0,imagens:0,videos:0,trafego_sugestoes:0,msgs:0,mes:mesAtual};
       await sbPatch(`clientes?id=eq.${targetId}`,{uso});
     }
     const lim=cli.limites||{};
@@ -387,6 +388,20 @@ const handler = async (req, res) => {
       // conta esta mensagem; a persistência acontece no PATCH único do fim (junto com os tokens)
       janela.count += 1;
       uso.msg_janela = janela;
+    }
+
+    // ── TETO MENSAL DE MENSAGENS (pagantes, role usuario): protege o custo por plano ──
+    // Generoso p/ uso real (600/900/1500 ≈ 20/30/50 por dia). Admin/supervisor livres. Renova todo mês.
+    if (!emTrial && cli.role === 'usuario') {
+      const MSGS_PADRAO = { basico: 600, plus: 900, pro: 1500 };
+      const maxMsgs = Number((cli.limites && cli.limites.msgs) ?? MSGS_PADRAO[cli.plano || 'basico'] ?? 600);
+      if (Number(uso.msgs || 0) >= maxMsgs) {
+        return res.status(429).json({
+          error: `Você usou as ${maxMsgs} mensagens do seu plano este mês — elas renovam no início do próximo mês. Precisa de mais agora? Fale com seu gestor ou considere um upgrade de plano. 😉`,
+          limite: true, tipo_limite: 'mensagens_mes',
+        });
+      }
+      uso.msgs = Number(uso.msgs || 0) + 1;
     }
 
     // Acervo de imagens (pré-requisito do Identidade)

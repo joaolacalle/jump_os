@@ -66,6 +66,8 @@ async function zapCriarTask(videoId, ops) {
   if (ops.legenda_cor) body.renderOptions.styleOptions.fontColor = ops.legenda_cor;
   // posição: top = Y em % (70=embaixo p/ Reels, 45=mais central p/ VSL)
   body.renderOptions.styleOptions.top = ops.vsl ? 45 : 70;
+  // VSL: fonte MENOR (mais discreta, estilo vídeo de vendas — não briga com o rosto/fala)
+  if (ops.vsl) body.renderOptions.styleOptions.fontSize = 26;
   // contorno preto (legibilidade) se o usuário escolheu SEM fundo
   if (ops.legenda_fundo === false) { body.renderOptions.styleOptions.stroke = 's'; body.renderOptions.styleOptions.strokeColor = '#000000'; }
   // CORTAR SILÊNCIO (a dor resolvida) — autoCutSettings.silenceRemoval 0-1 (0.3 = bom padrão)

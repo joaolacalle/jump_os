@@ -215,9 +215,9 @@ module.exports = async (req, res) => {
 
     if (action === 'get_planos') {
       const LIMS_DEFAULT = {
-        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000,  dm: 3 },
-        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000,  dm: 5 },
-        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000, dm: 8 },
+        basico: { imagens: 15, reloads: 5,  videos: 0,  tokens: 200000,  dm: 3, dm_envios: 0,   msgs: 600 },
+        plus:   { imagens: 20, reloads: 8,  videos: 2,  tokens: 500000,  dm: 5, dm_envios: 100, msgs: 900 },
+        pro:    { imagens: 30, reloads: 15, videos: 10, tokens: 1200000, dm: 8, dm_envios: 300, msgs: 1500 },
       };
       let planos = LIMS_DEFAULT;
       try {
@@ -250,9 +250,9 @@ module.exports = async (req, res) => {
       }
       // Limites por plano: lê do banco (config 'planos'), com fallback aos defaults
       const LIMS_DEFAULT = {
-        basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000,  dm: 3 },
-        plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000,  dm: 5 },
-        pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000, dm: 8 },
+        basico: { imagens: 15, reloads: 5,  videos: 0,  tokens: 200000,  dm: 3, dm_envios: 0,   msgs: 600 },
+        plus:   { imagens: 20, reloads: 8,  videos: 2,  tokens: 500000,  dm: 5, dm_envios: 100, msgs: 900 },
+        pro:    { imagens: 30, reloads: 15, videos: 10, tokens: 1200000, dm: 8, dm_envios: 300, msgs: 1500 },
       };
       let LIMS_PLANO = LIMS_DEFAULT;
       try {

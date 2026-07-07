@@ -5,9 +5,9 @@ const { emailCompra, emailTrialIniciado } = require('./_email-lib');
 
 // Limites por plano (espelham os defaults do admin-users.js / config 'planos')
 const LIMS_DEFAULT = {
-  basico: { imagens: 12, reloads: 6,  videos: 0,  tokens: 200000 },
-  plus:   { imagens: 18, reloads: 9,  videos: 2,  tokens: 500000 },
-  pro:    { imagens: 25, reloads: 15, videos: 15, tokens: 1200000 },
+  basico: { imagens: 15, reloads: 5,  videos: 0,  tokens: 200000,  dm: 3, dm_envios: 0,   msgs: 600 },
+  plus:   { imagens: 20, reloads: 8,  videos: 2,  tokens: 500000,  dm: 5, dm_envios: 100, msgs: 900 },
+  pro:    { imagens: 30, reloads: 15, videos: 10, tokens: 1200000, dm: 8, dm_envios: 300, msgs: 1500 },
 };
 
 const H = () => ({
