@@ -64,6 +64,9 @@ async function zapCriarTask(videoId, ops) {
   };
   // cor da legenda
   if (ops.legenda_cor) body.renderOptions.styleOptions.fontColor = ops.legenda_cor;
+  // peso da fonte escolhida no modal (mapa de fontes básicas) + caixa alta (padrão de legenda)
+  if (ops.legenda_peso) body.renderOptions.styleOptions.fontWeight = Number(ops.legenda_peso);
+  body.renderOptions.styleOptions.fontUppercase = true;
   // posição: top = Y em % (70=embaixo p/ Reels, 45=mais central p/ VSL)
   body.renderOptions.styleOptions.top = ops.vsl ? 45 : 70;
   // VSL: fonte MENOR (mais discreta, estilo vídeo de vendas — não briga com o rosto/fala)
