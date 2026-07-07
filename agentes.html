@@ -863,6 +863,34 @@ function copiarDiag(){
     navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Diagnóstico copiado!'),()=>{document.execCommand('copy');JUMP.toast('Copiado!');});
   }catch(e){try{document.execCommand('copy');JUMP.toast('Copiado!');}catch(_){}}
 }
+let LOGOS_USER={principal:null};
+async function carregarLogosUser(){
+  try{
+    const uid=CTX.viewId||CTX.cliente&&CTX.cliente.id||CTX.user&&CTX.user.id;
+    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).eq('categoria','logos').order('created_at',{ascending:false});
+    const arr=data||[];
+    if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
+  }catch(e){}
+}
+function ajustarPreviaLogo(){
+  const box=document.getElementById('vm-previa-box');
+  if(!box)return;
+  let logoEl=document.getElementById('vm-previa-logo');
+  const on=document.getElementById('vm-logo')&&document.getElementById('vm-logo').checked;
+  if(!on){if(logoEl)logoEl.style.display='none';return;}
+  const url=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
+  if(!logoEl){
+    logoEl=document.createElement('img');logoEl.id='vm-previa-logo';
+    logoEl.style.cssText='position:absolute;width:22%;opacity:.95;z-index:3';
+    box.appendChild(logoEl);
+  }
+  if(url){logoEl.src=url;logoEl.style.display='block';}else{logoEl.style.display='none';return;}
+  const pos=document.getElementById('vm-logo-pos').value;
+  logoEl.style.top=pos.includes('top')?'6%':'auto';
+  logoEl.style.bottom=pos.includes('bottom')?'6%':'auto';
+  logoEl.style.left=pos.includes('left')?'6%':'auto';
+  logoEl.style.right=pos.includes('right')?'6%':'auto';
+}
 async function carregarMeusVideos(){
   // o histórico agora fica em Tarefas de Serviço; aqui só mantém o polling
   // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
