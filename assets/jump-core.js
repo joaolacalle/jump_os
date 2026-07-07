@@ -6,7 +6,17 @@ window.JUMP=(function(){
     t=t||{};const r=document.documentElement.style;
     if(t.c1){const rgb=hexRgb(t.c1);r.setProperty('--g',t.c1);r.setProperty('--g2',t.c1);r.setProperty('--g-rgb',rgb)}
     if(t.c2)r.setProperty('--a2',t.c2);
-    if(t.c3)r.setProperty('--a3',t.c3);
+    // c3 (cor terciária) controla também as FONTES menores/cinzas do sistema:
+    // --t2 (texto de apoio) e --t3 (legendas/detalhes) derivam de c3 com transparência,
+    // preservando a hierarquia visual em qualquer cor de marca.
+    if(t.c3){
+      r.setProperty('--a3',t.c3);
+      const rgb3=hexRgb(t.c3);
+      r.setProperty('--t2','rgba('+rgb3+',.68)');
+      r.setProperty('--t3','rgba('+rgb3+',.45)');
+    }else{r.removeProperty('--a3');r.removeProperty('--t2');r.removeProperty('--t3');}
+    // t1 = cor do texto principal (títulos e corpo)
+    if(t.t1){r.setProperty('--t1',t.t1);}else{r.removeProperty('--t1');}
     document.documentElement.setAttribute('data-theme',t.bg==='claro'?'light':'dark');
     // c4 = fundo da área de conteúdo (--ch, aplicado no .main); c5 = fundo dos cards (--card)
     if(t.c4){r.setProperty('--ch',t.c4);}else{r.removeProperty('--ch');}
