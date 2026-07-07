@@ -270,3 +270,49 @@ body:has(.view-banner) .app,body:has(.view-banner) .sidebar{padding-top:38px}
 /* Seletor de cor de fundo em destaque (Configurações) */
 .bg-pick{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border-radius:12px;background:rgba(var(--g-rgb),.06);border:1px solid rgba(var(--g-rgb),.18);margin-bottom:16px}
 .cp-sw-lg input{width:46px;height:46px}
+
+/* ═══════════════════════════════════════════════════════════
+   IDENTITY UPGRADE — assinatura visual JUMP em todo o sistema
+   (motion sutil, foco, profundidade — mesma linguagem da home)
+   ═══════════════════════════════════════════════════════════ */
+::selection{background:rgba(var(--g-rgb,168,85,247),.35);color:var(--t1)}
+*{scrollbar-width:thin;scrollbar-color:rgba(var(--g-rgb,168,85,247),.35) transparent}
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:rgba(var(--g-rgb,168,85,247),.28);border-radius:99px;border:2px solid transparent;background-clip:content-box}
+*::-webkit-scrollbar-thumb:hover{background:rgba(var(--g-rgb,168,85,247),.5);background-clip:content-box}
+
+/* Botões: elevação viva + brilho da marca */
+.btn{transition:transform .18s ease,box-shadow .22s ease,background .2s,border-color .2s,opacity .2s}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.btn:active:not(:disabled){transform:translateY(0) scale(.985)}
+.btn-g:hover:not(:disabled){box-shadow:0 8px 26px rgba(var(--g-rgb,168,85,247),.38)}
+.btn-o:hover:not(:disabled){border-color:rgba(var(--g-rgb,168,85,247),.55);box-shadow:0 6px 18px rgba(var(--g-rgb,168,85,247),.16)}
+
+/* Cards e blocos: profundidade que responde */
+.card,.stat,.ap-card{transition:transform .22s ease,box-shadow .25s ease,border-color .25s ease}
+.card:hover,.ap-card:hover{border-color:rgba(var(--g-rgb,168,85,247),.34);box-shadow:0 14px 40px rgba(0,0,0,.35),0 0 0 1px rgba(var(--g-rgb,168,85,247),.1)}
+.stat-btn{cursor:pointer}
+.stat-btn:hover{transform:translateY(-2px);border-color:rgba(var(--g-rgb,168,85,247),.4);box-shadow:0 12px 34px rgba(0,0,0,.35)}
+
+/* Inputs: foco com anel da marca (acessível e bonito) */
+.f-input{transition:border-color .2s,box-shadow .2s}
+.f-input:focus{outline:none;border-color:rgba(var(--g-rgb,168,85,247),.65);box-shadow:0 0 0 3px rgba(var(--g-rgb,168,85,247),.18)}
+
+/* Sidebar: link ativo com barra viva; hover deslizante */
+.sb-link{transition:background .18s,color .18s,padding-left .18s}
+.sb-link:hover{padding-left:18px}
+.sb-link.a{position:relative}
+.sb-link.a::before{content:'';position:absolute;left:0;top:18%;bottom:18%;width:3px;border-radius:99px;background:var(--g);box-shadow:0 0 12px rgba(var(--g-rgb,168,85,247),.6)}
+
+/* Modais/overlays: entrada suave */
+@keyframes juFade{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+.modal,.vm-card,[id$="-overlay"]>div:first-child{animation:juFade .28s ease}
+
+/* Toques finais */
+img{user-select:none}
+a{transition:color .18s,opacity .18s}
+@media(prefers-reduced-motion:reduce){
+  .btn,.card,.stat,.ap-card,.sb-link{transition:none!important;transform:none!important}
+  .modal,.vm-card,[id$="-overlay"]>div:first-child{animation:none!important}
+}
