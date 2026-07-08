@@ -72,7 +72,13 @@ async function zapCriarTask(videoId, ops) {
   // VSL: fonte MENOR (mais discreta, estilo vídeo de vendas — não briga com o rosto/fala)
   if (ops.vsl) body.renderOptions.styleOptions.fontSize = 26;
   // contorno preto (legibilidade) se o usuário escolheu SEM fundo
-  if (ops.legenda_fundo === false) { body.renderOptions.styleOptions.stroke = 's'; body.renderOptions.styleOptions.strokeColor = '#000000'; }
+  if (ops.legenda_fundo === false) {
+    body.renderOptions.styleOptions.stroke = 's';
+    body.renderOptions.styleOptions.strokeColor = '#000000';
+    // neutraliza o destaque de palavra do estilo base (o "bloco/realce" fica na cor do próprio texto)
+    const corNeutra = ops.legenda_cor || '#FFFFFF';
+    body.renderOptions.highlightOptions = { randomColourOne: corNeutra, randomColourTwo: corNeutra, randomColourThree: corNeutra };
+  }
   // CORTAR SILÊNCIO (a dor resolvida) — autoCutSettings.silenceRemoval 0-1 (0.3 = bom padrão)
   if (ops.cortar_silencio) {
     body.autoCutSettings = { silenceRemoval: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.3 };
@@ -141,14 +147,17 @@ function montarEdit(origemUrl, ops, srtUrl) {
 
   const tracks = [{ clips: [videoClip] }];
 
-  // logo (overlay) no canto — posição configurável (padrão: canto superior direito)
+  // logo (overlay) no canto — POSITION NATIVO do Shotstack (ancoragem exata, sem ambiguidade)
   if (ops.logo_url) {
-    const pos = { 'top-right': { x: 0.38, y: 0.42 }, 'top-left': { x: -0.38, y: 0.42 }, 'bottom-right': { x: 0.38, y: -0.42 }, 'bottom-left': { x: -0.38, y: -0.42 } };
-    const off = pos[ops.logo_posicao] || pos['top-right'];
+    const POSMAP = { 'top-right': 'topRight', 'top-left': 'topLeft', 'bottom-right': 'bottomRight', 'bottom-left': 'bottomLeft' };
+    const p = ops.logo_posicao || 'top-right';
+    // margem pequena p/ dentro do canto (3% — imperceptível se a convenção do eixo variar)
+    const off = { x: p.includes('left') ? 0.03 : -0.03, y: p.includes('top') ? -0.03 : 0.03 };
     tracks.unshift({ clips: [{
       asset: { type: 'image', src: ops.logo_url },
       start: 0, length: 'end',
-      fit: 'none', // essencial: mantém a logo no tamanho natural (sem isso ela cobre o vídeo)
+      fit: 'none', // mantém o tamanho natural (sem isso a logo cobre o vídeo)
+      position: POSMAP[p] || 'topRight',
       offset: off, scale: 0.22, opacity: 0.95,
     }] });
   }
