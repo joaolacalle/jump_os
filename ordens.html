@@ -132,7 +132,20 @@ function render(){
   }).join('');
 }
 
+let VID_TIMER=null;
+function agendarRefreshVideos(){
+  if(VID_TIMER){clearTimeout(VID_TIMER);VID_TIMER=null;}
+  const pend=(VIDEOS||[]).some(j=>j.status==='processando'||j.status==='transcrevendo');
+  if(!pend)return; // nada em andamento: para sozinho
+  VID_TIMER=setTimeout(async()=>{
+    VID_TIMER=null;
+    try{const dv=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);if(dv&&dv.jobs)VIDEOS=dv.jobs;}catch(e){}
+    if(FILTRO==='videos')render(); // re-renderiza (o próprio renderVideos re-agenda se ainda houver pendente)
+    else agendarRefreshVideos();   // continua acompanhando em segundo plano
+  },12000);
+}
 function renderVideos(wrap){
+  agendarRefreshVideos(); // auto-atualiza o "processando" sem o usuário precisar dar F5
   const ehGestor=CTX.cliente&&(CTX.cliente.role==='admin'||CTX.cliente.role==='supervisor');
   if(!VIDEOS.length){
     wrap.innerHTML='<div class="ord-empty"><div style="font-size:40px;margin-bottom:12px">🎬</div><div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">Nenhum vídeo ainda</div><div style="font-size:13px">Use o Editor de Vídeo no chat dos agentes para criar.</div></div>';
