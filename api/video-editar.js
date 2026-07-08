@@ -123,13 +123,20 @@ module.exports = async (req, res) => {
     else if (precisaShotstack && temShot) {
       out = await iniciarPorShotstack(false);
     }
-    // CASO C: só ZapCap
+    // CASO C: só ZapCap (inclui: pediu composição mas a chave do Shotstack falta → processa a legenda e AVISA)
     else if (precisaZapcap && temZap) {
       out = await iniciarPorZapcap(false);
+      if (out && !out.error && precisaShotstack && !temShot) {
+        out.aviso = 'Legenda/corte em andamento. Trilha, filtro e logo NÃO foram aplicados: a chave do Shotstack não está configurada (avise o administrador).';
+      }
+    }
+    // Pediu SÓ composição (trilha/filtro/logo) e o Shotstack não está configurado → erro claro, não silêncio
+    else if (precisaShotstack && !temShot) {
+      return res.status(500).json({ error: 'Trilha, filtro e logo exigem a chave do Shotstack (SHOTSTACK_API_KEY), que não está configurada na Vercel.' });
     }
     if (out) {
       if (out.error) return res.status(502).json({ error: out.error });
-      return res.status(200).json({ ok: true, job_id: out.jobId, status: 'processando' });
+      return res.status(200).json({ ok: true, job_id: out.jobId, status: 'processando', aviso: out.aviso || null });
     }
 
     // Nenhuma opção que exija processamento (ex: só quer o vídeo como está) — não deveria ocorrer

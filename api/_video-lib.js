@@ -68,7 +68,7 @@ async function zapCriarTask(videoId, ops) {
   if (ops.legenda_peso) body.renderOptions.styleOptions.fontWeight = Number(ops.legenda_peso);
   body.renderOptions.styleOptions.fontUppercase = true;
   // posição: top = Y em % (70=embaixo p/ Reels, 45=mais central p/ VSL)
-  body.renderOptions.styleOptions.top = ops.vsl ? 45 : 70;
+  body.renderOptions.styleOptions.top = ops.vsl ? 56 : 70; // VSL: abaixo do centro (pedido João)
   // VSL: fonte MENOR (mais discreta, estilo vídeo de vendas — não briga com o rosto/fala)
   if (ops.vsl) body.renderOptions.styleOptions.fontSize = 26;
   // contorno preto (legibilidade) se o usuário escolheu SEM fundo
@@ -148,7 +148,8 @@ function montarEdit(origemUrl, ops, srtUrl) {
     tracks.unshift({ clips: [{
       asset: { type: 'image', src: ops.logo_url },
       start: 0, length: 'end',
-      offset: off, scale: 0.14, opacity: 0.95,
+      fit: 'none', // essencial: mantém a logo no tamanho natural (sem isso ela cobre o vídeo)
+      offset: off, scale: 0.22, opacity: 0.95,
     }] });
   }
 
