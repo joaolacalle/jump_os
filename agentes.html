@@ -805,17 +805,28 @@ async function vmEditar(){
     const d=await r.json();
     if(r.ok&&d.ok){
       JUMP.toast('🎬 Vídeo em processamento');
+      if(d.aviso)addMsg('a','⚠️ '+d.aviso);
       if(guardar)addMsg('a','✓ Guardei seu estilo de edição (fonte, cor e cortes) para os próximos vídeos ficarem com a sua cara.');
       // reset
       vmVideoUrl=null;vmTrilhaUrl=null;vmLogoUrl=null;
       ['vm-v-status','vm-t-status','vm-l-status'].forEach(i=>document.getElementById(i).textContent='');
       iniciarPollingVideo();
     }else{
-      JUMP.toast('Erro ao editar','err');
-      addMsg('a','⚠️ '+(d.error||'Erro ao iniciar a edição.'));
-      console.error('Editar vídeo - resposta:',d);
+      if(d&&d.error){
+        JUMP.toast('Erro ao editar','err');
+        addMsg('a','⚠️ '+d.error);
+        console.error('Editar vídeo - resposta:',d);
+      }else{
+        addMsg('a','⏳ Seu vídeo entrou na fila de edição. Acompanhe em <b>Tarefas de Serviço → Vídeos por IA</b>.');
+        iniciarPollingVideo();
+      }
     }
-  }catch(e){JUMP.toast('Erro de conexão','err');console.error(e);}
+  }catch(e){
+    // a conexão oscilou, mas na maioria dos casos o servidor já recebeu e está processando
+    addMsg('a','⏳ Aguarde: seu vídeo está sendo processado. Acompanhe em <b>Tarefas de Serviço → Vídeos por IA</b>. Se ele não aparecer lá em ~2 minutos, envie novamente.');
+    iniciarPollingVideo();
+    console.error(e);
+  }
   btn.disabled=false;btn.textContent='🎬 Editar vídeo';
 }
 
