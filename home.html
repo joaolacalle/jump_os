@@ -409,6 +409,7 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .nl-logo img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
 .nl-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(168,85,247,.18);border-top-color:#A855F7;animation:nlSpin 1.8s linear infinite;pointer-events:none}
 @keyframes nlSpin{to{transform:rotate(360deg)}}
+.nl-img{height:46px;width:auto;display:block}
 .nl-word{font-family:var(--D);font-size:26px;letter-spacing:2px;color:#F5F2EC;white-space:nowrap}
 .nl-word em{font-style:normal;color:#A855F7}
 @media(prefers-reduced-motion:reduce){.nl-ring{animation:none}}
@@ -836,7 +837,8 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <nav id="nav">
   <div class="nl">
     <img src="assets/logo.png" alt="JUMP OS" style="height:41px;object-fit:contain" onerror="this.style.display='none';document.getElementById('nlfb').style.display='block'">
-    <div class="nl-word">JUMP <em>OS</em></div>
+    <img class="nl-img" src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none';document.getElementById('nl-fb').style.display='block'">
+    <div class="nl-word" id="nl-fb" style="display:none">JUMP <em>OS</em></div>
   </div>
   <div class="nv">
     <a href="#como-funciona" class="na">Como funciona</a>

@@ -203,6 +203,18 @@ img{max-width:100%}
 .mfb-title{font-family:var(--D);font-size:20px;letter-spacing:.5px;margin-bottom:6px}
 .mfb-section{flex:1}
 @media(max-width:640px){.mf-wrap{height:auto;min-height:265px}}
+.nl-img{height:46px;width:auto;display:block}
+.n-g{padding:10px 20px;background:var(--g);color:#0F0E0D;border-radius:8px;font-weight:800;font-size:13px;transition:.2s}
+.n-g:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(168,85,247,.35)}
+@media(max-width:900px){.n-g{display:none}}
+/* topo com as características da home: grid de pontos + glow */
+.mh{background-image:radial-gradient(rgba(245,242,236,.055) 1px,transparent 1px);background-size:26px 26px}
+/* LAYOUT: cards AO LADO da foto (corrige regra móvel órfã herdada) */
+.ment-layout{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(20px,3vw,36px);align-items:stretch;margin-top:clamp(30px,5vw,48px)}
+.ment-photo-col{position:relative;border-radius:16px;overflow:hidden;min-height:0;height:auto}
+.ment-photo-col img{width:100%;height:100%;object-fit:cover;display:block;min-height:100%}
+.ment-cards-col{max-width:none}
+@media(max-width:900px){.ment-layout{grid-template-columns:1fr}.ment-photo-col{min-height:300px;max-height:380px}}
 .rv,.rv-l{opacity:1!important;transform:none!important}
 /* FOOTER */
 .ft{border-top:1px solid var(--bd);padding:28px 0;text-align:center;font-family:var(--M);font-size:11px;color:var(--t3)}
@@ -213,11 +225,16 @@ img{max-width:100%}
 <body>
 
 <nav class="nav">
-  <div class="nl-word">JUMP <em>OS</em></div>
+  <img class="nl-img" src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none';document.getElementById('nl-fb').style.display='block'">
+  <div class="nl-word" id="nl-fb" style="display:none">JUMP <em>OS</em></div>
   <div class="nv">
     <a href="home.html" class="na">Início</a>
+    <a href="home.html#como-funciona" class="na">Como funciona</a>
+    <a href="home.html#agentes" class="na">Agentes</a>
     <a href="home.html#planos" class="na">Planos</a>
+    <a href="mentoria.html" class="na" style="color:var(--g)">Mentorias</a>
     <a href="login.html" class="n-in">Entrar</a>
+    <a href="login.html?plano=plus" class="n-g">Começar grátis →</a>
   </div>
 </nav>
 
