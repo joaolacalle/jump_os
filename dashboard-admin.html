@@ -231,11 +231,12 @@
 
       <div class="bk-card" style="grid-column:1/-1">
         <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
-        <div class="bk-b">Escolha qual plano cada mentoria dá de bônus. O sistema calcula o valor de "2 meses grátis" sozinho com base nos preços acima.</div>
+        <div class="bk-b">Defina o PREÇO de cada mentoria e qual plano ela dá de bônus. O valor do bônus é calculado sozinho com base nos preços dos planos acima.</div>
 
         <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
           <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-pres-preco" type="number" step="0.01"></div>
             <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
               <select class="f-input" id="pr-ment-pres" onchange="recalcMentorias()">
                 <option value="plus">Plus</option><option value="basico">Básico</option><option value="pro">Pro</option>
@@ -249,6 +250,7 @@
         <div style="margin-top:12px;padding:14px;border:1px solid var(--bd);border-radius:11px">
           <div style="font-weight:800;color:var(--t1);margin-bottom:8px">💻 Mentoria Digital</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-dig-preco" type="number" step="0.01"></div>
             <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
               <select class="f-input" id="pr-ment-dig" onchange="recalcMentorias()">
                 <option value="basico">Básico</option><option value="plus">Plus</option><option value="pro">Pro</option>
@@ -725,6 +727,8 @@ async function carregarPrecos(){
     document.getElementById('pr-ment-pres-m').value=pr.ment_pres_meses??2;
     document.getElementById('pr-ment-dig').value=pr.ment_dig_plano||'basico';
     document.getElementById('pr-ment-dig-m').value=pr.ment_dig_meses??2;
+    document.getElementById('pr-ment-pres-preco').value=pr.ment_pres_preco??2999.90;
+    document.getElementById('pr-ment-dig-preco').value=pr.ment_dig_preco??1499.90;
   }catch(e){
     document.getElementById('pr-basico').value=129.90;document.getElementById('pr-plus').value=399.90;document.getElementById('pr-pro').value=799.90;
   }
@@ -738,6 +742,8 @@ async function salvarPrecos(){
     basico:p.basico, plus:p.plus, pro:p.pro,
     ment_pres_plano:pPres, ment_pres_meses:mPres, ment_pres_valor:+(p[pPres]*mPres).toFixed(2),
     ment_dig_plano:pDig, ment_dig_meses:mDig, ment_dig_valor:+(p[pDig]*mDig).toFixed(2),
+    ment_pres_preco:+document.getElementById('pr-ment-pres-preco').value||2999.90,
+    ment_dig_preco:+document.getElementById('pr-ment-dig-preco').value||1499.90,
   };
   const msg=document.getElementById('pr-msg');
   try{

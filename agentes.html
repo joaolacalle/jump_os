@@ -305,14 +305,12 @@
         <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">A prévia na miniatura mostra a fonte, a cor e a posição em tempo real.</div>
 
       </div>
+      <label class="vm-opt" style="margin:8px 0 6px"><input type="checkbox" id="vm-fundo-on" checked onchange="ajustarPreviaLegenda()"> Fundo/destaque no texto</label>
       <div style="display:flex;gap:8px">
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do texto</label>
-          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end">
-        <label class="vm-opt" style="flex:1;margin:0"><input type="checkbox" id="vm-fundo-on" checked onchange="ajustarPreviaLegenda()"> Fundo/destaque no texto</label>
+          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px;width:100%" oninput="ajustarPreviaLegenda()"></div>
         <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do fundo</label>
-          <input class="f-input" id="vm-fundo-cor" type="color" value="#000000" style="padding:4px;height:38px" oninput="ajustarPreviaLegenda()"></div>
+          <input class="f-input" id="vm-fundo-cor" type="color" value="#000000" style="padding:4px;height:38px;width:100%" oninput="ajustarPreviaLegenda()"></div>
       </div>
     </div>
 
@@ -352,7 +350,7 @@
 
     <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this);ajustarPreviaLogo()"> 🖼️ Logo no canto</label>
     <div id="vm-sub-logo" style="display:none;margin:6px 0 12px 24px">
-      <div style="font-size:10.5px;color:var(--t3);margin:0 0 8px;font-family:var(--M)">Usa a logo da sua empresa que está em Meus Arquivos → Logos. Deixe lá apenas a logo oficial (a mesma usada nos infográficos).</div>
+      <div style="font-size:10.5px;color:var(--t3);margin:0 0 8px;font-family:var(--M)">Usa a logo da sua empresa que está em Meus Arquivos → Logos (envie em <b>PNG com fundo transparente</b>). Deixe lá apenas a logo oficial.</div>
       <label class="f-label" style="font-size:11px">Posição</label>
       <select class="f-input" id="vm-logo-pos" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
         <option value="top-right">Canto superior direito</option>
@@ -786,6 +784,7 @@ async function vmEditar(){
   if(document.getElementById('vm-logo').checked){
     const logoUrl=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
     if(logoUrl){ops.logo_url=logoUrl;ops.logo_posicao=document.getElementById('vm-logo-pos').value;}
+    else{addMsg('a','⚠️ Você marcou <b>Logo no canto</b>, mas não encontrei sua logo. Suba um PNG com fundo transparente em <b>Meus Arquivos → Logos</b> e edite novamente — desta vez o vídeo segue sem a logo.');}
   }
   const guardar=document.getElementById('vm-guardar').checked;
 

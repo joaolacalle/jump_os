@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Mentorias</title>
+<meta name="description" content="Mentorias JUMP: o método aplicado diretamente no seu negócio, com quem o construiu. Presencial ou digital.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Bebas+Neue&family=Barlow:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--D:'Oswald','Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;--g:#A855F7;--g2:#B975F9;--t1:#F5F2EC;--t2:rgba(245,242,236,.66);--t3:rgba(245,242,236,.42);--bg:#0F0E0D;--ch:#141312;--bd:rgba(245,242,236,.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--t1);font-family:var(--B);overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+img{max-width:100%}
+.si{max-width:1160px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+.sec{padding:clamp(56px,9vw,110px) 0}
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px clamp(18px,4vw,44px);background:rgba(15,14,13,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+.nl-logo{position:relative;width:44px;height:44px;flex-shrink:0}
+.nl-logo img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.nl-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(168,85,247,.18);border-top-color:#A855F7;animation:nlSpin 1.8s linear infinite;pointer-events:none}
+@keyframes nlSpin{to{transform:rotate(360deg)}}
+.nl-word{font-family:var(--D);font-size:24px;letter-spacing:2px;color:#F5F2EC;white-space:nowrap}
+.nl-word em{font-style:normal;color:var(--g)}
+.nv{margin-left:auto;display:flex;gap:clamp(12px,2.5vw,26px);align-items:center}
+.na{font-family:var(--M);font-size:12px;letter-spacing:1px;color:var(--t2);transition:color .2s}
+.na:hover{color:var(--t1)}
+.n-in{padding:9px 20px;border:1px solid rgba(168,85,247,.5);border-radius:8px;font-weight:700;font-size:13px;color:var(--t1);transition:.2s}
+.n-in:hover{background:rgba(168,85,247,.14)}
+@media(max-width:640px){.na{display:none}.nl-word{font-size:19px}}
+/* HERO */
+.mh{padding:clamp(60px,10vw,120px) 0 clamp(30px,5vw,50px);text-align:center;position:relative}
+.mh::before{content:'';position:absolute;inset:0;background:radial-gradient(700px circle at 50% 0%,rgba(168,85,247,.13),transparent 60%);pointer-events:none}
+.tg-d{font-family:var(--M);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--g);margin-bottom:14px}
+.sh-d{font-family:var(--D);font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:1px}
+.sh-d em{font-style:normal;color:var(--g)}
+.ss-d{font-size:clamp(14px,1.8vw,17px);line-height:1.7;color:var(--t2);max-width:620px;margin:16px auto 0}
+/* HISTÓRIA */
+.hist{display:grid;grid-template-columns:1fr 1.15fr;gap:clamp(24px,4vw,54px);align-items:center}
+.hist-img{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--bd)}
+.hist-img img{display:block;width:100%;height:100%;object-fit:cover;min-height:320px}
+.hist-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(15,14,13,.75));pointer-events:none}
+.hist h2{font-family:var(--D);font-size:clamp(26px,3.6vw,40px);letter-spacing:1px;margin-bottom:16px}
+.hist h2 em{font-style:normal;color:var(--g)}
+.hist p{font-size:clamp(14px,1.6vw,15.5px);line-height:1.8;color:var(--t2);margin-bottom:14px}
+.hist p b{color:var(--t1)}
+@media(max-width:860px){.hist{grid-template-columns:1fr}}
+/* DIFERENCIAL */
+.dif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,2vw,20px);margin-top:clamp(24px,4vw,40px)}
+.dif{background:var(--ch);border:1px solid var(--bd);border-radius:14px;padding:clamp(20px,3vw,28px);transition:border-color .25s,transform .25s}
+.dif:hover{border-color:rgba(168,85,247,.4);transform:translateY(-3px)}
+.dif .ic{font-size:26px;margin-bottom:12px}
+.dif h3{font-family:var(--D);font-size:19px;letter-spacing:.5px;margin-bottom:8px}
+.dif p{font-size:13.5px;line-height:1.65;color:var(--t2)}
+@media(max-width:860px){.dif-grid{grid-template-columns:1fr}}
+/* CARDS DE MENTORIA (extraídos da home) */
+.sec-ment{
+  background-color:var(--ch3);
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(168,85,247,.05),transparent 50%),
+    radial-gradient(ellipse at 80% 20%,rgba(0,150,255,.03),transparent 50%);
+}
+.mf-front{
+  border-radius:12px;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.mf-front.pres{
+  background:#1E1C19;
+  background-image:
+    linear-gradient(145deg,rgba(251,191,36,.16) 0%,rgba(251,191,36,.05) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(251,191,36,.025) 12px,rgba(251,191,36,.025) 13px);
+  border:1px solid rgba(251,191,36,.45) !important;
+}
+.mf-front.dig{
+  background:#1E1C19;
+  background-image:
+    linear-gradient(145deg,rgba(34,211,238,.14) 0%,rgba(34,211,238,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(34,211,238,.025) 12px,rgba(34,211,238,.025) 13px);
+  border:1px solid rgba(34,211,238,.4) !important;
+}
+.mf-back{
+  background:#1A1916;
+  background-image:linear-gradient(145deg,rgba(0,0,0,.3) 0%,transparent 60%);
+  border:1px solid rgba(168,85,247,.2) !important;
+  border-radius:12px;overflow:hidden;
+  position:absolute;inset:0;
+  transform:rotateY(180deg);
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;
+}
+.ment-layout{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,36px);align-items:stretch;margin-top:clamp(36px,6vw,56px)}
+.ment-photo-col{position:relative;border-radius:16px;overflow:hidden;min-height:clamp(500px,65vw,720px)}
+.ment-photo-col img{width:100%;height:100%;object-fit:cover;object-position:center 10%}
+.ment-photo-col::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,13,12,.2),rgba(14,13,12,.5))}
+.ment-photo-overlay{position:absolute;bottom:0;left:0;right:0;padding:clamp(20px,3.5vw,36px);z-index:1}
+.mpo-title{font-family:var(--D);font-size:clamp(24px,3.5vw,38px);letter-spacing:1px;text-transform:uppercase;color:#fff;line-height:1;margin-bottom:8px}
+.mpo-sub{font-size:clamp(13px,1.6vw,16px);color:rgba(255,255,255,.6);line-height:1.6}
+.ment-cards-col{display:flex;flex-direction:column;gap:clamp(14px,2vw,20px)}
+.mf-wrap{perspective:1100px}
+.mf-wrap.half{height:clamp(260px,34vw,320px)}
+.mf-front{
+  border-radius:12px;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.mf-front.pres{
+  background:#1E1C19;
+  background-image:
+    linear-gradient(145deg,rgba(251,191,36,.16) 0%,rgba(251,191,36,.05) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(251,191,36,.025) 12px,rgba(251,191,36,.025) 13px);
+  border:1px solid rgba(251,191,36,.45) !important;
+}
+.mf-front.dig{
+  background:#1E1C19;
+  background-image:
+    linear-gradient(145deg,rgba(34,211,238,.14) 0%,rgba(34,211,238,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(34,211,238,.025) 12px,rgba(34,211,238,.025) 13px);
+  border:1px solid rgba(34,211,238,.4) !important;
+}
+.mf-back{
+  background:#1A1916;
+  background-image:linear-gradient(145deg,rgba(0,0,0,.3) 0%,transparent 60%);
+  border:1px solid rgba(168,85,247,.2) !important;
+  border-radius:12px;overflow:hidden;
+  position:absolute;inset:0;
+  transform:rotateY(180deg);
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;
+}
+.ment-layout{grid-template-columns:1fr}
+.ment-head{margin-bottom:clamp(44px,7vw,68px)}
+.ment-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(14px,2vw,22px)}
+.mf-wrap{perspective:1100px;height:clamp(600px,78vw,700px)}
+.mf-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.22,1,.36,1)}
+.mf-wrap.flipped .mf-inner{transform:rotateY(180deg)}
+.mf-front,.mf-back{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;overflow:hidden}
+.mf-front{background:rgba(245,242,236,.04);border:1px solid var(--bd);padding:clamp(26px,4vw,42px)}
+.mf-front.pres::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#FBBF24,rgba(251,191,36,.25))}
+.mf-front.dig::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(34,211,238,.8),rgba(34,211,238,.2))}
+.mf-back{background:var(--ch2);border:1px solid rgba(168,85,247,.18);padding:clamp(22px,3.5vw,32px);transform:rotateY(180deg)}
+.mf-tag{font-family:var(--M);font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:clamp(14px,2vw,22px)}
+.mf-name{font-family:var(--D);font-size:clamp(36px,5vw,60px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);line-height:.95;margin-bottom:4px}
+.mf-price-b{margin:clamp(20px,3vw,32px) 0 auto;padding:clamp(16px,2.5vw,24px);background:rgba(0,0,0,.2);border-radius:12px;display:flex;flex-direction:column;gap:4px}
+.mf-price-row{display:flex;align-items:flex-end;gap:6px}
+.mf-price{font-family:var(--M);font-size:clamp(40px,5.5vw,56px);font-weight:700;line-height:1}
+.mf-period{font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:var(--t3);margin-top:5px}
+.mf-ver{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;padding:clamp(13px,1.8vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;border:1.5px solid var(--bd);color:var(--t1);background:transparent;width:100%;cursor:pointer;font-family:var(--B)}
+.mf-ver:hover{border-color:#FBBF24;color:#FBBF24}
+.mfb-title{font-family:var(--D);font-size:clamp(18px,2.2vw,24px);letter-spacing:1px;text-transform:uppercase;color:var(--g);margin-bottom:clamp(12px,2vw,18px)}
+.mfb-section{margin-bottom:clamp(10px,1.8vw,14px)}
+.mfb-lbl{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--t3);margin-bottom:7px}
+.mfb-list{list-style:none;display:flex;flex-direction:column;gap:5px}
+.mfb-list li{font-size:clamp(15px,1.7vw,16px);color:var(--t2);display:flex;align-items:flex-start;gap:8px;line-height:1.4}
+.mfb-list li::before{content:'→';color:var(--g);flex-shrink:0;font-size:10px;margin-top:2px;opacity:.7}
+.mfb-cta{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:auto;padding:clamp(13px,1.7vw,16px);border-radius:9px;font-size:clamp(13px,1.5vw,15px);font-weight:800;transition:.2s;font-family:var(--B)}
+.mfb-back-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;padding:9px;border-radius:8px;font-size:clamp(11px,1.3vw,13px);font-weight:700;background:transparent;border:1px solid var(--bd);color:var(--t2);cursor:pointer;transition:.2s;font-family:var(--B)}
+.mfb-back-btn:hover{color:var(--t1)}
+.mf-front{
+  background:#1E1C19 !important;
+  background-image:
+    linear-gradient(145deg,rgba(80,80,80,.08) 0%,transparent 50%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(255,255,255,.015) 12px,rgba(255,255,255,.015) 13px) !important;
+  border:1px solid rgba(255,255,255,.1) !important;
+}
+.mf-front.pres{
+  background:#1E1C19 !important;
+  background-image:
+    linear-gradient(145deg,rgba(168,85,247,.16) 0%,rgba(168,85,247,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.025) 12px,rgba(168,85,247,.025) 13px) !important;
+  border:1px solid rgba(168,85,247,.4) !important;
+}
+.mf-front.dig{
+  background:#1E1C19 !important;
+  background-image:
+    linear-gradient(145deg,rgba(185,117,249,.14) 0%,rgba(185,117,249,.04) 40%,transparent 65%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(185,117,249,.02) 12px,rgba(185,117,249,.02) 13px) !important;
+  border:1px solid rgba(185,117,249,.35) !important;
+}
+.mf-back{
+  background:#1E1C19 !important;
+  background-image:
+    linear-gradient(145deg,rgba(168,85,247,.08) 0%,transparent 50%),
+    repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.018) 12px,rgba(168,85,247,.018) 13px) !important;
+}
+.rv,.rv-l{opacity:1!important;transform:none!important}
+/* FOOTER */
+.ft{border-top:1px solid var(--bd);padding:28px 0;text-align:center;font-family:var(--M);font-size:11px;color:var(--t3)}
+.ft a{color:var(--g)}
+@media(prefers-reduced-motion:reduce){.nl-ring{animation:none}.dif{transition:none}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nl-logo"><span class="nl-ring"></span><img src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none'"></div>
+  <div class="nl-word">JUMP <em>OS</em></div>
+  <div class="nv">
+    <a href="home.html" class="na">Início</a>
+    <a href="home.html#planos" class="na">Planos</a>
+    <a href="login.html" class="n-in">Entrar</a>
+  </div>
+</nav>
+
+<section class="mh">
+  <div class="si">
+    <div class="tg-d">Mentorias</div>
+    <h1 class="sh-d">Quer ir <em>mais fundo?</em></h1>
+    <p class="ss-d">Encontros individuais com quem construiu o método e o sistema. Nada de aula genérica: o JUMP aplicado diretamente no <b style="color:var(--t1)">seu</b> negócio.</p>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:clamp(20px,3vw,36px)">
+  <div class="si">
+    <div class="hist">
+      <div class="hist-img"><img src="assets/foto-work.jpg" alt="Método JUMP aplicado na prática" onerror="this.parentElement.style.display='none'"></div>
+      <div>
+        <div class="tg-d">A história</div>
+        <h2>O método nasceu <em>na prática.</em></h2>
+        <p>O JUMP não começou como teoria. Começou <b>dentro da operação</b>: gerindo marcas reais no Instagram, testando o que faz um perfil sair do zero, errando rápido e documentando o que funciona.</p>
+        <p>Com o tempo, o que era intuição virou <b>processo</b> — identidade, mercado, estratégia, criação, publicação e tráfego trabalhando como uma engrenagem só. E o processo virou <b>sistema</b>: o JUMP OS, com 8 agentes de IA executando o método todos os dias.</p>
+        <p>A mentoria é o elo mais direto dessa história: <b>o método aplicado ao seu negócio, por quem o construiu</b> — sem intermediários, sem receita pronta.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:clamp(40px,7vw,80px);text-align:center">
+      <div class="tg-d">O diferencial</div>
+      <h2 class="sh-d" style="font-size:clamp(26px,4vw,42px)">Por que a mentoria JUMP é <em>diferente</em></h2>
+    </div>
+    <div class="dif-grid">
+      <div class="dif"><div class="ic">🎯</div><h3>Aplicação real, desde o 1º encontro</h3><p>Nada de slides genéricos. Cada sessão trabalha o SEU posicionamento, o SEU conteúdo e o SEU funil — você sai com decisões tomadas e tarefas claras.</p></div>
+      <div class="dif"><div class="ic">🧠</div><h3>Com quem construiu o método</h3><p>Você aprende direto da fonte: quem criou o processo e o transformou no JUMP OS. A visão completa — da estratégia à automação com IA.</p></div>
+      <div class="dif"><div class="ic">🎁</div><h3>Sistema incluso de bônus</h3><p>Toda mentoria acompanha meses grátis do JUMP OS: você aplica o que aprendeu com os 8 agentes trabalhando por você desde o primeiro dia.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CARDS DE MENTORIA -->
+<section class="sec sec-ment" id="mentorias" style="padding-top:0">
+  <div class="si">
+    <div class="ment-layout">
+      <div class="ment-photo-col rv-l">
+        <img src="assets/foto-hero.jpg" alt="Mentoria JUMP OS" onerror="this.parentElement.style.display='none'">
+        <div class="ment-photo-overlay">
+          <div class="mpo-tag">Método JUMP</div>
+          <div class="mpo-t">Aplicado diretamente no seu negócio.</div>
+        </div>
+      </div>
+      <div class="ment-cards-col">
+
+        <!-- PRESENCIAL -->
+        <div class="mf-wrap rv" id="mfw-0">
+          <div class="mf-inner">
+            <div class="mf-front">
+              <div class="mf-tag pres">🏆 Imersão completa</div>
+              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Presencial</div>
+              <div style="font-size:clamp(12px,1.4vw,13.5px);color:var(--t2);line-height:1.6">3 encontros presenciais, imersão total no seu negócio: posicionamento, conteúdo e vendas resolvidos ao vivo.</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap">
+                <div>
+                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:var(--g);margin-top:8px;font-weight:700" id="ment-pres-preco">R$2.999,90</div>
+                  <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 encontros · à vista</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:8px 12px">
+                  <span style="font-size:16px">🎁</span>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-pres-badge">2 meses Plus grátis</div>
+                </div>
+              </div>
+              <button class="mf-ver" style="margin-top:12px" onclick="flipMent(0)">Ver o que inclui →</button>
+            </div>
+            <div class="mf-back" style="padding:clamp(16px,2.2vw,22px)">
+              <div class="mfb-title" style="color:var(--g)">Presencial — 3 Encontros</div>
+              <div class="mfb-section">
+                <div class="mfb-lbl">Incluso</div>
+                <ul class="mfb-list">
+                  <li>3 encontros presenciais de imersão</li>
+                  <li>Diagnóstico e plano aplicados ao seu negócio</li>
+                  <li>Material Didático JUMP (exclusivo)</li>
+                  <li>Suporte direto entre encontros</li>
+                  <li id="ment-pres-li">🎁 2 meses de plano Plus grátis</li>
+                </ul>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
+                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta" style="flex:1">→ Quero a presencial</a>
+                <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(0)">←</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIGITAL -->
+        <div class="mf-wrap rv" id="mfw-1">
+          <div class="mf-inner">
+            <div class="mf-front">
+              <div class="mf-tag dig">💻 De onde você estiver</div>
+              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Digital</div>
+              <div style="font-size:clamp(12px,1.4vw,13.5px);color:var(--t2);line-height:1.6">3 reuniões por vídeo chamada com o método adaptado para aplicação remota no seu negócio.</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap">
+                <div>
+                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:rgba(185,117,249,.9);margin-top:8px;font-weight:700" id="ment-dig-preco">R$1.499,90</div>
+                  <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 reuniões · à vista</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;background:rgba(185,117,249,.07);border:1px solid rgba(185,117,249,.2);border-radius:8px;padding:8px 12px">
+                  <span style="font-size:16px">🎁</span>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-dig-badge">2 meses Básico grátis</div>
+                </div>
+              </div>
+              <button class="mf-ver" style="margin-top:12px" onclick="flipMent(1)">Ver o que inclui →</button>
+            </div>
+            <div class="mf-back" style="padding:clamp(16px,2.2vw,22px)">
+              <div class="mfb-title" style="color:rgba(185,117,249,.9)">Digital — 3 Reuniões</div>
+              <div class="mfb-section">
+                <div class="mfb-lbl">Incluso</div>
+                <ul class="mfb-list">
+                  <li>3 reuniões por vídeo chamada</li>
+                  <li>Customização para aplicação remota</li>
+                  <li>Material Didático JUMP (exclusivo)</li>
+                  <li>Suporte entre sessões</li>
+                  <li id="ment-dig-li">🎁 2 meses de plano Básico grátis</li>
+                </ul>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
+                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
+                <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(1)">←</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="ft">JUMP OS © 2026 — <a href="home.html">voltar ao início</a> · CNPJ 33.872.501/0001-17</footer>
+
+<script>
+function flipMent(i){const w=document.getElementById('mfw-'+i);if(w)w.classList.toggle('flip');}
+// Preços dinâmicos (config precos_home — mesma da home)
+(async function(){
+  const SB='https://fcdjzubdxikpvcqvalnt.supabase.co';
+  const AK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
+  function brl(n){return Number(n||0).toFixed(2).replace('.',',');}
+  try{
+    const r=await fetch(SB+'/rest/v1/config?chave=eq.precos_home&select=valor',{headers:{apikey:AK,Authorization:'Bearer '+AK}});
+    const rows=await r.json();
+    if(!Array.isArray(rows)||!rows.length||!rows[0].valor)return;
+    const pr=rows[0].valor;
+    if(pr.ment_pres_preco){const e=document.getElementById('ment-pres-preco');if(e)e.textContent='R$'+brl(pr.ment_pres_preco);}
+    if(pr.ment_dig_preco){const e=document.getElementById('ment-dig-preco');if(e)e.textContent='R$'+brl(pr.ment_dig_preco);}
+    const nome={basico:'Básico',plus:'Plus',pro:'Pro'};
+    if(pr.ment_pres_plano){
+      const b=document.getElementById('ment-pres-badge');if(b)b.textContent=(pr.ment_pres_meses||2)+' meses '+nome[pr.ment_pres_plano]+' grátis';
+      const li=document.getElementById('ment-pres-li');if(li)li.textContent='🎁 '+(pr.ment_pres_meses||2)+' meses de plano '+nome[pr.ment_pres_plano]+' grátis (R$'+brl(pr.ment_pres_valor)+')';
+    }
+    if(pr.ment_dig_plano){
+      const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||2)+' meses '+nome[pr.ment_dig_plano]+' grátis';
+      const li=document.getElementById('ment-dig-li');if(li)li.textContent='🎁 '+(pr.ment_dig_meses||2)+' meses de plano '+nome[pr.ment_dig_plano]+' grátis (R$'+brl(pr.ment_dig_valor)+')';
+    }
+  }catch(e){/* mantém os valores do HTML */}
+})();
+</script>
+</body>
+</html>

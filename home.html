@@ -399,6 +399,14 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 /* Aurora blobs animados */
 .hero-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 /* ── JUMP OS LIVE (signature) ── */
+.nl-logo{position:relative;width:44px;height:44px;flex-shrink:0}
+.nl-logo img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.nl-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(168,85,247,.18);border-top-color:#A855F7;animation:nlSpin 1.8s linear infinite;pointer-events:none}
+@keyframes nlSpin{to{transform:rotate(360deg)}}
+.nl-word{font-family:var(--D);font-size:24px;letter-spacing:2px;color:#F5F2EC;margin-left:12px;white-space:nowrap}
+.nl-word em{font-style:normal;color:#A855F7}
+@media(prefers-reduced-motion:reduce){.nl-ring{animation:none}}
+@media(max-width:640px){.nl-word{font-size:19px}}
 .h-os{max-width:760px;margin:clamp(10px,2vw,18px) auto 0;opacity:0;text-align:left;position:relative;perspective:1400px}
 .h-os::before{content:'';position:absolute;inset:-40px -60px;background:radial-gradient(ellipse at 50% 30%,rgba(168,85,247,.14),transparent 60%);pointer-events:none;z-index:0}
 .os-win{position:relative;z-index:1;background:#171512;border:1px solid rgba(245,242,236,.1);border-radius:14px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.65),0 0 0 1px rgba(168,85,247,.08);transform-style:preserve-3d;transition:box-shadow .35s;will-change:transform;animation:osFloat 7s ease-in-out infinite}
@@ -811,53 +819,14 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <nav id="nav">
   <div class="nl">
     <img src="assets/logo.png" alt="JUMP OS" style="height:41px;object-fit:contain" onerror="this.style.display='none';document.getElementById('nlfb').style.display='block'">
-    <svg id="nlfb" style="display:none;height:36px" viewBox="0 0 280 46" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="jg-nav" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#003d1a"/>
-      <stop offset="55%" stop-color="#00a84f"/>
-      <stop offset="100%" stop-color="#A855F7"/>
-    </linearGradient>
-    <linearGradient id="os-nav" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#A855F7"/>
-      <stop offset="100%" stop-color="#B975F9"/>
-    </linearGradient>
-    <filter id="glow-nav">
-      <feGaussianBlur stdDeviation="1.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <!-- ÍCONE -->
-  <rect x="0" y="2" width="42" height="42" rx="9" fill="#0d1a0d"/>
-  <rect x="0" y="2" width="42" height="42" rx="9" fill="url(#jg-nav)" opacity=".12"/>
-  <!-- Grid sutil -->
-  <line x1="0" y1="16" x2="42" y2="16" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
-  <line x1="0" y1="30" x2="42" y2="30" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
-  <line x1="14" y1="2" x2="14" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
-  <line x1="28" y1="2" x2="28" y2="44" stroke="#A855F7" stroke-width=".4" opacity=".15"/>
-  <!-- Barras crescentes -->
-  <rect x="6" y="32" width="5" height="8" rx="1" fill="url(#jg-nav)" opacity=".55"/>
-  <rect x="13" y="26" width="5" height="14" rx="1" fill="url(#jg-nav)" opacity=".75"/>
-  <rect x="20" y="18" width="5" height="22" rx="1" fill="url(#jg-nav)"/>
-  <!-- J com seta curvada -->
-  <path d="M 30 10 L 30 32 Q 30 40 22 40 Q 16 40 14 36" fill="none" stroke="url(#jg-nav)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-nav)"/>
-  <polyline points="25,6 30,10 35,15" fill="none" stroke="#A855F7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-nav)"/>
-  <!-- Ponto de destino -->
-  <circle cx="30" cy="10" r="4" fill="#A855F7" opacity=".25"/>
-  <circle cx="30" cy="10" r="2.5" fill="#A855F7"/>
-  <circle cx="30" cy="10" r="1.2" fill="white" opacity=".8"/>
-  <!-- WORDMARK -->
-  <text x="50" y="32" font-family="Oswald,Bebas Neue,sans-serif" font-weight="700" font-size="30" letter-spacing="2" fill="#F5F2EC">JUMP</text>
-  <text x="160" y="32" font-family="Oswald,Bebas Neue,sans-serif" font-weight="700" font-size="30" letter-spacing="2" fill="url(#os-nav)" filter="url(#glow-nav)">OS</text>
-  <!-- Linha verde fina -->
-  <rect x="50" y="36" width="80" height="1.5" rx="1" fill="url(#os-nav)" opacity=".35"/>
-</svg>
+    <div class="nl-logo"><span class="nl-ring"></span><img src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none'"></div>
+<div class="nl-word">JUMP <em>OS</em></div>
   </div>
   <div class="nv">
     <a href="#como-funciona" class="na">Como funciona</a>
     <a href="#agentes" class="na">Agentes</a>
     <a href="#planos" class="na">Planos</a>
-    <a href="#mentorias" class="na">Mentorias</a>
+    <a href="mentoria.html" class="na">Mentorias</a>
     <a href="agentes-detalhes.html" class="na">Ver tudo</a>
   </div>
   <div class="nbs">
@@ -871,7 +840,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <a href="#como-funciona" onclick="tmob()">Como funciona</a>
   <a href="#agentes" onclick="tmob()">Agentes</a>
   <a href="#planos" onclick="tmob()">Planos</a>
-  <a href="#mentorias" onclick="tmob()">Mentorias</a>
+  <a href="mentoria.html" onclick="tmob()">Mentorias</a>
   <a href="login.html?plano=plus" onclick="tmob()">Começar 7 dias grátis →</a>
   <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" onclick="tmob()" style="color:#25D366">💬 Falar no WhatsApp</a>
 </div>
@@ -1160,102 +1129,8 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 
 <!-- FOTO BREAK -->
 <!-- MENTORIAS — FLIP -->
-<section class="sec sec-ment" id="mentorias">
-  <div class="si">
-    <div class="ment-head">
-      <div class="tg-d rv">Mentorias</div>
-      <h2 class="sh-d rv">Quer ir mais fundo?</h2>
-      <p class="ss-d rv" style="margin-top:12px">Encontros individuais com quem construiu o método. Aplicado diretamente no seu negócio.</p>
-    </div>
-    <div class="ment-layout">
-      <!-- FOTO ESQUERDA -->
-      <div class="ment-photo-col rv-l">
-        <img src="assets/foto-hero.jpg" alt="Mentoria JUMP OS">
-        <div class="ment-photo-overlay">
-          <div class="mpo-title">Método aplicado<br>no seu negócio.</div>
-          <div class="mpo-sub">Não teoria. Prática real com resultado desde o 1º encontro.</div>
-        </div>
-      </div>
-      <!-- CARDS DIREITA — EMPILHADOS -->
-      <div class="ment-cards-col">
-        <!-- PRESENCIAL -->
-        <div class="mf-wrap half" id="mfw-0">
-          <div class="mf-inner">
-            <div class="mf-front pres" style="padding:clamp(18px,2.5vw,28px)">
-              <div class="mf-tag" style="margin-bottom:10px">🏢 Mentoria Presencial</div>
-              <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;flex:1">
-                <div>
-                  <div style="font-family:var(--D);font-size:clamp(22px,3vw,34px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);line-height:1">Encontros<br>Estratégicos</div>
-                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:#FBBF24;margin-top:8px;font-weight:700">R$2.999,90</div>
-                  <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 encontros · à vista</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:9px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 12px">
-                  <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-pres-badge">2 meses Plus grátis</div>
-                </div>
-              </div>
-              <button class="mf-ver" style="margin-top:12px" onclick="flipMent(0)">Ver o que inclui →</button>
-            </div>
-            <div class="mf-back" style="padding:clamp(16px,2.2vw,22px)">
-              <div class="mfb-title">Presencial — 3 Encontros</div>
-              <div class="mfb-section">
-                <div class="mfb-lbl">Incluso</div>
-                <ul class="mfb-list">
-                  <li>Eu fazendo para você aprender na prática</li>
-                  <li>Aplicação com customização pro seu nicho</li>
-                  <li>Treinamento captação e edição dinâmica</li>
-                  <li>Material Didático JUMP (exclusivo)</li>
-                  <li id="ment-pres-li">🎁 2 meses de plano Plus grátis (R$799,80)</li>
-                </ul>
-              </div>
-              <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta pres" style="flex:1">→ Quero a presencial</a>
-                <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(0)">←</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- DIGITAL -->
-        <div class="mf-wrap half" id="mfw-1">
-          <div class="mf-inner">
-            <div class="mf-front dig" style="padding:clamp(18px,2.5vw,28px)">
-              <div class="mf-tag" style="margin-bottom:10px">💻 Mentoria Digital</div>
-              <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;flex:1">
-                <div>
-                  <div style="font-family:var(--D);font-size:clamp(22px,3vw,34px);letter-spacing:1px;text-transform:uppercase;color:var(--t1);line-height:1">Reuniões<br>Estratégicas</div>
-                  <div style="font-family:var(--M);font-size:clamp(13px,1.5vw,15px);color:rgba(185,117,249,.9);margin-top:8px;font-weight:700">R$1.499,90</div>
-                  <div style="font-family:var(--M);font-size:clamp(10px,1.2vw,12px);color:var(--t3)">3 reuniões · à vista</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:9px;background:rgba(185,117,249,.07);border:1px solid rgba(185,117,249,.2);border-radius:8px;padding:8px 12px">
-                  <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-dig-badge">2 meses Básico grátis</div>
-                </div>
-              </div>
-              <button class="mf-ver" style="margin-top:12px" onclick="flipMent(1)">Ver o que inclui →</button>
-            </div>
-            <div class="mf-back" style="padding:clamp(16px,2.2vw,22px)">
-              <div class="mfb-title" style="color:rgba(185,117,249,.9)">Digital — 3 Reuniões</div>
-              <div class="mfb-section">
-                <div class="mfb-lbl">Incluso</div>
-                <ul class="mfb-list">
-                  <li>3 reuniões por vídeo chamada</li>
-                  <li>Customização para aplicação remota</li>
-                  <li>Material Didático JUMP (exclusivo)</li>
-                  <li>Suporte entre sessões</li>
-                  <li id="ment-dig-li">🎁 2 meses de plano Básico grátis (R$259,80)</li>
-                </ul>
-              </div>
-              <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
-                <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(1)">←</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+<!-- Mentorias: agora em mentoria.html -->
+
 
 <!-- FAQ -->
 <section class="sec sec-faq">
@@ -1321,7 +1196,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 </svg>
         <div class="fb-d">Sistema de agentes de inteligência artificial para marketing digital de empreendedores.</div>
       </div>
-      <div class="fc"><h4>Sistema</h4><a href="#como-funciona">Como funciona</a><a href="#agentes">Os agentes</a><a href="agentes-detalhes.html">Detalhes completos</a><a href="#planos">Planos</a><a href="#mentorias">Mentorias</a></div>
+      <div class="fc"><h4>Sistema</h4><a href="#como-funciona">Como funciona</a><a href="#agentes">Os agentes</a><a href="agentes-detalhes.html">Detalhes completos</a><a href="#planos">Planos</a><a href="mentoria.html">Mentorias</a></div>
       <div class="fc"><h4>Conta</h4><a href="login.html">Entrar</a><a href="login.html?plano=basico">Plano Básico</a><a href="login.html?plano=plus">Plano Plus</a><a href="agentes.html">Painel de agentes</a></div>
       <div class="fc"><h4>Legal</h4><a href="termos.html">Termos de uso</a><a href="privacidade.html">Privacidade (LGPD)</a><a href="reembolso.html">Política de reembolso</a><a href="guias/guia-conta-comercial.html">Guia conta comercial</a></div>
     </div>
