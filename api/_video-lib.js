@@ -81,7 +81,7 @@ async function zapCriarTask(videoId, ops) {
   }
   // CORTAR SILÊNCIO (a dor resolvida) — autoCutSettings.silenceRemoval 0-1 (0.3 = bom padrão)
   if (ops.cortar_silencio) {
-    body.autoCutSettings = { silenceRemoval: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.3 };
+    body.autoCutSettings = { silenceRemoval: ops.silencio_intensidade != null ? Number(ops.silencio_intensidade) : 0.5 };
   }
 
   const r = await fetch(`${ZAPCAP_BASE}/videos/${videoId}/task`, {
