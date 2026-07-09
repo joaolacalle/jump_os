@@ -158,7 +158,7 @@ function montarEdit(origemUrl, ops, srtUrl) {
       start: 0, length: 'end',
       fit: 'none', // mantém o tamanho natural (sem isso a logo cobre o vídeo)
       position: POSMAP[p] || 'topRight',
-      offset: off, scale: 0.22, opacity: 0.95,
+      offset: off, scale: ({ p: 0.14, m: 0.22, g: 0.32 })[ops.logo_tamanho] || 0.22, opacity: 0.95,
     }] });
   }
 
