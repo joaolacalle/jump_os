@@ -231,7 +231,8 @@
 
       <div class="bk-card" style="grid-column:1/-1">
         <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
-        <div class="bk-b">Defina o PREÇO de cada mentoria e qual plano ela dá de bônus. O valor do bônus é calculado sozinho com base nos preços dos planos acima.</div>
+        <div class="bk-b">Defina o PREÇO de cada mentoria, o plano de bônus e o WhatsApp que recebe os interessados. O valor do bônus é calculado sozinho.</div>
+        <div style="margin-top:10px;max-width:340px"><label class="f-label">WhatsApp das mentorias (só números, com DDI)</label><input class="f-input" id="pr-ment-whats" type="tel" placeholder="5517997243699"></div>
 
         <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
           <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
@@ -728,6 +729,7 @@ async function carregarPrecos(){
     document.getElementById('pr-ment-dig').value=pr.ment_dig_plano||'basico';
     document.getElementById('pr-ment-dig-m').value=pr.ment_dig_meses??2;
     document.getElementById('pr-ment-pres-preco').value=pr.ment_pres_preco??2999.90;
+    document.getElementById('pr-ment-whats').value=pr.whats_mentoria??'5517997243699';
     document.getElementById('pr-ment-dig-preco').value=pr.ment_dig_preco??1499.90;
   }catch(e){
     document.getElementById('pr-basico').value=129.90;document.getElementById('pr-plus').value=399.90;document.getElementById('pr-pro').value=799.90;
@@ -744,6 +746,7 @@ async function salvarPrecos(){
     ment_dig_plano:pDig, ment_dig_meses:mDig, ment_dig_valor:+(p[pDig]*mDig).toFixed(2),
     ment_pres_preco:+document.getElementById('pr-ment-pres-preco').value||2999.90,
     ment_dig_preco:+document.getElementById('pr-ment-dig-preco').value||1499.90,
+    whats_mentoria:String(document.getElementById('pr-ment-whats').value||'5517997243699').replace(/\D/g,''),
   };
   const msg=document.getElementById('pr-msg');
   try{

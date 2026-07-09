@@ -6,9 +6,9 @@
 <title>JUMP OS — Mentorias</title>
 <meta name="description" content="Mentorias JUMP: o método aplicado diretamente no seu negócio, com quem o construiu. Presencial ou digital.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Bebas+Neue&family=Barlow:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root{--D:'Oswald','Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;--g:#A855F7;--g2:#B975F9;--t1:#F5F2EC;--t2:rgba(245,242,236,.66);--t3:rgba(245,242,236,.42);--bg:#0F0E0D;--ch:#141312;--bd:rgba(245,242,236,.1)}
+:root{--D:'Bebas Neue',sans-serif;--B:'Barlow',sans-serif;--M:'Space Mono',monospace;--g:#A855F7;--g2:#B975F9;--t1:#F5F2EC;--t2:rgba(245,242,236,.66);--t3:rgba(245,242,236,.42);--bg:#0F0E0D;--ch:#141312;--bd:rgba(245,242,236,.1)}
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--t1);font-family:var(--B);overflow-x:hidden}
@@ -182,6 +182,27 @@ img{max-width:100%}
     linear-gradient(145deg,rgba(168,85,247,.08) 0%,transparent 50%),
     repeating-linear-gradient(-45deg,transparent,transparent 12px,rgba(168,85,247,.018) 12px,rgba(168,85,247,.018) 13px) !important;
 }
+/* FLIP GARANTIDO + tamanho compacto dos cards (sobrepõe o CSS herdado) */
+.ment-cards-col{display:flex;flex-direction:column;gap:16px;max-width:560px;width:100%}
+.mf-wrap{perspective:1200px;height:clamp(250px,30vw,285px);width:100%}
+.mf-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.8,.2,1)}
+.mf-wrap.flip .mf-inner{transform:rotateY(180deg)}
+.mf-front,.mf-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.mf-front{background:var(--ch);border:1px solid var(--bd);padding:clamp(16px,2.4vw,24px);justify-content:center}
+.mf-back{transform:rotateY(180deg);background:#191714;border:1px solid rgba(168,85,247,.3);overflow-y:auto}
+.mf-ver{align-self:flex-start;background:none;border:1px solid rgba(168,85,247,.45);color:var(--g);border-radius:8px;padding:8px 16px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--B);transition:.2s}
+.mf-ver:hover{background:rgba(168,85,247,.12)}
+.mfb-cta{display:flex;align-items:center;justify-content:center;background:#25D366;color:#06281a;border-radius:8px;padding:11px 14px;font-weight:800;font-size:13px;transition:.2s}
+.mfb-cta:hover{transform:translateY(-1px)}
+.mfb-cta.dig{background:var(--g);color:#0F0E0D}
+.mfb-back-btn{background:none;border:1px solid var(--bd);color:var(--t2);border-radius:8px;cursor:pointer;font-family:var(--B)}
+.mfb-list{list-style:none;padding:0;margin:6px 0 0}
+.mfb-list li{font-size:12.5px;line-height:1.7;color:var(--t2);padding-left:16px;position:relative}
+.mfb-list li::before{content:'✓';position:absolute;left:0;color:var(--g);font-weight:800}
+.mfb-lbl{font-family:var(--M);font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+.mfb-title{font-family:var(--D);font-size:20px;letter-spacing:.5px;margin-bottom:6px}
+.mfb-section{flex:1}
+@media(max-width:640px){.mf-wrap{height:auto;min-height:265px}}
 .rv,.rv-l{opacity:1!important;transform:none!important}
 /* FOOTER */
 .ft{border-top:1px solid var(--bd);padding:28px 0;text-align:center;font-family:var(--M);font-size:11px;color:var(--t3)}
@@ -192,7 +213,6 @@ img{max-width:100%}
 <body>
 
 <nav class="nav">
-  <div class="nl-logo"><span class="nl-ring"></span><img src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none'"></div>
   <div class="nl-word">JUMP <em>OS</em></div>
   <div class="nv">
     <a href="home.html" class="na">Início</a>
@@ -279,7 +299,7 @@ img{max-width:100%}
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta" style="flex:1">→ Quero a presencial</a>
+                <a id="ment-pres-cta" href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP" target="_blank" rel="noopener" class="mfb-cta" style="flex:1">→ Quero a presencial</a>
                 <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(0)">←</button>
               </div>
             </div>
@@ -318,7 +338,7 @@ img{max-width:100%}
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
-                <a href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
+                <a id="ment-dig-cta" href="https://wa.me/5517997243699?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP" target="_blank" rel="noopener" class="mfb-cta dig" style="flex:1">→ Quero a digital</a>
                 <button class="mfb-back-btn" style="flex-shrink:0;padding:10px 14px" onclick="flipMent(1)">←</button>
               </div>
             </div>
@@ -350,6 +370,11 @@ function flipMent(i){const w=document.getElementById('mfw-'+i);if(w)w.classList.
     if(pr.ment_pres_plano){
       const b=document.getElementById('ment-pres-badge');if(b)b.textContent=(pr.ment_pres_meses||2)+' meses '+nome[pr.ment_pres_plano]+' grátis';
       const li=document.getElementById('ment-pres-li');if(li)li.textContent='🎁 '+(pr.ment_pres_meses||2)+' meses de plano '+nome[pr.ment_pres_plano]+' grátis (R$'+brl(pr.ment_pres_valor)+')';
+    }
+    if(pr.whats_mentoria){
+      const w=String(pr.whats_mentoria).replace(/\D/g,'');
+      const a1=document.getElementById('ment-pres-cta');if(a1)a1.href='https://wa.me/'+w+'?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP';
+      const a2=document.getElementById('ment-dig-cta');if(a2)a2.href='https://wa.me/'+w+'?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP';
     }
     if(pr.ment_dig_plano){
       const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||2)+' meses '+nome[pr.ment_dig_plano]+' grátis';

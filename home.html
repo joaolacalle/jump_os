@@ -399,11 +399,17 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 /* Aurora blobs animados */
 .hero-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 /* ── JUMP OS LIVE (signature) ── */
+#splash{position:fixed;inset:0;z-index:9999;background:#0F0E0D;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .45s ease}
+#splash.out{opacity:0;pointer-events:none}
+.sp-box{position:relative;width:88px;height:88px}
+.sp-box img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.sp-ring{position:absolute;inset:-12px;border-radius:50%;border:3px solid rgba(168,85,247,.16);border-top-color:#A855F7;animation:nlSpin 1s linear infinite}
+@media(prefers-reduced-motion:reduce){.sp-ring{animation:none;border-color:rgba(168,85,247,.5)}}
 .nl-logo{position:relative;width:44px;height:44px;flex-shrink:0}
 .nl-logo img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
 .nl-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(168,85,247,.18);border-top-color:#A855F7;animation:nlSpin 1.8s linear infinite;pointer-events:none}
 @keyframes nlSpin{to{transform:rotate(360deg)}}
-.nl-word{font-family:var(--D);font-size:24px;letter-spacing:2px;color:#F5F2EC;margin-left:12px;white-space:nowrap}
+.nl-word{font-family:var(--D);font-size:26px;letter-spacing:2px;color:#F5F2EC;white-space:nowrap}
 .nl-word em{font-style:normal;color:#A855F7}
 @media(prefers-reduced-motion:reduce){.nl-ring{animation:none}}
 @media(max-width:640px){.nl-word{font-size:19px}}
@@ -811,6 +817,17 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 </style>
 </head>
 <body>
+<!-- SPLASH: tela de carregamento com a logo -->
+<div id="splash"><div class="sp-box"><span class="sp-ring"></span><img src="assets/logo.png" alt="" onerror="this.style.display='none'"></div></div>
+<script>
+(function(){
+  var done=false;
+  function hide(){if(done)return;done=true;var s=document.getElementById('splash');if(!s)return;s.classList.add('out');setTimeout(function(){s.remove();},520);}
+  window.addEventListener('load',hide);
+  setTimeout(hide,2600); // segurança: nunca prende o visitante
+})();
+</script>
+
 <div class="grain"></div>
 <div class="cur" id="cur"></div>
 <div class="cur-r" id="cur-r"></div>
@@ -819,8 +836,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <nav id="nav">
   <div class="nl">
     <img src="assets/logo.png" alt="JUMP OS" style="height:41px;object-fit:contain" onerror="this.style.display='none';document.getElementById('nlfb').style.display='block'">
-    <div class="nl-logo"><span class="nl-ring"></span><img src="assets/logo.png" alt="JUMP OS" onerror="this.style.display='none'"></div>
-<div class="nl-word">JUMP <em>OS</em></div>
+    <div class="nl-word">JUMP <em>OS</em></div>
   </div>
   <div class="nv">
     <a href="#como-funciona" class="na">Como funciona</a>

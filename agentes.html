@@ -351,13 +351,21 @@
     <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this);ajustarPreviaLogo()"> 🖼️ Logo no canto</label>
     <div id="vm-sub-logo" style="display:none;margin:6px 0 12px 24px">
       <div style="font-size:10.5px;color:var(--t3);margin:0 0 8px;font-family:var(--M)">Usa a logo da sua empresa que está em Meus Arquivos → Logos (envie em <b>PNG com fundo transparente</b>). Deixe lá apenas a logo oficial.</div>
-      <label class="f-label" style="font-size:11px">Posição</label>
-      <select class="f-input" id="vm-logo-pos" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
-        <option value="top-right">Canto superior direito</option>
-        <option value="top-left">Canto superior esquerdo</option>
-        <option value="bottom-right">Canto inferior direito</option>
-        <option value="bottom-left">Canto inferior esquerdo</option>
-      </select>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1.4"><label class="f-label" style="font-size:11px">Posição</label>
+          <select class="f-input" id="vm-logo-pos" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
+            <option value="top-right">Canto superior direito</option>
+            <option value="top-left">Canto superior esquerdo</option>
+            <option value="bottom-right">Canto inferior direito</option>
+            <option value="bottom-left">Canto inferior esquerdo</option>
+          </select></div>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Tamanho</label>
+          <select class="f-input" id="vm-logo-tam" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
+            <option value="p">Pequena</option>
+            <option value="m" selected>Média</option>
+            <option value="g">Grande</option>
+          </select></div>
+      </div>
       <div id="vm-l-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
     </div>
 
@@ -783,7 +791,7 @@ async function vmEditar(){
   if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
   if(document.getElementById('vm-logo').checked){
     const logoUrl=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
-    if(logoUrl){ops.logo_url=logoUrl;ops.logo_posicao=document.getElementById('vm-logo-pos').value;}
+    if(logoUrl){ops.logo_url=logoUrl;ops.logo_posicao=document.getElementById('vm-logo-pos').value;ops.logo_tamanho=document.getElementById('vm-logo-tam').value;}
     else{addMsg('a','⚠️ Você marcou <b>Logo no canto</b>, mas não encontrei sua logo. Suba um PNG com fundo transparente em <b>Meus Arquivos → Logos</b> e edite novamente — desta vez o vídeo segue sem a logo.');}
   }
   const guardar=document.getElementById('vm-guardar').checked;
@@ -877,7 +885,7 @@ let LOGOS_USER={principal:null};
 async function carregarLogosUser(){
   try{
     const uid=CTX.viewId||CTX.cliente&&CTX.cliente.id||CTX.user&&CTX.user.id;
-    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).eq('categoria','logos').order('created_at',{ascending:false});
+    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).in('categoria',['logo','logos']).order('created_at',{ascending:false});
     const arr=data||[];
     if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
   }catch(e){}
@@ -895,6 +903,8 @@ function ajustarPreviaLogo(){
     box.appendChild(logoEl);
   }
   if(url){logoEl.src=url;logoEl.style.display='block';}else{logoEl.style.display='none';return;}
+  const tamEl=document.getElementById('vm-logo-tam');
+  logoEl.style.width={p:'14%',m:'22%',g:'32%'}[(tamEl&&tamEl.value)||'m']||'22%';
   const pos=document.getElementById('vm-logo-pos').value;
   logoEl.style.top=pos.includes('top')?'6%':'auto';
   logoEl.style.bottom=pos.includes('bottom')?'6%':'auto';
@@ -942,7 +952,7 @@ async function subirVideoTrigger(){
   const role=(CTX.cliente&&CTX.cliente.role)||'usuario';
   const db=document.getElementById('vm-diag-btn');
   if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
-  carregarLogosUser();
+  carregarLogosUser().then(()=>{try{ajustarPreviaLogo()}catch(e){}});
   carregarMeusVideos();
   // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
   try{
