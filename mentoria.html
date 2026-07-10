@@ -204,6 +204,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .ment-photo-col img{width:100%;height:100%;object-fit:cover;display:block;min-height:100%}
 .ment-cards-col{max-width:none}
 @media(max-width:900px){.ment-layout{grid-template-columns:1fr}.ment-photo-col{min-height:300px;max-height:380px}}
+.serv-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,18px)}
+.serv{background:var(--ch);border:1px solid var(--bd);border-radius:14px;padding:clamp(18px,2.8vw,26px);display:flex;flex-direction:column;gap:10px;transition:border-color .25s,transform .25s}
+.serv:hover{border-color:rgba(168,85,247,.4);transform:translateY(-3px)}
+.serv h3{font-family:var(--D);font-size:clamp(18px,2.2vw,22px);letter-spacing:.5px;font-weight:400}
+.serv-p{font-family:var(--M);font-size:14px;font-weight:700;color:var(--g)}
+.serv-cta{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;background:#25D366;color:#06281a;border-radius:8px;padding:11px 14px;font-weight:800;font-size:13px;transition:.2s;align-self:flex-start}
+.serv-cta:hover{transform:translateY(-1px)}
+@media(max-width:700px){.serv-grid{grid-template-columns:1fr}}
 .rv,.rv-l{opacity:1!important;transform:none!important}
 /* FOOTER */
 .ft{border-top:1px solid var(--bd);padding:28px 0;text-align:center;font-family:var(--M);font-size:11px;color:var(--t3)}
@@ -270,7 +278,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
           <div class="mf-inner">
             <div class="mf-front">
               <div class="mf-tag pres">🏆 Imersão completa</div>
-              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Presencial</div>
+              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Presencial — Método JUMP</div>
               <div style="font-size:clamp(12px,1.4vw,13.5px);color:var(--t2);line-height:1.6">3 encontros presenciais, imersão total no seu negócio: posicionamento, conteúdo e vendas resolvidos ao vivo.</div>
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap">
                 <div>
@@ -279,7 +287,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
                 </div>
                 <div style="display:flex;align-items:center;gap:9px;background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-pres-badge">2 meses Plus grátis</div>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-pres-badge">3 meses do Plus grátis</div>
                 </div>
               </div>
               <button class="mf-ver" style="margin-top:12px" onclick="flipMent(0)">Ver o que inclui →</button>
@@ -293,7 +301,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
                   <li>Diagnóstico e plano aplicados ao seu negócio</li>
                   <li>Material Didático JUMP (exclusivo)</li>
                   <li>Suporte direto entre encontros</li>
-                  <li id="ment-pres-li">🎁 2 meses de plano Plus grátis</li>
+                  <li id="ment-pres-li">🎁 3 meses do plano Plus grátis</li>
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
@@ -309,7 +317,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
           <div class="mf-inner">
             <div class="mf-front">
               <div class="mf-tag dig">💻 De onde você estiver</div>
-              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Digital</div>
+              <div style="font-family:var(--D);font-size:clamp(20px,2.4vw,26px);letter-spacing:.5px;margin:10px 0 4px">Mentoria Digital — Método JUMP</div>
               <div style="font-size:clamp(12px,1.4vw,13.5px);color:var(--t2);line-height:1.6">3 reuniões por vídeo chamada com o método adaptado para aplicação remota no seu negócio.</div>
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap">
                 <div>
@@ -318,7 +326,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
                 </div>
                 <div style="display:flex;align-items:center;gap:9px;background:rgba(185,117,249,.07);border:1px solid rgba(185,117,249,.2);border-radius:8px;padding:8px 12px">
                   <span style="font-size:16px">🎁</span>
-                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-dig-badge">2 meses Básico grátis</div>
+                  <div style="font-size:clamp(11px,1.3vw,13px);font-weight:700;color:var(--t1)" id="ment-dig-badge">3 meses do Básico grátis</div>
                 </div>
               </div>
               <button class="mf-ver" style="margin-top:12px" onclick="flipMent(1)">Ver o que inclui →</button>
@@ -332,7 +340,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
                   <li>Customização para aplicação remota</li>
                   <li>Material Didático JUMP (exclusivo)</li>
                   <li>Suporte entre sessões</li>
-                  <li id="ment-dig-li">🎁 2 meses de plano Básico grátis</li>
+                  <li id="ment-dig-li">🎁 3 meses do plano Básico grátis</li>
                 </ul>
               </div>
               <div style="display:flex;gap:8px;margin-top:auto;padding-top:12px">
@@ -344,6 +352,21 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
         </div>
 
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="si">
+    <div style="text-align:center;margin-bottom:clamp(20px,3.5vw,34px)">
+      <div class="tg-d">Mais serviços</div>
+      <h2 class="sh-d" style="font-size:clamp(26px,4vw,42px)">Soluções sob medida para <em>escalar</em></h2>
+    </div>
+    <div class="serv-grid">
+      <div class="serv"><h3>Treinamento de Vendas Digitais</h3><div class="serv-p" id="serv-treinamento">R$3.999,90</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Treinamento%20de%20Vendas%20Digitais" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
+      <div class="serv"><h3>Mentoria de Growth Empresarial</h3><div class="serv-p" id="serv-growth">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20a%20Mentoria%20de%20Growth%20Empresarial" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
+      <div class="serv"><h3>Aprimoramento de Metodologia Operacional</h3><div class="serv-p" id="serv-metodologia">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Aprimoramento%20de%20Metodologia%20Operacional" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
+      <div class="serv"><h3>Desenvolvemos seu Próprio Sistema de IA</h3><div class="serv-p" id="serv-sistema">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20desenvolver%20meu%20pr%C3%B3prio%20sistema%20de%20IA" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
     </div>
   </div>
 </section>
@@ -366,17 +389,21 @@ function flipMent(i){const w=document.getElementById('mfw-'+i);if(w)w.classList.
     if(pr.ment_dig_preco){const e=document.getElementById('ment-dig-preco');if(e)e.textContent='R$'+brl(pr.ment_dig_preco);}
     const nome={basico:'Básico',plus:'Plus',pro:'Pro'};
     if(pr.ment_pres_plano){
-      const b=document.getElementById('ment-pres-badge');if(b)b.textContent=(pr.ment_pres_meses||2)+' meses '+nome[pr.ment_pres_plano]+' grátis';
-      const li=document.getElementById('ment-pres-li');if(li)li.textContent='🎁 '+(pr.ment_pres_meses||2)+' meses de plano '+nome[pr.ment_pres_plano]+' grátis (R$'+brl(pr.ment_pres_valor)+')';
+      const b=document.getElementById('ment-pres-badge');if(b)b.textContent=(pr.ment_pres_meses||3)+' meses '+nome[pr.ment_pres_plano]+' grátis';
+      const li=document.getElementById('ment-pres-li');if(li)li.textContent='🎁 '+(pr.ment_pres_meses||3)+' meses de plano '+nome[pr.ment_pres_plano]+' grátis (R$'+brl(pr.ment_pres_valor)+')';
     }
+    function servPreco(id,v){const e=document.getElementById(id);if(!e)return;e.textContent=(v&&Number(v)>0)?('R$'+brl(v)):'A consultar';}
+    if('serv_treinamento' in pr)servPreco('serv-treinamento',pr.serv_treinamento);
+    if('serv_growth' in pr)servPreco('serv-growth',pr.serv_growth);
+    if('serv_metodologia' in pr)servPreco('serv-metodologia',pr.serv_metodologia);
+    if('serv_sistema' in pr)servPreco('serv-sistema',pr.serv_sistema);
     if(pr.whats_mentoria){
       const w=String(pr.whats_mentoria).replace(/\D/g,'');
-      const a1=document.getElementById('ment-pres-cta');if(a1)a1.href='https://wa.me/'+w+'?text=Quero%20agendar%20a%20Mentoria%20Presencial%20JUMP';
-      const a2=document.getElementById('ment-dig-cta');if(a2)a2.href='https://wa.me/'+w+'?text=Quero%20agendar%20a%20Mentoria%20Digital%20JUMP';
+      document.querySelectorAll('a[href*="wa.me/"]').forEach(a=>{a.href=a.href.replace(/wa\.me\/\d+/,'wa.me/'+w);});
     }
     if(pr.ment_dig_plano){
-      const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||2)+' meses '+nome[pr.ment_dig_plano]+' grátis';
-      const li=document.getElementById('ment-dig-li');if(li)li.textContent='🎁 '+(pr.ment_dig_meses||2)+' meses de plano '+nome[pr.ment_dig_plano]+' grátis (R$'+brl(pr.ment_dig_valor)+')';
+      const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||3)+' meses '+nome[pr.ment_dig_plano]+' grátis';
+      const li=document.getElementById('ment-dig-li');if(li)li.textContent='🎁 '+(pr.ment_dig_meses||3)+' meses de plano '+nome[pr.ment_dig_plano]+' grátis (R$'+brl(pr.ment_dig_valor)+')';
     }
   }catch(e){/* mantém os valores do HTML */}
 })();

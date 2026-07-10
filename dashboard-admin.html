@@ -232,7 +232,14 @@
       <div class="bk-card" style="grid-column:1/-1">
         <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
         <div class="bk-b">Defina o PREÇO de cada mentoria, o plano de bônus e o WhatsApp que recebe os interessados. O valor do bônus é calculado sozinho.</div>
-        <div style="margin-top:10px;max-width:340px"><label class="f-label">WhatsApp das mentorias (só números, com DDI)</label><input class="f-input" id="pr-ment-whats" type="tel" placeholder="5517997243699"></div>
+        <div style="margin-top:10px;max-width:340px"><label class="f-label">WhatsApp de contato — usado em TODOS os botões do site (só números, com DDI)</label><input class="f-input" id="pr-ment-whats" type="tel" placeholder="5517997243699"></div>
+        <div class="bk-b" style="margin-top:14px">Outros serviços (página de mentorias). Deixe o valor VAZIO para exibir "A consultar".</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+          <div style="flex:1;min-width:170px"><label class="f-label">Treinamento de Vendas (R$)</label><input class="f-input" id="pr-serv-treinamento" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+          <div style="flex:1;min-width:170px"><label class="f-label">Growth Empresarial (R$)</label><input class="f-input" id="pr-serv-growth" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+          <div style="flex:1;min-width:170px"><label class="f-label">Metodologia Operacional (R$)</label><input class="f-input" id="pr-serv-metodologia" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+          <div style="flex:1;min-width:170px"><label class="f-label">Sistema de IA próprio (R$)</label><input class="f-input" id="pr-serv-sistema" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+        </div>
 
         <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
           <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
@@ -243,7 +250,7 @@
                 <option value="plus">Plus</option><option value="basico">Básico</option><option value="pro">Pro</option>
               </select>
             </div>
-            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-pres-m" type="number" value="2" oninput="recalcMentorias()"></div>
+            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-pres-m" type="number" value="3" oninput="recalcMentorias()"></div>
             <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-pres-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
           </div>
         </div>
@@ -257,7 +264,7 @@
                 <option value="basico">Básico</option><option value="plus">Plus</option><option value="pro">Pro</option>
               </select>
             </div>
-            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-dig-m" type="number" value="2" oninput="recalcMentorias()"></div>
+            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-dig-m" type="number" value="3" oninput="recalcMentorias()"></div>
             <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-dig-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
           </div>
         </div>
@@ -725,11 +732,15 @@ async function carregarPrecos(){
     document.getElementById('pr-plus').value=pr.plus??399.90;
     document.getElementById('pr-pro').value=pr.pro??799.90;
     document.getElementById('pr-ment-pres').value=pr.ment_pres_plano||'plus';
-    document.getElementById('pr-ment-pres-m').value=pr.ment_pres_meses??2;
+    document.getElementById('pr-ment-pres-m').value=pr.ment_pres_meses??3;
     document.getElementById('pr-ment-dig').value=pr.ment_dig_plano||'basico';
-    document.getElementById('pr-ment-dig-m').value=pr.ment_dig_meses??2;
+    document.getElementById('pr-ment-dig-m').value=pr.ment_dig_meses??3;
     document.getElementById('pr-ment-pres-preco').value=pr.ment_pres_preco??2999.90;
     document.getElementById('pr-ment-whats').value=pr.whats_mentoria??'5517997243699';
+    document.getElementById('pr-serv-treinamento').value=pr.serv_treinamento??3999.90;
+    document.getElementById('pr-serv-growth').value=pr.serv_growth??'';
+    document.getElementById('pr-serv-metodologia').value=pr.serv_metodologia??'';
+    document.getElementById('pr-serv-sistema').value=pr.serv_sistema??'';
     document.getElementById('pr-ment-dig-preco').value=pr.ment_dig_preco??1499.90;
   }catch(e){
     document.getElementById('pr-basico').value=129.90;document.getElementById('pr-plus').value=399.90;document.getElementById('pr-pro').value=799.90;
@@ -747,6 +758,10 @@ async function salvarPrecos(){
     ment_pres_preco:+document.getElementById('pr-ment-pres-preco').value||2999.90,
     ment_dig_preco:+document.getElementById('pr-ment-dig-preco').value||1499.90,
     whats_mentoria:String(document.getElementById('pr-ment-whats').value||'5517997243699').replace(/\D/g,''),
+    serv_treinamento:+document.getElementById('pr-serv-treinamento').value||null,
+    serv_growth:+document.getElementById('pr-serv-growth').value||null,
+    serv_metodologia:+document.getElementById('pr-serv-metodologia').value||null,
+    serv_sistema:+document.getElementById('pr-serv-sistema').value||null,
   };
   const msg=document.getElementById('pr-msg');
   try{

@@ -337,7 +337,7 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .pl-head{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,60px);align-items:end;margin-bottom:clamp(44px,7vw,68px)}
 .pl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,2vw,20px)}
 .pf-deliv{list-style:none;margin:14px 0 4px;padding:0;text-align:left;display:flex;flex-direction:column;gap:7px}
-.pf-deliv li{font-size:12.5px;line-height:1.45;display:flex;gap:8px;align-items:flex-start}
+.pf-deliv li{font-size:13px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;padding:2px 0}
 .pf-deliv li b{color:inherit;font-weight:800}
 .pf-deliv li::before{content:'✓';font-weight:900;color:#16a34a;flex-shrink:0}
 .pf-deliv li.plus-all{color:var(--g);font-weight:700}.pf-deliv li.plus-all::before{content:'★';color:var(--g)}
@@ -1003,11 +1003,11 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
               <div class="pf-recorr">Cobrança recorrente mensal</div>
             </div>
             <ul class="pf-deliv">
-              <li>Consultoria de <b>identidade</b> + análise <b>mensal de mercado</b></li>
-              <li><b>Estratégia mensal completa</b> de conteúdo</li>
-              <li><b>15 imagens/mês</b> prontas para postar</li>
-              <li>Designer de <b>infográficos</b> incluído</li>
-              <li>Social media com aprovação (postagem manual)</li>
+              <li><b>Identidade + mercado</b> analisados todo mês</li>
+              <li><b>Estratégia mensal</b> completa</li>
+              <li><b>15 imagens</b> prontas por mês</li>
+              <li><b>Infográficos</b> profissionais</li>
+              <li><b>Social media</b> (postagem manual)</li>
             </ul>
             <button class="pf-ver" onclick="flipPlan(0)">Ver o que inclui →</button>
           </div>
@@ -1052,10 +1052,10 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             </div>
             <ul class="pf-deliv">
               <li class="plus-all">Tudo do Básico</li>
-              <li><b>20 imagens/mês</b> prontas para postar</li>
+              <li><b>20 imagens</b> prontas por mês</li>
               <li><b>Publicação automática</b> no Instagram</li>
-              <li><b>100 DMs automáticas</b>/mês</li>
-              <li><b>2 vídeos editados por IA</b>/mês (legenda + cortes)</li>
+              <li><b>100 DMs automáticas</b> por mês</li>
+              <li><b>2 vídeos editados por IA</b> por mês</li>
             </ul>
             <button class="pf-ver feat" onclick="flipPlan(1)">Ver o que inclui →</button>
           </div>
@@ -1100,10 +1100,10 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             </div>
             <ul class="pf-deliv">
               <li class="plus-all">Tudo do Plus</li>
-              <li><b>30 imagens</b> + <b>10 vídeos por IA</b>/mês</li>
-              <li><b>Gestor de tráfego</b>: campanha a um clique</li>
-              <li><b>300 DMs automáticas</b>/mês</li>
-              <li>Análises de campanha <b>semanais</b></li>
+              <li><b>30 imagens + 10 vídeos</b> por mês</li>
+              <li><b>Tráfego</b>: campanha a um clique</li>
+              <li><b>300 DMs automáticas</b> por mês</li>
+              <li><b>Análises semanais</b> de campanha</li>
             </ul>
             <button class="pf-ver" style="border-color:rgba(168,85,247,.3);color:rgba(168,85,247,.8)" onclick="flipPlan(2)">Ver o que inclui →</button>
           </div>
@@ -1531,6 +1531,10 @@ document.addEventListener('click',e=>{
     if(pr.ment_dig_plano){
       const b=document.getElementById('ment-dig-badge');if(b)b.textContent=(pr.ment_dig_meses||2)+' meses '+nome[pr.ment_dig_plano]+' grátis';
       const li=document.getElementById('ment-dig-li');if(li)li.textContent='🎁 '+(pr.ment_dig_meses||2)+' meses de plano '+nome[pr.ment_dig_plano]+' grátis (R$'+brl(pr.ment_dig_valor)+')';
+    }
+    if(pr.whats_mentoria){
+      const w=String(pr.whats_mentoria).replace(/\D/g,'');
+      document.querySelectorAll('a[href*="wa.me/"]').forEach(a=>{a.href=a.href.replace(/wa\.me\/\d+/,'wa.me/'+w);});
     }
   }catch(e){/* mantém os valores do HTML em caso de erro */}
 })();
