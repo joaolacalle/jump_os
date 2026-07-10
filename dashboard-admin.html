@@ -180,6 +180,22 @@
   <!-- TAB BACKEND -->
   <div class="tabpane" id="pane-back">
     <div class="bk-grid">
+      <div class="bk-card" style="grid-column:1/-1">
+        <div class="bk-t">🔗 APIs do sistema</div>
+        <div class="bk-b">Painéis de todas as APIs usadas pelo JUMP OS — acesso rápido para recargas, chaves e configuração.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:10px">
+          <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" class="api-lk">🗄 Supabase <span>banco + login · SUPABASE_SERVICE_KEY</span></a>
+          <a href="https://vercel.com/dashboard" target="_blank" rel="noopener" class="api-lk">▲ Vercel <span>hospedagem + variáveis de ambiente</span></a>
+          <a href="https://console.anthropic.com" target="_blank" rel="noopener" class="api-lk">🧠 Anthropic <span>agentes · ANTHROPIC_API_KEY</span></a>
+          <a href="https://platform.openai.com" target="_blank" rel="noopener" class="api-lk">🎨 OpenAI <span>imagens · OPENAI_API_KEY</span></a>
+          <a href="https://platform.zapcap.ai" target="_blank" rel="noopener" class="api-lk">💬 ZapCap <span>legendas/cortes · ZAPCAP_API_KEY</span></a>
+          <a href="https://dashboard.shotstack.io" target="_blank" rel="noopener" class="api-lk">🎬 Shotstack <span>trilha/filtro/logo · SHOTSTACK_API_KEY</span></a>
+          <a href="https://resend.com" target="_blank" rel="noopener" class="api-lk">✉️ Resend <span>emails · RESEND_API_KEY</span></a>
+          <a href="https://developer.paypal.com/dashboard" target="_blank" rel="noopener" class="api-lk">💳 PayPal <span>assinaturas · PAYPAL_CLIENT_ID/SECRET</span></a>
+          <a href="https://developers.facebook.com" target="_blank" rel="noopener" class="api-lk">📱 Meta <span>Instagram · META_APP_ID/SECRET</span></a>
+        </div>
+        <style>.api-lk{display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.25);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:800;color:var(--t1);transition:.2s}.api-lk:hover{border-color:rgba(var(--g-rgb,168,85,247),.5)}.api-lk span{font-family:var(--M);font-size:9.5px;font-weight:400;color:var(--t3);letter-spacing:.3px}</style>
+      </div>
       <div class="bk-card">
         <div class="bk-t">📣 Recado global</div>
         <div class="bk-b">Envia um aviso para todos os usuários do sistema.</div>

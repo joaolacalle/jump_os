@@ -205,6 +205,20 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .ment-cards-col{max-width:none}
 @media(max-width:900px){.ment-layout{grid-template-columns:1fr}.ment-photo-col{min-height:300px;max-height:380px}}
 .serv-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,18px)}
+.sv-wrap{perspective:1200px;height:clamp(235px,28vw,265px)}
+.sv-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.8,.2,1)}
+.sv-wrap.flip .sv-inner{transform:rotateY(180deg)}
+.sv-front,.sv-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:14px;padding:clamp(16px,2.4vw,24px);display:flex;flex-direction:column;gap:8px}
+.sv-front{background:var(--ch);border:1px solid var(--bd)}
+.sv-back{transform:rotateY(180deg);background:#191714;border:1px solid rgba(168,85,247,.3);overflow-y:auto}
+.sv-front h3{font-family:var(--D);font-size:clamp(18px,2.2vw,22px);letter-spacing:.5px;font-weight:400}
+.sv-desc{font-size:12.5px;line-height:1.55;color:var(--t2)}
+.sv-bt{font-family:var(--D);font-size:18px;letter-spacing:.5px;color:var(--g);margin-bottom:2px}
+.sv-btns{margin-top:auto;display:flex;gap:8px;align-items:center}
+.sv-ver{background:none;border:1px solid rgba(168,85,247,.45);color:var(--g);border-radius:8px;padding:9px 14px;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--B);transition:.2s}
+.sv-ver:hover{background:rgba(168,85,247,.12)}
+.serv-cta{align-self:auto}
+@media(max-width:700px){.sv-wrap{height:auto;min-height:250px}}
 .serv{background:var(--ch);border:1px solid var(--bd);border-radius:14px;padding:clamp(18px,2.8vw,26px);display:flex;flex-direction:column;gap:10px;transition:border-color .25s,transform .25s}
 .serv:hover{border-color:rgba(168,85,247,.4);transform:translateY(-3px)}
 .serv h3{font-family:var(--D);font-size:clamp(18px,2.2vw,22px);letter-spacing:.5px;font-weight:400}
@@ -363,10 +377,90 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
       <h2 class="sh-d" style="font-size:clamp(26px,4vw,42px)">Soluções sob medida para <em>escalar</em></h2>
     </div>
     <div class="serv-grid">
-      <div class="serv"><h3>Treinamento de Vendas Digitais</h3><div class="serv-p" id="serv-treinamento">R$3.999,90</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Treinamento%20de%20Vendas%20Digitais" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
-      <div class="serv"><h3>Mentoria de Growth Empresarial</h3><div class="serv-p" id="serv-growth">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20a%20Mentoria%20de%20Growth%20Empresarial" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
-      <div class="serv"><h3>Aprimoramento de Metodologia Operacional</h3><div class="serv-p" id="serv-metodologia">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Aprimoramento%20de%20Metodologia%20Operacional" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
-      <div class="serv"><h3>Desenvolvemos seu Próprio Sistema de IA</h3><div class="serv-p" id="serv-sistema">A consultar</div><a class="serv-cta wa" href="https://wa.me/5517997243699?text=Quero%20desenvolver%20meu%20pr%C3%B3prio%20sistema%20de%20IA" target="_blank" rel="noopener">Falar no WhatsApp →</a></div>
+      <div class="sv-wrap" id="svw-0">
+        <div class="sv-inner">
+          <div class="sv-front">
+            <h3>Treinamento de Vendas Digitais</h3>
+            <p class="sv-desc">Sua equipe vendendo no digital com processo, script e meta.</p>
+            <div class="serv-p" id="serv-treinamento">R$3.999,90</div>
+            <div class="sv-btns">
+              <button class="sv-ver" onclick="flipServ(0)">Ver detalhes →</button>
+              <a class="serv-cta" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Treinamento%20de%20Vendas%20Digitais" target="_blank" rel="noopener">WhatsApp →</a>
+            </div>
+          </div>
+          <div class="sv-back">
+            <div class="sv-bt">Treinamento de Vendas Digitais</div>
+            <ul class="mfb-list"><li>Estruturação do funil de vendas digital</li><li>Scripts de abordagem, follow-up e fechamento</li><li>Rotina comercial com metas e métricas</li><li>Treinamento prático da equipe</li></ul>
+            <div class="sv-btns" style="margin-top:auto">
+              <a class="serv-cta" style="flex:1" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Treinamento%20de%20Vendas%20Digitais" target="_blank" rel="noopener">Falar no WhatsApp →</a>
+              <button class="sv-ver" onclick="flipServ(0)">←</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sv-wrap" id="svw-1">
+        <div class="sv-inner">
+          <div class="sv-front">
+            <h3>Mentoria de Growth Empresarial</h3>
+            <p class="sv-desc">Crescimento estruturado: diagnóstico, alavancas e plano de expansão.</p>
+            <div class="serv-p" id="serv-growth">A consultar</div>
+            <div class="sv-btns">
+              <button class="sv-ver" onclick="flipServ(1)">Ver detalhes →</button>
+              <a class="serv-cta" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20a%20Mentoria%20de%20Growth%20Empresarial" target="_blank" rel="noopener">WhatsApp →</a>
+            </div>
+          </div>
+          <div class="sv-back">
+            <div class="sv-bt">Mentoria de Growth Empresarial</div>
+            <ul class="mfb-list"><li>Diagnóstico completo do negócio</li><li>Alavancas de aquisição e retenção</li><li>Plano de crescimento com metas trimestrais</li><li>Acompanhamento estratégico direto</li></ul>
+            <div class="sv-btns" style="margin-top:auto">
+              <a class="serv-cta" style="flex:1" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20a%20Mentoria%20de%20Growth%20Empresarial" target="_blank" rel="noopener">Falar no WhatsApp →</a>
+              <button class="sv-ver" onclick="flipServ(1)">←</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sv-wrap" id="svw-2">
+        <div class="sv-inner">
+          <div class="sv-front">
+            <h3>Aprimoramento de Metodologia Operacional</h3>
+            <p class="sv-desc">Processos que escalam: sua operação padronizada e eficiente.</p>
+            <div class="serv-p" id="serv-metodologia">A consultar</div>
+            <div class="sv-btns">
+              <button class="sv-ver" onclick="flipServ(2)">Ver detalhes →</button>
+              <a class="serv-cta" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Aprimoramento%20de%20Metodologia%20Operacional" target="_blank" rel="noopener">WhatsApp →</a>
+            </div>
+          </div>
+          <div class="sv-back">
+            <div class="sv-bt">Aprimoramento de Metodologia Operacional</div>
+            <ul class="mfb-list"><li>Mapeamento dos processos atuais</li><li>Padronização e documentação da operação</li><li>Automação de rotinas repetitivas</li><li>Indicadores de eficiência e qualidade</li></ul>
+            <div class="sv-btns" style="margin-top:auto">
+              <a class="serv-cta" style="flex:1" href="https://wa.me/5517997243699?text=Quero%20saber%20mais%20sobre%20o%20Aprimoramento%20de%20Metodologia%20Operacional" target="_blank" rel="noopener">Falar no WhatsApp →</a>
+              <button class="sv-ver" onclick="flipServ(2)">←</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sv-wrap" id="svw-3">
+        <div class="sv-inner">
+          <div class="sv-front">
+            <h3>Desenvolvemos seu Próprio Sistema de IA</h3>
+            <p class="sv-desc">Um JUMP OS do seu jeito: agentes sob medida para a sua operação.</p>
+            <div class="serv-p" id="serv-sistema">A consultar</div>
+            <div class="sv-btns">
+              <button class="sv-ver" onclick="flipServ(3)">Ver detalhes →</button>
+              <a class="serv-cta" href="https://wa.me/5517997243699?text=Quero%20desenvolver%20meu%20pr%C3%B3prio%20sistema%20de%20IA" target="_blank" rel="noopener">WhatsApp →</a>
+            </div>
+          </div>
+          <div class="sv-back">
+            <div class="sv-bt">Desenvolvemos seu Próprio Sistema de IA</div>
+            <ul class="mfb-list"><li>Levantamento das necessidades do negócio</li><li>Agentes de IA desenhados sob medida</li><li>Integrações com as suas ferramentas</li><li>Entrega, treinamento e suporte</li></ul>
+            <div class="sv-btns" style="margin-top:auto">
+              <a class="serv-cta" style="flex:1" href="https://wa.me/5517997243699?text=Quero%20desenvolver%20meu%20pr%C3%B3prio%20sistema%20de%20IA" target="_blank" rel="noopener">Falar no WhatsApp →</a>
+              <button class="sv-ver" onclick="flipServ(3)">←</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -375,6 +469,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 
 <script>
 function flipMent(i){const w=document.getElementById('mfw-'+i);if(w)w.classList.toggle('flip');}
+function flipServ(i){const w=document.getElementById('svw-'+i);if(w)w.classList.toggle('flip');}
 // Preços dinâmicos (config precos_home — mesma da home)
 (async function(){
   const SB='https://fcdjzubdxikpvcqvalnt.supabase.co';
