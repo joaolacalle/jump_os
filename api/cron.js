@@ -145,6 +145,80 @@ async function jobSeguranca() {
   return { avisos: criados, alertas: alertas.length };
 }
 
+
+// ═══ PUBLICAÇÃO AUTOMÁTICA NO INSTAGRAM (Plus/Pro pagantes; Básico = manual; trial = trava física) ═══
+async function jobPublicar() {
+  const agoraISO = new Date().toISOString();
+  const posts = await fetch(
+    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,legenda,midia_url,erro_publicacao&order=data_agendada.asc&limit=25`,
+    { headers: SBH() }
+  ).then(r => r.json()).catch(() => []);
+  if (!Array.isArray(posts) || !posts.length) return { publicados: 0, fila: 0 };
+  let pub = 0; const porUser = {}; // anti-bloqueio: 1 publicação por conta por rodada (espaçamento natural)
+  for (const p of posts) {
+    if (porUser[p.user_id]) continue;
+    const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${p.user_id}&select=plano,tipo_cortesia,status,bloqueado`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
+    if (!cli || cli.bloqueado || cli.status !== 'ativo') continue;
+    if (!['plus', 'pro'].includes(cli.plano)) continue;   // Básico posta manualmente
+    if (cli.tipo_cortesia === 'trial') continue;          // trial: sem publicação automática
+    const conta = (await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${p.user_id}&tipo=eq.instagram&select=token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
+    if (!conta || !conta.token || !(conta.meta && conta.meta.ig_id) || conta.meta.token_status === 'expirado') continue;
+    porUser[p.user_id] = 1;
+    try {
+      const igId = conta.meta.ig_id, tk = conta.token;
+      const ehVideo = /reel|v[ií]deo|video/i.test(p.formato || '') || /\.(mp4|mov)(\?|$)/i.test(p.midia_url || '');
+      const caption = String(p.legenda || p.tema || '').slice(0, 2100);
+      // 1) cria o container de mídia
+      const body = ehVideo
+        ? { media_type: 'REELS', video_url: p.midia_url, caption }
+        : { image_url: p.midia_url, caption };
+      const c1 = await fetch(`https://graph.instagram.com/v19.0/${igId}/media`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, access_token: tk }),
+      }).then(r => r.json());
+      if (!c1.id) throw new Error((c1.error && c1.error.message) || 'container recusado');
+      // 2) vídeo: aguarda o processamento da Meta (até ~50s)
+      if (ehVideo) {
+        let pronto = false;
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 5000));
+          const st = await fetch(`https://graph.instagram.com/v19.0/${c1.id}?fields=status_code&access_token=${tk}`).then(r => r.json());
+          if (st.status_code === 'FINISHED') { pronto = true; break; }
+          if (st.status_code === 'ERROR') throw new Error('a Meta recusou o vídeo (formato/duração)');
+        }
+        if (!pronto) throw new Error('vídeo ainda processando — nova tentativa na próxima rodada');
+      }
+      // 3) publica
+      const c2 = await fetch(`https://graph.instagram.com/v19.0/${igId}/media_publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creation_id: c1.id, access_token: tk }),
+      }).then(r => r.json());
+      if (!c2.id) throw new Error((c2.error && c2.error.message) || 'publicação recusada');
+      await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${p.id}`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ status: 'publicado', ig_post_id: c2.id, publicado_em: new Date().toISOString(), erro_publicacao: null }),
+      });
+      await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+        method: 'POST', headers: SBH(),
+        body: JSON.stringify({ user_id: p.user_id, tipo: 'publicacao', titulo: 'Post publicado no Instagram ✅', mensagem: `"${p.tema || 'Seu post'}" foi publicado automaticamente${conta.meta.ig_username ? ' em @' + conta.meta.ig_username : ''}.`, lido: false, resolvido: false }),
+      });
+      pub++;
+    } catch (e) {
+      const msg = String((e && e.message) || e).slice(0, 180);
+      await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${p.id}`, {
+        method: 'PATCH', headers: SBH(), body: JSON.stringify({ erro_publicacao: msg }),
+      }).catch(() => {});
+      if (!p.erro_publicacao) { // notifica só na PRIMEIRA falha (sem spam a cada rodada)
+        await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+          method: 'POST', headers: SBH(),
+          body: JSON.stringify({ user_id: p.user_id, tipo: 'alerta', titulo: 'Falha ao publicar no Instagram', mensagem: `Não consegui publicar "${p.tema || 'seu post'}": ${msg.slice(0, 120)}. Vou tentar de novo automaticamente; se persistir, confira a conexão em "Conectar contas".`, lido: false, resolvido: false }),
+        }).catch(() => {});
+      }
+    }
+  }
+  return { publicados: pub, fila: posts.length };
+}
+
 module.exports = async (req, res) => {
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
@@ -258,11 +332,15 @@ async function jobLimpeza() {
       const r = await jobOrdens();
       return res.status(200).json({ ok: true, job, ...r });
     }
+    if (job === 'publicar') {
+      const r = await jobPublicar();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
     if (job === 'limpeza') {
       const r = await jobLimpeza();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca, ordens ou limpeza)' });
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca, ordens, publicar ou limpeza)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
