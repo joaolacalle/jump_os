@@ -17,7 +17,39 @@ async function sbIns(table, body) {
     method: 'POST', headers: SBH(), body: JSON.stringify(body),
   });
 }
+// Desautorização / Exclusão de dados (Meta envia POST com signed_request)
+async function tratarPost(req, res) {
+  try {
+    let raw = '';
+    await new Promise((ok) => { req.on('data', (d) => raw += d); req.on('end', ok); });
+    const body = new URLSearchParams(raw);
+    const sr = body.get('signed_request') || (req.body && req.body.signed_request) || '';
+    const [sig, payload] = String(sr).split('.');
+    if (!payload) return res.status(400).json({ error: 'signed_request ausente' });
+    // valida a assinatura HMAC-SHA256 com o segredo do app
+    const crypto = require('crypto');
+    const esperado = crypto.createHmac('sha256', process.env.META_APP_SECRET || '')
+      .update(payload).digest('base64url');
+    if (sig !== esperado) return res.status(401).json({ error: 'assinatura inválida' });
+    const dados = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    const igUser = String(dados.user_id || '');
+    if (igUser) {
+      // apaga a conexão (token + dados da Meta) do usuário que removeu o app
+      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${igUser}`, {
+        method: 'DELETE', headers: SBH(),
+      }).catch(() => {});
+    }
+    // resposta no formato que a Meta espera para exclusão de dados
+    const code = 'jump-' + (igUser || 'x') + '-' + Date.now().toString(36);
+    return res.status(200).json({ url: `${SITE}/exclusao-dados.html`, confirmation_code: code });
+  } catch (e) {
+    console.error('meta-desautorizacao:', e.message);
+    return res.status(200).json({ ok: true }); // nunca falhar o handshake da Meta
+  }
+}
+
 module.exports = async (req, res) => {
+  if (req.method === 'POST') return tratarPost(req, res);
   const volta = (q) => {
     res.statusCode = 302;
     res.setHeader('Location', `${SITE}/conectar-conta.html?${q}`);
