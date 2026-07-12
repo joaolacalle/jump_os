@@ -228,7 +228,7 @@ async function jobMetricas() {
   ).then(r => r.json()).catch(() => []);
   if (!Array.isArray(contas) || !contas.length) return { coletadas: 0 };
   const hoje = new Date().toISOString().slice(0, 10);
-  let ok = 0;
+  let ok = 0; const erros = [];
   for (const c of contas) {
     try {
       if (!c.token || (c.meta && c.meta.token_status === 'expirado')) continue;
@@ -261,20 +261,19 @@ async function jobMetricas() {
       const base = alcance || seguidores || 1;
       const engaj = Math.round((inter / base) * 1000) / 10; // 1 casa decimal
       const corpo = { user_id: c.user_id, data_coleta: hoje, seguidores, engajamento_30d: engaj, alcance, posts: posts30 };
-      if (idHoje) {
-        await fetch(`${SUPABASE_URL}/rest/v1/metricas?id=eq.${idHoje}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify(corpo) });
-      } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/metricas`, { method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(corpo) });
-      }
+      const rIns = idHoje
+        ? await fetch(`${SUPABASE_URL}/rest/v1/metricas?id=eq.${idHoje}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify(corpo) })
+        : await fetch(`${SUPABASE_URL}/rest/v1/metricas`, { method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(corpo) });
+      if (!rIns.ok) throw new Error('gravar metricas (' + rIns.status + '): ' + (await rIns.text().catch(() => '')).slice(0, 120));
       // atualiza o snapshot da conexão (o fallback da dashboard)
       await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${c.user_id}&tipo=eq.instagram`, {
         method: 'PATCH', headers: SBH(),
         body: JSON.stringify({ meta: { ...(c.meta || {}), ig_followers: seguidores, ig_media: prof.media_count || 0 } }),
       }).catch(() => {});
       ok++;
-    } catch (e) { console.error('metricas', c.user_id, e.message); }
+    } catch (e) { console.error('metricas', c.user_id, e.message); erros.push(String(e.message || e).slice(0, 160)); }
   }
-  return { coletadas: ok, contas: contas.length };
+  return { coletadas: ok, contas: contas.length, erros };
 }
 
 module.exports = async (req, res) => {
