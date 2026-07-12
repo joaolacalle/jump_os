@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
     const tokenExpiraEm = new Date(Date.now() + expiraSeg * 1000).toISOString();
     // 3. Buscar dados do perfil
     const profRes = await fetch(
-      `https://graph.instagram.com/v19.0/${igUserId}?fields=id,username,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
+      `https://graph.instagram.com/v19.0/me?fields=id,username,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
     );
     const prof = await profRes.json();
     const nome = '@' + (prof.username || igUserId);

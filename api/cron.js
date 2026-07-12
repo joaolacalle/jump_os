@@ -172,7 +172,7 @@ async function jobPublicar() {
       const body = ehVideo
         ? { media_type: 'REELS', video_url: p.midia_url, caption }
         : { image_url: p.midia_url, caption };
-      const c1 = await fetch(`https://graph.instagram.com/v19.0/${igId}/media`, {
+      const c1 = await fetch(`https://graph.instagram.com/v19.0/me/media`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, access_token: tk }),
       }).then(r => r.json());
@@ -189,7 +189,7 @@ async function jobPublicar() {
         if (!pronto) throw new Error('vídeo ainda processando — nova tentativa na próxima rodada');
       }
       // 3) publica
-      const c2 = await fetch(`https://graph.instagram.com/v19.0/${igId}/media_publish`, {
+      const c2 = await fetch(`https://graph.instagram.com/v19.0/me/media_publish`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creation_id: c1.id, access_token: tk }),
       }).then(r => r.json());
@@ -235,9 +235,9 @@ async function jobMetricas() {
       // 1 coleta por dia por usuário
       const ja = await fetch(`${SUPABASE_URL}/rest/v1/metricas?user_id=eq.${c.user_id}&data_coleta=eq.${hoje}&select=id&limit=1`, { headers: SBH() }).then(r => r.json()).catch(() => []);
       const idHoje = (Array.isArray(ja) && ja[0] && ja[0].id) || null; // já coletou hoje? então ATUALIZA (coleta intradia)
-      const igId = (c.meta && c.meta.ig_id) || 'me';
+      const igId = 'me'; // Instagram Business Login: o token identifica a conta (IDs numéricos falham na leitura)
       // perfil
-      const prof = await fetch(`https://graph.instagram.com/v19.0/${igId}?fields=followers_count,media_count&access_token=${c.token}`).then(r => r.json());
+      const prof = await fetch(`https://graph.instagram.com/v19.0/me?fields=username,followers_count,media_count&access_token=${c.token}`).then(r => r.json());
       if (prof.error) throw new Error(prof.error.message);
       const seguidores = prof.followers_count || 0;
       // alcance 28 dias (se a conta permitir)
@@ -268,7 +268,7 @@ async function jobMetricas() {
       // atualiza o snapshot da conexão (o fallback da dashboard)
       await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${c.user_id}&tipo=eq.instagram`, {
         method: 'PATCH', headers: SBH(),
-        body: JSON.stringify({ meta: { ...(c.meta || {}), ig_followers: seguidores, ig_media: prof.media_count || 0 } }),
+        body: JSON.stringify({ meta: { ...(c.meta || {}), ig_followers: seguidores, ig_media: prof.media_count || 0, ig_username: prof.username || (c.meta && c.meta.ig_username) || '' } }),
       }).catch(() => {});
       ok++;
     } catch (e) { console.error('metricas', c.user_id, e.message); erros.push(String(e.message || e).slice(0, 160)); }
