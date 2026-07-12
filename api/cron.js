@@ -280,7 +280,8 @@ async function jobMetricas() {
 module.exports = async (req, res) => {
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const qsec = (req.query && req.query.secret) || '';
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}` && qsec !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'não autorizado' });
   }
 async function jobOrdens() {
