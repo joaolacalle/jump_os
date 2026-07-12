@@ -2,7 +2,7 @@
 // Troca código por token → busca dados do perfil Instagram
 // ENV: META_APP_ID, META_APP_SECRET, SUPABASE_SERVICE_KEY
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
-const SITE = 'https://metodojump.com.br';
+const SITE = 'https://www.metodojump.com.br';
 const REDIRECT = `${SITE}/api/meta-callback`;
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const SBH = () => ({
@@ -13,9 +13,13 @@ async function sbDel(table, filter) {
   await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, { method: 'DELETE', headers: SBH() });
 }
 async function sbIns(table, body) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: 'POST', headers: SBH(), body: JSON.stringify(body),
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(body),
   });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    throw new Error(`gravação falhou (${r.status}): ${txt.slice(0, 140)}`);
+  }
 }
 // Desautorização / Exclusão de dados (Meta envia POST com signed_request)
 async function tratarPost(req, res) {

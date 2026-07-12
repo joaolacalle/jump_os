@@ -1,7 +1,7 @@
 // api/meta-oauth.js — Instagram Graph API com Login da Empresa (Business Login)
 // App tipo Empresa — fluxo OAuth 2.0 via Instagram Business Login
 // ENV: META_APP_ID, META_APP_SECRET
-const SITE = 'https://metodojump.com.br';
+const SITE = 'https://www.metodojump.com.br';
 const REDIRECT = `${SITE}/api/meta-callback`;
 
 module.exports = async (req, res) => {
