@@ -282,7 +282,11 @@ module.exports = async (req, res) => {
   const auth = req.headers['authorization'] || '';
   const qsec = (req.query && req.query.secret) || '';
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}` && qsec !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'não autorizado' });
+    const s = String(process.env.CRON_SECRET || '');
+    return res.status(401).json({
+      error: 'não autorizado',
+      diagnostico: { secret_definida: !!s, tamanho: s.length, comeca_com: s.slice(0, 2), recebido_tamanho: String(qsec || '').length },
+    });
   }
 async function jobOrdens() {
   // Lembrete barato (sem IA): avisa usuários com ordens pendentes + ativa recorrentes do dia
