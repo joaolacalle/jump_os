@@ -111,7 +111,9 @@ let CTX=null;
     }
     if(p.get('erro')){
       const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada. Certifique-se de autorizar acesso às Páginas na tela do Facebook.',sem_instagram_vinculado:'Sua Página do Facebook existe, mas o Instagram comercial não está vinculado a ela. Acesse as configurações do Instagram → Conta → Vinculada ao Facebook.',sem_conta_ads:'Nenhuma conta de anúncios encontrada. Verifique se tem uma conta no Gerenciador de Negócios.',token:'Falha na autorização. Tente novamente.',interno:'Erro inesperado. Tente novamente — se persistir, fale com o suporte.'};
-      JUMP.toast(ERROS[p.get('erro')]||'Erro na conexão.','err');
+      const detalhe=p.get('msg')?(' — Detalhe técnico: '+decodeURIComponent(p.get('msg'))):'';
+      JUMP.toast((ERROS[p.get('erro')]||'Erro na conexão.')+detalhe,'err');
+      if(detalhe)try{alert('Detalhe do erro (envie ao suporte):\n'+decodeURIComponent(p.get('msg')))}catch(e){}
       history.replaceState(null,'','conectar-conta.html');
     }
     /* Conexões existentes */
