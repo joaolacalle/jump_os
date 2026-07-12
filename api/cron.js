@@ -219,6 +219,64 @@ async function jobPublicar() {
   return { publicados: pub, fila: posts.length };
 }
 
+
+// ═══ COLETA DE MÉTRICAS DO INSTAGRAM (alimenta a dashboard e os agentes) ═══
+async function jobMetricas() {
+  const contas = await fetch(
+    `${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&select=user_id,token,meta`,
+    { headers: SBH() }
+  ).then(r => r.json()).catch(() => []);
+  if (!Array.isArray(contas) || !contas.length) return { coletadas: 0 };
+  const hoje = new Date().toISOString().slice(0, 10);
+  let ok = 0;
+  for (const c of contas) {
+    try {
+      if (!c.token || (c.meta && c.meta.token_status === 'expirado')) continue;
+      // 1 coleta por dia por usuário
+      const ja = await fetch(`${SUPABASE_URL}/rest/v1/metricas?user_id=eq.${c.user_id}&data_coleta=eq.${hoje}&select=id&limit=1`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+      const idHoje = (Array.isArray(ja) && ja[0] && ja[0].id) || null; // já coletou hoje? então ATUALIZA (coleta intradia)
+      const igId = (c.meta && c.meta.ig_id) || 'me';
+      // perfil
+      const prof = await fetch(`https://graph.instagram.com/v19.0/${igId}?fields=followers_count,media_count&access_token=${c.token}`).then(r => r.json());
+      if (prof.error) throw new Error(prof.error.message);
+      const seguidores = prof.followers_count || 0;
+      // alcance 28 dias (se a conta permitir)
+      let alcance = 0;
+      try {
+        const ins = await fetch(`https://graph.instagram.com/v19.0/${igId}/insights?metric=reach&period=days_28&access_token=${c.token}`).then(r => r.json());
+        const v = ins.data && ins.data[0] && ins.data[0].values;
+        alcance = (v && v[v.length - 1] && v[v.length - 1].value) || 0;
+      } catch (e) {}
+      // interações dos últimos 30 dias (likes + comentários das mídias recentes)
+      let inter = 0, posts30 = 0;
+      try {
+        const md = await fetch(`https://graph.instagram.com/v19.0/${igId}/media?fields=like_count,comments_count,timestamp&limit=30&access_token=${c.token}`).then(r => r.json());
+        const corte = Date.now() - 30 * 24 * 3600 * 1000;
+        for (const m of (md.data || [])) {
+          if (new Date(m.timestamp).getTime() < corte) continue;
+          posts30++; inter += (m.like_count || 0) + (m.comments_count || 0);
+        }
+      } catch (e) {}
+      // engajamento: interações ÷ alcance (padrão de mercado); fallback: ÷ seguidores
+      const base = alcance || seguidores || 1;
+      const engaj = Math.round((inter / base) * 1000) / 10; // 1 casa decimal
+      const corpo = { user_id: c.user_id, data_coleta: hoje, seguidores, engajamento_30d: engaj, alcance, posts: posts30 };
+      if (idHoje) {
+        await fetch(`${SUPABASE_URL}/rest/v1/metricas?id=eq.${idHoje}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify(corpo) });
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/metricas`, { method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(corpo) });
+      }
+      // atualiza o snapshot da conexão (o fallback da dashboard)
+      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${c.user_id}&tipo=eq.instagram`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ meta: { ...(c.meta || {}), ig_followers: seguidores, ig_media: prof.media_count || 0 } }),
+      }).catch(() => {});
+      ok++;
+    } catch (e) { console.error('metricas', c.user_id, e.message); }
+  }
+  return { coletadas: ok, contas: contas.length };
+}
+
 module.exports = async (req, res) => {
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
@@ -322,6 +380,11 @@ async function jobLimpeza() {
     }
     if (job === 'tokens') {
       const r = await jobTokens();
+      let m = {}; try { m = await jobMetricas(); } catch (e) {}
+      return res.status(200).json({ ok: true, job, ...r, metricas: m });
+    }
+    if (job === 'metricas') {
+      const r = await jobMetricas();
       return res.status(200).json({ ok: true, job, ...r });
     }
     if (job === 'seguranca') {
