@@ -104,6 +104,32 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    // ── ensure_trial (self-serve): concede o trial de 7 dias no 1º acesso do próprio usuário ──
+    // Corrige o autocadastro (a trigger cria a conta mas não dá o trial). Concede UMA vez só.
+    if (act0 === 'ensure_trial') {
+      if (!me) return res.status(404).json({ error: 'Conta não encontrada' });
+      const ob = me.onboarding || {};
+      const jaTeve = ob.trial_concedido || me.tipo_cortesia || me.cortesia_ate;
+      if (me.role !== 'usuario' || jaTeve) {
+        return res.status(200).json({ ok: true, concedido: false });
+      }
+      let dias = 7, tkTrial = 500;
+      try {
+        const [tc] = await sbGet(`config?chave=eq.trial&select=valor&limit=1`);
+        if (tc && tc.valor) { dias = Number(tc.valor.dias || 7); tkTrial = Number(tc.valor.tokens || 500); }
+      } catch (e) {}
+      const patch = {
+        plano: (me.plano && me.plano !== 'nenhum') ? me.plano : 'basico',
+        status: 'ativo',
+        cortesia_ate: new Date(Date.now() + dias * 864e5).toISOString(),
+        tipo_cortesia: 'trial',
+        limites: (me.limites && Object.keys(me.limites).length) ? me.limites : { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: tkTrial },
+        onboarding: { ...ob, trial_concedido: true },
+      };
+      await sbPatch(`clientes?id=eq.${requester.id}`, patch);
+      return res.status(200).json({ ok: true, concedido: true, cortesia_ate: patch.cortesia_ate, plano: patch.plano });
+    }
+
     if (role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
@@ -120,6 +146,17 @@ module.exports = async (req, res) => {
     }
 
     // 3. Ações
+
+    // ── list_all_users: lista via chave de serviço (bypassa RLS) — admin vê TODOS,
+    //    supervisor vê os seus. Corrige o autocadastro órfão que a leitura por RLS escondia.
+    if (action === 'list_all_users') {
+      const q = isAdmin
+        ? `clientes?select=*&order=created_at.desc`
+        : `clientes?or=(supervisor_id.eq.${requester.id},id.eq.${requester.id})&select=*&order=created_at.desc`;
+      const rows = await sbGet(q);
+      return res.status(200).json({ ok: true, clientes: Array.isArray(rows) ? rows : [] });
+    }
+
     if (action === 'create_user' || action === 'create_supervisor' || action === 'create_admin') {
       const { nome, email, senha, plano, cortesia, telefone, cpf, endereco, limite_contas } = req.body;
       if (!nome || !email || !senha || senha.length < 6) {
