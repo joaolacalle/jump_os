@@ -58,6 +58,25 @@ module.exports = async (req, res) => {
       }
     }
 
+    // AÇÃO 'registrar' (Aceitar): grava a arte já gerada em Meus Arquivos + vincula ao conteúdo.
+    // Não gera imagem nova nem consome cota — só persiste o que o usuário aprovou no preview.
+    if (req.body && req.body.acao === 'registrar') {
+      const { url, path, nome, conteudo_id } = req.body;
+      if (!url) return res.status(400).json({ error: 'URL da imagem ausente' });
+      const rIns = await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
+        method: 'POST', headers: SBH(),
+        body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: nome || 'Arte IA', url, path: path || null }),
+      });
+      if (!rIns.ok) { const t = await rIns.text(); return res.status(500).json({ error: 'Falha ao salvar em Meus Arquivos', detalhe: t.slice(0, 160) }); }
+      if (conteudo_id) {
+        await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudo_id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({ midia_url: url, status: 'aguardando_aprovacao' })
+        }).catch(() => {});
+      }
+      return res.status(200).json({ ok: true, registrado: true });
+    }
+
     // Carrega a conta ALVO (dona dos dados: logo, OS_DATA, uso, limites)
     const cRes = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}&select=*`, { headers: SBH() });
     const [cli] = await cRes.json();
@@ -69,7 +88,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -228,19 +247,21 @@ module.exports = async (req, res) => {
       clearTimeout(tmo);
       if (up.ok) {
         publicUrl = `${SUPABASE_URL}/storage/v1/object/public/user-uploads/${fileName}`;
-        // registrar na biblioteca + uso (não bloqueia se falhar)
-        await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
-          method: 'POST', headers: SBH(),
-          body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
-        }).catch(() => {});
+        // No modo preview (registrar===false) NÃO registra na biblioteca aqui — só salva quando o usuário clica Aceitar.
+        if (registrar !== false) {
+          await fetch(`${SUPABASE_URL}/rest/v1/uploads`, {
+            method: 'POST', headers: SBH(),
+            body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: 'Arte IA', url: publicUrl, path: fileName }),
+          }).catch(() => {});
+        }
       }
     } catch (e) { console.error('storage lento/falhou:', e.message); }
 
     // registrar uso (rápido)
     await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(()=>{});
 
-    // Se veio de um conteúdo planejado, vincula a arte e marca para aprovação
-    if (conteudo_id && publicUrl) {
+    // Se veio de um conteúdo planejado (e não é preview), vincula a arte e marca para aprovação
+    if (registrar !== false && conteudo_id && publicUrl) {
       await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudo_id}`, {
         method: 'PATCH', headers: SBH(),
         body: JSON.stringify({ midia_url: publicUrl, status: 'aguardando_aprovacao' })
@@ -251,6 +272,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       ok: true,
       url: publicUrl || ('data:image/png;base64,' + b64),
+      path: publicUrl ? fileName : null,
       usadas: uso.imagens, limite: lim.imagens || 0, reloads_usados: uso.reloads||0, reloads_limite: lim.reloads||0,
       aviso: publicUrl ? undefined : 'base64'
     });
