@@ -150,7 +150,7 @@ async function jobSeguranca() {
 async function jobPublicar() {
   const agoraISO = new Date().toISOString();
   const posts = await fetch(
-    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,legenda,midia_url,erro_publicacao&order=data_agendada.asc&limit=25`,
+    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,copy,midia_url,erro_publicacao&order=data_agendada.asc&limit=25`,
     { headers: SBH() }
   ).then(r => r.json()).catch(() => []);
   if (!Array.isArray(posts) || !posts.length) return { publicados: 0, fila: 0 };
@@ -167,7 +167,7 @@ async function jobPublicar() {
     try {
       const igId = conta.meta.ig_id, tk = conta.token;
       const ehVideo = /reel|v[ií]deo|video/i.test(p.formato || '') || /\.(mp4|mov)(\?|$)/i.test(p.midia_url || '');
-      const caption = String(p.legenda || p.tema || '').slice(0, 2100);
+      const caption = String(p.copy || p.tema || '').slice(0, 2100);
       // 1) cria o container de mídia
       const body = ehVideo
         ? { media_type: 'REELS', video_url: p.midia_url, caption }
@@ -240,23 +240,26 @@ async function jobMetricas() {
       const prof = await fetch(`https://graph.instagram.com/v19.0/me?fields=username,followers_count,media_count&access_token=${c.token}`).then(r => r.json());
       if (prof.error) throw new Error(prof.error.message);
       const seguidores = prof.followers_count || 0;
-      // alcance 28 dias (se a conta permitir)
+      // alcance 28 dias — Instagram Login exige metric_type=total_value
       let alcance = 0;
       try {
-        const ins = await fetch(`https://graph.instagram.com/v19.0/${igId}/insights?metric=reach&period=days_28&access_token=${c.token}`).then(r => r.json());
-        const v = ins.data && ins.data[0] && ins.data[0].values;
-        alcance = (v && v[v.length - 1] && v[v.length - 1].value) || 0;
-      } catch (e) {}
+        const ins = await fetch(`https://graph.instagram.com/v19.0/me/insights?metric=reach&period=days_28&metric_type=total_value&access_token=${c.token}`).then(r => r.json());
+        if (ins.error) { erros.push('insights: ' + ins.error.message.slice(0, 120)); }
+        const d0 = ins.data && ins.data[0];
+        alcance = (d0 && d0.total_value && d0.total_value.value)
+          || (d0 && d0.values && d0.values.length && d0.values[d0.values.length - 1].value) || 0;
+      } catch (e) { erros.push('insights: ' + String(e.message).slice(0, 100)); }
       // interações dos últimos 30 dias (likes + comentários das mídias recentes)
       let inter = 0, posts30 = 0;
       try {
-        const md = await fetch(`https://graph.instagram.com/v19.0/${igId}/media?fields=like_count,comments_count,timestamp&limit=30&access_token=${c.token}`).then(r => r.json());
+        const md = await fetch(`https://graph.instagram.com/v19.0/me/media?fields=like_count,comments_count,timestamp&limit=30&access_token=${c.token}`).then(r => r.json());
+        if (md.error) { erros.push('media: ' + md.error.message.slice(0, 120)); }
         const corte = Date.now() - 30 * 24 * 3600 * 1000;
         for (const m of (md.data || [])) {
           if (new Date(m.timestamp).getTime() < corte) continue;
           posts30++; inter += (m.like_count || 0) + (m.comments_count || 0);
         }
-      } catch (e) {}
+      } catch (e) { erros.push('media: ' + String(e.message).slice(0, 100)); }
       // engajamento: interações ÷ alcance (padrão de mercado); fallback: ÷ seguidores
       const base = alcance || seguidores || 1;
       const engaj = Math.round((inter / base) * 1000) / 10; // 1 casa decimal
@@ -310,6 +313,27 @@ async function jobOrdens() {
     recCriadas++;
   }
 
+  // 1.5) DRIP SEMANAL (Fase 1): no dia de lote de cada usuário, cria a tarefa do Criativo
+  //      só com os posts DAQUELA semana ainda sem arte. Evita gerar o mês todo de uma vez.
+  let lotesSemana = 0;
+  const ativos = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+  const iniSem = new Date(); iniSem.setHours(0,0,0,0);
+  const iniISO = iniSem.toISOString();
+  const fimISO = new Date(iniSem.getTime() + 7*864e5).toISOString();
+  for (const c of (Array.isArray(ativos) ? ativos : [])) {
+    const dl = (c.preferencias && Number.isInteger(c.preferencias.dia_lote)) ? c.preferencias.dia_lote : 1; // padrão segunda
+    if (diaSemana !== dl) continue;
+    const daSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniISO}&data_sugerida=lt.${fimISO}&select=id&limit=50`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (!Array.isArray(daSemana) || !daSemana.length) continue;
+    const ja = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (Array.isArray(ja) && ja.length) continue; // já tem lote pendente
+    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({ user_id: c.id, de_agente: 'estrategia', para_agente: 'criativo', tarefa: 'criar_post', detalhe: 'Criar as artes da semana (' + daSemana.length + ' post(s))', status: 'pendente' }),
+    }).catch(()=>{});
+    lotesSemana++;
+  }
+
   // 2) Lembrete: para cada usuário com ordens pendentes, cria 1 recado (anti-duplicata por dia)
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.pendente&select=user_id`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
   const porUser = {};
@@ -346,7 +370,7 @@ async function jobOrdens() {
     convertidos++;
   }
 
-  return { recorrentes_criadas: recCriadas, lembretes, convertidos };
+  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, lembretes, convertidos };
 }
 
 async function jobLimpeza() {

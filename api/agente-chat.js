@@ -623,20 +623,23 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    // GARANTIA (Leva B): quando a Estratégia planeja conteúdos, o Designer PRECISA ter uma tarefa
-    // pendente correspondente — mesmo que o modelo não tenha emitido a <ordem_servico>. Determinístico + dedup.
+    // GARANTIA + DRIP (Leva B/Fase 1): a Estratégia planeja o mês inteiro no calendário, mas o lote
+    // IMEDIATO p/ o Designer cobre SÓ a semana atual (posts sem data ou com data até 7 dias). As
+    // próximas semanas são disparadas pelo cron no dia de lote do usuário. Determinístico + dedup.
     if(agente==='estrategia' && conteudos.length>0){
       try{
+        const limSemana=Date.now()+7*864e5;
+        const daSemana=conteudos.filter(ct=>!ct.data_sugerida || new Date(ct.data_sugerida).getTime()<=limSemana);
         const jaEmitiu=ordens.some(o=>o.para==='criativo' && o.tarefa==='criar_post');
         let jaPendente=false;
-        if(!jaEmitiu){
+        if(daSemana.length>0 && !jaEmitiu){
           const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente&select=id&limit=1`);
           jaPendente=Array.isArray(ex)&&ex.length>0;
         }
-        if(!jaEmitiu && !jaPendente){
+        if(daSemana.length>0 && !jaEmitiu && !jaPendente){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
             method:'POST',headers:H(),
-            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes dos '+conteudos.length+' post(s) do calendário',status:'pendente'})
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+daSemana.length+' post(s))',status:'pendente'})
           }).catch(()=>{});
         }
       }catch(e){}
