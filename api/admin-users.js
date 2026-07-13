@@ -104,32 +104,6 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
-    // ── ensure_trial (self-serve): concede o trial de 7 dias no 1º acesso do próprio usuário ──
-    // Corrige o autocadastro (a trigger cria a conta mas não dá o trial). Concede UMA vez só.
-    if (act0 === 'ensure_trial') {
-      if (!me) return res.status(404).json({ error: 'Conta não encontrada' });
-      const ob = me.onboarding || {};
-      const jaTeve = ob.trial_concedido || me.tipo_cortesia || me.cortesia_ate;
-      if (me.role !== 'usuario' || jaTeve) {
-        return res.status(200).json({ ok: true, concedido: false });
-      }
-      let dias = 7, tkTrial = 500;
-      try {
-        const [tc] = await sbGet(`config?chave=eq.trial&select=valor&limit=1`);
-        if (tc && tc.valor) { dias = Number(tc.valor.dias || 7); tkTrial = Number(tc.valor.tokens || 500); }
-      } catch (e) {}
-      const patch = {
-        plano: (me.plano && me.plano !== 'nenhum') ? me.plano : 'basico',
-        status: 'ativo',
-        cortesia_ate: new Date(Date.now() + dias * 864e5).toISOString(),
-        tipo_cortesia: 'trial',
-        limites: (me.limites && Object.keys(me.limites).length) ? me.limites : { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: tkTrial },
-        onboarding: { ...ob, trial_concedido: true },
-      };
-      await sbPatch(`clientes?id=eq.${requester.id}`, patch);
-      return res.status(200).json({ ok: true, concedido: true, cortesia_ate: patch.cortesia_ate, plano: patch.plano });
-    }
-
     if (role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
