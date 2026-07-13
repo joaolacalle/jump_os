@@ -225,16 +225,6 @@ function flipCard(id,nr,num,lbl,backT,backX){
     }
     JUMP.setUser(viewing||cliente,viewing?{email:viewing.email,user_metadata:{nome:viewing.nome}}:user);
 
-    /* Fase 0: garante o trial de 7 dias no 1º acesso do PRÓPRIO usuário (self-serve, backend). */
-    if(!ver){
-      try{
-        const et=await JUMP.api('ensure_trial',{},ctx.token);
-        if(et&&et.concedido){
-          cliente.tipo_cortesia='trial';cliente.cortesia_ate=et.cortesia_ate;cliente.plano=et.plano||cliente.plano;cliente.status='ativo';
-        }
-      }catch(e){}
-    }
-
     const _conta=viewing||cliente;
     const plano=_conta.plano||'basico';
     const level=LV[plano]||1;

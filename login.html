@@ -263,20 +263,23 @@ if(planoSel){
 
 /* ══ ROTEAMENTO POR PAPEL: admin → admin | supervisor → supervisor | usuario → painel/checkout ══ */
 async function goByRole(session){
-  let dest=planoSel?`checkout.html?plano=${planoSel}`:'dashboard-usuario.html';
   try{
     // sem .single() — pega a primeira linha (robusto contra 0/2+ resultados)
-    const{data:cs}=await sb.from('clientes').select('role,bloqueado').eq('id',session.user.id).limit(1);
+    const{data:cs}=await sb.from('clientes').select('role,bloqueado,assinatura_id,cortesia_ate,supervisor_id,plano').eq('id',session.user.id).limit(1);
     const c=cs&&cs.length?cs[0]:null;
     if(c&&c.bloqueado){
       await sb.auth.signOut();
       showMsg('msg-login','Esta conta está bloqueada. Fale com seu supervisor ou suporte.','err');
       return;
     }
-    if(c&&c.role==='admin')dest='dashboard-admin.html';
-    else if(c&&c.role==='supervisor')dest='dashboard-supervisor.html';
-  }catch(e){console.error('goByRole:',e)}
-  location.href=dest;
+    if(c&&c.role==='admin'){location.href='dashboard-admin.html';return}
+    if(c&&c.role==='supervisor'){location.href='dashboard-supervisor.html';return}
+    // USUÁRIO: autocadastro (sem supervisor) precisa ASSINAR (cartão) antes de usar o app.
+    // Só entra no dashboard quem tem assinatura OU cortesia/trial concedidos.
+    const precisaCheckout = c && !c.assinatura_id && !c.cortesia_ate && !c.supervisor_id;
+    if(precisaCheckout){location.href='checkout.html?plano='+(planoSel||(c&&c.plano)||'basico');return}
+    location.href='dashboard-usuario.html';
+  }catch(e){console.error('goByRole:',e);location.href='dashboard-usuario.html';}
 }
 
 /* ══ TABS ══ */
@@ -328,15 +331,20 @@ async function doSignup(){
   const btn=document.getElementById('btn-signup');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Criando conta...';
   try{
-    const redirectUrl=planoSel
-      ?`${location.origin}/checkout.html?plano=${planoSel}`
-      :`${location.origin}/dashboard-usuario.html`;
+    const planoFinal=planoSel||'basico';
+    const redirectUrl=`${location.origin}/checkout.html?plano=${planoFinal}`;
     const{data,error}=await sb.auth.signUp({
       email,password:pass,
-      options:{data:{nome:name,plano:planoSel||'nenhum'},emailRedirectTo:redirectUrl}
+      options:{data:{nome:name,plano:planoFinal},emailRedirectTo:redirectUrl}
     });
     if(error)throw error;
-    showMsg('msg-signup','✅ Conta criada! Enviamos um e-mail de confirmação para '+email+'. Clique no link para ativar e continuar.','ok');
+    // Supabase retorna SUCESSO (sem erro) mesmo p/ e-mail já existente, com identities:[] — detecta e avisa.
+    if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){
+      showMsg('msg-signup','Este e-mail já está cadastrado. Faça login (ou use "Esqueci a senha").','err');
+      btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+      return;
+    }
+    showMsg('msg-signup','✅ Conta criada! Enviamos um e-mail de confirmação para '+email+'. Clique no link para ativar e adicionar seu pagamento.','ok');
     btn.innerHTML='E-mail enviado ✓';
   }catch(e){
     let msg='Erro ao criar conta. Tente novamente.';
