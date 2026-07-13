@@ -505,7 +505,7 @@ async function verificarOrdens(){
     const w=document.getElementById('msgs');
     const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
     const box=document.createElement('div');box.className='msg a ordens-box';
-    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div><button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordem (gerar ficha técnica)</button>';
+    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div><button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordem agora</button>';
     w.appendChild(box);w.scrollTop=w.scrollHeight;
   }catch(e){}
 }
@@ -513,7 +513,7 @@ async function verificarOrdens(){
 async function executarOrdens(btn){
   const box=document.querySelector('.ordens-box');
   const b=box?box.querySelector('button'):null;
-  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Gerando ficha técnica...'}
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando a ordem...'}
   try{
     // Monta o prompt da ficha técnica + logo a partir do OS_DATA (memórias)
     const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id);
@@ -539,7 +539,7 @@ async function executarOrdens(btn){
     // RETORNO (Rota 1): pergunta sobre aplicar a dashboard + orienta próximo
     mostrarRetornoFicha();
   }catch(e){
-    if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem (gerar ficha técnica)'}
+    if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}
     JUMP.toast(e.message||'Erro ao executar ordens','err');
   }
 }
