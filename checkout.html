@@ -259,7 +259,7 @@ const PLANOS={
 const params=new URLSearchParams(location.search);
 let plano=params.get('plano');
 if(!plano||!PLANOS[plano])plano='plus';
-let userEmail=null,userId=null;
+let userEmail=null,userId=null,userToken=null;
 
 /* ══ RENDER ══ */
 function renderPlan(){
@@ -314,6 +314,7 @@ async function carregarPrecos(){
     }
     userEmail=data.session.user.email;
     userId=data.session.user.id;
+    userToken=data.session.access_token;
     document.getElementById('user-email').textContent=userEmail;
     await carregarPrecos();   // busca os preços reais antes de renderizar
     renderPlan();
@@ -361,7 +362,15 @@ function renderPayPalButtons(){
       subscriber:{email_address:userEmail||undefined},
       application_context:{brand_name:'JUMP OS',locale:'pt-BR',shipping_preference:'NO_SHIPPING'}
     }),
-    onApprove:(data)=>{
+    onApprove:async(data)=>{
+      // Grava a assinatura na conta ANTES de entrar (não depende do webhook) — evita o loop de checkout.
+      try{
+        await fetch('/api/paypal?action=confirmar',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+userToken},
+          body:JSON.stringify({subscriptionID:data.subscriptionID,plano})
+        });
+      }catch(e){}
       location.href=`dashboard-usuario.html?pagamento=sucesso&sub=${data.subscriptionID}`;
     },
     onError:()=>{

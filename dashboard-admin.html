@@ -54,6 +54,7 @@
     <div class="stat stat-btn" onclick="trocarTab('sups')"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div><div class="st-go">Gerir →</div></div>
     <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('')"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div><div class="st-go">Gerir →</div></div>
     <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('ativo')"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div><div class="st-go">Ver ativos →</div></div>
+    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('trial')"><div class="st-n" id="st-trial" style="color:var(--yel)">0</div><div class="st-l">Em trial</div><div class="st-go">Ver trials →</div></div>
     <div class="stat stat-btn" onclick="abrirGestao('bloqueados')"><div class="st-n" id="st-bloq" style="color:var(--red)">0</div><div class="st-l">Bloqueados</div><div class="st-go">Painel rápido →</div></div>
   </div>
 
@@ -115,6 +116,7 @@
         <option value="ativo">Ativos</option>
         <option value="bloqueado">Bloqueados</option>
         <option value="cortesia">Em cortesia</option>
+        <option value="trial">Em trial</option>
       </select>
     </div>
     <div class="tbl-wrap">
@@ -497,6 +499,7 @@ async function carregar(){
   document.getElementById('st-sups').textContent=ALL.filter(c=>c.role==='supervisor').length;
   document.getElementById('st-users').textContent=USERS.length;
   document.getElementById('st-ativos').textContent=ALL.filter(c=>c.role==='usuario'&&c.status==='ativo'&&!c.bloqueado).length; // assinaturas reais = contas de usuário (admin/supervisor têm cards próprios)
+  document.getElementById('st-trial').textContent=ALL.filter(c=>c.role==='usuario'&&c.tipo_cortesia==='trial'&&c.cortesia_ate&&new Date(c.cortesia_ate).getTime()>Date.now()).length;
   document.getElementById('st-bloq').textContent=ALL.filter(c=>c.bloqueado).length;
   /* filtro de supervisores */
   const f=document.getElementById('filtro-sup');
@@ -571,6 +574,7 @@ function renderUsers(){
     if(st==='ativo'&&(u.bloqueado||u.status!=='ativo'))return false;
     if(st==='bloqueado'&&!u.bloqueado)return false;
     if(st==='cortesia'&&!u.cortesia_ate)return false;
+    if(st==='trial'&&!(u.tipo_cortesia==='trial'&&u.cortesia_ate&&new Date(u.cortesia_ate).getTime()>Date.now()))return false;
     return true;
   });
   const tb=document.getElementById('tbody-user');
