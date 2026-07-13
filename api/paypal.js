@@ -214,5 +214,69 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ── CONFIRMAR (POST): na volta do PayPal, verifica a assinatura e GRAVA na conta ──
+  //    Cria a linha em clientes se não existir (não depende do webhook/trigger) e inicia o trial.
+  if (action === 'confirmar') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const user = await authUser(req);
+      if (!user) return res.status(401).json({ error: 'Não autenticado' });
+      const { subscriptionID, plano } = req.body || {};
+      if (!subscriptionID) return res.status(400).json({ error: 'subscriptionID ausente' });
+
+      // 1) Verifica a assinatura no PayPal
+      const token = await getAccessToken();
+      const sr = await fetch(`${PAYPAL_API}/v1/billing/subscriptions/${subscriptionID}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const sub = await sr.json();
+      if (!sr.ok || !sub.id) return res.status(400).json({ error: 'Assinatura não encontrada no PayPal' });
+      if (!['ACTIVE', 'APPROVAL_PENDING', 'APPROVED'].includes(sub.status)) {
+        return res.status(400).json({ error: 'Assinatura ainda não está ativa', status: sub.status });
+      }
+      const planoOk = (plano && PLAN_IDS[plano]) ? plano : 'basico';
+
+      // 2) Lê a conta atual (se existir)
+      const cr = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}&select=id,plano,cortesia_ate&limit=1`, { headers: SBH() });
+      const cj = await cr.json();
+      const cli = Array.isArray(cj) && cj[0] ? cj[0] : null;
+
+      // 3) Início do trial (só se ainda não houver cortesia)
+      let dias = 7;
+      try {
+        const tr = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: SBH() });
+        const tj = await tr.json();
+        if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias) dias = Number(tj[0].valor.dias);
+      } catch (e) {}
+      const cortesiaAte = new Date(Date.now() + dias * 864e5).toISOString();
+
+      if (cli) {
+        // atualiza a conta existente
+        const patch = { assinatura_id: subscriptionID, status: 'ativo' };
+        if (!cli.plano || cli.plano === 'nenhum') patch.plano = planoOk;
+        if (!cli.cortesia_ate) { patch.cortesia_ate = cortesiaAte; patch.tipo_cortesia = 'trial'; }
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, {
+          method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(patch),
+        });
+      } else {
+        // cria a linha (a trigger não criou) — garante acesso E visibilidade no admin
+        const nome = (user.user_metadata && (user.user_metadata.nome || user.user_metadata.name)) || user.email;
+        const row = {
+          id: user.id, email: user.email, nome, role: 'usuario',
+          plano: planoOk, status: 'ativo', bloqueado: false,
+          assinatura_id: subscriptionID, cortesia_ate: cortesiaAte, tipo_cortesia: 'trial',
+          limites: { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: 500 },
+        };
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes`, {
+          method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal,resolution=merge-duplicates' }, body: JSON.stringify(row),
+        });
+      }
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('paypal confirmar:', err.message);
+      return res.status(500).json({ error: 'Erro ao confirmar assinatura' });
+    }
+  }
+
   return res.status(400).json({ error: 'Ação inválida' });
 };
