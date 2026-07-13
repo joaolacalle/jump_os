@@ -280,16 +280,17 @@ function flipCard(id,nr,num,lbl,backT,backX){
       {done:upVideo,t:'Enviar um vídeo bruto para edição',b:'O Agente Editor corta, legenda e entrega pronto.',link:'upload.html',btn:'Enviar →',min:3},
     ].filter(t=>t.min<=level);
     const feitas=TASKS.filter(t=>t.done).length;
+    const boxT=document.getElementById('tasks-box');
     if(TASKS.length&&feitas<TASKS.length){
-      document.getElementById('tasks-box').style.display='block';
+      boxT.style.display='block';
       document.getElementById('tasks-prog').textContent=feitas+' de '+TASKS.length+' concluídas';
-      document.getElementById('tasks-list').innerHTML=TASKS.map(t=>
-        `<div class="task${t.done?' done':''}">
-          <div class="task-chk">✓</div>
+      document.getElementById('tasks-list').innerHTML=TASKS.filter(t=>!t.done).map(t=>
+        `<div class="task">
+          <div class="task-chk">○</div>
           <div><div class="task-t">${t.t}</div><div class="task-b">${t.b}</div></div>
-          ${t.done?'':'<a href="'+t.link+'" class="btn btn-g btn-sm">'+t.btn+'</a>'}
+          <a href="${t.link}" class="btn btn-g btn-sm">${t.btn}</a>
         </div>`).join('');
-    }
+    } else if(boxT){ boxT.style.display='none'; }
     // Onboarding completo → mostra o carrossel de conteúdos a aprovar
     if(!(TASKS.length&&feitas<TASKS.length)){
       try{
@@ -314,8 +315,8 @@ function flipCard(id,nr,num,lbl,backT,backX){
       if(mt&&mt[0]){
         const r=mt[0];
         m.seguidores=r.seguidores||0;
-        m.posts=r.total_posts||0;
-        m.alcance=r.alcance_30d||0;
+        m.posts=(r.posts!=null?r.posts:(r.total_posts||0));
+        m.alcance=(r.alcance!=null?r.alcance:(r.alcance_30d||0));
         m.engaj=r.engajamento_30d||0;
       }
     }catch(e){console.error('métricas:',e)}
