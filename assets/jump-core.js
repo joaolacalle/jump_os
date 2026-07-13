@@ -59,6 +59,15 @@ window.JUMP=(function(){
     }
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
 
+    // GATE DE CHECKOUT: autocadastro (usuário SEM supervisor) precisa assinar (cartão) antes de usar o app.
+    // Passa quem tem assinatura OU cortesia/trial. Sem loop: checkout.html não usa este guard.
+    const _q=new URLSearchParams(location.search);
+    const _pagOk=_q.get('pagamento')==='sucesso';
+    if(role==='usuario' && !_q.get('ver') && !_pagOk && !cliente.supervisor_id && !cliente.assinatura_id && !cliente.cortesia_ate){
+      location.href='checkout.html?plano='+((cliente.plano)||'basico');
+      throw new Error('need-checkout');
+    }
+
     // IMPERSONAÇÃO GLOBAL: supervisor/admin visualizando outra conta via ?ver=ID
     let viewing=null, viewId=user.id, viewCliente=cliente;
     const verParam=new URLSearchParams(location.search).get('ver');
