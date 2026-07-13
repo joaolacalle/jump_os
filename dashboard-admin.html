@@ -490,8 +490,8 @@ function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
 
 async function carregar(){
-  const{data}=await JUMP.sb.from('clientes').select('*');
-  ALL=data||[];
+  const d=await JUMP.api('list_all_users',{},CTX.token);
+  ALL=d.clientes||[];
   SUPS=ALL.filter(c=>c.role==='supervisor'||c.role==='admin');
   USERS=ALL.filter(c=>c.role==='usuario');
   document.getElementById('st-sups').textContent=ALL.filter(c=>c.role==='supervisor').length;
