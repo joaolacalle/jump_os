@@ -54,6 +54,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -93,7 +94,6 @@ module.exports = async (req, res) => {
       }
     }
 
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload } = req.body || {};
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
     // gpt-image-1: 1024x1024, 1024x1536 (retrato 4:5), 1536x1024 (paisagem 16:9), auto
     const size = tamanho === '4:5' ? '1024x1536' : tamanho === '16:9' ? '1536x1024' : '1024x1024';
