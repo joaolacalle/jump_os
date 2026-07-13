@@ -10,6 +10,21 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  // DIAGNÓSTICO: GET ?diag=1 → informa se a chave existe e testa a OpenAI (sem gastar imagem cara)
+  if (req.method === 'GET' && req.query && req.query.diag) {
+    const temChave = !!process.env.OPENAI_API_KEY;
+    let openai = 'não testado';
+    if (temChave) {
+      try {
+        const t = await fetch('https://api.openai.com/v1/models/gpt-image-1', {
+          headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+        });
+        const tj = await t.json();
+        openai = t.ok ? 'gpt-image-1 ACESSÍVEL ✅' : ('ERRO: ' + JSON.stringify(tj.error || tj).slice(0, 200));
+      } catch (e) { openai = 'falha de rede: ' + e.message; }
+    }
+    return res.status(200).json({ diagnostico: true, tem_OPENAI_API_KEY: temChave, teste_openai: openai });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
   try {
