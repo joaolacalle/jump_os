@@ -623,6 +623,25 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    // GARANTIA (Leva B): quando a Estratégia planeja conteúdos, o Designer PRECISA ter uma tarefa
+    // pendente correspondente — mesmo que o modelo não tenha emitido a <ordem_servico>. Determinístico + dedup.
+    if(agente==='estrategia' && conteudos.length>0){
+      try{
+        const jaEmitiu=ordens.some(o=>o.para==='criativo' && o.tarefa==='criar_post');
+        let jaPendente=false;
+        if(!jaEmitiu){
+          const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente&select=id&limit=1`);
+          jaPendente=Array.isArray(ex)&&ex.length>0;
+        }
+        if(!jaEmitiu && !jaPendente){
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+            method:'POST',headers:H(),
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes dos '+conteudos.length+' post(s) do calendário',status:'pendente'})
+          }).catch(()=>{});
+        }
+      }catch(e){}
+    }
+
     // Marcar ordens pendentes recebidas como concluídas após atendimento (PRECISO por tarefa)
     // Designer (chat) atende 'criar_post'; a 'ficha_tecnica' é tratada pelo botão do front.
     // Estratégia atende 'novo_criativo_ads' (do Tráfego) quando grava conteúdo.
