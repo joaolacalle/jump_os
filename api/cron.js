@@ -1,6 +1,6 @@
 // api/cron.js — Crons consolidados (estratégia + renovação de tokens em 1 função)
 // Resolve o limite de funções da Vercel. Decide o job por ?job=
-//   ?job=estrategia → cria aviso "Estratégia do mês pronta" (dia 25)
+//   ?job=estrategia → avisa 5 dias antes de fechar o ciclo de 30d de CADA cliente (preferencias.estrategia_em)
 //   ?job=tokens     → renova tokens da Meta que expiram em < 10 dias (diário)
 // Protegido por CRON_SECRET.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
@@ -12,37 +12,43 @@ const SBH = () => ({
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
-// ── JOB 1: aviso de estratégia mensal (dia 25) ──
+// ── JOB 1: aviso da PRÓXIMA estratégia — 5 dias antes de fechar o ciclo do usuário ──
+//    O ciclo conta a partir da DATA DA ESTRATÉGIA de cada cliente (preferencias.estrategia_em),
+//    não do dia 25 do mês. Roda diário; avisa uma única vez por ciclo.
 async function jobEstrategia() {
-  const agora = new Date();
-  const proxIdx = (agora.getMonth() + 1) % 12;
-  const mesProx = MESES[proxIdx];
-  const tagMes = `estrategia_${agora.getFullYear()}_${proxIdx}`;
+  const CICLO = 30, AVISO_ANTES = 5;
   const clientes = await fetch(
-    `${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,nome,plano,tipo_cortesia,cortesia_ate`, { headers: SBH() }
+    `${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,nome,plano,tipo_cortesia,cortesia_ate,preferencias`, { headers: SBH() }
   ).then(r => r.json());
   if (!Array.isArray(clientes)) return { avisos: 0 };
-  let criados = 0;
+  let criados = 0, semCiclo = 0;
   for (const c of clientes) {
     // pula quem está no período de teste (a estratégia do trial é de 7 dias, não mensal)
     if (c.tipo_cortesia === 'trial' && c.cortesia_ate && new Date(c.cortesia_ate).getTime() > Date.now()) continue;
+    const pref = (c.preferencias && typeof c.preferencias === 'object') ? c.preferencias : {};
+    if (!pref.estrategia_em) { semCiclo++; continue; } // ainda não gerou a 1ª estratégia
+    const inicio = new Date(pref.estrategia_em).getTime();
+    const fimCiclo = inicio + CICLO * 864e5;
+    const faltam = Math.ceil((fimCiclo - Date.now()) / 864e5);
+    if (faltam > AVISO_ANTES || faltam < 0) continue; // só na janela dos 5 dias finais
+    const tag = `estrategia_ciclo_${new Date(inicio).toISOString().slice(0, 10)}`;
     const existe = await fetch(
-      `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&titulo=eq.${encodeURIComponent('Estratégia do mês pronta')}&mensagem=like=*${tagMes}*&select=id&limit=1`,
-      { headers: SBH() }
+      `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }
     ).then(r => r.json()).catch(() => []);
-    if (Array.isArray(existe) && existe.length) continue;
+    if (Array.isArray(existe) && existe.length) continue; // já avisado neste ciclo
+    const quando = faltam <= 0 ? 'hoje' : (faltam === 1 ? 'amanhã' : `em ${faltam} dias`);
     await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
       method: 'POST', headers: SBH(),
       body: JSON.stringify({
         user_id: c.id, tipo: 'info',
-        titulo: 'Estratégia do mês pronta',
-        mensagem: `Chegou a hora de planejar ${mesProx}! Abra o Agente de Estratégia e clique em "Gerar estratégia do mês" para receber seu plano, revisar e aprovar. [${tagMes}]`,
+        titulo: 'Hora de planejar o próximo mês',
+        mensagem: `Sua estratégia atual fecha o ciclo ${quando}. Abra o Agente de Estratégia e peça o plano do próximo mês — eu já disparo as ordens para o Designer e a Publicação. [${tag}]`,
         lido: false, resolvido: false,
       }),
     }).catch(() => {});
     criados++;
   }
-  return { mes: mesProx, avisos: criados };
+  return { avisos: criados, sem_ciclo: semCiclo };
 }
 
 // ── JOB 2: renovação automática de tokens da Meta ──
@@ -198,6 +204,18 @@ async function jobPublicar() {
         method: 'PATCH', headers: SBH(),
         body: JSON.stringify({ status: 'publicado', ig_post_id: c2.id, publicado_em: new Date().toISOString(), erro_publicacao: null }),
       });
+      // progresso da ordem "publicar_calendario" (ex: 3/12) — visível em Tarefas, em tempo real
+      try {
+        const od = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${p.user_id}&para_agente=eq.publicacao&tarefa=eq.publicar_calendario&status=in.(pendente,processando)&select=id,total,progresso&limit=1`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+        if (Array.isArray(od) && od[0]) {
+          const pg = (od[0].progresso || 0) + 1;
+          const fim = od[0].total && pg >= od[0].total;
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od[0].id}`, {
+            method: 'PATCH', headers: SBH(),
+            body: JSON.stringify(fim ? { progresso: pg, status: 'concluida', concluida_em: new Date().toISOString() } : { progresso: pg, status: 'processando' }),
+          }).catch(() => {});
+        }
+      } catch (e) {}
       await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
         method: 'POST', headers: SBH(),
         body: JSON.stringify({ user_id: p.user_id, tipo: 'publicacao', titulo: 'Post publicado no Instagram ✅', mensagem: `"${p.tema || 'Seu post'}" foi publicado automaticamente${conta.meta.ig_username ? ' em @' + conta.meta.ig_username : ''}.`, lido: false, resolvido: false }),

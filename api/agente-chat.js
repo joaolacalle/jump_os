@@ -544,7 +544,23 @@ const handler = async (req, res) => {
       completarTxt = `\n\n[ATIVAÇÃO DO PLANO] O cliente acabou de sair do período de teste e o plano está ativo. Agora gere o CALENDÁRIO COMPLETO DO MÊS (não só 7 dias), com todos os posts e disparando as tarefas para os respectivos agentes (Designer, etc). Comece já nesta resposta, de forma natural, celebrando a ativação. Ao concluir a geração do mês, emita <memoria>{"chave":"estrategia_completada","valor":"true"}</memoria> para não repetir.`;
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}`;
+    // ═══ DATA REAL (fuso do Brasil) — SEM isto o modelo usa o calendário do treino (ano errado)
+    //     e erra todos os dias da semana do calendário editorial. ═══
+    const TZ='America/Sao_Paulo';
+    const _hojeBR=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+    const _dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    const _fmt=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+    let dataTxt=`\n\n═══ DATA ATUAL (fuso ${TZ}) ═══\nHOJE é ${_dias[_hojeBR.getDay()]}, ${_fmt(_hojeBR)}. O ano corrente é ${_hojeBR.getFullYear()}.\nREGRA ABSOLUTA: use SEMPRE esta data como referência. NUNCA use datas ou dias da semana de outro ano — seu conhecimento interno de calendário está desatualizado e erraria os dias.`;
+    if(agente==='estrategia'||agente==='publicacao'){
+      const cal=[];
+      for(let i=0;i<40;i++){
+        const d=new Date(_hojeBR.getTime()+i*864e5);
+        cal.push(_dias[d.getDay()].slice(0,3)+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'));
+      }
+      dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
+    }
+
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
@@ -595,10 +611,14 @@ const handler = async (req, res) => {
     if(emTrial&&agente==='trafego'){ ordens=[]; }
     if(ordens.length){
       try{
-        await Promise.all(ordens.map(o=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
-          method:'POST',headers:H(),
-          body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:'pendente'})
-        }).catch(()=>{})));
+        await Promise.all(ordens.map(o=>{
+          // CADEIA (Tráfego): a sugestão de novo criativo NÃO dispara sozinha — espera o usuário aprovar
+          // em Tarefas. Ao aprovar, roda a sequência Estratégia → Criativo → Tráfego (substituir criativo).
+          const ehCadeia=(agente==='trafego'&&o.tarefa==='novo_criativo_ads');
+          const body={user_id:targetId,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:ehCadeia?'aguardando_aprovacao':'pendente'};
+          if(ehCadeia)body.payload={sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
+          return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
+        }));
       }catch(e){}
     }
 
@@ -640,9 +660,23 @@ const handler = async (req, res) => {
         if(daSemana.length>0 && !jaEmitiu && !jaPendente){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
             method:'POST',headers:H(),
-            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+daSemana.length+' post(s))',status:'pendente'})
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0})
           }).catch(()=>{});
         }
+        // ORDEM P/ PUBLICAÇÃO: o calendário precisa ser publicado (progresso = publicados/total).
+        const exP=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.publicacao&tarefa=eq.publicar_calendario&status=eq.pendente&select=id&limit=1`);
+        if(!(Array.isArray(exP)&&exP.length)){
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+            method:'POST',headers:H(),
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário do mês ('+conteudos.length+' post(s)) nas datas agendadas',status:'pendente',total:conteudos.length,progresso:0})
+          }).catch(()=>{});
+        }
+        // MARCO DO CICLO: o aviso da próxima estratégia sai 5 dias antes de fechar 30 dias DESTA data.
+        const prefAtual=(cli.preferencias&&typeof cli.preferencias==='object')?cli.preferencias:{};
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`,{
+          method:'PATCH',headers:H(),
+          body:JSON.stringify({preferencias:{...prefAtual,estrategia_em:new Date().toISOString()}})
+        }).catch(()=>{});
       }catch(e){}
     }
 
@@ -656,9 +690,21 @@ const handler = async (req, res) => {
         }).catch(()=>{});
       }
       if(agente==='estrategia'&&conteudos.length>0){
-        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.novo_criativo_ads&status=eq.pendente`,{
-          method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida'})
-        }).catch(()=>{});
+        // conclui a etapa da cadeia e DISPARA a próxima (Criativo) automaticamente
+        const pend=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.novo_criativo_ads&status=eq.pendente&select=*`);
+        for(const od of (Array.isArray(pend)?pend:[])){
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+          }).catch(()=>{});
+          const pl=od.payload||{};
+          const seq=pl.sequencia||[];const et=(pl.etapa!=null?pl.etapa:0)+1;
+          if(seq[et]){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+              method:'POST',headers:H(),
+              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:seq[et],tarefa:'criar_criativo_ads',detalhe:'Criar o criativo do anúncio: '+(pl.brief||od.detalhe||''),status:'pendente',ordem_pai:od.id,total:1,progresso:0,payload:{...pl,etapa:et}})
+            }).catch(()=>{});
+          }
+        }
       }
     }catch(e){}
 
