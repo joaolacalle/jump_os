@@ -531,33 +531,89 @@ async function executarOrdens(btn){
   const b=box?box.querySelector('button'):null;
   if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando a ordem...'}
   try{
-    // Monta o prompt da ficha técnica + logo a partir do OS_DATA (memórias)
-    const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id);
-    const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
-    const marca=M.marca||CTX.cliente.nome||'Marca';
-    const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
-    const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
-    const estilo=M.estilo_visual||'EDITORIAL';
-
-    // 1) Ficha técnica visual (brand board)
-    const promptFicha='Professional brand identity guide board (brand style sheet). Show ONLY: a color palette with swatches ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid, generous spacing between text. Do NOT invent any logo or brand symbol. High quality realistic design presentation, sharp legible text with correct letter spacing.';
-    await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual');
-
-    // (geração de nova logo removida — usar sempre a logo do banco de dados)
-
-    // marca ordens como concluídas (com verificação de erro)
-    const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente','criativo').eq('status','pendente');
-    if(eUpd)console.error('update ordem falhou:',eUpd.message);
+    const uid=CTX.viewId||CTX.user.id;
+    // Lê as ordens REAIS e executa cada uma conforme a TAREFA (não assume ficha técnica).
+    const{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
+    if(!ords||!ords.length){if(box)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
+    for(const o of ords){
+      const tarefa=String(o.tarefa||'').toLowerCase();
+      if(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0){
+        const ok=await executarLoteCriativos(uid,o);
+        if(ok===false){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}return} // parou por cota: mantém pendente
+      }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
+        await gerarFichaTecnica(uid);
+      }else{
+        // ordem livre: usa o DETALHE como briefing (não inventa ficha técnica)
+        const brief=o.detalhe||o.tarefa||'post';
+        await gerarPorOrdem('Instagram post creative. Briefing: "'+brief+'". Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.','4:5','conceitual',brief);
+      }
+      const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
+      if(eUpd)console.error('update ordem falhou:',eUpd.message);
+      // CADEIA: se a ordem faz parte de uma sequência (ex: Tráfego→Estratégia→Criativo→Tráfego), dispara a próxima etapa
+      try{
+        const pl=o.payload||{};const seq=pl.sequencia||[];const et=(pl.etapa!=null?pl.etapa:0)+1;
+        if(seq[et]){
+          await JUMP.sb.from('ordens_servico').insert({user_id:uid,de_agente:'criativo',para_agente:seq[et],tarefa:'substituir_criativo',detalhe:'Substituir o criativo da campanha pelo novo (aprovado): '+(pl.brief||o.detalhe||''),status:'pendente',ordem_pai:o.id,payload:{...pl,etapa:et}});
+          addMsg('a','➡️ Enviei a próxima etapa para o Agente de Tráfego: substituir o criativo da campanha.');
+        }
+      }catch(e){}
+    }
     if(box)box.remove();
-    JUMP.toast('✓ Ficha técnica gerada!');
-    await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
-    await logChat('assistant','Gerei sua ficha técnica visual a partir do seu OS_DATA. Veja acima.','criativo');
-    // RETORNO (Rota 1): pergunta sobre aplicar a dashboard + orienta próximo
-    mostrarRetornoFicha();
+    JUMP.toast('✓ Ordem executada!');
   }catch(e){
     if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}
     JUMP.toast(e.message||'Erro ao executar ordens','err');
   }
+}
+// LOTE DA SEMANA: lê os conteúdos planejados no calendário e gera a arte de CADA UM (com os dados reais).
+// Retorna false se parou por cota (a ordem continua pendente).
+async function executarLoteCriativos(uid,ordem){
+  const limData=new Date(Date.now()+7*864e5).toISOString();
+  const{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or('data_sugerida.lte.'+limData+',data_sugerida.is.null').order('data_sugerida',{ascending:true}).limit(10);
+  if(!pend||!pend.length){
+    addMsg('a','Não encontrei conteúdos planejados no calendário para esta semana. Peça o plano ao Agente de Estratégia primeiro — eu gero as artes a partir dele.');
+    return true;
+  }
+  addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
+  let feitos=0;
+  if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando'}).eq('id',ordem.id)}catch(e){}}
+  for(const c of pend){
+    const meta=c.meta||{};
+    const prompt='Instagram '+(c.formato||'feed')+' post. Headline: "'+(meta.headline||c.tema||'')+'". Support copy: "'+String(c.copy||'').slice(0,80)+'". '+(meta.oferta?('Offer badge: "'+meta.oferta+'". '):'')+'Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.';
+    const w=document.getElementById('msgs');
+    const lbl=document.createElement('div');lbl.className='msg a';
+    lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — gerando...';
+    w.appendChild(lbl);w.scrollTop=w.scrollHeight;
+    try{
+      const r=await fetch('/api/gerar-imagem',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        body:JSON.stringify({prompt,tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
+      });
+      const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
+      if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';return false}
+      if(!r.ok||!d||!d.ok){lbl.innerHTML='⚠️ Não consegui gerar "'+JUMP.esc(c.tema||'')+'"'+((d&&d.error)?(': '+d.error):'')+'.';continue}
+      feitos++;
+      lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
+      w.scrollTop=w.scrollHeight;
+      // progresso visível em Tarefas (ex: 3/5), em tempo real
+      if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando'}).eq('id',ordem.id)}catch(e){}}
+    }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
+  }
+  addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
+  return true;
+}
+// FICHA TÉCNICA (só quando a ordem pede identidade visual)
+async function gerarFichaTecnica(uid){
+  const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid);
+  const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
+  const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
+  const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
+  const estilo=M.estilo_visual||'EDITORIAL';
+  const promptFicha='Professional brand identity guide board (brand style sheet). Show ONLY: a color palette with swatches ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid, generous spacing between text. Do NOT invent any logo or brand symbol. High quality realistic design presentation, sharp legible text with correct letter spacing.';
+  await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual');
+  await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
+  await logChat('assistant','Gerei sua ficha técnica visual a partir do seu OS_DATA. Veja acima.','criativo');
+  mostrarRetornoFicha();
 }
 
 function mostrarRetornoFicha(){

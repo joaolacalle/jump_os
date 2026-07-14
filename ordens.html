@@ -22,6 +22,10 @@
 .b-rec{background:rgba(168,85,247,.15);color:var(--lil,#C084FC)}
 .b-proc{background:rgba(79,124,255,.15);color:#7c9cff}
 .b-erro{background:rgba(248,113,113,.15);color:var(--red,#f87171)}
+.b-apr{background:rgba(251,191,36,.15);color:var(--yel,#fbbf24)}
+.ord-prog{font-family:var(--M);font-size:9.5px;color:var(--t3);letter-spacing:.5px}
+.ord-bar{height:4px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:6px;max-width:220px}
+.ord-bar i{display:block;height:100%;background:var(--g);border-radius:3px;transition:width .3s}
 .ord-tempo{font-size:11px;color:var(--t3);font-family:var(--M)}
 .ord-acts{display:flex;flex-direction:column;gap:7px;align-items:flex-end}
 .ord-empty{text-align:center;padding:60px 20px;color:var(--t3)}
@@ -99,11 +103,22 @@ function filtrar(f,btn){
 }
 
 const ST_ORD={
+  aguardando_aprovacao:['b-apr','aguardando sua aprovação'],
   pendente:['b-pend','pendente'],
   processando:['b-proc','processando…'],
   erro:['b-erro','erro'],
   concluida:['b-feito','concluída'],
 };
+async function aprovarOrdem(id,btn){
+  btn.disabled=true;btn.textContent='…';
+  try{
+    const{error}=await JUMP.sb.from('ordens_servico').update({status:'pendente'}).eq('id',id);
+    if(error)throw error;
+    const o=TODAS.find(x=>String(x.id)===String(id));if(o)o.status='pendente';
+    JUMP.toast('✓ Sugestão aprovada — a sequência dos agentes foi disparada.');
+    render();
+  }catch(e){btn.disabled=false;btn.textContent='✓ Aprovar sugestão';JUMP.toast('Não foi possível aprovar. Tente de novo.','err')}
+}
 function render(){
   agendarRefresh(); // tempo real: mantém o board atualizado enquanto houver tarefa ativa
   const wrap=document.getElementById('ord-lista');
@@ -126,17 +141,22 @@ function render(){
     const badge='<span class="ord-badge '+st[0]+'">'+st[1]+'</span>';
     const rec=o.recorrencia?`<span class="ord-badge b-rec">↻ ${o.recorrencia}</span>`:'';
     const tempo=o.status==='concluida'&&o.concluida_em?'concluída '+tempoDecorrido(o.concluida_em):'criada '+tempoDecorrido(o.created_at);
+    const tot=Number(o.total||0),pg=Number(o.progresso||0);
+    const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot}</span>`:'';
+    const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
     const rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
     const podeExec=(o.status==='pendente'||o.status==='erro');
+    const precisaAprovar=(o.status==='aguardando_aprovacao');
     return `<div class="ord-card" style="--ac:${ag.nc}">
       <div class="ord-ico">${ag.ico}</div>
       <div class="ord-body">
         <div class="ord-rota">${rota}</div>
         <div class="ord-tarefa">${JUMP.esc(o.detalhe||o.tarefa||'')}</div>
-        <div class="ord-meta">${badge}${rec}<span class="ord-tempo">${tempo}</span></div>
+        <div class="ord-meta">${badge}${rec}${prog}<span class="ord-tempo">${tempo}</span></div>${barra}
       </div>
       <div class="ord-acts">
+        ${precisaAprovar?`<button class="btn btn-g btn-sm" onclick="aprovarOrdem('${o.id}',this)">✓ Aprovar sugestão</button>`:''}
         ${podeExec?`<a class="btn btn-g btn-sm" href="agentes.html?agente=${o.para_agente}">${o.status==='erro'?'Tentar de novo →':'Executar agora →'}</a>`:''}
         <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">Remover</button>
       </div>
