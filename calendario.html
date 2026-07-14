@@ -5,6 +5,23 @@
 <title>JUMP OS — Calendário</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
+<style>
+.ed-ov{position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);z-index:120;display:flex;align-items:center;justify-content:center;padding:16px}
+.ed-card{background:var(--card,#141312);border:1px solid var(--bd);border-radius:16px;width:100%;max-width:440px;max-height:92vh;overflow:auto;padding:20px;position:relative}
+.ed-x{position:absolute;top:12px;right:12px;background:transparent;border:none;color:var(--t3);font-size:18px;cursor:pointer;line-height:1}
+.ed-tema{font-family:var(--B,sans-serif);font-weight:800;font-size:17px;color:var(--t1);padding-right:24px}
+.ed-meta{font-family:var(--M);font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin:4px 0 12px}
+.ed-img{border-radius:10px;overflow:hidden;background:rgba(255,255,255,.03);min-height:60px;display:flex;align-items:center;justify-content:center}
+.ed-img img{width:100%;display:block}
+.ed-img .ph{font-family:var(--M);font-size:11px;color:var(--t3);padding:26px}
+.ed-actsi{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 4px}
+.ed-cota{font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px}
+.ed-lbl{display:block;font-family:var(--M);font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin:14px 0 5px}
+.ed-ta,.ed-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:9px;color:var(--t1);font-family:var(--B,sans-serif);font-size:13px;padding:9px 11px;box-sizing:border-box}
+.ed-ta{resize:vertical;line-height:1.5}
+.ed-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.cal-ev{cursor:pointer}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -14,7 +31,7 @@
 <main class="main">
   <div class="hd">
     <div><div class="hd-hello">Calendário</div><h1 class="hd-h">Plano de <em>postagens.</em></h1></div>
-    <a href="agentes.html?agente=estratégia" class="btn btn-g btn-sm">+ Pedir conteúdo ao agente</a>
+    <a href="agentes.html?agente=estrategia" class="btn btn-g btn-sm">+ Pedir conteúdo ao agente</a>
   </div>
   <div class="card">
     <div class="cal-head">
@@ -28,6 +45,24 @@
   <div id="dia-lista" class="card"><div style="font-family:var(--M);font-size:12px;color:var(--t3)">Clique em um dia do calendário para ver os conteúdos.</div></div>
 </main>
 </div>
+<div class="ed-ov" id="ed-modal" style="display:none">
+  <div class="ed-card">
+    <button class="ed-x" onclick="fecharEd()">✕</button>
+    <div class="ed-tema" id="ed-tema">—</div>
+    <div class="ed-meta" id="ed-meta"></div>
+    <div class="ed-img" id="ed-img"></div>
+    <div class="ed-actsi" id="ed-actsi"></div>
+    <label class="ed-lbl">Copy / legenda</label>
+    <textarea class="ed-ta" id="ed-copy" rows="5"></textarea>
+    <label class="ed-lbl">Data de publicação</label>
+    <input class="ed-inp" id="ed-data" type="date">
+    <div class="ed-foot">
+      <button class="btn btn-o btn-sm" onclick="fecharEd()">Cancelar</button>
+      <button class="btn btn-g btn-sm" id="ed-salvar" onclick="salvarConteudo()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES;
@@ -73,11 +108,88 @@ function verDia(d){
   const evs=evDoDia(d);
   const w=document.getElementById('dia-lista');
   if(!evs.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3)">Nenhum conteúdo neste dia. Peça ao Agente de Estratégia para preencher seu calendário.</div>';return}
-  w.innerHTML=evs.map(e=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd)">
+  w.innerHTML=evs.map(e=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="editarConteudo('${e.id}')">
     <span style="font-size:17px">${(e.formato||'').includes('reel')?'🎬':(e.formato||'').includes('carros')?'🖼':'📝'}</span>
-    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(e.formato||'post')} · ${JUMP.esc(e.status||'planejado')}</div></div>
-    ${e.status==='aguardando_aprovacao'?'<a href="aprovar.html" class="btn btn-g btn-sm">Aprovar →</a>':''}
+    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(e.formato||'post')} · ${JUMP.esc(e.status||'planejado')} · <span style="color:var(--g)">editar ✎</span></div></div>
+    ${e.status==='aguardando_aprovacao'?'<a href="aprovar.html" class="btn btn-g btn-sm" onclick="event.stopPropagation()">Aprovar →</a>':''}
   </div>`).join('');
+}
+let EDIT=null,PREVIEW=null;
+function toast(m,t){ if(window.JUMP&&JUMP.toast)JUMP.toast(m,t); else alert(m); }
+function fmtDataInput(iso){ if(!iso)return''; try{const d=new Date(iso);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}catch(e){return''} }
+function editarConteudo(id){
+  EDIT=EVENTOS.find(e=>String(e.id)===String(id)); PREVIEW=null;
+  if(!EDIT)return;
+  document.getElementById('ed-tema').textContent=EDIT.tema||'Conteúdo';
+  document.getElementById('ed-meta').textContent=(EDIT.formato||'post')+' · '+(EDIT.status||'planejado');
+  document.getElementById('ed-copy').value=EDIT.copy||'';
+  document.getElementById('ed-data').value=fmtDataInput(EDIT.data_agendada||EDIT.data_sugerida);
+  renderImgAtual();
+  document.getElementById('ed-modal').style.display='flex';
+}
+function renderImgAtual(){
+  document.getElementById('ed-img').innerHTML=EDIT.midia_url?`<img src="${EDIT.midia_url}" alt="">`:'<div class="ph">Sem arte ainda</div>';
+  document.getElementById('ed-actsi').innerHTML='<button class="btn btn-o btn-sm" onclick="regerarImg(this)">🎨 '+(EDIT.midia_url?'Regerar imagem':'Gerar imagem')+' (gasta 1 token)</button>';
+}
+function fecharEd(){ document.getElementById('ed-modal').style.display='none'; EDIT=null;PREVIEW=null; }
+function promptDoConteudo(c){
+  const meta=c.meta||{};
+  return `Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". `+
+    `Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}`+
+    `Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.`;
+}
+async function regerarImg(btn){
+  if(!EDIT)return;
+  const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="ld-spin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></span> Gerando (15-40s)…';
+  try{
+    const r=await fetch('/api/gerar-imagem',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({prompt:promptDoConteudo(EDIT),tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
+    });
+    const d=await r.json();
+    if(!r.ok){ toast((d&&d.error)||'Erro ao gerar','err'); btn.disabled=false;btn.innerHTML=old; return; }
+    PREVIEW=d; renderPreviewCal(d);
+  }catch(e){ toast('A geração demorou. Tente de novo.','err'); btn.disabled=false;btn.innerHTML=old; }
+}
+function renderPreviewCal(d){
+  document.getElementById('ed-img').innerHTML=`<img src="${d.url}" alt="">`;
+  const rest=d.limite?('Imagens restantes: '+Math.max(0,(d.limite||0)-(d.usadas||0))):('Imagens usadas: '+(d.usadas||0));
+  document.getElementById('ed-actsi').innerHTML=
+    '<button class="btn btn-g btn-sm" onclick="aceitarCal()">✓ Usar esta</button>'+
+    '<button class="btn btn-o btn-sm" onclick="regerarImg(this)">🔄 Regerar</button>'+
+    '<button class="btn btn-o btn-sm" onclick="recusarCal()">✕ Descartar</button>'+
+    '<div class="ed-cota">'+rest+'</div>';
+}
+async function aceitarCal(){
+  if(!PREVIEW||!EDIT)return;
+  try{
+    const r=await fetch('/api/gerar-imagem',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({acao:'registrar',url:PREVIEW.url,path:PREVIEW.path||null,nome:EDIT.tema||'Arte IA',conteudo_id:EDIT.id,ver_id:CTX.viewId||null})
+    });
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||'Falha ao salvar');
+    EDIT.midia_url=PREVIEW.url; PREVIEW=null;
+    const ev=EVENTOS.find(e=>String(e.id)===String(EDIT.id)); if(ev)ev.midia_url=EDIT.midia_url;
+    toast('✓ Nova arte salva no conteúdo!');
+    renderImgAtual();
+  }catch(e){ toast(e.message||'Erro ao salvar','err'); }
+}
+function recusarCal(){ PREVIEW=null; renderImgAtual(); }
+async function salvarConteudo(){
+  if(!EDIT)return;
+  const btn=document.getElementById('ed-salvar'); const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='Salvando…';
+  const copy=document.getElementById('ed-copy').value;
+  const dataStr=document.getElementById('ed-data').value;
+  const patch={copy:copy};
+  if(dataStr)patch.data_agendada=dataStr;
+  try{
+    const{error}=await JUMP.sb.from('conteudos').update(patch).eq('id',EDIT.id);
+    if(error)throw error;
+    const ev=EVENTOS.find(e=>String(e.id)===String(EDIT.id)); if(ev){ev.copy=copy; if(dataStr)ev.data_agendada=dataStr;}
+    toast('✓ Alterações salvas!');
+    fecharEd(); render();
+  }catch(e){ toast('Não foi possível salvar. Tente de novo.','err'); btn.disabled=false;btn.innerHTML=old; }
 }
 function mudaMes(n){MES+=n;if(MES<0){MES=11;ANO--}if(MES>11){MES=0;ANO++}render()}
 </script>
