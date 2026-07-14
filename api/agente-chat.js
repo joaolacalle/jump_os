@@ -152,6 +152,7 @@ Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA
 Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
 Para cada post, registre na fila com a tag (uma por post):
 <conteudo>{"tema":"...","headline":"texto exato da arte","copy":"legenda completa","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","oferta":"prova/oferta real ou vazio","roteiro":"para reels/vídeo: roteiro com tempos e takes; senão vazio","data_sugerida":"YYYY-MM-DD ou vazio"}</conteudo>
+REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post que você citar no cronograma PRECISA ter sua própria tag <conteudo> na MESMA resposta — se você listou 5 posts, emita 5 tags. Nunca entregue um plano/calendário sem as tags. SEMPRE preencha "data_sugerida" com a data real (YYYY-MM-DD) do post no mês planejado — sem data, o post não aparece no calendário nem entra na produção semanal. Emita as tags ao final da resposta, após o texto para o cliente.
 Ao final do lote, dispare a ordem ao Designer:
 <ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
 E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
@@ -604,7 +605,7 @@ const handler = async (req, res) => {
     // Extrair conteúdos planejados (Estratégia grava cada post na tabela 'conteudos')
     const conteudos=[];
     texto=texto.replace(/<conteudo>([\s\S]*?)<\/conteudo>/g,(_,j)=>{
-      try{const o=JSON.parse(j.trim());if(o.tema&&o.copy)conteudos.push(o)}catch(e){}
+      try{const o=JSON.parse(j.trim());if(o.tema)conteudos.push(o)}catch(e){}
       return '';
     });
     if(conteudos.length){
