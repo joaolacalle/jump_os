@@ -21,6 +21,13 @@
 .ed-ta{resize:vertical;line-height:1.5}
 .ed-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 .cal-ev{cursor:pointer}
+.ck{display:inline-flex;align-items:center;gap:4px;font-family:var(--M);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+.ck-aguard{background:rgba(255,255,255,.06);color:var(--t3)}
+.ck-prod{background:rgba(79,124,255,.15);color:#7c9cff}
+.ck-aprov{background:rgba(251,191,36,.15);color:var(--yel,#fbbf24)}
+.ck-ok{background:rgba(52,211,153,.15);color:var(--g)}
+.ck-pub{background:rgba(168,85,247,.15);color:var(--lil,#C084FC)}
+.ck-vid{background:rgba(248,113,113,.13);color:var(--red,#f87171)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -66,6 +73,19 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES;
+// CHECK-IN: estágio real de cada publicação (ajuda o Agente de Publicação e o usuário)
+function checkin(e){
+  const f=String(e.formato||'').toLowerCase();
+  const ehVideo=f.indexOf('reel')>=0||f.indexOf('video')>=0||f.indexOf('vídeo')>=0;
+  if(e.status==='publicado')return['ck-pub','publicado'];
+  if(e.status==='aprovado')return['ck-ok','pronto p/ publicar'];
+  if(e.status==='aguardando_aprovacao')return['ck-aprov','aguardando sua aprovação'];
+  if(e.status==='rejeitado')return['ck-aguard','recusado'];
+  if(!e.midia_url&&ehVideo)return['ck-vid','envie seu vídeo'];
+  if(!e.midia_url&&LOTE_ATIVO)return['ck-prod','em produção — aguarde'];
+  return['ck-aguard','aguardando produção'];
+}
+let LOTE_ATIVO=false;
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 (async()=>{
   try{
@@ -75,7 +95,12 @@ const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agos
     const hoje=new Date();ANO=hoje.getFullYear();MES=hoje.getMonth();
     try{
       const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id);
-      EVENTOS=data||[];
+      // 'proposto' = plano ainda não aprovado em Tarefas → não aparece no calendário
+      EVENTOS=(data||[]).filter(e=>e.status!=='proposto');
+      try{
+        const{data:od}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente','criativo').eq('tarefa','criar_post').in('status',['pendente','processando']).limit(1);
+        LOTE_ATIVO=!!(od&&od.length);
+      }catch(e){}
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
@@ -110,7 +135,7 @@ function verDia(d){
   if(!evs.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3)">Nenhum conteúdo neste dia. Peça ao Agente de Estratégia para preencher seu calendário.</div>';return}
   w.innerHTML=evs.map(e=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="editarConteudo('${e.id}')">
     <span style="font-size:17px">${(e.formato||'').includes('reel')?'🎬':(e.formato||'').includes('carros')?'🖼':'📝'}</span>
-    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(e.formato||'post')} · ${JUMP.esc(e.status||'planejado')} · <span style="color:var(--g)">editar ✎</span></div></div>
+    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:3px">${JUMP.esc(e.formato||'post')} · <span class="ck ${checkin(e)[0]}">${checkin(e)[1]}</span> · <span style="color:var(--g)">editar ✎</span></div></div>
     ${e.status==='aguardando_aprovacao'?'<a href="aprovar.html" class="btn btn-g btn-sm" onclick="event.stopPropagation()">Aprovar →</a>':''}
   </div>`).join('');
 }
@@ -121,7 +146,7 @@ function editarConteudo(id){
   EDIT=EVENTOS.find(e=>String(e.id)===String(id)); PREVIEW=null;
   if(!EDIT)return;
   document.getElementById('ed-tema').textContent=EDIT.tema||'Conteúdo';
-  document.getElementById('ed-meta').textContent=(EDIT.formato||'post')+' · '+(EDIT.status||'planejado');
+  document.getElementById('ed-meta').innerHTML=JUMP.esc(EDIT.formato||'post')+' · <span class="ck '+checkin(EDIT)[0]+'">'+checkin(EDIT)[1]+'</span>';
   document.getElementById('ed-copy').value=EDIT.copy||'';
   document.getElementById('ed-data').value=fmtDataInput(EDIT.data_agendada||EDIT.data_sugerida);
   renderImgAtual();

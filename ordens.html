@@ -112,12 +112,34 @@ const ST_ORD={
 async function aprovarOrdem(id,btn){
   btn.disabled=true;btn.textContent='…';
   try{
+    const o=TODAS.find(x=>String(x.id)===String(id));
+    const uid=CTX.viewId||CTX.user.id;
+    // APROVAR A ESTRATÉGIA: promove o plano (proposto → rascunho = entra no calendário)
+    // e dispara as ordens: Designer (SÓ imagens) e Publicação.
+    if(o&&o.tarefa==='aprovar_estrategia'){
+      const{data:props}=await JUMP.sb.from('conteudos').select('id,formato,data_sugerida').eq('user_id',uid).eq('status','proposto');
+      const lista=props||[];
+      if(lista.length){
+        await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
+      }
+      const ehImagem=f=>{const x=String(f||'feed').toLowerCase();return x.indexOf('reel')<0&&x.indexOf('video')<0&&x.indexOf('vídeo')<0};
+      const lim=Date.now()+7*864e5;
+      const imgsSemana=lista.filter(c=>ehImagem(c.formato)&&(!c.data_sugerida||new Date(c.data_sugerida).getTime()<=lim));
+      const novas=[];
+      if(imgsSemana.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgsSemana.length+' imagem(ns))',status:'pendente',total:imgsSemana.length,progresso:0});
+      if(lista.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário nas datas agendadas ('+lista.length+' post(s))',status:'pendente',total:lista.length,progresso:0});
+      if(novas.length)await JUMP.sb.from('ordens_servico').insert(novas);
+      await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
+      JUMP.toast('✓ Estratégia aprovada — está no calendário e as ordens foram disparadas.');
+      await carregar();
+      return;
+    }
     const{error}=await JUMP.sb.from('ordens_servico').update({status:'pendente'}).eq('id',id);
     if(error)throw error;
-    const o=TODAS.find(x=>String(x.id)===String(id));if(o)o.status='pendente';
+    if(o)o.status='pendente';
     JUMP.toast('✓ Sugestão aprovada — a sequência dos agentes foi disparada.');
     render();
-  }catch(e){btn.disabled=false;btn.textContent='✓ Aprovar sugestão';JUMP.toast('Não foi possível aprovar. Tente de novo.','err')}
+  }catch(e){btn.disabled=false;btn.textContent='✓ Aprovar';JUMP.toast('Não foi possível aprovar. Tente de novo.','err')}
 }
 function render(){
   agendarRefresh(); // tempo real: mantém o board atualizado enquanto houver tarefa ativa
@@ -145,7 +167,8 @@ function render(){
     const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot}</span>`:'';
     const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
-    const rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
+    let rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
+    if(o.tarefa==='aprovar_estrategia')rota='Estratégia → Sua aprovação';
     const podeExec=(o.status==='pendente'||o.status==='erro');
     const precisaAprovar=(o.status==='aguardando_aprovacao');
     return `<div class="ord-card" style="--ac:${ag.nc}">
@@ -156,7 +179,7 @@ function render(){
         <div class="ord-meta">${badge}${rec}${prog}<span class="ord-tempo">${tempo}</span></div>${barra}
       </div>
       <div class="ord-acts">
-        ${precisaAprovar?`<button class="btn btn-g btn-sm" onclick="aprovarOrdem('${o.id}',this)">✓ Aprovar sugestão</button>`:''}
+        ${precisaAprovar?`<button class="btn btn-g btn-sm" onclick="aprovarOrdem('${o.id}',this)">✓ ${o.tarefa==='aprovar_estrategia'?'Aprovar estratégia':'Aprovar sugestão'}</button>`:''}
         ${podeExec?`<a class="btn btn-g btn-sm" href="agentes.html?agente=${o.para_agente}">${o.status==='erro'?'Tentar de novo →':'Executar agora →'}</a>`:''}
         <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">Remover</button>
       </div>
