@@ -151,8 +151,12 @@ Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos
 Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
 Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
 Para cada post, registre na fila com a tag (uma por post):
-<conteudo>{"tema":"...","headline":"texto exato da arte","copy":"legenda completa","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","oferta":"prova/oferta real ou vazio","roteiro":"para reels/vídeo: roteiro com tempos e takes; senão vazio","data_sugerida":"YYYY-MM-DD ou vazio"}</conteudo>
-REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post que você citar no cronograma PRECISA ter sua própria tag <conteudo> na MESMA resposta — se você listou 5 posts, emita 5 tags. Nunca entregue um plano/calendário sem as tags. SEMPRE preencha "data_sugerida" com a data real (YYYY-MM-DD) do post no mês planejado — sem data, o post não aparece no calendário nem entra na produção semanal. Emita as tags ao final da resposta, após o texto para o cliente.
+<conteudo>{"tema":"...","headline":"texto exato da arte","copy":"legenda pronta (máx 400 caracteres, hook + CTA)","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","oferta":"prova/oferta real ou vazio","roteiro":"SOMENTE se formato=reels: roteiro com tempos e takes; nos demais, vazio","data_sugerida":"YYYY-MM-DD"}</conteudo>
+REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post que você citar PRECISA ter sua própria tag <conteudo> na MESMA resposta — se planejou 25 posts, emita 25 tags. Nunca entregue um plano sem as tags.
+ORDEM DA RESPOSTA (obrigatória): comece pelas TAGS <conteudo> (todas, de uma vez) e só DEPOIS escreva o texto para o cliente. Nunca deixe as tags para o final.
+ECONOMIA: as tags são dados, não apresentação. Copy de até 400 caracteres, sem repetir o texto do plano. O cliente edita a copy final no calendário.
+DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido — sem data o post não entra no calendário nem na produção.
+DEPOIS das tags, escreva um resumo curto do plano (semanas, formatos, lógica) e avise que a estratégia foi enviada para aprovação.
 Ao final do lote, dispare a ordem ao Designer:
 <ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
 E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
@@ -568,7 +572,7 @@ const handler = async (req, res) => {
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
       body:JSON.stringify({
         model:MODEL(),
-        max_tokens:(agente==='identidade'||agente==='estrategia'||agente==='criativo')?3000:1100,
+        max_tokens:(agente==='estrategia')?8000:((agente==='identidade'||agente==='criativo')?3000:1100),
         system,messages,
         ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}]}:{})
       }),
@@ -579,6 +583,9 @@ const handler = async (req, res) => {
       return res.status(500).json({error:'O agente está indisponível agora. Tente em instantes.'});
     }
     let texto=(data.content||[]).map(c=>c.text||'').join('');
+    // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
+    // Antes isso passava em silêncio (o agente "dizia" que salvou e nada era gravado).
+    const truncou=(data.stop_reason==='max_tokens');
 
     // Extrair instrução de geração de imagem
     let imgReq=null;
@@ -630,12 +637,15 @@ const handler = async (req, res) => {
     });
     if(conteudos.length){
       try{
+        // PORTÃO: o plano da Estratégia nasce como 'proposto' — só entra no calendário quando o
+        // usuário aprovar a tarefa "Aprovar a estratégia do mês". Os demais agentes seguem normal.
+        const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':(agente==='estrategia'?'proposto':'rascunho');
         await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
           method:'POST',headers:H(),
           body:JSON.stringify({
             user_id:targetId, tema:ct.tema, copy:ct.copy,
             formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
-            data_sugerida:ct.data_sugerida||null, status:ct.criativo_url?'aguardando_aprovacao':'rascunho', origem_agente:agente,
+            data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
             meta:{headline:ct.headline||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
@@ -647,28 +657,22 @@ const handler = async (req, res) => {
     // GARANTIA + DRIP (Leva B/Fase 1): a Estratégia planeja o mês inteiro no calendário, mas o lote
     // IMEDIATO p/ o Designer cobre SÓ a semana atual (posts sem data ou com data até 7 dias). As
     // próximas semanas são disparadas pelo cron no dia de lote do usuário. Determinístico + dedup.
+    // PORTÃO DE APROVAÇÃO (Fase workflow): a Estratégia NÃO dispara mais as ordens direto.
+    // Ela cria UMA tarefa "Aprovar a estratégia do mês". Ao aprovar, o plano entra no calendário
+    // e as ordens do Designer (só imagens) e da Publicação são disparadas.
     if(agente==='estrategia' && conteudos.length>0){
       try{
-        const limSemana=Date.now()+7*864e5;
-        const daSemana=conteudos.filter(ct=>!ct.data_sugerida || new Date(ct.data_sugerida).getTime()<=limSemana);
-        const jaEmitiu=ordens.some(o=>o.para==='criativo' && o.tarefa==='criar_post');
-        let jaPendente=false;
-        if(daSemana.length>0 && !jaEmitiu){
-          const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente&select=id&limit=1`);
-          jaPendente=Array.isArray(ex)&&ex.length>0;
-        }
-        if(daSemana.length>0 && !jaEmitiu && !jaPendente){
+        const IMG=['feed','carrossel','story','carousel'];
+        const ehImagem=ct=>{const f=String(ct.formato||'feed').toLowerCase();return IMG.some(x=>f.indexOf(x)>=0)&&f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0};
+        const imagens=conteudos.filter(ehImagem).length;
+        const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
+        if(!(Array.isArray(ex)&&ex.length)){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
             method:'POST',headers:H(),
-            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0})
-          }).catch(()=>{});
-        }
-        // ORDEM P/ PUBLICAÇÃO: o calendário precisa ser publicado (progresso = publicados/total).
-        const exP=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.publicacao&tarefa=eq.publicar_calendario&status=eq.pendente&select=id&limit=1`);
-        if(!(Array.isArray(exP)&&exP.length)){
-          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
-            method:'POST',headers:H(),
-            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário do mês ('+conteudos.length+' post(s)) nas datas agendadas',status:'pendente',total:conteudos.length,progresso:0})
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'estrategia',tarefa:'aprovar_estrategia',
+              detalhe:'Aprovar a estratégia do mês ('+conteudos.length+' post(s) planejados · '+imagens+' arte(s) para o Designer)',
+              status:'aguardando_aprovacao',total:conteudos.length,progresso:0,
+              payload:{posts:conteudos.length,imagens:imagens}})
           }).catch(()=>{});
         }
         // MARCO DO CICLO: o aviso da próxima estratégia sai 5 dias antes de fechar 30 dias DESTA data.
@@ -859,7 +863,10 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
-    return res.status(200).json({resposta:texto,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    if(truncou){
+      texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
+    }
+    return res.status(200).json({resposta:texto,truncado:truncou,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
