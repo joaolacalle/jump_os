@@ -5,6 +5,8 @@
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
+// Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
+const VERSAO = '2026.07.14-estrategia-portao';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -317,9 +319,33 @@ Exemplo correto (Designer recebe "cria imagem para um reels"): "Posso criar a ar
 
 const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
   if (req.method==='OPTIONS') return res.status(200).end();
+
+  // DIAGNÓSTICO: GET ?diag=1 → mostra QUAL versão está no ar (fim do "testar código que não subiu").
+  if (req.method==='GET' && req.query && req.query.diag) {
+    const TZ='America/Sao_Paulo';
+    const d=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+    const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    return res.status(200).json({
+      diagnostico:true,
+      versao:VERSAO,
+      data_do_servidor:`${dias[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
+      correcoes_ativas:{
+        data_injetada_no_prompt:true,
+        calendario_40_dias_estrategia:true,
+        tags_antes_da_prosa:true,
+        max_tokens_estrategia:8000,
+        detecta_truncamento:true,
+        estrategia_grava_como_proposto:true,
+        tarefa_aprovar_estrategia:true,
+      },
+      tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+      tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
+      modelo: MODEL(),
+    });
+  }
   if (req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
 
   try {
@@ -635,6 +661,30 @@ const handler = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.tema)conteudos.push(o)}catch(e){}
       return '';
     });
+    // ═══ AUTO-REPARO (Estratégia): se o agente DESCREVEU o plano mas não emitiu nenhuma tag
+    //     <conteudo>, o calendário ficaria vazio e ele "diria" que salvou. Em vez de confiar,
+    //     pedimos SOMENTE as tags numa segunda passada. Fim da falha silenciosa. ═══
+    if(agente==='estrategia' && conteudos.length===0 && /calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|lote/i.test(texto)){
+      try{
+        const r2=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:MODEL(),max_tokens:8000,system,
+            messages:[...messages,{role:'assistant',content:texto},
+              {role:'user',content:'Você descreveu o plano mas NÃO registrou os posts — o calendário do cliente está vazio. Responda AGORA somente com as tags <conteudo>{...}</conteudo>, uma por post do plano acima, com data_sugerida real (YYYY-MM-DD) conferida no calendário fornecido. Sem nenhum texto antes ou depois, sem markdown.'}],
+          }),
+        });
+        const d2=await r2.json();
+        if(r2.ok){
+          const t2=(d2.content||[]).map(c=>c.text||'').join('');
+          (t2.match(/<conteudo>([\s\S]*?)<\/conteudo>/g)||[]).forEach(bloco=>{
+            try{const o=JSON.parse(bloco.replace(/<\/?conteudo>/g,'').trim());if(o.tema)conteudos.push(o)}catch(e){}
+          });
+        }
+      }catch(e){}
+    }
+
     if(conteudos.length){
       try{
         // PORTÃO: o plano da Estratégia nasce como 'proposto' — só entra no calendário quando o
