@@ -37,6 +37,27 @@
 .per-btn:hover{color:var(--t1)}
 .per-btn.on{border-color:var(--g);color:var(--g);background:rgba(var(--g-rgb),.08)}
 .conn-pic{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0}
+/* ── Nova identidade (ref. i.AMP): KPIs + aprovação inline ── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:17px 18px}
+.kpi-top{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+.kpi-ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;background:linear-gradient(145deg,rgba(168,85,247,.28),rgba(168,85,247,.08));flex-shrink:0}
+.kpi-lbl{font-size:12.5px;color:var(--t2);font-weight:600}
+.kpi-n{font-family:var(--D,sans-serif);font-size:30px;line-height:1;color:var(--t1);letter-spacing:.5px}
+.kpi-sub{font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;text-transform:uppercase;letter-spacing:.8px}
+.kpi-dl{font-family:var(--M);font-size:11px;font-weight:700;margin-left:9px;vertical-align:middle}
+.kpi-dl.up{color:var(--g)}.kpi-dl.flat{color:var(--t3)}
+.apr-card{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:15px;display:flex;flex-direction:column;gap:10px}
+.apr-item{display:flex;gap:13px;align-items:center;padding:11px;border:1px solid var(--bd);border-radius:12px;background:rgba(255,255,255,.02)}
+.apr-thumb{width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:24px}
+.apr-thumb img{width:100%;height:100%;object-fit:cover}
+.apr-info{flex:1;min-width:0}
+.apr-t{font-size:13.5px;font-weight:800;color:var(--t1);line-height:1.25}
+.apr-c{font-size:11.5px;color:var(--t2);line-height:1.4;margin-top:3px;max-height:32px;overflow:hidden}
+.apr-m{font-family:var(--M);font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-top:4px}
+.apr-acts{display:flex;gap:7px;flex-shrink:0}
+.apr-count{font-family:var(--M);font-size:10px;color:var(--yel);letter-spacing:.5px}
+@media(max-width:920px){.kpi-row{grid-template-columns:1fr 1fr}.apr-item{flex-wrap:wrap}.apr-acts{width:100%}}
 </style>
 </head>
 <body>
@@ -84,6 +105,14 @@
     </div>
   </div>
 
+  <!-- KPIs (visão geral do marketing) -->
+  <div class="kpi-row" id="kpi-row" style="display:none">
+    <div class="kpi"><div class="kpi-top"><div class="kpi-ic">👥</div><div class="kpi-lbl">Seguidores</div></div><div class="kpi-n"><span id="kpi-seg">0</span><span class="kpi-dl flat" id="kpi-seg-d"></span></div><div class="kpi-sub" id="kpi-seg-s">Conecte o Instagram</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-ic">❤️</div><div class="kpi-lbl">Engajamento</div></div><div class="kpi-n"><span id="kpi-eng">0%</span></div><div class="kpi-sub">Taxa média</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-ic">👁️</div><div class="kpi-lbl">Alcance</div></div><div class="kpi-n"><span id="kpi-alc">0</span></div><div class="kpi-sub">Últimos 30 dias</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-ic">📈</div><div class="kpi-lbl">Posts no mês</div></div><div class="kpi-n"><span id="kpi-pos">0</span></div><div class="kpi-sub">Publicações</div></div>
+  </div>
+
   <!-- PRIMEIROS PASSOS / TAREFAS -->
   <div class="tasks-box" id="tasks-box" style="display:none">
     <div class="tasks-h">
@@ -93,12 +122,12 @@
     <div id="tasks-list"></div>
   </div>
 
-  <!-- CARROSSEL: conteúdos a aprovar (aparece quando o onboarding está completo) -->
-  <div id="aprovar-carrossel" style="display:none;margin-bottom:14px">
-    <div class="sec-lbl" style="margin-top:0">Conteúdos para aprovar
-      <a href="aprovar.html" class="btn btn-o btn-sm" style="margin-left:auto">Ver todos e gerenciar →</a>
+  <!-- APROVAÇÃO INLINE: conteúdos prontos (últimos 5 dias), encolhe ao aprovar -->
+  <div id="aprovar-carrossel" style="display:none;margin-bottom:16px">
+    <div class="sec-lbl" style="margin-top:0">Conteúdos para aprovar <span class="apr-count" id="apr-count"></span>
+      <a href="calendario.html" class="btn btn-o btn-sm" style="margin-left:auto">Ver calendário →</a>
     </div>
-    <div id="apr-track" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory"></div>
+    <div class="apr-card" id="apr-track"></div>
   </div>
 
   <!-- RECADOS -->
@@ -291,20 +320,13 @@ function flipCard(id,nr,num,lbl,backT,backX){
           <a href="${t.link}" class="btn btn-g btn-sm">${t.btn}</a>
         </div>`).join('');
     } else if(boxT){ boxT.style.display='none'; }
-    // Onboarding completo → mostra o carrossel de conteúdos a aprovar
+    // Onboarding completo → aprovação inline dos conteúdos prontos (últimos 5 dias)
     if(!(TASKS.length&&feitas<TASKS.length)){
       try{
-        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,tipo_visual,formato,midia_url,status').eq('user_id',uid).eq('status','aguardando_aprovacao').order('created_at',{ascending:false}).limit(10);
-        if(apr&&apr.length){
-          document.getElementById('aprovar-carrossel').style.display='block';
-          document.getElementById('apr-track').innerHTML=apr.map(x=>`
-            <a href="aprovar.html" style="flex:0 0 auto;width:150px;scroll-snap-align:start;text-decoration:none">
-              <div style="width:150px;height:150px;border-radius:10px;overflow:hidden;background:var(--card);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center">
-                ${x.midia_url?`<img src="${x.midia_url}" style="width:100%;height:100%;object-fit:cover">`:'<span style=\'font-size:28px\'>🎨</span>'}
-              </div>
-              <div style="font-size:11px;color:var(--t2);margin-top:5px;font-weight:700;line-height:1.3;max-height:30px;overflow:hidden">${JUMP.esc(x.tema||'Conteúdo')}</div>
-            </a>`).join('');
-        }
+        const cinco=new Date(Date.now()-5*864e5).toISOString();
+        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').gte('created_at',cinco).order('created_at',{ascending:false}).limit(12);
+        window._apr=apr||[];
+        renderAprovacoes();
       }catch(e){}
     }
 
@@ -325,6 +347,14 @@ function flipCard(id,nr,num,lbl,backT,backX){
       if(igMeta.ig_followers!==undefined&&igMeta.ig_followers)m.seguidores=igMeta.ig_followers;
       if(igMeta.ig_media!==undefined&&igMeta.ig_media)m.posts=igMeta.ig_media;
     }
+
+    /* KPIs do topo (visão geral) */
+    document.getElementById('kpi-row').style.display='grid';
+    document.getElementById('kpi-seg').textContent=JUMP.fmtNum(m.seguidores);
+    document.getElementById('kpi-eng').textContent=(m.engaj||0)+'%';
+    document.getElementById('kpi-alc').textContent=JUMP.fmtNum(m.alcance);
+    document.getElementById('kpi-pos').textContent=JUMP.fmtNum(m.posts);
+    document.getElementById('kpi-seg-s').textContent=igOn?'Total atual de seguidores':'Conecte o Instagram';
 
     document.getElementById('ig-stats').innerHTML=
       flipCard('a','var(--g-rgb)',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
@@ -424,9 +454,75 @@ function flipCard(id,nr,num,lbl,backT,backX){
 
     window._ctx=ctx;
     document.getElementById('loading').classList.add('hide');
+    // 4b: Criativo gera as artes planejadas da semana em segundo plano (respeita a cota do plano/trial)
+    if(!(TASKS.length&&feitas<TASKS.length))autoGerarSemana(uid);
   }catch(e){if(e.message!=='no-session'&&e.message!=='no-role')console.error(e)}
 })();
 
+async function autoGerarSemana(uid){
+  try{
+    const tk=window._ctx&&window._ctx.token; if(!tk)return;
+    const lim=new Date(Date.now()+7*864e5).toISOString();
+    const{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or(`data_sugerida.lte.${lim},data_sugerida.is.null`).order('data_sugerida',{ascending:true}).limit(3);
+    if(!pend||!pend.length)return;
+    for(const c of pend){
+      const meta=c.meta||{};
+      const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.`;
+      try{
+        const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({prompt,tamanho:(c.formato||'').includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:(window._ctx&&window._ctx.viewId)||null})});
+        const d=await r.json();
+        if(d&&d.limite)break; // cota do plano/trial esgotada
+        const cinco=new Date(Date.now()-5*864e5).toISOString();
+        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').gte('created_at',cinco).order('created_at',{ascending:false}).limit(12);
+        window._apr=apr||[]; renderAprovacoes();
+      }catch(e){}
+    }
+  }catch(e){}
+}
+function renderAprovacoes(){
+  const lista=window._apr||[];
+  const wrap=document.getElementById('aprovar-carrossel');
+  if(!wrap)return;
+  if(!lista.length){wrap.style.display='none';return}
+  wrap.style.display='block';
+  document.getElementById('apr-count').textContent=lista.length+(lista.length===1?' pendente':' pendentes');
+  document.getElementById('apr-track').innerHTML=lista.map(x=>{
+    const ico=(x.formato||'').includes('reel')?'🎬':(x.formato||'').includes('carros')?'🖼':'📝';
+    const copy=(x.copy||'').slice(0,120);
+    return `<div class="apr-item" id="apr-${x.id}">
+      <div class="apr-thumb">${x.midia_url?`<img src="${x.midia_url}" alt="">`:ico}</div>
+      <div class="apr-info">
+        <div class="apr-t">${JUMP.esc(x.tema||'Conteúdo')}</div>
+        <div class="apr-c">${copy?JUMP.esc(copy):'<span style="color:var(--t3)">Sem legenda ainda — edite no calendário.</span>'}</div>
+        <div class="apr-m">${JUMP.esc(x.formato||'post')}</div>
+      </div>
+      <div class="apr-acts">
+        <button class="btn btn-g btn-sm" onclick="aprovarConteudo('${x.id}',this)">✓ Aprovar</button>
+        <button class="btn btn-o btn-sm" onclick="recusarConteudo('${x.id}',this)">Recusar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function aprovarConteudo(id,btn){
+  btn.disabled=true;btn.textContent='…';
+  try{
+    const{error}=await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
+    if(error)throw error;
+    window._apr=(window._apr||[]).filter(x=>String(x.id)!==String(id));
+    JUMP.toast('✓ Aprovado — vai pra publicação no horário agendado.');
+    renderAprovacoes();
+  }catch(e){btn.disabled=false;btn.textContent='✓ Aprovar';JUMP.toast('Não foi possível aprovar. Tente de novo.','err')}
+}
+async function recusarConteudo(id,btn){
+  btn.disabled=true;
+  try{
+    const{error}=await JUMP.sb.from('conteudos').update({status:'rejeitado'}).eq('id',id);
+    if(error)throw error;
+    window._apr=(window._apr||[]).filter(x=>String(x.id)!==String(id));
+    JUMP.toast('Conteúdo recusado. Ajuste no calendário se quiser.');
+    renderAprovacoes();
+  }catch(e){btn.disabled=false;JUMP.toast('Não foi possível recusar. Tente de novo.','err')}
+}
 function setPeriodo(dias,el){
   document.querySelectorAll('.per-btn').forEach(b=>b.classList.toggle('on',b===el));
   // recarrega métricas do período (por ora usa o mesmo dado; quando a API trouxer 60/90 troca aqui)
