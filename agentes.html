@@ -471,7 +471,7 @@ async function selecionar(id){
   document.getElementById('ct-ico').style.background='rgba('+(a.nc||'168,85,247')+',.14)';
   document.getElementById('ct-ico').style.borderColor='rgba('+(a.nc||'168,85,247')+',.45)';
   // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir tarefa)
-  const btns=(a.btns||[]).map(b=>`<button class="ag-db" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
+  const btns=(a.btns||[]).map(b=>`<button class="ag-db" id="btn-${b.fn}" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
   document.getElementById('ag-dash').innerHTML=btns+
     `<button class="ag-db" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button>`+
     `<button class="ag-db" id="mem-btn" onclick="toggleMem()">🧠 O que aprendi</button>`;
@@ -506,6 +506,7 @@ async function selecionar(id){
     }
   }catch(e){}
   if(id==='criativo'||id==='estrategia')verificarOrdens(id);
+  if(id==='estrategia')atualizarBotaoEstrategia();
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
@@ -1081,7 +1082,32 @@ async function subirVideoTrigger(){
 }
 function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
 function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
-function cmdCalendario(){enviarTexto('Gere o calendário de conteúdo do próximo mês para o meu nicho, com temas, formatos e datas sugeridas.');}
+// O botão da Estratégia acompanha a etapa REAL do ciclo (mês → aprovação → semana).
+let ETAPA_ESTRATEGIA='mes';
+function cmdCalendario(){
+  if(ETAPA_ESTRATEGIA==='semana')return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
+  enviarTexto('Gere o calendário de conteúdo do próximo mês para o meu nicho, com temas, formatos e datas sugeridas.');
+}
+async function atualizarBotaoEstrategia(){
+  const b=document.getElementById('btn-cmdCalendario');
+  if(!b)return;
+  const uid=CTX.viewId||CTX.user.id;
+  const set=(txt,on,dica)=>{b.innerHTML=txt;b.disabled=!on;b.style.opacity=on?'':'.45';b.style.cursor=on?'':'not-allowed';b.title=dica||''};
+  try{
+    // 1) plano aguardando aprovação → botão travado
+    const{data:apr}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao').limit(1);
+    if(apr&&apr.length)return set('⏳ Aguardando sua aprovação',false,'Vá em Tarefas de serviço e aprove a estratégia para liberar a semana.');
+    // 2) posts da semana sem copy → detalhar a semana
+    const lim=new Date(Date.now()+7*864e5).toISOString();
+    const{data:wk}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').or('copy.is.null,copy.eq.').lte('data_sugerida',lim).limit(1);
+    if(wk&&wk.length){ETAPA_ESTRATEGIA='semana';return set('✍️ Escrever a copy da semana',true,'Escreve headline e copy dos posts desta semana.')}
+    // 3) já existe plano no calendário → semana pronta
+    const{data:tot}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).in('status',['rascunho','aguardando_aprovacao','aprovado']).limit(1);
+    if(tot&&tot.length){ETAPA_ESTRATEGIA='pronto';return set('✓ Semana já detalhada',false,'A copy da semana está pronta. O Designer cuida das artes.')}
+    // 4) nada ainda → montar o mês
+    ETAPA_ESTRATEGIA='mes';set('📅 Gerar calendário do mês',true,'Monta a arquitetura do mês no calendário.');
+  }catch(e){}
+}
 function cmdCriativosPend(){enviarTexto('Quais criativos estão pendentes para eu produzir? Liste as ordens de arte na fila e comece pela primeira.');}
 function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tráfego e o que precisa de ajuste agora.');}
 
@@ -1242,6 +1268,7 @@ async function enviarTexto(txt){
         JUMP.toast('📅 '+d.conteudos+' post(s) planejados!');
         try{JUMPGUIA.dica('estrategia_criada','A estratégia foi criada, mas ainda <b>não está no calendário</b>. Vá em <b>Tarefas de serviço</b> e clique em <b>Aprovar estratégia</b> — só então o Designer começa as artes.','Estratégia gerada')}catch(e){}
       }
+      if(AG==='estrategia')atualizarBotaoEstrategia();
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta e a ordem já foi enviada ao <b>Designer</b>. Abra o Agente de Criativo e clique em <b>Executar ordem agora</b> para gerar as artes.','Semana detalhada')}catch(e){}

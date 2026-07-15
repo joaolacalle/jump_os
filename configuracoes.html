@@ -53,6 +53,22 @@
     </div>
     <!-- CONTA -->
     <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card" id="tok-box" style="display:none">
+        <div class="sec-lbl" style="margin-top:0">⚡ Seus limites do mês</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--t1)">🎨 Infográficos do mês</div>
+            <div class="bar" style="margin-top:6px"><div class="bar-f" id="img-bar" style="width:0%"></div></div>
+            <div class="bar-l" id="img-lbl">—</div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--t1)">🎬 Edições de vídeo do mês</div>
+            <div class="bar" style="margin-top:6px"><div class="bar-f" id="vid-bar" style="width:0%"></div></div>
+            <div class="bar-l" id="vid-lbl">—</div>
+          </div>
+          <button class="btn btn-o btn-sm" style="align-self:flex-start" onclick="solicitarMais(this)">Solicitar mais →</button>
+        </div>
+      </div>
       <div class="card">
         <div class="sec-lbl" style="margin-top:0">🔄 Ciclo de produção</div>
         <div style="font-size:12.5px;color:var(--t2);line-height:1.55;margin-bottom:12px">A Estratégia planeja o mês inteiro no calendário, mas a produção acontece <b>por semana</b>. Escolha o dia em que o sistema abre o lote da semana (copy + artes).</div>
@@ -132,6 +148,7 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
     JUMP.sidebar('config');
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    renderLimites(CTX.viewCliente||CTX.cliente);
     const _pref=((CTX.viewCliente||CTX.cliente)||{}).preferencias||{};
     const _sel=document.getElementById('cfg-dia');
     if(_sel)_sel.value=String(_pref.dia_lote!=null?_pref.dia_lote:1);
@@ -227,6 +244,31 @@ document.addEventListener('change',function(e){
 });
 
 // Busca status/próxima cobrança/valor no PayPal (via paypal.js consolidado)
+function renderLimites(cli){
+  try{
+    const lim=cli.limites||{},us=cli.uso||{};
+    const limImg=Number(lim.imagens||0),usImg=Number(us.imagens||0);
+    const limVid=Number(lim.videos||0),usVid=Number(us.videos||0);
+    if(!limImg&&!limVid)return;
+    document.getElementById('tok-box').style.display='block';
+    const pImg=limImg?Math.min(100,Math.round(usImg/limImg*100)):0;
+    const bi=document.getElementById('img-bar');
+    bi.style.width=pImg+'%';bi.className='bar-f'+(pImg>=95?' full':pImg>=75?' warn':'');
+    document.getElementById('img-lbl').textContent=limImg?(usImg+' / '+limImg+' usados'):'—';
+    const pVid=limVid?Math.min(100,Math.round(usVid/limVid*100)):0;
+    const bv=document.getElementById('vid-bar');
+    bv.style.width=pVid+'%';bv.className='bar-f'+(pVid>=95?' full':pVid>=75?' warn':'');
+    document.getElementById('vid-lbl').textContent=limVid?(usVid+' / '+limVid+' usados'):'Não incluso no plano';
+  }catch(e){}
+}
+async function solicitarMais(btn){
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    await JUMP.api('request_tokens',{},CTX.token);
+    btn.textContent='✓ Solicitado';
+    JUMP.toast('Seu gestor foi avisado e pode liberar mais tokens.');
+  }catch(e){btn.disabled=false;btn.textContent='Solicitar mais →';JUMP.toast(e.message,'err')}
+}
 async function salvarCiclo(){
   const dia=Number(document.getElementById('cfg-dia').value);
   const uid=CTX.viewId||CTX.user.id;

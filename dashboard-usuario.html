@@ -162,23 +162,6 @@
   <div class="sec-lbl">Seus agentes</div>
   <div class="ag-grid8" id="ag-grid"></div>
 
-  <!-- CAIXA DE TOKENS -->
-  <div class="card" id="tok-box" style="display:none;margin-bottom:14px;border-color:rgba(var(--g-rgb),.3)">
-    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎨 Infográficos do mês</div>
-        <div class="bar" style="margin-top:6px"><div class="bar-f" id="img-bar" style="width:0%"></div></div>
-        <div class="bar-l" id="img-lbl">—</div>
-      </div>
-      <div style="flex:1;min-width:200px">
-        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎬 Edições de vídeo do mês</div>
-        <div class="bar" style="margin-top:6px"><div class="bar-f" id="vid-bar" style="width:0%"></div></div>
-        <div class="bar-l" id="vid-lbl">—</div>
-      </div>
-      <button class="btn btn-o btn-sm" onclick="solicitarMais(this)">Solicitar mais →</button>
-    </div>
-  </div>
-
   <!-- RECADOS -->
   <div id="recados-wrap" style="display:none">
     <div class="sec-lbl" style="margin-top:0">Recados e alertas</div>
@@ -422,25 +405,6 @@ function flipCard(id,nr,num,lbl,backT,backX){
     }catch(e){}
 
     // Caixa de uso: Infográficos (imagens) + Edições de vídeo
-    try{
-      const lim=cliente.limites||{},us=cliente.uso||{};
-      const limImg=Number(lim.imagens||0),usImg=Number(us.imagens||0);
-      const limVid=Number(lim.videos||0),usVid=Number(us.videos||0);
-      if(limImg||limVid){
-        document.getElementById('tok-box').style.display='block';
-        // infográficos
-        const pImg=limImg?Math.min(100,Math.round(usImg/limImg*100)):0;
-        const bi=document.getElementById('img-bar');
-        bi.style.width=pImg+'%';bi.className='bar-f'+(pImg>=95?' full':pImg>=75?' warn':'');
-        document.getElementById('img-lbl').textContent=limImg?`${usImg} / ${limImg} usados`:'—';
-        // vídeos
-        const pVid=limVid?Math.min(100,Math.round(usVid/limVid*100)):0;
-        const bv=document.getElementById('vid-bar');
-        bv.style.width=pVid+'%';bv.className='bar-f'+(pVid>=95?' full':pVid>=75?' warn':'');
-        document.getElementById('vid-lbl').textContent=limVid?`${usVid} / ${limVid} usados`:'Não incluso no plano';
-      }
-    }catch(e){}
-
     window._ctx=ctx;
     document.getElementById('loading').classList.add('hide');
     ativarTilt();
@@ -564,14 +528,7 @@ function aplicarPeriodo(){
   renderIG(mm,true);
   if(av)av.innerHTML='Últimos '+PERIODO+' dias · <b>'+jan.length+' coleta(s)</b> do JUMP OS. Este filtro considera apenas os dados coletados pelo nosso sistema.';
 }
-async function solicitarMais(btn){
-  btn.disabled=true;btn.textContent='Enviando...';
-  try{
-    await JUMP.api('request_tokens',{},window._ctx.token);
-    btn.textContent='✓ Solicitado';
-    JUMP.toast('Seu gestor foi avisado e pode liberar mais tokens.');
-  }catch(e){btn.disabled=false;btn.textContent='Solicitar mais →';JUMP.toast(e.message,'err')}
-}
+
 async function lerRecado(id,btn){
   try{await JUMP.sb.from('recados').update({lido:true}).eq('id',id);btn.closest('.rec').remove()}catch(e){JUMP.toast('Erro ao marcar','err')}
 }
