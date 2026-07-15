@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-ciclo-semanal';
+const VERSAO = '2026.07.15-effort-low';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -636,13 +636,17 @@ const handler = async (req, res) => {
         model:MODEL_DE(agente),
         max_tokens:(agente==='estrategia')?8000:((agente==='identidade'||agente==='criativo')?3000:1100),
         system,messages,
-        ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}]}:{})
+        // Modelos novos (Sonnet 5/Opus) vêm com raciocínio 'high' por padrão e estouram os 60s da
+        // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
+        // modelo dedicado — o haiku padrão não aceita este parâmetro.
+        ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{effort:'low'}:{}),
+        ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{})
       }),
     });
     let data=await aRes.json();
-    if(!aRes.ok && /model/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
+    if(!aRes.ok && /model|effort|thinking|not permitted|unexpected/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
       // AGENT_MODEL_ESTRATEGIA inválido → não derruba o agente: repete no modelo padrão.
-      console.error('modelo da estratégia inválido, usando padrão:',MODEL_DE(agente));
+      console.error('modelo/param da estratégia recusado, usando padrão:',MODEL_DE(agente),JSON.stringify(data).slice(0,160));
       const rf=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
