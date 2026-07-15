@@ -6,7 +6,7 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.14-estrategia-portao';
+const VERSAO = '2026.07.14-schema-fix';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -328,9 +328,17 @@ const handler = async (req, res) => {
     const TZ='America/Sao_Paulo';
     const d=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
     const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    // O banco aceita as colunas que o sistema grava? (se false → rodar sql/fix-conteudos.sql)
+    let banco='?';
+    try{
+      const t=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?select=tema,copy,formato,data_sugerida,midia_url,tipo_visual,meta,origem_agente,created_at&limit=1`,{headers:H()});
+      if(t.ok)banco='alinhado ✅';
+      else{const j=await t.json().catch(()=>({}));banco='DESALINHADO ❌ → rode sql/fix-conteudos.sql ('+String(j.message||'').slice(0,90)+')'}
+    }catch(e){banco='erro ao checar: '+e.message}
     return res.status(200).json({
       diagnostico:true,
       versao:VERSAO,
+      banco_conteudos:banco,
       data_do_servidor:`${dias[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
       correcoes_ativas:{
         data_injetada_no_prompt:true,
@@ -685,12 +693,13 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    let erroGravacao=null;
     if(conteudos.length){
       try{
         // PORTÃO: o plano da Estratégia nasce como 'proposto' — só entra no calendário quando o
         // usuário aprovar a tarefa "Aprovar a estratégia do mês". Os demais agentes seguem normal.
         const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':(agente==='estrategia'?'proposto':'rascunho');
-        await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
+        const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
           method:'POST',headers:H(),
           body:JSON.stringify({
             user_id:targetId, tema:ct.tema, copy:ct.copy,
@@ -700,8 +709,18 @@ const handler = async (req, res) => {
             midia_url:ct.criativo_url||null,
             meta:{headline:ct.headline||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
           })
-        }).catch(()=>{})));
-      }catch(e){}
+        }).catch(()=>null)));
+        // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
+        // engolido e o agente dizia que tinha salvo — calendário vazio, ninguém entendia).
+        const falhas=rs.filter(r=>!r||!r.ok);
+        if(falhas.length){
+          let motivo='';
+          try{const j=await falhas[0].json();motivo=j.message||j.hint||j.details||''}catch(e){}
+          console.error('conteudos insert falhou:',falhas.length,'de',conteudos.length,motivo);
+          erroGravacao=`${falhas.length} de ${conteudos.length} post(s) não foram gravados${motivo?(': '+String(motivo).slice(0,180)):''}`;
+          conteudos.length=conteudos.length-falhas.length; // só conta o que entrou de verdade
+        }
+      }catch(e){erroGravacao='falha ao gravar os posts: '+e.message}
     }
 
     // GARANTIA + DRIP (Leva B/Fase 1): a Estratégia planeja o mês inteiro no calendário, mas o lote
@@ -913,6 +932,9 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
+    if(erroGravacao){
+      texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
+    }
     if(truncou){
       texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
     }
