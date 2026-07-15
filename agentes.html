@@ -421,7 +421,7 @@ const AGS=[
   {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
   {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Analise meu concorrente @perfil','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
-  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Gerar calendário do mês',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
   {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Meta Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Ver campanhas',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?']},
@@ -1082,30 +1082,35 @@ async function subirVideoTrigger(){
 }
 function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
 function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
-// O botão da Estratégia acompanha a etapa REAL do ciclo (mês → aprovação → semana).
-let ETAPA_ESTRATEGIA='mes';
+// Botão da Estratégia: nome FIXO "Estratégia da semana".
+// Só fica clicável quando NÃO há estratégia em execução (aguardando aprovação, copy pendente
+// ou Designer produzindo). Evita o usuário disparar um ciclo em cima de outro.
+let PODE_DETALHAR=false;
 function cmdCalendario(){
-  if(ETAPA_ESTRATEGIA==='semana')return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
-  enviarTexto('Gere o calendário de conteúdo do próximo mês para o meu nicho, com temas, formatos e datas sugeridas.');
+  // Se a semana já está no calendário sem copy, o pedido é detalhar; senão, montar o plano.
+  if(PODE_DETALHAR)return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
+  enviarTexto('Gere a estratégia desta semana para o meu nicho: temas, formatos e datas, conferindo os dias no calendário real.');
 }
 async function atualizarBotaoEstrategia(){
   const b=document.getElementById('btn-cmdCalendario');
   if(!b)return;
+  b.innerHTML='📅 Estratégia da semana';
+  const trava=m=>{b.disabled=true;b.style.opacity='.45';b.style.cursor='not-allowed';b.title=m};
+  const libera=m=>{b.disabled=false;b.style.opacity='';b.style.cursor='';b.title=m};
   const uid=CTX.viewId||CTX.user.id;
-  const set=(txt,on,dica)=>{b.innerHTML=txt;b.disabled=!on;b.style.opacity=on?'':'.45';b.style.cursor=on?'':'not-allowed';b.title=dica||''};
   try{
-    // 1) plano aguardando aprovação → botão travado
-    const{data:apr}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao').limit(1);
-    if(apr&&apr.length)return set('⏳ Aguardando sua aprovação',false,'Vá em Tarefas de serviço e aprove a estratégia para liberar a semana.');
-    // 2) posts da semana sem copy → detalhar a semana
+    const{data:ord}=await JUMP.sb.from('ordens_servico').select('tarefa,status').eq('user_id',uid)
+      .in('status',['aguardando_aprovacao','pendente','processando'])
+      .in('tarefa',['aprovar_estrategia','detalhar_semana','criar_post']);
+    const tem=t=>(ord||[]).some(o=>o.tarefa===t);
+    if(tem('aprovar_estrategia'))return trava('Você tem uma estratégia aguardando aprovação em Tarefas de serviço.');
+    if(tem('detalhar_semana'))return trava('Esta semana já está em andamento — use "Escrever a copy da semana" na caixa de ordens acima.');
+    if(tem('criar_post'))return trava('O Designer está produzindo os criativos desta semana. Aguarde concluir.');
+    // sem ciclo em execução: libera. Se houver posts sem copy, o clique detalha.
     const lim=new Date(Date.now()+7*864e5).toISOString();
     const{data:wk}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').or('copy.is.null,copy.eq.').lte('data_sugerida',lim).limit(1);
-    if(wk&&wk.length){ETAPA_ESTRATEGIA='semana';return set('✍️ Escrever a copy da semana',true,'Escreve headline e copy dos posts desta semana.')}
-    // 3) já existe plano no calendário → semana pronta
-    const{data:tot}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).in('status',['rascunho','aguardando_aprovacao','aprovado']).limit(1);
-    if(tot&&tot.length){ETAPA_ESTRATEGIA='pronto';return set('✓ Semana já detalhada',false,'A copy da semana está pronta. O Designer cuida das artes.')}
-    // 4) nada ainda → montar o mês
-    ETAPA_ESTRATEGIA='mes';set('📅 Gerar calendário do mês',true,'Monta a arquitetura do mês no calendário.');
+    PODE_DETALHAR=!!(wk&&wk.length);
+    libera(PODE_DETALHAR?'Escreve a headline e a copy dos posts desta semana.':'Monta a estratégia desta semana no calendário.');
   }catch(e){}
 }
 function cmdCriativosPend(){enviarTexto('Quais criativos estão pendentes para eu produzir? Liste as ordens de arte na fila e comece pela primeira.');}
