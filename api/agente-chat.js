@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-engine6';
+const VERSAO = '2026.07.15-engine6-tarefas';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -300,6 +300,7 @@ ESCOPO: você cuida só de VÍDEO. Arte estática é com o Designer; estratégia
 };
 
 const REGRAS_GERAIS = `
+NOME PÚBLICO: internamente a base do cliente se chama OS_DATA, mas ao FALAR com o cliente chame SEMPRE de "DNA do Negócio". Nunca escreva "OS_DATA" numa resposta visível — soa técnico e o cliente não sabe o que é.
 REGRAS DO JUMP OS:
 - Responda SEMPRE em português brasileiro, direto e aplicável ao nicho do cliente (use as MEMÓRIAS abaixo).
 - ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
@@ -794,7 +795,8 @@ const handler = async (req, res) => {
           if(imgs.length&&!(Array.isArray(ja)&&ja.length)){
             await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
               method:'POST',headers:H(),
-              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgs.length+' imagem(ns))',status:'pendente',total:imgs.length,progresso:0})
+              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgs.length+' imagem(ns))',status:'pendente',total:imgs.length,progresso:0,
+              payload:{periodo:'Semana '+Math.ceil(new Date().getDate()/7)+' · '+new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}})
             }).catch(()=>{});
           }
         }catch(e){}

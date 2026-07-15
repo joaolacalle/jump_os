@@ -167,7 +167,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -276,7 +276,8 @@ module.exports = async (req, res) => {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
       preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
-      const instr = engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo }) + preserva;
+      // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
+      const instr = (engine === false ? prompt : engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo })) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
       form.append('quality', 'medium');
@@ -302,7 +303,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const promptSemLogo = engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo }) + extra;
+      const promptSemLogo = (engine === false ? prompt : engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo })) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
