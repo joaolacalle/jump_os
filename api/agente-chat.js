@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-engine6-tarefas';
+const VERSAO = '2026.07.15-cota-perfil';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -156,6 +156,12 @@ Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos
 Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
 Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
 Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
+
+REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
+- Frequência realista: 3-5 posts/semana. NUNCA mais de 1 post por dia. Distribua os dias (ex.: seg/qua/sex), nunca amontoe.
+- Mix: carrossel é o formato mais forte (saves); reels só conforme o PERFIL DE CAPTAÇÃO do cliente; feed complementa.
+- Respeite SEMPRE a cota de artes do plano informada no contexto.
+- Não repita temas já usados. Cada post tem um pilar (educação/prova/autoridade/oferta/bastidor).
 
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
@@ -626,6 +632,22 @@ const handler = async (req, res) => {
       dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
     }
 
+    // COTA DO PLANO: a Estratégia PRECISA saber quantas artes cabem, senão amontoa posts.
+    let cotaTxt='';
+    if(agente==='estrategia'){
+      const limImg=Number((cli.limites||{}).imagens||0);
+      const usImg=Number((cli.uso||{}).imagens||0);
+      const rest=Math.max(0,limImg-usImg);
+      const perfil=((cli.preferencias||{}).perfil_video)||'';
+      const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
+                 medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
+                 pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
+      cotaTxt='\n\n═══ COTA E CAPACIDADE (OBRIGATÓRIO RESPEITAR) ═══'+
+        (limImg?('\nARTES DO PLANO: '+limImg+' imagens/mês · já usadas '+usImg+' · RESTAM '+rest+'. NUNCA planeje mais artes (feed/carrossel/story) do que restam. Distribua ao longo do período — no máximo 1 post por dia, nunca amontoe vários no mesmo dia.'):'')+
+        (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
+        '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).';
+    }
+
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
     let semanaTxt='';
     if(agente==='estrategia'){
@@ -640,7 +662,7 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}${semanaTxt}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{

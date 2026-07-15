@@ -238,7 +238,7 @@ module.exports = async (req, res) => {
       // REGRA CARROSSEL: foto/produto reais SÓ no primeiro slide (capa).
       const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
       // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
-      if (tipo === 'pessoal' && primeiroSlide) {
+      if ((tipo === 'pessoal' || tipo === 'pessoa_conceito') && primeiroSlide) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
         // PERMUTAÇÃO: alterna entre as fotos da pasta (nunca repete a mesma) — usa as mais recentes.
         if (Array.isArray(fotos) && fotos.length) {
@@ -299,6 +299,7 @@ module.exports = async (req, res) => {
       // text-to-image: pessoa_conceito pode criar gente genérica; conceitual sem pessoa
       let extra = ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting in the image — leave brand space clean (the real logo is added separately). All text spelling 100% correct in Portuguese (ç ã õ é á), perfect kerning, no melted/fused letters.';
       if (tipo === 'pessoa_conceito') {
+        // Só cai aqui se o cliente NÃO tem foto na pasta (senão usa a real, acima).
         extra += ' Includes a realistic generic person/people (not a specific real individual), photorealistic, never illustration or cartoon.';
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
