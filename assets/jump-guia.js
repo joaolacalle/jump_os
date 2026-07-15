@@ -36,7 +36,7 @@
   }
   const PASSOS=[
     {ico:'🚀',t:'Bem-vindo ao JUMP OS',d:'Sua agência de marketing com IA. Em poucos minutos você tem um mês de conteúdo planejado, criado e publicado — sem sair daqui.',steps:[
-      {n:'1',t:'Complete seu OS_DATA',d:'Os agentes de Identidade, Mercado e Diagnóstico aprendem sobre o seu negócio. É a base de tudo.'},
+      {n:'1',t:'Complete seu DNA do Negócio',d:'Os agentes de Identidade, Mercado e Diagnóstico aprendem sobre o seu negócio. É a base de tudo.'},
       {n:'2',t:'Conecte seu Instagram',d:'Sem a conexão, o sistema não mede resultados nem publica por você.'}]},
     {ico:'📋',t:'Como o trabalho acontece',d:'Os agentes conversam entre si. Você aprova — eles executam.',steps:[
       {n:'1',t:'Estratégia monta o mês',d:'Peça o plano ao Agente de Estratégia. Ele desenha o calendário inteiro.'},
