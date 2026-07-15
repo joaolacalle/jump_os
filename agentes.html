@@ -540,6 +540,7 @@ async function executarOrdens(btn){
       if(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0){
         const ok=await executarLoteCriativos(uid,o);
         if(ok===false){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}return} // parou por cota: mantém pendente
+        if(ok==='vazio'){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}continue} // nada produzido: a ordem CONTINUA pendente
       }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
         await gerarFichaTecnica(uid);
       }else{
@@ -573,8 +574,8 @@ async function executarLoteCriativos(uid,ordem){
   // O Designer só faz IMAGEM: reels/vídeo ficam com o cliente (upload) e não entram no lote.
   pend=(pend||[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
   if(!pend||!pend.length){
-    addMsg('a','Não encontrei conteúdos planejados no calendário para esta semana. Peça o plano ao Agente de Estratégia primeiro — eu gero as artes a partir dele.');
-    return true;
+    addMsg('a','Não encontrei conteúdos aprovados no calendário para esta semana. Peça o plano ao Agente de Estratégia e aprove a estratégia em Tarefas — aí eu gero as artes. Deixei a ordem pendente.');
+    return 'vazio';
   }
   addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
   let feitos=0;
