@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-effort-low';
+const VERSAO = '2026.07.15-fallback-fix';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -366,6 +366,19 @@ const handler = async (req, res) => {
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
       modelo: MODEL(),
       modelo_estrategia: MODEL_DE('estrategia'),
+      teste_modelo_estrategia: await (async()=>{
+        try{
+          const t=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+            body:JSON.stringify({model:MODEL_DE('estrategia'),max_tokens:4,messages:[{role:'user',content:'oi'}],
+              ...(MODEL_DE('estrategia')!==MODEL()?{effort:'low'}:{})}),
+          });
+          if(t.ok)return MODEL_DE('estrategia')+' ACESSÍVEL ✅';
+          const j=await t.json().catch(()=>({}));
+          return 'FALHOU ❌ '+String((j.error&&j.error.message)||t.status).slice(0,120);
+        }catch(e){return 'erro: '+e.message}
+      })(),
     });
   }
   if (req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
@@ -644,19 +657,22 @@ const handler = async (req, res) => {
       }),
     });
     let data=await aRes.json();
-    if(!aRes.ok && /model|effort|thinking|not permitted|unexpected/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
-      // AGENT_MODEL_ESTRATEGIA inválido → não derruba o agente: repete no modelo padrão.
+    let respOk=aRes.ok; // NÃO usar aRes.ok direto: Response.ok é somente leitura (o fallback abaixo precisa marcar sucesso)
+    if(!respOk && /model|effort|thinking|not permitted|unexpected|invalid/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
+      // AGENT_MODEL_ESTRATEGIA inválido/recusado → não derruba o agente: repete no modelo padrão.
       console.error('modelo/param da estratégia recusado, usando padrão:',MODEL_DE(agente),JSON.stringify(data).slice(0,160));
       const rf=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
         body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages}),
       });
-      if(rf.ok){data=await rf.json();aRes.ok=true}
+      if(rf.ok){data=await rf.json();respOk=true}
     }
-    if(!aRes.ok){
+    if(!respOk){
+      const msg=(data&&data.error&&data.error.message)||'';
       console.error('anthropic:',JSON.stringify(data).slice(0,300));
-      return res.status(500).json({error:'O agente está indisponível agora. Tente em instantes.'});
+      // Mensagem útil em vez de "indisponível": diz o que houve (ex.: nome de modelo errado).
+      return res.status(500).json({error:'O agente não respondeu.'+(msg?(' Motivo: '+String(msg).slice(0,160)):' Tente em instantes.')});
     }
     let texto=(data.content||[]).map(c=>c.text||'').join('');
     // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
