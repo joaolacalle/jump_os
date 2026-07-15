@@ -5,6 +5,85 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'application/json' });
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JUMP OS — CONTENT ENGINE 6.0 VISUAL (BLOCO IMUTÁVEL)
+// Este engine NÃO pode ser resumido, encurtado nem reescrito por nenhum agente.
+// Os agentes só PREENCHEM as variáveis (tema/headline/copy) — o resto é lei.
+// ═══════════════════════════════════════════════════════════════════════════
+function engine6(M, o) {
+  const P1 = M.paleta_primaria || '', P2 = M.paleta_secundaria || '', P3 = M.paleta_terciaria || '';
+  const CTA = M.cor_cta || P1 || '';
+  const T1 = M.tipografia_primaria || '', T2 = M.tipografia_secundaria || '';
+  const DNA = M.dna_visual || M.estilo_visual || '';
+  const paleta = [P1, P2, P3].filter(Boolean).join(', ');
+  const reels = String(o.formato || '').toLowerCase().indexOf('reel') >= 0 || String(o.formato || '').toLowerCase().indexOf('story') >= 0;
+  const intens = (M.intensidade_visual || 'MEDIA').toUpperCase();
+  const vazio = { BAIXA: '70%', MEDIA: '55-60%', 'MÉDIA': '55-60%', ALTA: '40-50%', EXTREMA: '25-35%' }[intens] || '55-60%';
+  const elems = { MINIMAL: '2-4', BALANCED: '4-7', DENSE: '8-12' }[(M.complexidade_visual || 'BALANCED').toUpperCase()] || '4-7';
+  const temp = (M.temperatura_emocional || 'PREMIUM').toUpperCase();
+  const estilo = (M.estilo_visual || 'EDITORIAL').toUpperCase();
+
+  return [
+    'You are an art director creating premium Instagram content following a professional design system. Execute EVERY rule below — they are non-negotiable.',
+    reels ? 'FORMAT: vertical 1080x1920 single frame.' : 'FORMAT: Instagram feed/carousel slide.',
+    o.total > 1 ? ('CAROUSEL slide ' + (o.slide || 1) + ' of ' + o.total + ': keep grid, composition, lighting, hierarchy, palette, intensity, complexity and temperature IDENTICAL to the other slides. Change ONLY label, headline, specific visual element and support copy.') : '',
+    '',
+    '=== 1. LOCKED PALETTE (CRITICAL) ===',
+    paleta ? ('Use EXCLUSIVELY these colors: ' + paleta + '. CTA color: ' + CTA + ' with locked saturation. Validate before rendering: am I using ONLY these colors? If an external color appears, STOP and fix.') : 'Use a restrained, consistent premium palette (max 3 colors).',
+    T1 || T2 ? ('Typography: headline in ' + (T1 || 'a bold grotesque') + ' Bold; support copy in ' + (T2 || T1 || 'a clean sans') + '.') : '',
+    DNA ? ('Brand visual DNA: ' + DNA) : '',
+    '',
+    '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
+    'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
+    'If it does not fit: 1st remove support copy, 2nd shorten headline. LESS text > MORE text.',
+    '',
+    '=== 3. EVIDENT LABEL ===',
+    'The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.',
+    '',
+    '=== 4. BRANDING ===',
+    'ALLOWED: brand name as plain text, minimalist typographic signature. FORBIDDEN: graphic symbol, icon logo, crest, emblem, complex monogram, invented handwriting.',
+    '',
+    '=== 5. READING PRIORITY ===',
+    'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
+    '',
+    '=== 6. PHOTOGRAPHIC FOCUS CONTROL ===',
+    'Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.',
+    '',
+    '=== 7. MANDATORY NEGATIVE SPACE ===',
+    'Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.',
+    '',
+    '=== 8. VISUAL DEPTH (ANTI-FLAT) — 3 MANDATORY LAYERS ===',
+    'FOREGROUND: light overlays, sticker cutouts, opacity 80-100%. MIDGROUND: headline, photo, labels, copy, CTA, opacity 100%. BACKGROUND: base, subtle textures, technical grid, opacity 20-60%. Subtle shadows (stickers 10-15% opacity, 8px offset), controlled overlap, selective background blur.',
+    '',
+    '=== 9. VISUAL MOVEMENT ===',
+    'Eye flow: headline → visual → label → CTA. Strategic diagonals, human gaze pointing to headline/CTA, subtle arrows in ' + (CTA || 'CTA color') + ' (2-3px stroke), progressive contrast (max at headline, decreasing on details).',
+    '',
+    '=== 10. TEXT TREATMENT (ANTI-GLITCH) ===',
+    'Portuguese text 100% correct (ç ã õ é á), perfectly legible, clean alignment, no deformation, no fused or melted letters, no wrong line breaks, consistent kerning, readable on mobile.',
+    '',
+    '=== 11. HUMAN MODE ===',
+    'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
+    '',
+    '=== 12. SAFE ZONES ===',
+    reels ? 'REELS: 250px top (Instagram UI), 90px sides, 320px bottom (buttons + caption). NEVER place important text there.'
+          : 'CAROUSEL/FEED: 120px top, 90px sides, 140px bottom. NEVER place important text there.',
+    '',
+    '=== 13. PARAMETERS ===',
+    'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
+    '',
+    '=== CONTENT OF THIS PIECE ===',
+    'LABEL: "' + String(o.label || o.pilar || 'JUMP').toUpperCase() + '"',
+    'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
+    o.copy ? ('SUPPORT COPY (max 6 words, extract the essence): "' + String(o.copy).slice(0, 90) + '"') : '',
+    'CTA (max 2 words): "' + (o.cta || (o.total > 1 ? 'SWIPE →' : 'SAIBA MAIS')) + '"',
+    o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
+    '',
+    'QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?',
+  ].filter(Boolean).join('\n');
+}
+
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -88,7 +167,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -133,6 +212,13 @@ module.exports = async (req, res) => {
     const size = tamanho === '4:5' ? '1024x1536' : tamanho === '16:9' ? '1536x1024' : '1024x1024';
 
     // Buscar imagens base do acervo: logo SEMPRE; foto pessoal se for post de pessoa
+    // OS_DATA REAL: sem isto o prompt pedia "siga a identidade visual" sem NUNCA enviar as cores/fontes.
+    const M6 = {};
+    try {
+      const mems = await fetch(`${SUPABASE_URL}/rest/v1/memorias?user_id=eq.${targetId}&select=chave,valor`, { headers: SBH() }).then(r => r.json());
+      (Array.isArray(mems) ? mems : []).forEach(m => { M6[m.chave] = m.valor; });
+    } catch (e) {}
+
     const baseImgs = [];
     async function baixarImg(url) {
       try {
@@ -153,13 +239,21 @@ module.exports = async (req, res) => {
       const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
       // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
       if (tipo === 'pessoal' && primeiroSlide) {
-        const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
-        if (Array.isArray(fotos) && fotos[0]) { const im = await baixarImg(fotos[0].url); if (im) baseImgs.push({ ...im, tag: 'pessoa' }); }
+        const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
+        // PERMUTAÇÃO: alterna entre as fotos da pasta (nunca repete a mesma) — usa as mais recentes.
+        if (Array.isArray(fotos) && fotos.length) {
+          const esc = fotos[(Math.max(0, Number(slide || 1) - 1) + (uso.imagens || 0)) % fotos.length];
+          const im = await baixarImg(esc.url); if (im) baseImgs.push({ ...im, tag: 'pessoa' });
+        }
       }
       // TIPO 'produto' = FOTO REAL do produto (intocável). Só no 1º slide.
       if (tipo === 'produto' && primeiroSlide) {
-        const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
-        if (Array.isArray(prods) && prods[0]) { const im = await baixarImg(prods[0].url); if (im) baseImgs.push({ ...im, tag: 'produto' }); }
+        const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
+        // PRODUTO: usa as MAIS RECENTES da pasta, alternando entre elas a cada criativo.
+        if (Array.isArray(prods) && prods.length) {
+          const esc = prods[(uso.imagens || 0) % prods.length];
+          const im = await baixarImg(esc.url); if (im) baseImgs.push({ ...im, tag: 'produto' });
+        }
       }
       // TIPO 'pessoa_conceito' = pessoa GENÉRICA criada pela IA (família, dormindo, equipe) → NÃO usa foto real (text-to-image livre).
       // TIPO 'conceitual' = sem pessoa → também text-to-image livre.
@@ -182,10 +276,13 @@ module.exports = async (req, res) => {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
       preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
-      const instr = prompt + preserva;
+      const instr = engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo }) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
       form.append('quality', 'medium');
+      // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
+      // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
+      form.append('input_fidelity', 'high');
       // Ordem: referência principal (pessoa/produto) primeiro, logo por último
       const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
       baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
@@ -205,7 +302,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const promptSemLogo = prompt + extra;
+      const promptSemLogo = engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo }) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },

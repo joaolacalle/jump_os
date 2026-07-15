@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-fallback-fix';
+const VERSAO = '2026.07.15-engine6';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -372,7 +372,7 @@ const handler = async (req, res) => {
             method:'POST',
             headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
             body:JSON.stringify({model:MODEL_DE('estrategia'),max_tokens:4,messages:[{role:'user',content:'oi'}],
-              ...(MODEL_DE('estrategia')!==MODEL()?{effort:'low'}:{})}),
+              ...(MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{})}),
           });
           if(t.ok)return MODEL_DE('estrategia')+' ACESSÍVEL ✅';
           const j=await t.json().catch(()=>({}));
@@ -652,7 +652,7 @@ const handler = async (req, res) => {
         // Modelos novos (Sonnet 5/Opus) vêm com raciocínio 'high' por padrão e estouram os 60s da
         // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
         // modelo dedicado — o haiku padrão não aceita este parâmetro.
-        ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{effort:'low'}:{}),
+        ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{}),
         ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{})
       }),
     });
@@ -661,12 +661,22 @@ const handler = async (req, res) => {
     if(!respOk && /model|effort|thinking|not permitted|unexpected|invalid/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
       // AGENT_MODEL_ESTRATEGIA inválido/recusado → não derruba o agente: repete no modelo padrão.
       console.error('modelo/param da estratégia recusado, usando padrão:',MODEL_DE(agente),JSON.stringify(data).slice(0,160));
-      const rf=await fetch('https://api.anthropic.com/v1/messages',{
+      // 1ª tentativa: MESMO modelo forte, sem os parâmetros extras (mantém a qualidade)
+      const r1=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-        body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages}),
+        body:JSON.stringify({model:MODEL_DE(agente),max_tokens:8000,system,messages}),
       });
-      if(rf.ok){data=await rf.json();respOk=true}
+      if(r1.ok){data=await r1.json();respOk=true}
+      else{
+        // 2ª: modelo padrão (último recurso)
+        const rf=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+          body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages}),
+        });
+        if(rf.ok){data=await rf.json();respOk=true}
+      }
     }
     if(!respOk){
       const msg=(data&&data.error&&data.error.message)||'';
@@ -771,9 +781,12 @@ const handler = async (req, res) => {
           if(r.ok)detalhados++;
         }catch(e){}
       }
-      // Detalhou a semana → o Designer já pode gerar as artes (SÓ imagens).
+      // Detalhou a semana → dá BAIXA na própria ordem e libera o Designer (SÓ imagens).
       if(detalhados>0){
         try{
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.detalhar_semana&status=in.(pendente,processando)`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',progresso:detalhados,concluida_em:new Date().toISOString()})
+          }).catch(()=>{});
           const lim=new Date(Date.now()+7*864e5).toISOString();
           const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
           const imgs=(Array.isArray(wk)?wk:[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
