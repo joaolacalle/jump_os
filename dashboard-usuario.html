@@ -43,7 +43,9 @@
 .agc-lock{position:absolute;top:11px;right:11px;font-size:10px;font-family:var(--M);color:var(--t3)}
 .ag-grid8{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .acts4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
-.act{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;transition:.22s;display:flex;flex-direction:column;gap:6px}
+.act{background:var(--card);border:1px solid var(--bd);border-radius:11px;padding:11px 12px;transition:.22s;display:flex;flex-direction:column;gap:3px}
+.act .a-t{font-size:12.5px}
+.act .a-d{font-size:10.5px;line-height:1.35}
 .act:hover{border-color:rgba(168,85,247,.35);transform:translateY(-2px)}
 .act-t{font-size:13.5px;font-weight:800;text-transform:uppercase;color:var(--t1)}
 .act-b{font-size:11.5px;color:var(--t2);line-height:1.45}
@@ -118,12 +120,63 @@
     <div id="tasks-list"></div>
   </div>
 
+  <!-- AÇÕES -->
+  <div class="sec-lbl">Ações rápidas</div>
+  <div class="acts4">
+    <a href="agentes.html" class="act"><span>💬</span><div class="act-t">Falar com agentes</div><div class="act-b">Check-in, roteiros e estratégia.</div><div class="act-go">Abrir →</div></a>
+    <a href="calendario.html" class="act"><span>📅</span><div class="act-t">Calendário</div><div class="act-b">Plano editorial do mês.</div><div class="act-go">Abrir →</div></a>
+    <a href="aprovar.html" class="act"><span>✓</span><div class="act-t">Aprovar conteúdo</div><div class="act-b">Revise antes de publicar.</div><div class="act-go">Revisar →</div></a>
+    <a href="historico.html" class="act"><span>📊</span><div class="act-t">Resultados</div><div class="act-b">Relatórios de performance.</div><div class="act-go">Ver →</div></a>
+  </div>  <!-- INSTAGRAM STATS — flip -->
+  <div class="sec-lbl">Instagram — desempenho
+    <span style="margin-left:auto;display:inline-flex;gap:5px">
+      <span class="per-btn on" data-d="30" onclick="setPeriodo(30,this)">30d</span>
+      <span class="per-btn" data-d="60" onclick="setPeriodo(60,this)">60d</span>
+      <span class="per-btn" data-d="90" onclick="setPeriodo(90,this)">90d</span>
+    </span>
+  </div>
+  <div class="fs-grid" id="ig-stats"></div>
+  <div id="per-aviso" style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;line-height:1.5"></div>
+
   <!-- CARROSSEL: criativos a aprovar (só aparece quando há pendentes) -->
   <div id="aprovar-carrossel" style="display:none;margin-bottom:16px">
     <div class="sec-lbl" style="margin-top:0">Criativos para aprovar <span class="apr-count" id="apr-count"></span>
       <a href="calendario.html" class="btn btn-o btn-sm" style="margin-left:auto">Ver calendário →</a>
     </div>
     <div class="apr-track" id="apr-track"></div>
+  </div>
+
+  <!-- ADS STATS — flip -->
+  <div class="sec-lbl">Meta Ads — resultados</div>
+  <div class="fs-grid" id="ads-stats"></div>
+  <!-- Sugestões do Agente de Tráfego (Pro) -->
+  <div class="ads-pro" id="ads-pro" style="display:none">
+    <div class="ads-pro-h"><span style="font-size:18px">📢</span><div class="ads-pro-t">Sugestões do Agente de Tráfego</div><span class="pill pill-p" style="margin-left:auto">Pro</span></div>
+    <div id="traf-sugestoes"></div>
+  </div>
+  <div class="card" id="ads-upsell" style="display:none;margin-top:12px;border-color:rgba(168,85,247,.25)">
+    <div style="font-size:13px;color:var(--t2);line-height:1.6">🔒 <strong style="color:var(--pu)">Gestão e correção de tráfego pelo Agente</strong> — sugestões de otimização, realocação de budget e direção de correção estão disponíveis no <strong>plano Pro</strong>. Seu plano atual mostra o resumo dos resultados.</div>
+  </div>
+
+  <!-- AGENTES -->
+  <div class="sec-lbl">Seus agentes</div>
+  <div class="ag-grid8" id="ag-grid"></div>
+
+  <!-- CAIXA DE TOKENS -->
+  <div class="card" id="tok-box" style="display:none;margin-bottom:14px;border-color:rgba(var(--g-rgb),.3)">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎨 Infográficos do mês</div>
+        <div class="bar" style="margin-top:6px"><div class="bar-f" id="img-bar" style="width:0%"></div></div>
+        <div class="bar-l" id="img-lbl">—</div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎬 Edições de vídeo do mês</div>
+        <div class="bar" style="margin-top:6px"><div class="bar-f" id="vid-bar" style="width:0%"></div></div>
+        <div class="bar-l" id="vid-lbl">—</div>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="solicitarMais(this)">Solicitar mais →</button>
+    </div>
   </div>
 
   <!-- RECADOS -->
@@ -147,61 +200,12 @@
     </div>
   </div>
 
-  <!-- CAIXA DE TOKENS -->
-  <div class="card" id="tok-box" style="display:none;margin-bottom:14px;border-color:rgba(var(--g-rgb),.3)">
-    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎨 Infográficos do mês</div>
-        <div class="bar" style="margin-top:6px"><div class="bar-f" id="img-bar" style="width:0%"></div></div>
-        <div class="bar-l" id="img-lbl">—</div>
-      </div>
-      <div style="flex:1;min-width:200px">
-        <div style="font-size:13px;font-weight:800;color:var(--t1)">🎬 Edições de vídeo do mês</div>
-        <div class="bar" style="margin-top:6px"><div class="bar-f" id="vid-bar" style="width:0%"></div></div>
-        <div class="bar-l" id="vid-lbl">—</div>
-      </div>
-      <button class="btn btn-o btn-sm" onclick="solicitarMais(this)">Solicitar mais →</button>
-    </div>
-  </div>
 
-  <!-- INSTAGRAM STATS — flip -->
-  <div class="sec-lbl">Instagram — desempenho
-    <span style="margin-left:auto;display:inline-flex;gap:5px">
-      <span class="per-btn on" data-d="30" onclick="setPeriodo(30,this)">30d</span>
-      <span class="per-btn" data-d="60" onclick="setPeriodo(60,this)">60d</span>
-      <span class="per-btn" data-d="90" onclick="setPeriodo(90,this)">90d</span>
-    </span>
-  </div>
-  <div class="fs-grid" id="ig-stats"></div>
-
-  <!-- ADS STATS — flip -->
-  <div class="sec-lbl">Meta Ads — resultados</div>
-  <div class="fs-grid" id="ads-stats"></div>
-  <!-- Sugestões do Agente de Tráfego (Pro) -->
-  <div class="ads-pro" id="ads-pro" style="display:none">
-    <div class="ads-pro-h"><span style="font-size:18px">📢</span><div class="ads-pro-t">Sugestões do Agente de Tráfego</div><span class="pill pill-p" style="margin-left:auto">Pro</span></div>
-    <div id="traf-sugestoes"></div>
-  </div>
-  <div class="card" id="ads-upsell" style="display:none;margin-top:12px;border-color:rgba(168,85,247,.25)">
-    <div style="font-size:13px;color:var(--t2);line-height:1.6">🔒 <strong style="color:var(--pu)">Gestão e correção de tráfego pelo Agente</strong> — sugestões de otimização, realocação de budget e direção de correção estão disponíveis no <strong>plano Pro</strong>. Seu plano atual mostra o resumo dos resultados.</div>
-  </div>
-
-  <!-- AGENTES -->
-  <div class="sec-lbl">Seus agentes</div>
-  <div class="ag-grid8" id="ag-grid"></div>
-
-  <!-- AÇÕES -->
-  <div class="sec-lbl">Ações rápidas</div>
-  <div class="acts4">
-    <a href="agentes.html" class="act"><span>💬</span><div class="act-t">Falar com agentes</div><div class="act-b">Check-in, roteiros e estratégia.</div><div class="act-go">Abrir →</div></a>
-    <a href="calendario.html" class="act"><span>📅</span><div class="act-t">Calendário</div><div class="act-b">Plano editorial do mês.</div><div class="act-go">Abrir →</div></a>
-    <a href="aprovar.html" class="act"><span>✓</span><div class="act-t">Aprovar conteúdo</div><div class="act-b">Revise antes de publicar.</div><div class="act-go">Revisar →</div></a>
-    <a href="historico.html" class="act"><span>📊</span><div class="act-t">Resultados</div><div class="act-b">Relatórios de performance.</div><div class="act-go">Ver →</div></a>
-  </div>
 </main>
 </div>
 
 <script src="assets/jump-core.js"></script>
+<script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
   {ico:'🎨',n:'Identidade',nc:'rgba(168,85,247,.9)',nr:'168,85,247',min:1},
@@ -329,7 +333,8 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* MÉTRICAS — zeros quando não conectado; dados reais de `metricas` quando houver */
     let m={alcance:0,seguidores:0,engaj:0,posts:0,investido:0,roas:0,cpl:0,cliques:0};
     try{
-      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).order('data_coleta',{ascending:false}).limit(1);
+      const{data:mt}=await JUMP.sb.from('metricas').select('*').eq('user_id',uid).order('data_coleta',{ascending:false}).limit(120);
+      METRICAS=mt||[];
       if(mt&&mt[0]){
         const r=mt[0];
         m.seguidores=r.seguidores||0;
@@ -344,11 +349,7 @@ function flipCard(id,nr,num,lbl,backT,backX){
       if(igMeta.ig_media!==undefined&&igMeta.ig_media)m.posts=igMeta.ig_media;
     }
 
-    document.getElementById('ig-stats').innerHTML=
-      flipCard('a','var(--g-rgb)',JUMP.fmtNum(m.alcance),'Alcance','O que é alcance',igOn?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
-      flipCard('b','var(--g-rgb)',JUMP.fmtNum(m.seguidores),'Seguidores','Crescimento',igOn?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
-      flipCard('c','var(--g-rgb)',(m.engaj||0)+'%','Engajamento','Taxa de engajamento',igOn?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
-      flipCard('d','var(--g-rgb)',JUMP.fmtNum(m.posts),'Posts no mês','Frequência',igOn?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
+    renderIG(m,igOn);
 
     const adsBack=level>=3
       ?['Investimento total no período. O Agente de Tráfego realoca o budget diariamente entre os 4 públicos.','Retorno sobre investimento. Abaixo de 2x o Agente sugere correção de criativo ou público.','Custo por lead. O Agente compara com o benchmark do nicho e ajusta as campanhas.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
@@ -443,6 +444,12 @@ function flipCard(id,nr,num,lbl,backT,backX){
     window._ctx=ctx;
     document.getElementById('loading').classList.add('hide');
     ativarTilt();
+    // GUIA: manual prático na 1ª visita + dicas contextuais (uma vez cada)
+    try{
+      JUMPGUIA.init(uid);
+      if(!ver)JUMPGUIA.boasVindas();
+      if((window._apr||[]).length)JUMPGUIA.dica('tem_criativos','Seus criativos estão prontos. Aprove aqui e o Agente de Publicação posta na data agendada — depois de aprovado, o post não pode mais ser editado.','Criativos prontos');
+    }catch(e){}
     // 4b: Criativo gera as artes planejadas da semana em segundo plano (respeita a cota do plano/trial)
     if(!(TASKS.length&&feitas<TASKS.length))autoGerarSemana(uid);
   }catch(e){if(e.message!=='no-session'&&e.message!=='no-role')console.error(e)}
@@ -522,10 +529,40 @@ async function recusarConteudo(id,btn){
     renderAprovacoes();
   }catch(e){btn.disabled=false;JUMP.toast('Não foi possível recusar. Tente de novo.','err')}
 }
+// 30/60/90 usa SOMENTE as métricas coletadas pelo nosso sistema (tabela `metricas`).
+// Antes isso era um botão que só dava um aviso e não trocava nada.
+let PERIODO=30, METRICAS=[];
+function renderIG(mm,IGON){
+  document.getElementById('ig-stats').innerHTML=
+      flipCard('a','var(--g-rgb)',JUMP.fmtNum(mm.alcance),'Alcance','O que é alcance',IGON?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
+      flipCard('b','var(--g-rgb)',JUMP.fmtNum(mm.seguidores),'Seguidores','Crescimento',IGON?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
+      flipCard('c','var(--g-rgb)',(mm.engaj||0)+'%','Engajamento','Taxa de engajamento',IGON?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
+      flipCard('d','var(--g-rgb)',JUMP.fmtNum(mm.posts),'Posts no mês','Frequência',IGON?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
+
+}
 function setPeriodo(dias,el){
   document.querySelectorAll('.per-btn').forEach(b=>b.classList.toggle('on',b===el));
-  // recarrega métricas do período (por ora usa o mesmo dado; quando a API trouxer 60/90 troca aqui)
-  JUMP.toast('Período: últimos '+dias+' dias');
+  PERIODO=dias;
+  aplicarPeriodo();
+}
+function aplicarPeriodo(){
+  const av=document.getElementById('per-aviso');
+  const desde=Date.now()-PERIODO*864e5;
+  const jan=(METRICAS||[]).filter(x=>new Date(x.data_coleta||x.created_at||0).getTime()>=desde);
+  if(!jan.length){
+    if(av)av.innerHTML='⚠️ Ainda não há coletas nos últimos '+PERIODO+' dias. <b>Este filtro usa apenas os dados que o JUMP OS coletou</b> desde que você conectou a conta — não é o histórico do Instagram.';
+    return;
+  }
+  const ult=jan[0]||{}; // mais recente
+  const med=k=>Math.round(jan.reduce((t,x)=>t+(Number(x[k])||0),0)/jan.length);
+  const mm={
+    alcance:med('alcance')||med('alcance_30d'),
+    seguidores:Number(ult.seguidores)||0,
+    engaj:Math.round((jan.reduce((t,x)=>t+(Number(x.engajamento_30d)||0),0)/jan.length)*10)/10,
+    posts:Number(ult.posts!=null?ult.posts:(ult.total_posts||0))||0
+  };
+  renderIG(mm,true);
+  if(av)av.innerHTML='Últimos '+PERIODO+' dias · <b>'+jan.length+' coleta(s)</b> do JUMP OS. Este filtro considera apenas os dados coletados pelo nosso sistema.';
 }
 async function solicitarMais(btn){
   btn.disabled=true;btn.textContent='Enviando...';

@@ -52,6 +52,7 @@
 </div>
 
 <script src="assets/jump-core.js"></script>
+<script src="assets/jump-guia.js"></script>
 <script>
 let CTX={}, TODAS=[], FILTRO='ativa';
 const AGINFO={
@@ -86,6 +87,7 @@ function tempoDecorrido(iso){
 
 let VIDEOS=[];
 async function carregar(){
+  try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
   try{
     const d=await JUMP.api('minhas_ordens',{},CTX.token);
     TODAS=d.ordens||[];
@@ -122,15 +124,17 @@ async function aprovarOrdem(id,btn){
       if(lista.length){
         await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
       }
-      const ehImagem=f=>{const x=String(f||'feed').toLowerCase();return x.indexOf('reel')<0&&x.indexOf('video')<0&&x.indexOf('vídeo')<0};
+      // CICLO SEMANAL: o mês entra no calendário como arquitetura; a semana é detalhada
+      // (copy/headline/roteiro) pela Estratégia e só então o Designer gera as artes.
       const lim=Date.now()+7*864e5;
-      const imgsSemana=lista.filter(c=>ehImagem(c.formato)&&(!c.data_sugerida||new Date(c.data_sugerida).getTime()<=lim));
+      const daSemana=lista.filter(c=>!c.data_sugerida||new Date(c.data_sugerida).getTime()<=lim);
       const novas=[];
-      if(imgsSemana.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgsSemana.length+' imagem(ns))',status:'pendente',total:imgsSemana.length,progresso:0});
+      if(daSemana.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0});
       if(lista.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário nas datas agendadas ('+lista.length+' post(s))',status:'pendente',total:lista.length,progresso:0});
       if(novas.length)await JUMP.sb.from('ordens_servico').insert(novas);
       await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
-      JUMP.toast('✓ Estratégia aprovada — está no calendário e as ordens foram disparadas.');
+      JUMP.toast('✓ Estratégia aprovada! Está no calendário.');
+      try{JUMPGUIA.dica('estrategia_aprovada','Pronto! O mês está no calendário. Agora abra o <b>Agente de Estratégia</b> e clique em <b>Escrever a copy da semana</b> — em seguida o Designer gera as artes automaticamente.','Estratégia aprovada')}catch(e){}
       await carregar();
       return;
     }

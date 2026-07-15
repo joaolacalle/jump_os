@@ -54,6 +54,23 @@
     <!-- CONTA -->
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="card">
+        <div class="sec-lbl" style="margin-top:0">🔄 Ciclo de produção</div>
+        <div style="font-size:12.5px;color:var(--t2);line-height:1.55;margin-bottom:12px">A Estratégia planeja o mês inteiro no calendário, mas a produção acontece <b>por semana</b>. Escolha o dia em que o sistema abre o lote da semana (copy + artes).</div>
+        <div class="f-group">
+          <label class="f-label">Dia do lote semanal</label>
+          <select class="f-input" id="cfg-dia">
+            <option value="1">Segunda-feira (padrão)</option>
+            <option value="2">Terça-feira</option>
+            <option value="3">Quarta-feira</option>
+            <option value="4">Quinta-feira</option>
+            <option value="5">Sexta-feira</option>
+            <option value="6">Sábado</option>
+            <option value="0">Domingo</option>
+          </select>
+        </div>
+        <button class="btn btn-g btn-sm" onclick="salvarCiclo()">Salvar ciclo</button>
+      </div>
+      <div class="card">
         <div class="sec-lbl" style="margin-top:0">👤 Dados da conta</div>
         <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cfg-nome"></div>
         <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="cfg-tel"></div>
@@ -115,6 +132,9 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
     JUMP.sidebar('config');
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    const _pref=((CTX.viewCliente||CTX.cliente)||{}).preferencias||{};
+    const _sel=document.getElementById('cfg-dia');
+    if(_sel)_sel.value=String(_pref.dia_lote!=null?_pref.dia_lote:1);
     const t=(CTX.viewCliente&&CTX.viewCliente.tema)||CTX.cliente.tema||PADRAO;
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
@@ -207,6 +227,18 @@ document.addEventListener('change',function(e){
 });
 
 // Busca status/próxima cobrança/valor no PayPal (via paypal.js consolidado)
+async function salvarCiclo(){
+  const dia=Number(document.getElementById('cfg-dia').value);
+  const uid=CTX.viewId||CTX.user.id;
+  try{
+    const{data:c}=await JUMP.sb.from('clientes').select('preferencias').eq('id',uid).limit(1);
+    const pref={...(((c&&c[0])||{}).preferencias||{}),dia_lote:dia};
+    const{error}=await JUMP.sb.from('clientes').update({preferencias:pref}).eq('id',uid);
+    if(error)throw error;
+    const nomes=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    JUMP.toast('✓ Lote semanal: toda '+nomes[dia]+'.');
+  }catch(e){JUMP.toast('Não foi possível salvar. Tente de novo.','err')}
+}
 async function carregarAssinatura(plano){
   try{
     const r=await fetch('/api/paypal?action=subscription',{

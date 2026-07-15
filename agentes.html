@@ -413,6 +413,7 @@
 </main>
 </div>
 <script src="assets/jump-core.js"></script>
+<script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
 const LV={basico:1,plus:2,pro:3};
@@ -504,7 +505,8 @@ async function selecionar(id){
       else if(p.tipo==='preview'&&p.d)renderPreview(p.d,p.req);
     }
   }catch(e){}
-  if(id==='criativo')verificarOrdens();
+  if(id==='criativo'||id==='estrategia')verificarOrdens(id);
+  try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
 
@@ -514,16 +516,34 @@ async function logChat(role,texto,agente){
     if(error)console.error('logChat falhou:',error.message);
   }catch(e){console.error('logChat erro:',e)}
 }
-async function verificarOrdens(){
+async function verificarOrdens(alvo){
   try{
-    const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
+    const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',alvo||'criativo').eq('status','pendente').order('created_at',{ascending:true});
     if(!data||!data.length)return;
     const w=document.getElementById('msgs');
     const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
     const box=document.createElement('div');box.className='msg a ordens-box';
-    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div><button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordem agora</button>';
+    // A Estratégia executa escrevendo (detalhar a semana); o Criativo executa gerando as artes.
+    const acao=(alvo==='estrategia')
+      ? '<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>'
+      : '<button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordem agora</button>';
+    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div>'+acao;
     w.appendChild(box);w.scrollTop=w.scrollHeight;
   }catch(e){}
+}
+// Estratégia: detalha a semana (copy/headline/roteiro) e, ao final, o backend cria o lote do Designer.
+async function detalharSemana(btn){
+  const box=btn.closest('.ordens-box');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Escrevendo...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('user_id',uid).eq('para_agente','estrategia').eq('tarefa','detalhar_semana').eq('status','pendente');
+    if(box)box.remove();
+    enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='✍️ Escrever a copy da semana';
+    JUMP.toast('Não consegui iniciar. Tente de novo.','err');
+  }
 }
 
 async function executarOrdens(btn){
@@ -603,6 +623,7 @@ async function executarLoteCriativos(uid,ordem){
     }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
   }
   addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
+  try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
   return true;
 }
 // FICHA TÉCNICA (só quando a ordem pede identidade visual)
@@ -1216,6 +1237,15 @@ async function enviarTexto(txt){
     }else{
       addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
       if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
+      // GUIA: dicas de primeira vez em cada processo
+      if(d.conteudos){
+        JUMP.toast('📅 '+d.conteudos+' post(s) planejados!');
+        try{JUMPGUIA.dica('estrategia_criada','A estratégia foi criada, mas ainda <b>não está no calendário</b>. Vá em <b>Tarefas de serviço</b> e clique em <b>Aprovar estratégia</b> — só então o Designer começa as artes.','Estratégia gerada')}catch(e){}
+      }
+      if(d.detalhados){
+        JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
+        try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta e a ordem já foi enviada ao <b>Designer</b>. Abra o Agente de Criativo e clique em <b>Executar ordem agora</b> para gerar as artes.','Semana detalhada')}catch(e){}
+      }
       if(d.tokens!==undefined)atualizarUso(d.tokens);
       if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
       if(d.aplicar_tema){try{JUMP.applyTheme(Object.assign({bg:'escuro'},d.aplicar_tema));JUMP.toast('🎨 Dashboard personalizada com as cores da sua marca!')}catch(e){}}

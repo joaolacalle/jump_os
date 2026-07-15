@@ -57,6 +57,7 @@
     <button class="ed-x" onclick="fecharEd()">✕</button>
     <div class="ed-tema" id="ed-tema">—</div>
     <div class="ed-meta" id="ed-meta"></div>
+    <div id="ed-trava" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:11px"></div>
     <div class="ed-img" id="ed-img"></div>
     <div class="ed-actsi" id="ed-actsi"></div>
     <label class="ed-lbl">Copy / legenda</label>
@@ -71,6 +72,7 @@
 </div>
 
 <script src="assets/jump-core.js"></script>
+<script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES;
 // CHECK-IN: estágio real de cada publicação (ajuda o Agente de Publicação e o usuário)
@@ -145,11 +147,22 @@ function fmtDataInput(iso){ if(!iso)return''; try{const d=new Date(iso);return d
 function editarConteudo(id){
   EDIT=EVENTOS.find(e=>String(e.id)===String(id)); PREVIEW=null;
   if(!EDIT)return;
+  // TRAVA: aprovado/publicado não pode mais ser editado (já está na fila do Agente de Publicação).
+  const travado=(EDIT.status==='aprovado'||EDIT.status==='publicado');
   document.getElementById('ed-tema').textContent=EDIT.tema||'Conteúdo';
   document.getElementById('ed-meta').innerHTML=JUMP.esc(EDIT.formato||'post')+' · <span class="ck '+checkin(EDIT)[0]+'">'+checkin(EDIT)[1]+'</span>';
   document.getElementById('ed-copy').value=EDIT.copy||'';
   document.getElementById('ed-data').value=fmtDataInput(EDIT.data_agendada||EDIT.data_sugerida);
   renderImgAtual();
+  const av=document.getElementById('ed-trava');
+  document.getElementById('ed-copy').disabled=travado;
+  document.getElementById('ed-data').disabled=travado;
+  document.getElementById('ed-salvar').style.display=travado?'none':'';
+  document.getElementById('ed-actsi').style.display=travado?'none':'';
+  if(av)av.style.display=travado?'block':'none';
+  if(av&&travado)av.innerHTML=EDIT.status==='publicado'
+    ? '🔒 <b>Publicado.</b> Este post já foi ao ar e não pode ser alterado.'
+    : '🔒 <b>Aprovado e na fila de publicação.</b> Para preservar o que foi aprovado, não é possível editar. Recuse o post em Aprovações se precisar mudar algo.';
   document.getElementById('ed-modal').style.display='flex';
 }
 function renderImgAtual(){
