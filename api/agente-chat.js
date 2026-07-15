@@ -5,8 +5,11 @@
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
+// A Estratégia é a tarefa mais complexa do sistema: pode usar um modelo mais forte.
+// Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
+const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.14-schema-fix';
+const VERSAO = '2026.07.15-ciclo-semanal';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -152,13 +155,21 @@ CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguint
 Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos de uma vez). A cada lote, pergunte se quer o próximo.
 Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
 Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
-Para cada post, registre na fila com a tag (uma por post):
-<conteudo>{"tema":"...","headline":"texto exato da arte","copy":"legenda pronta (máx 400 caracteres, hook + CTA)","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","oferta":"prova/oferta real ou vazio","roteiro":"SOMENTE se formato=reels: roteiro com tempos e takes; nos demais, vazio","data_sugerida":"YYYY-MM-DD"}</conteudo>
-REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post que você citar PRECISA ter sua própria tag <conteudo> na MESMA resposta — se planejou 25 posts, emita 25 tags. Nunca entregue um plano sem as tags.
-ORDEM DA RESPOSTA (obrigatória): comece pelas TAGS <conteudo> (todas, de uma vez) e só DEPOIS escreva o texto para o cliente. Nunca deixe as tags para o final.
-ECONOMIA: as tags são dados, não apresentação. Copy de até 400 caracteres, sem repetir o texto do plano. O cliente edita a copy final no calendário.
-DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido — sem data o post não entra no calendário nem na produção.
-DEPOIS das tags, escreva um resumo curto do plano (semanas, formatos, lógica) e avise que a estratégia foi enviada para aprovação.
+Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
+
+▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
+Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
+Emita UMA tag por post, ANTES de qualquer texto:
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD"}</conteudo>
+Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
+
+▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
+Para CADA post listado, escreva a headline da arte e a copy pronta. Roteiro SOMENTE se o formato for reels. Emita as tags ANTES do texto, usando o id exato:
+<detalhe>{"id":"ID_DO_POST","headline":"texto exato da arte","copy":"legenda pronta (máx 600 caracteres, hook + CTA)","oferta":"prova/oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio"}</detalhe>
+Detalhe SÓ os posts listados (a semana), nunca o mês todo.
+
+REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post citado PRECISA da sua tag na MESMA resposta.
+DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido.
 Ao final do lote, dispare a ordem ao Designer:
 <ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
 E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
@@ -348,10 +359,13 @@ const handler = async (req, res) => {
         detecta_truncamento:true,
         estrategia_grava_como_proposto:true,
         tarefa_aprovar_estrategia:true,
+        estrategia_ciclo_2_tempos:true,
+        detalhamento_semanal:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
       modelo: MODEL(),
+      modelo_estrategia: MODEL_DE('estrategia'),
     });
   }
   if (req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
@@ -598,20 +612,44 @@ const handler = async (req, res) => {
       dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}`;
+    // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
+    let semanaTxt='';
+    if(agente==='estrategia'){
+      try{
+        const lim=new Date(Date.now()+7*864e5).toISOString();
+        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
+        if(Array.isArray(wk)&&wk.length){
+          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
+            wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
+            '\nSe o cliente pedir para detalhar/produzir a semana, emita uma tag <detalhe> para CADA id acima.';
+        }
+      }catch(e){}
+    }
+
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}${semanaTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
       body:JSON.stringify({
-        model:MODEL(),
+        model:MODEL_DE(agente),
         max_tokens:(agente==='estrategia')?8000:((agente==='identidade'||agente==='criativo')?3000:1100),
         system,messages,
         ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}]}:{})
       }),
     });
-    const data=await aRes.json();
+    let data=await aRes.json();
+    if(!aRes.ok && /model/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
+      // AGENT_MODEL_ESTRATEGIA inválido → não derruba o agente: repete no modelo padrão.
+      console.error('modelo da estratégia inválido, usando padrão:',MODEL_DE(agente));
+      const rf=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+        body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages}),
+      });
+      if(rf.ok){data=await rf.json();aRes.ok=true}
+    }
     if(!aRes.ok){
       console.error('anthropic:',JSON.stringify(data).slice(0,300));
       return res.status(500).json({error:'O agente está indisponível agora. Tente em instantes.'});
@@ -678,7 +716,7 @@ const handler = async (req, res) => {
           method:'POST',
           headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
           body:JSON.stringify({
-            model:MODEL(),max_tokens:8000,system,
+            model:MODEL_DE(agente),max_tokens:8000,system,
             messages:[...messages,{role:'assistant',content:texto},
               {role:'user',content:'Você descreveu o plano mas NÃO registrou os posts — o calendário do cliente está vazio. Responda AGORA somente com as tags <conteudo>{...}</conteudo>, uma por post do plano acima, com data_sugerida real (YYYY-MM-DD) conferida no calendário fornecido. Sem nenhum texto antes ou depois, sem markdown.'}],
           }),
@@ -691,6 +729,43 @@ const handler = async (req, res) => {
           });
         }
       }catch(e){}
+    }
+
+    // TEMPO 2: <detalhe> preenche copy/headline/roteiro dos posts da semana (já existentes)
+    const detalhes=[];
+    texto=texto.replace(/<detalhe>([\s\S]*?)<\/detalhe>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.id)detalhes.push(o)}catch(e){}
+      return '';
+    });
+    let detalhados=0;
+    if(detalhes.length){
+      for(const d of detalhes){
+        try{
+          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato`);
+          if(!atual)continue;
+          const meta={...(atual.meta||{}),headline:d.headline||'',oferta:d.oferta||''};
+          const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
+            method:'PATCH',headers:H(),
+            body:JSON.stringify({copy:d.copy||null,roteiro:d.roteiro||null,meta})
+          });
+          if(r.ok)detalhados++;
+        }catch(e){}
+      }
+      // Detalhou a semana → o Designer já pode gerar as artes (SÓ imagens).
+      if(detalhados>0){
+        try{
+          const lim=new Date(Date.now()+7*864e5).toISOString();
+          const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
+          const imgs=(Array.isArray(wk)?wk:[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
+          const ja=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=in.(pendente,processando)&select=id&limit=1`);
+          if(imgs.length&&!(Array.isArray(ja)&&ja.length)){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+              method:'POST',headers:H(),
+              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgs.length+' imagem(ns))',status:'pendente',total:imgs.length,progresso:0})
+            }).catch(()=>{});
+          }
+        }catch(e){}
+      }
     }
 
     let erroGravacao=null;
@@ -938,7 +1013,7 @@ const handler = async (req, res) => {
     if(truncou){
       texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
     }
-    return res.status(200).json({resposta:texto,truncado:truncou,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
