@@ -599,11 +599,11 @@ async function executarLoteCriativos(uid,ordem){
     return 'vazio';
   }
   addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
+  addMsg('a','📎 Sobre as suas fotos: eu alterno entre as imagens da sua pasta (nunca repito a mesma no lote) e, nos criativos de produto, uso sempre as MAIS RECENTES de "Meus Arquivos". Se quiser trocar o que aparece nas artes, é só subir fotos novas — as últimas entram primeiro.',null);
   let feitos=0;
   if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando'}).eq('id',ordem.id)}catch(e){}}
   for(const c of pend){
     const meta=c.meta||{};
-    const prompt='Instagram '+(c.formato||'feed')+' post. Headline: "'+(meta.headline||c.tema||'')+'". Support copy: "'+String(c.copy||'').slice(0,80)+'". '+(meta.oferta?('Offer badge: "'+meta.oferta+'". '):'')+'Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.';
     const w=document.getElementById('msgs');
     const lbl=document.createElement('div');lbl.className='msg a';
     lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — gerando...';
@@ -611,7 +611,8 @@ async function executarLoteCriativos(uid,ordem){
     try{
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-        body:JSON.stringify({prompt,tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
+        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:c.pilar||'',total:1,
+          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
       if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';return false}

@@ -21,6 +21,10 @@
 .ed-ta{resize:vertical;line-height:1.5}
 .ed-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 .cal-ev{cursor:pointer}
+.cal-day{min-height:44px!important;padding:5px 4px!important;position:relative;cursor:pointer}
+.cal-day.sel{outline:2px solid var(--g);outline-offset:-2px}
+.cal-n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:rgba(52,211,153,.18);color:var(--g);font-family:var(--M);font-size:9.5px;font-weight:700;margin-top:3px}
+.cal-n.pend{background:rgba(251,191,36,.18);color:var(--yel,#fbbf24)}
 .ck{display:inline-flex;align-items:center;gap:4px;font-family:var(--M);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:20px}
 .ck-aguard{background:rgba(255,255,255,.06);color:var(--t3)}
 .ck-prod{background:rgba(79,124,255,.15);color:#7c9cff}
@@ -74,7 +78,7 @@
 <script src="assets/jump-core.js"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
-let CTX=null,EVENTOS=[],ANO,MES;
+let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
 // CHECK-IN: estágio real de cada publicação (ajuda o Agente de Publicação e o usuário)
 function checkin(e){
   const f=String(e.formato||'').toLowerCase();
@@ -126,11 +130,13 @@ function render(){
   for(let d=1;d<=dias;d++){
     const evs=evDoDia(d);
     const isHoje=hoje.getFullYear()===ANO&&hoje.getMonth()===MES&&hoje.getDate()===d;
-    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}" onclick="verDia(${d})">${d}${evs.slice(0,2).map(e=>`<span class="cal-ev${e.status==='aguardando_aprovacao'?' pend':''}">${JUMP.esc(e.tema||e.formato||'Post')}</span>`).join('')}${evs.length>2?'<span class="cal-ev">+'+(evs.length-2)+'</span>':''}</div>`;
+    const pend=evs.filter(e=>e.status==='aguardando_aprovacao').length;
+    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}${DIA_SEL===d?' sel':''}" onclick="verDia(${d})">${d}${evs.length?`<span class="cal-n${pend?' pend':''}">${evs.length}</span>`:''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML=h;
 }
 function verDia(d){
+  DIA_SEL=d;render();
   document.getElementById('dia-sel').textContent=d+' de '+MESES[MES];
   const evs=evDoDia(d);
   const w=document.getElementById('dia-lista');
@@ -182,7 +188,8 @@ async function regerarImg(btn){
   try{
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:promptDoConteudo(EDIT),tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
+      body:JSON.stringify({prompt:EDIT.tema||'',headline:(EDIT.meta&&EDIT.meta.headline)||EDIT.tema||'',copy:EDIT.copy||'',oferta:(EDIT.meta&&EDIT.meta.oferta)||'',formato:EDIT.formato||'feed',pilar:EDIT.pilar||'',total:1,
+        tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
     });
     const d=await r.json();
     if(!r.ok){ toast((d&&d.error)||'Erro ao gerar','err'); btn.disabled=false;btn.innerHTML=old; return; }

@@ -130,7 +130,9 @@ async function aprovarOrdem(id,btn){
       const daSemana=lista.filter(c=>!c.data_sugerida||new Date(c.data_sugerida).getTime()<=lim);
       const novas=[];
       if(daSemana.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0});
-      if(lista.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário nas datas agendadas ('+lista.length+' post(s))',status:'pendente',total:lista.length,progresso:0});
+      // dedup: nunca criar duas ordens de publicação (o print do João mostrou 5/5 e 6/6 duplicadas)
+      const{data:jaPub}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','publicar_calendario').in('status',['pendente','processando']).limit(1);
+      if(lista.length&&!(jaPub&&jaPub.length))novas.push({user_id:uid,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário nas datas agendadas ('+lista.length+' post(s))',status:'pendente',total:lista.length,progresso:0});
       if(novas.length)await JUMP.sb.from('ordens_servico').insert(novas);
       await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
       JUMP.toast('✓ Estratégia aprovada! Está no calendário.');
@@ -167,12 +169,15 @@ function render(){
     const badge='<span class="ord-badge '+st[0]+'">'+st[1]+'</span>';
     const rec=o.recorrencia?`<span class="ord-badge b-rec">↻ ${o.recorrencia}</span>`:'';
     const tempo=o.status==='concluida'&&o.concluida_em?'concluída '+tempoDecorrido(o.concluida_em):'criada '+tempoDecorrido(o.created_at);
-    const tot=Number(o.total||0),pg=Number(o.progresso||0);
+    // Progresso (N/T) só faz sentido em LOTE (imagens/publicações) — não em tarefa simples.
+    const ehLote=['criar_post','publicar_calendario','detalhar_semana'].indexOf(o.tarefa)>=0;
+    const tot=ehLote?Number(o.total||0):0,pg=Number(o.progresso||0);
     const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot}</span>`:'';
     const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
     let rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
     if(o.tarefa==='aprovar_estrategia')rota='Estratégia → Sua aprovação';
+    if(o.tarefa==='detalhar_semana')rota='Estratégia → Copy da semana';
     const podeExec=(o.status==='pendente'||o.status==='erro');
     const precisaAprovar=(o.status==='aguardando_aprovacao');
     return `<div class="ord-card" style="--ac:${ag.nc}">
