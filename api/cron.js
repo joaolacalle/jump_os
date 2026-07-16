@@ -33,7 +33,7 @@ async function jobEstrategia() {
     if (faltam > AVISO_ANTES || faltam < 0) continue; // só na janela dos 5 dias finais
     const tag = `estrategia_ciclo_${new Date(inicio).toISOString().slice(0, 10)}`;
     const existe = await fetch(
-      `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }
+      `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&mensagem=like.*${tag}*&select=id&limit=1`, { headers: SBH() }
     ).then(r => r.json()).catch(() => []);
     if (Array.isArray(existe) && existe.length) continue; // já avisado neste ciclo
     const quando = faltam <= 0 ? 'hoje' : (faltam === 1 ? 'amanhã' : `em ${faltam} dias`);
@@ -135,7 +135,7 @@ async function jobSeguranca() {
   let criados = 0;
   for (const adminId of adminIds) {
     // já avisou hoje?
-    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${adminId}&tipo=eq.seguranca&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${adminId}&tipo=eq.seguranca&mensagem=like.*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
     if (Array.isArray(existe) && existe.length) continue;
     await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
       method: 'POST', headers: SBH(),
@@ -358,7 +358,7 @@ async function jobOrdens() {
   for (const p of (Array.isArray(pend) ? pend : [])) { porUser[p.user_id] = (porUser[p.user_id] || 0) + 1; }
   const tag = 'ord-' + hoje;
   for (const uid of Object.keys(porUser)) {
-    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${uid}&tipo=eq.ordens&mensagem=like=*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    const existe = await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${uid}&tipo=eq.ordens&mensagem=like.*${tag}*&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
     if (Array.isArray(existe) && existe.length) continue;
     await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
       method: 'POST', headers: SBH(),
