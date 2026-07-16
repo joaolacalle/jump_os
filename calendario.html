@@ -182,13 +182,14 @@ function promptDoConteudo(c){
     `Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}`+
     `Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.`;
 }
-async function regerarImg(btn){
+async function regerarImg(btn,variacao){
   if(!EDIT)return;
+  const aj=(document.getElementById('ed-ajuste')||{}).value||'';
   const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="ld-spin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></span> Gerando (15-40s)…';
   try{
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:EDIT.tema||'',headline:(EDIT.meta&&EDIT.meta.headline)||EDIT.tema||'',copy:EDIT.copy||'',oferta:(EDIT.meta&&EDIT.meta.oferta)||'',formato:EDIT.formato||'feed',pilar:EDIT.pilar||'',total:1,
+      body:JSON.stringify({prompt:EDIT.tema||'',headline:(EDIT.meta&&EDIT.meta.headline)||EDIT.tema||'',copy:EDIT.copy||'',oferta:(EDIT.meta&&EDIT.meta.oferta)||'',formato:EDIT.formato||'feed',pilar:EDIT.pilar||'',total:1,variacao:variacao||0,ajuste:aj,
         tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
     });
     const d=await r.json();
@@ -201,7 +202,7 @@ function renderPreviewCal(d){
   const rest=d.limite?('Imagens restantes: '+Math.max(0,(d.limite||0)-(d.usadas||0))):('Imagens usadas: '+(d.usadas||0));
   document.getElementById('ed-actsi').innerHTML=
     '<button class="btn btn-g btn-sm" onclick="aceitarCal()">✓ Usar esta</button>'+
-    '<button class="btn btn-o btn-sm" onclick="regerarImg(this)">🔄 Regerar</button>'+
+    '<button class="btn btn-o btn-sm" onclick="abrirVariacao()">🔄 Regerar</button>'+
     '<button class="btn btn-o btn-sm" onclick="recusarCal()">✕ Descartar</button>'+
     '<div class="ed-cota">'+rest+'</div>';
 }
@@ -221,6 +222,18 @@ async function aceitarCal(){
   }catch(e){ toast(e.message||'Erro ao salvar','err'); }
 }
 function recusarCal(){ PREVIEW=null; renderImgAtual(); }
+// RECRIAR COM DIREÇÃO: sem dizer o quanto mudar, a IA repete quase a mesma arte.
+function abrirVariacao(){
+  document.getElementById('ed-actsi').innerHTML=
+    '<div style="width:100%"><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">O quanto mudar?</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+
+      '<button class="btn btn-o btn-sm" onclick="regerarImg(this,25)">Leve · 25%<br><span style="font-size:8.5px;opacity:.7">mesma ideia, outra execução</span></button>'+
+      '<button class="btn btn-o btn-sm" onclick="regerarImg(this,50)">Média · 50%<br><span style="font-size:8.5px;opacity:.7">outra composição</span></button>'+
+      '<button class="btn btn-o btn-sm" onclick="regerarImg(this,100)">Radical · 100%<br><span style="font-size:8.5px;opacity:.7">conceito novo</span></button>'+
+    '</div>'+
+    '<input class="ed-inp" id="ed-ajuste" placeholder="O que mudar? (opcional: mais escuro, sem foto, foco no produto…)">'+
+    '<button class="btn btn-o btn-sm" style="margin-top:7px" onclick="renderPreviewCal(PREVIEW)">← Voltar</button></div>';
+}
 async function salvarConteudo(){
   if(!EDIT)return;
   const btn=document.getElementById('ed-salvar'); const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='Salvando…';

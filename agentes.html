@@ -581,9 +581,11 @@ async function executarOrdens(btn){
       }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
         await gerarFichaTecnica(uid);
       }else{
-        // ordem livre: usa o DETALHE como briefing (não inventa ficha técnica)
+        // ORDEM AVULSA: manda o briefing CRU como tema — o Diretor de Arte escreve a headline
+        // (máx 8 palavras) e a cena. Antes o briefing inteiro virava a headline.
         const brief=o.detalhe||o.tarefa||'post';
-        await gerarPorOrdem('Instagram post creative. Briefing: "'+brief+'". Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.','4:5','conceitual',brief);
+        addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
+        await gerarPorOrdem(brief,'4:5','conceitual',brief);
       }
       const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
       if(eUpd)console.error('update ordem falhou:',eUpd.message);
@@ -1364,7 +1366,7 @@ async function gerarImagem(req,btn,ehRecriar){
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,ver_id:CTX.viewId||null})
+      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
@@ -1402,6 +1404,10 @@ function renderPreview(d,req){
   card.querySelector('.b-baixar').onclick=e=>baixarImg(d.url,e.currentTarget);
   const br=card.querySelector('.b-recriar');
   if(br&&!semRel)br.onclick=()=>{
+    const v=prompt('O quanto mudar? Digite 25 (leve), 50 (outra composição) ou 100 (conceito novo).\n\nDepois, se quiser, descreva o que mudar na próxima pergunta.','50');
+    if(v===null)return;
+    const aj=prompt('O que mudar? (opcional — ex.: mais escuro, sem foto, foco no produto)','')||'';
+    req._variacao=Number(v)||50; req._ajuste=aj;
     savePend(AG,null);
     const holder=document.createElement('div');holder.className='msg a';
     holder.innerHTML='<button class="btn btn-o btn-sm" disabled><span class="spin-i"></span> Recriando (15-40s)...</button>';
