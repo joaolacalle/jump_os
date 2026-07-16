@@ -638,7 +638,14 @@ async function executarLoteCriativos(uid,ordem){
       const prox=fora.map(c=>String(c.data_sugerida).slice(0,10)).sort()[0];
       const jaTem=t.filter(c=>c.midia_url).length;
       if(!t.length)motivo='O calendário está vazio — peça o plano ao Agente de Estratégia.';
-      else if(prop)motivo=prop+' post(s) estão como PROPOSTA, aguardando você aprovar a estratégia em Tarefas de serviço. Só depois eu gero as artes.';
+      else if(prop){
+        // SAÍDA DIRETA: se a tarefa de aprovação sumiu, os posts ficariam presos p/ sempre.
+        const w2=document.getElementById('msgs');
+        const d2=document.createElement('div');d2.className='msg a';
+        d2.innerHTML='📋 <b>'+prop+' post(s) aguardando sua aprovação.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">Aprove para eles entrarem no calendário e eu liberar as artes.</div><button class="btn btn-g btn-sm" onclick="aprovarPropostas(this)">✓ Aprovar estratégia agora</button>';
+        w2.appendChild(d2);w2.scrollTop=w2.scrollHeight;
+        return 'vazio';
+      }
       else if(fora.length)motivo=fora.length+' post(s) estão agendados para depois desta semana (o próximo em '+(prox||'—')+'). Eu gero por semana — na data do lote eles entram.';
       else if(semC)motivo=semC+' post(s) ainda estão sem copy/headline. Peça ao Estrategista "Escrever a copy da semana" — a arte só sai depois do texto.';
       else if(jaTem)motivo='Todas as artes desta semana já foram geradas ('+jaTem+'). Veja em Aprovações.';
@@ -692,6 +699,27 @@ async function executarLoteCriativos(uid,ordem){
   addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
   try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
   return true;
+}
+// Promove as propostas → calendário e dispara a copy da semana. Funciona MESMO se a tarefa
+// de aprovação tiver sido removida (antes os posts ficavam presos em 'proposta' para sempre).
+async function aprovarPropostas(btn){
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aprovando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const{data:props}=await JUMP.sb.from('conteudos').select('id,formato,data_sugerida').eq('user_id',uid).eq('status','proposto');
+    if(!props||!props.length){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';return JUMP.toast('Nada para aprovar.','err')}
+    await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
+    // conclui a tarefa de aprovação, se existir
+    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('user_id',uid).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao');
+    // cria a ordem da copy (dedup)
+    const{data:ja}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','detalhar_semana').in('status',['pendente','processando']).limit(1);
+    if(!(ja&&ja.length)){
+      const h=new Date();
+      await JUMP.sb.from('ordens_servico').insert({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+props.length+' post(s))',status:'pendente',total:props.length,progresso:0,payload:{periodo:'Semana '+Math.ceil(h.getDate()/7)+' · '+h.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}});
+    }
+    btn.parentElement.innerHTML='✅ <b>Estratégia aprovada!</b><div style="font-size:12px;color:var(--t2);margin-top:6px">Os '+props.length+' post(s) estão no calendário. Agora abra o <b>Agente de Estratégia</b> e clique em <b>Escrever a copy da semana</b> — depois volte aqui para as artes.</div>';
+    JUMP.toast('✓ Estratégia aprovada!');
+  }catch(e){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';JUMP.toast('Não consegui aprovar. Tente de novo.','err')}
 }
 // FICHA TÉCNICA (só quando a ordem pede identidade visual)
 async function gerarFichaTecnica(uid){

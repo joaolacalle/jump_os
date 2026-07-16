@@ -269,7 +269,18 @@ async function diagVid(jobId){
   }catch(e){JUMP.toast('Erro no diagnóstico','err');}
 }
 async function cancelar(id){
-  if(!confirm('Remover esta ordem?'))return;
+  const o=TODAS.find(x=>String(x.id)===String(id));
+  // CASCATA: remover a aprovação sem limpar as propostas deixava os posts PRESOS em 'proposta'
+  // para sempre (nenhum agente conseguia executar). Agora perguntamos o que fazer.
+  if(o&&o.tarefa==='aprovar_estrategia'){
+    const uid=CTX.viewId||CTX.user.id;
+    const{data:props}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','proposto');
+    const n=(props||[]).length;
+    if(n){
+      if(!confirm('Esta tarefa tem '+n+' post(s) em proposta.\n\nOK = remover a tarefa E descartar os '+n+' post(s).\nCancelar = manter tudo como está.'))return;
+      await JUMP.sb.from('conteudos').delete().eq('user_id',uid).eq('status','proposto');
+    }else if(!confirm('Remover esta ordem?'))return;
+  }else if(!confirm('Remover esta ordem?'))return;
   try{
     await JUMP.api('cancelar_ordem',{ordem_id:id},CTX.token);
     JUMP.toast('Ordem removida');
