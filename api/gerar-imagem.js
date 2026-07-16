@@ -111,6 +111,13 @@ async function diretorDeArte(M, o, ctx) {
     ctx.temFoto ? '6. A REAL PHOTO of the client is attached as reference. Describe HOW TO INTEGRATE it: which side, crop, how the lighting matches the background, gaze direction toward the headline, shadow falloff. NEVER describe the person\'s facial features, age, hair or body — the attached photo defines the identity and must be preserved exactly.' : '6. No real photo is attached: build a conceptual composition (objects, screenshots, mockups, graphic elements). Never invent a generic AI person.',
     ctx.temProduto ? '7. A REAL PRODUCT photo is attached: keep the product exactly as shown, integrate with matching lighting.' : '',
     '8. Never include any logo, symbol, emblem, monogram or invented brand mark. The brand mark is applied later by the system.',
+    o.headline ? '' : '9. NO HEADLINE WAS PROVIDED (free-form request): extract/write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
+    ctx.variacao ? ('10. THIS IS A RECREATION. The client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
+      25: 'keep the concept and layout; change lighting, textures, secondary elements, crop and color accents. Same idea, fresh execution.',
+      50: 'keep the brand system and the headline, but rebuild the composition: different layout structure, different visual metaphor, different placement and photographic treatment.',
+      100: 'start over. New concept, new metaphor, new composition, new lighting. Only the palette, typography rules and the text stay. It must not resemble the previous version.',
+    }[ctx.variacao] || 'change the composition meaningfully.')) : '',
+    ctx.ajuste ? ('11. THE CLIENT ASKED SPECIFICALLY: "' + String(ctx.ajuste).slice(0, 300) + '". This instruction OVERRIDES your own preferences (but never the design system).') : '',
     '',
     'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 220-380 words, one dense paragraph plus a short "Text to render:" list.',
   ].filter(Boolean).join('\n');
@@ -233,7 +240,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -345,7 +352,7 @@ module.exports = async (req, res) => {
       preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
-      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto') });
+      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto'), variacao: Number(variacao) || 0, ajuste });
       const instr = (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
@@ -374,7 +381,7 @@ module.exports = async (req, res) => {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
       const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
-      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false });
+      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
       const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
