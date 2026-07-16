@@ -574,7 +574,11 @@ async function executarOrdens(btn){
     if(!ords||!ords.length){if(box)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
     for(const o of ords){
       const tarefa=String(o.tarefa||'').toLowerCase();
-      if(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0){
+      // O caminho do LOTE só vale para ordens criadas pela ESTRATÉGIA. Tarefa manual do usuário
+      // (mesmo chamada 'criar_post') é AVULSA — antes caía no lote e dizia 'não encontrei
+      // conteúdos planejados', ficando pendente para sempre.
+      const doPlano=(o.de_agente==='estrategia');
+      if(doPlano&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
         if(ok===false){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}return} // parou por cota: mantém pendente
         if(ok==='vazio'){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}continue} // nada produzido: a ordem CONTINUA pendente
