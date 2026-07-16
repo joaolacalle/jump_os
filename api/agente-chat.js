@@ -9,7 +9,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.15-cota-perfil';
+const VERSAO = '2026.07.16-mix-canvas';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 
 const H = () => ({
@@ -156,6 +156,14 @@ Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos
 Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
 Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
 Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
+
+MIX VISUAL OBRIGATÓRIO (regra do Content Engine 6.0: "foto pessoa = 2 slides max em 5"):
+Ao definir "tipo_visual" de cada post, DISTRIBUA — nunca use o mesmo tipo em tudo:
+- "pessoal" (foto real do cliente): NO MÁXIMO 40% dos posts do período. É o mais forte, mas satura.
+- "produto": use nos posts de oferta/prova/lançamento — o sistema usa as fotos reais de produto do cliente.
+- "conceitual": use nos educativos/técnicos — composição gráfica, mockups, screenshots, sem pessoa.
+- "pessoa_conceito": só quando a cena PRECISA de gente e o post não é sobre o cliente.
+Ex.: em 5 posts → 2 pessoal, 1 produto, 2 conceitual. Se o cliente não tem fotos de produto, troque por conceitual.
 
 REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 - Frequência realista: 3-5 posts/semana. NUNCA mais de 1 post por dia. Distribua os dias (ex.: seg/qua/sex), nunca amontoe.

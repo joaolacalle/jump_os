@@ -66,8 +66,9 @@ function engine6(M, o) {
     'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
     '',
     '=== 12. SAFE ZONES ===',
-    reels ? 'REELS: 250px top (Instagram UI), 90px sides, 320px bottom (buttons + caption). NEVER place important text there.'
-          : 'CAROUSEL/FEED: 120px top, 90px sides, 140px bottom. NEVER place important text there.',
+    'CANVAS (real output): ' + (o.canvas || '1024x1536 portrait (2:3)') + '. Compose for THIS exact canvas — do not assume any other aspect ratio.',
+    reels ? 'REELS safe zones, in PERCENT of the canvas (the Instagram UI covers these): top 13%, sides 8%, bottom 17%. NEVER place important text there.'
+          : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.',
     '',
     '=== 13. PARAMETERS ===',
     'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
@@ -281,8 +282,12 @@ module.exports = async (req, res) => {
     }
 
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
-    // gpt-image-1: 1024x1024, 1024x1536 (retrato 4:5), 1536x1024 (paisagem 16:9), auto
-    const size = tamanho === '4:5' ? '1024x1536' : tamanho === '16:9' ? '1536x1024' : '1024x1024';
+    // gpt-image-1 só aceita: 1024x1024 (1:1), 1024x1536 (retrato 2:3), 1536x1024 (paisagem 3:2).
+    // '9:16' NÃO existe aqui — antes caía no else e virava QUADRADO (reels saía cortado).
+    const t = String(tamanho || '4:5');
+    const size = (t === '16:9') ? '1536x1024' : (t === '1:1') ? '1024x1024' : '1024x1536';
+    // O Diretor precisa saber a TELA REAL, senão compõe para um formato que não existe.
+    const canvas = size === '1024x1536' ? '1024x1536 portrait (2:3)' : size === '1536x1024' ? '1536x1024 landscape (3:2)' : '1024x1024 square (1:1)';
 
     // Buscar imagens base do acervo: logo SEMPRE; foto pessoal se for post de pessoa
     // OS_DATA REAL: sem isto o prompt pedia "siga a identidade visual" sem NUNCA enviar as cores/fontes.
@@ -351,7 +356,7 @@ module.exports = async (req, res) => {
       }
       preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
-      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
+      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto'), variacao: Number(variacao) || 0, ajuste });
       const instr = (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
@@ -380,7 +385,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
+      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
       const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
