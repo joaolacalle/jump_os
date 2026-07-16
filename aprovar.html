@@ -43,7 +43,7 @@
 </div>
 <script src="assets/jump-core.js"></script>
 <script>
-let CTX=null,ITENS=[],RASCUNHOS=[],PLANO='basico';
+let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
 (async()=>{
   try{
     JUMP.sidebar('aprovar');
@@ -54,11 +54,22 @@ let CTX=null,ITENS=[],RASCUNHOS=[],PLANO='basico';
     try{
       const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao']).order('created_at',{ascending:false});
       ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao');
-      RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url);
+      // A ARTE VEM DEPOIS DA COPY. Sem copy/headline a arte sai vazia e o card fica sem legenda.
+      RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
+        &&(c.copy&&String(c.copy).trim())&&(((c.meta||{}).headline||'').trim()));
+      SEM_COPY=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
+        &&(!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())));
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
     // Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
+    if(SEM_COPY.length){
+      const b=document.getElementById('fila-bar');
+      if(b){b.style.display='block';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">✋</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+SEM_COPY.length+' post(s) ainda sem copy — a arte só é criada depois do texto.</span>'+
+        '<a href="agentes.html?agente=estrategia" class="btn btn-g btn-sm" style="margin-left:auto">Escrever a copy →</a></div>';}
+    }
     if(RASCUNHOS.length) gerarFila();
   }catch(e){}
 })();

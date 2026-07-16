@@ -120,6 +120,12 @@
     <div id="tasks-list"></div>
   </div>
 
+  <!-- RECADOS -->
+  <div id="recados-wrap" style="display:none">
+    <div class="sec-lbl" style="margin-top:0">Recados e alertas</div>
+    <div id="recados"></div>
+  </div>
+
   <!-- AÇÕES -->
   <div class="sec-lbl">Ações rápidas</div>
   <div class="acts4">
@@ -161,12 +167,6 @@
   <!-- AGENTES -->
   <div class="sec-lbl">Seus agentes</div>
   <div class="ag-grid8" id="ag-grid"></div>
-
-  <!-- RECADOS -->
-  <div id="recados-wrap" style="display:none">
-    <div class="sec-lbl" style="margin-top:0">Recados e alertas</div>
-    <div id="recados"></div>
-  </div>
 
   <!-- CONEXÕES -->
   <div class="sec-lbl">Contas conectadas</div>
@@ -363,7 +363,7 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* RECADOS: bugs/alertas + aprovações a vencer (1 dia) */
     let recs=[];
     try{
-      const{data:r}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('lido',false).neq('tipo','trafego_sugestao').order('created_at',{ascending:false}).limit(8);
+      const{data:r}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('lido',false).neq('tipo','ordens').neq('tipo','trafego_sugestao').order('created_at',{ascending:false}).limit(8);
       recs=r||[];
     }catch(e){}
     try{
@@ -424,8 +424,11 @@ async function autoGerarSemana(uid){
     if(localStorage.getItem('jump_parar_lote')==='1')return; // freio compartilhado
     const tk=window._ctx&&window._ctx.token; if(!tk)return;
     const lim=new Date(Date.now()+7*864e5).toISOString();
-    const{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or(`data_sugerida.lte.${lim},data_sugerida.is.null`).order('data_sugerida',{ascending:true}).limit(3);
-    if(!pend||!pend.length)return;
+    let{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).not('copy','is',null).neq('copy','').or(`data_sugerida.lte.${lim},data_sugerida.is.null`).order('data_sugerida',{ascending:true}).limit(3);
+    // A ARTE VEM DEPOIS DA COPY: exige headline E copy (só headline deixava o card vazio na aprovação).
+    const ok=(pend||[]).filter(c=>(((c.meta||{}).headline||'').trim())&&(c.copy&&String(c.copy).trim()));
+    if(!ok.length)return;
+    pend=ok;
     for(const c of pend){
       if(localStorage.getItem('jump_parar_lote')==='1')return; // parado pelo usuário
       const meta=c.meta||{};
