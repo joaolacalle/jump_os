@@ -421,11 +421,13 @@ function flipCard(id,nr,num,lbl,backT,backX){
 
 async function autoGerarSemana(uid){
   try{
+    if(localStorage.getItem('jump_parar_lote')==='1')return; // freio compartilhado
     const tk=window._ctx&&window._ctx.token; if(!tk)return;
     const lim=new Date(Date.now()+7*864e5).toISOString();
     const{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or(`data_sugerida.lte.${lim},data_sugerida.is.null`).order('data_sugerida',{ascending:true}).limit(3);
     if(!pend||!pend.length)return;
     for(const c of pend){
+      if(localStorage.getItem('jump_parar_lote')==='1')return; // parado pelo usuário
       const meta=c.meta||{};
       const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.`;
       try{

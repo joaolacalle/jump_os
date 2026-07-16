@@ -557,6 +557,7 @@ let EXECUTANDO=false, PARAR=false;
 // Freio de emergência do lote de imagens (evita queimar token à toa).
 function pararLote(btn){
   PARAR=true;
+  try{localStorage.setItem('jump_parar_lote','1')}catch(e){} // vale para as outras telas também
   if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando após a arte atual...'}
   JUMP.toast('Vou parar assim que a arte atual terminar.');
 }
@@ -622,7 +623,7 @@ async function executarLoteCriativos(uid,ordem){
   }
   addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
   addMsg('a','📎 Sobre as suas fotos: eu alterno entre as imagens da sua pasta (nunca repito a mesma no lote) e, nos criativos de produto, uso sempre as MAIS RECENTES de "Meus Arquivos". Se quiser trocar o que aparece nas artes, é só subir fotos novas — as últimas entram primeiro.',null);
-  PARAR=false;
+  PARAR=false;try{localStorage.removeItem('jump_parar_lote')}catch(e){}
   const stop=document.createElement('div');stop.className='msg a';
   stop.innerHTML='<button class="btn btn-o btn-sm" onclick="pararLote(this)">⏹ Parar geração</button><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:5px">Interrompe após a arte atual. Nenhum token é gasto depois disso.</div>';
   document.getElementById('msgs').appendChild(stop);
@@ -630,7 +631,7 @@ async function executarLoteCriativos(uid,ordem){
   if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando'}).eq('id',ordem.id)}catch(e){}}
   for(const c of pend){
     // FREIO: para na hora se o usuário mandou parar OU se a ordem foi REMOVIDA em Tarefas.
-    if(PARAR){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
+    if(PARAR||(function(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}})()){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
     if(ordem&&ordem.id){
       try{
         const{data:chk}=await JUMP.sb.from('ordens_servico').select('status').eq('id',ordem.id).limit(1);

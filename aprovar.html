@@ -20,7 +20,9 @@
     <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 No plano <strong style="color:var(--cy)">Básico</strong>, você baixa o conteúdo pronto e publica você mesmo. Nos planos <strong>Plus e Pro</strong>, aprovar publica automaticamente no horário ideal.</div>
   </div>
   <div id="fila-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:10px"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span>
+      <button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>
+    <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;line-height:1.5">Interrompe após a arte atual — nenhum token é gasto depois disso. Vale para todas as telas.</div>
     <div style="font-size:11px;color:var(--t3);margin-top:6px">As artes do seu plano estão sendo criadas uma a uma. Você pode aguardar aqui.</div>
   </div>
   <div class="ap-grid" id="ap-grid"></div>
@@ -83,10 +85,42 @@ function render(){
   }).join('');
 }
 // Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
+// ⏹ FREIO COMPARTILHADO: vale para as filas da Aprovação, do Criativo e do painel.
+function pararGeracao(btn){
+  try{localStorage.setItem('jump_parar_lote','1')}catch(e){}
+  if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando...'}
+  JUMP.toast('Vou parar assim que a arte atual terminar.');
+}
+function deveParar(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}}
+function liberarGeracao(){try{localStorage.removeItem('jump_parar_lote')}catch(e){}}
+function retomarGeracao(btn){
+  liberarGeracao();
+  if(btn){btn.disabled=true;btn.innerHTML='Retomando...'}
+  const b=document.getElementById('fila-bar');
+  if(b)b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span><button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>';
+  gerarFila();
+}
 async function gerarFila(){
+  // Se a geração está pausada, mostra o aviso + botão de retomar (nunca fica preso).
+  if(deveParar()){
+    const b=document.getElementById('fila-bar');
+    if(b){
+      b.style.display='block';
+      b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">⏸</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">Geração de artes pausada por você — '+RASCUNHOS.length+' post(s) aguardando.</span>'+
+        '<button class="btn btn-g btn-sm" style="margin-left:auto" onclick="retomarGeracao(this)">▶ Retomar geração</button></div>';
+    }
+    return;
+  }
   const bar=document.getElementById('fila-bar');
   if(bar)bar.style.display='block';
   for(let i=0;i<RASCUNHOS.length;i++){
+    if(deveParar()){
+      const st0=document.getElementById('fila-status');
+      if(st0)st0.textContent='⏹ Geração interrompida. '+i+' arte(s) prontas — as demais seguem pendentes.';
+      const bp=document.getElementById('btn-parar');if(bp)bp.remove();
+      return;
+    }
     const c=RASCUNHOS[i];
     const st=document.getElementById('fila-status');
     if(st)st.textContent=`Gerando arte ${i+1} de ${RASCUNHOS.length}…`;
