@@ -104,6 +104,19 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    // REMOVER ORDEM: o próprio usuário pode remover as SUAS ordens. Estava atrás do portão de
+    // supervisor/admin → o usuário levava 403 e a tarefa nunca sumia. A checagem de dono é logo abaixo.
+    if (act0 === 'cancelar_ordem') {
+      const uid = requester.id;
+      const isAdm = me && me.role === 'admin';
+      const { ordem_id } = req.body;
+      if (!ordem_id) return res.status(400).json({ error: 'ordem_id obrigatório' });
+      const [o] = await sbGet(`ordens_servico?id=eq.${ordem_id}&select=user_id`);
+      if (!o || (o.user_id !== uid && !isAdm)) return res.status(403).json({ error: 'Sem acesso' });
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
+      return res.status(200).json({ ok: true });
+    }
+
     if (role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
@@ -839,15 +852,6 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
     }
 
     // ── CENTRAL DE ORDENS: cancelar/remover uma ordem ──
-    if (action === 'cancelar_ordem') {
-      const uid = requester.id;
-      const { ordem_id } = req.body;
-      if (!ordem_id) return res.status(400).json({ error: 'ordem_id obrigatório' });
-      const [o] = await sbGet(`ordens_servico?id=eq.${ordem_id}&select=user_id`);
-      if (!o || (o.user_id !== uid && !isAdmin)) return res.status(403).json({ error: 'Sem acesso' });
-      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
-      return res.status(200).json({ ok: true });
-    }
 
     // ── TEMPLATES ZAPCAP: lista os estilos de legenda disponíveis ──
     if (action === 'video_templates') {
