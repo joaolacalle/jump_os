@@ -553,7 +553,13 @@ async function detalharSemana(btn){
   }
 }
 
-let EXECUTANDO=false;
+let EXECUTANDO=false, PARAR=false;
+// Freio de emergência do lote de imagens (evita queimar token à toa).
+function pararLote(btn){
+  PARAR=true;
+  if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando após a arte atual...'}
+  JUMP.toast('Vou parar assim que a arte atual terminar.');
+}
 async function executarOrdens(btn){
   if(EXECUTANDO)return; // trava: evita executar a mesma ordem duas vezes
   EXECUTANDO=true;
@@ -616,9 +622,24 @@ async function executarLoteCriativos(uid,ordem){
   }
   addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
   addMsg('a','📎 Sobre as suas fotos: eu alterno entre as imagens da sua pasta (nunca repito a mesma no lote) e, nos criativos de produto, uso sempre as MAIS RECENTES de "Meus Arquivos". Se quiser trocar o que aparece nas artes, é só subir fotos novas — as últimas entram primeiro.',null);
+  PARAR=false;
+  const stop=document.createElement('div');stop.className='msg a';
+  stop.innerHTML='<button class="btn btn-o btn-sm" onclick="pararLote(this)">⏹ Parar geração</button><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:5px">Interrompe após a arte atual. Nenhum token é gasto depois disso.</div>';
+  document.getElementById('msgs').appendChild(stop);
   let feitos=0;
   if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando'}).eq('id',ordem.id)}catch(e){}}
   for(const c of pend){
+    // FREIO: para na hora se o usuário mandou parar OU se a ordem foi REMOVIDA em Tarefas.
+    if(PARAR){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
+    if(ordem&&ordem.id){
+      try{
+        const{data:chk}=await JUMP.sb.from('ordens_servico').select('status').eq('id',ordem.id).limit(1);
+        if(!chk||!chk.length||chk[0].status==='concluida'){
+          addMsg('a','⏹ A ordem foi removida — parei as gerações aqui. '+feitos+' arte(s) foram criadas antes disso.');
+          if(stop.parentElement)stop.remove();return 'vazio';
+        }
+      }catch(e){}
+    }
     const meta=c.meta||{};
     const w=document.getElementById('msgs');
     const lbl=document.createElement('div');lbl.className='msg a';
@@ -631,7 +652,7 @@ async function executarLoteCriativos(uid,ordem){
           tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
-      if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';return false}
+      if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';if(stop.parentElement)stop.remove();return false}
       if(!r.ok||!d||!d.ok){lbl.innerHTML='⚠️ Não consegui gerar "'+JUMP.esc(c.tema||'')+'"'+((d&&d.error)?(': '+d.error):'')+'.';continue}
       feitos++;
       lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
@@ -640,6 +661,7 @@ async function executarLoteCriativos(uid,ordem){
       if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando'}).eq('id',ordem.id)}catch(e){}}
     }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
   }
+  if(stop.parentElement)stop.remove();
   addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
   try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
   return true;
