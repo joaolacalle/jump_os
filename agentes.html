@@ -572,6 +572,7 @@ async function executarOrdens(btn){
     // Lê as ordens REAIS e executa cada uma conforme a TAREFA (não assume ficha técnica).
     const{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
     if(!ords||!ords.length){if(box)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
+    let executadas=0;
     for(const o of ords){
       const tarefa=String(o.tarefa||'').toLowerCase();
       // O caminho do LOTE só vale para ordens criadas pela ESTRATÉGIA. Tarefa manual do usuário
@@ -581,7 +582,7 @@ async function executarOrdens(btn){
       if(doPlano&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
         if(ok===false){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}return} // parou por cota: mantém pendente
-        if(ok==='vazio'){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}continue} // nada produzido: a ordem CONTINUA pendente
+        if(ok==='vazio'){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}continue} // nada produzido: a ordem CONTINUA pendente (e NÃO conta como executada)
       }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
         await gerarFichaTecnica(uid);
       }else{
@@ -593,6 +594,7 @@ async function executarOrdens(btn){
       }
       const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
       if(eUpd)console.error('update ordem falhou:',eUpd.message);
+      executadas++;
       // CADEIA: se a ordem faz parte de uma sequência (ex: Tráfego→Estratégia→Criativo→Tráfego), dispara a próxima etapa
       try{
         const pl=o.payload||{};const seq=pl.sequencia||[];const et=(pl.etapa!=null?pl.etapa:0)+1;
@@ -602,8 +604,8 @@ async function executarOrdens(btn){
         }
       }catch(e){}
     }
-    if(box)box.remove();
-    JUMP.toast('✓ Ordem executada!');
+    if(executadas){if(box)box.remove();JUMP.toast('✓ Ordem executada!')}
+    else JUMP.toast('Nada foi executado — a ordem continua pendente.','err');
   }catch(e){
     if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}
     JUMP.toast(e.message||'Erro ao executar ordens','err');
@@ -624,7 +626,25 @@ async function executarLoteCriativos(uid,ordem){
     if(!pend.length)return 'vazio';
   }
   if(!pend||!pend.length){
-    addMsg('a','Não encontrei conteúdos aprovados no calendário para esta semana. Peça o plano ao Agente de Estratégia e aprove a estratégia em Tarefas — aí eu gero as artes. Deixei a ordem pendente.');
+    // DIAGNÓSTICO: em vez de um "não encontrei" genérico, diz EXATAMENTE o que há no calendário.
+    let motivo='';
+    try{
+      const{data:tudo}=await JUMP.sb.from('conteudos').select('status,copy,meta,data_sugerida,formato,midia_url').eq('user_id',uid);
+      const t=tudo||[];
+      const prop=t.filter(c=>c.status==='proposto').length;
+      const rasc=t.filter(c=>c.status==='rascunho'&&!c.midia_url);
+      const semC=rasc.filter(c=>!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())).length;
+      const fora=rasc.filter(c=>c.data_sugerida&&new Date(c.data_sugerida).getTime()>Date.now()+7*864e5);
+      const prox=fora.map(c=>String(c.data_sugerida).slice(0,10)).sort()[0];
+      const jaTem=t.filter(c=>c.midia_url).length;
+      if(!t.length)motivo='O calendário está vazio — peça o plano ao Agente de Estratégia.';
+      else if(prop)motivo=prop+' post(s) estão como PROPOSTA, aguardando você aprovar a estratégia em Tarefas de serviço. Só depois eu gero as artes.';
+      else if(fora.length)motivo=fora.length+' post(s) estão agendados para depois desta semana (o próximo em '+(prox||'—')+'). Eu gero por semana — na data do lote eles entram.';
+      else if(semC)motivo=semC+' post(s) ainda estão sem copy/headline. Peça ao Estrategista "Escrever a copy da semana" — a arte só sai depois do texto.';
+      else if(jaTem)motivo='Todas as artes desta semana já foram geradas ('+jaTem+'). Veja em Aprovações.';
+      else motivo='Não há posts de imagem pendentes para esta semana (reels ficam com você, por upload).';
+    }catch(e){motivo='Não encontrei conteúdos de imagem pendentes para esta semana.'}
+    addMsg('a','📋 '+motivo+' Deixei a ordem pendente.');
     return 'vazio';
   }
   addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
