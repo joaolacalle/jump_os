@@ -84,6 +84,51 @@ function engine6(M, o) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A1 — DIRETOR DE ARTE (a etapa que faltava)
+// O gpt-image-1 não raciocina: joga-se 13 seções de regras nele e ele perde as
+// últimas (grain, movimento, foco). Aqui um modelo de TEXTO lê o Engine 6.0 (lei)
+// + o DNA do Negócio e ESCREVE A CENA FINAL — é o que o ChatGPT faz quando o
+// cliente cola o Engine na mão. Se falhar, cai no Engine puro (nunca derruba).
+// ═══════════════════════════════════════════════════════════════════════════
+const MODEL_DIRETOR = () => process.env.AGENT_MODEL_DIRETOR || 'claude-haiku-4-5';
+
+async function diretorDeArte(M, o, ctx) {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const engine = engine6(M, o);
+  const sys = [
+    'You are an award-winning art director for premium Brazilian Instagram brands.',
+    'You receive a DESIGN SYSTEM (it is LAW — never violate, never omit) and a content brief.',
+    'Your job: write ONE final, dense, concrete image-generation prompt in English for an image model that does NOT reason.',
+    '',
+    'HOW TO WRITE IT:',
+    '1. Describe the FINISHED ARTWORK as if describing a photograph of it: exact composition, where each element sits (top-left, lower third...), size relationships, colors by HEX, lighting direction, materials, texture, depth.',
+    '2. Turn every rule into a CONCRETE visual decision. Never restate a rule as a rule ("headline must dominate" ✗ → "the headline occupies the upper-left half, cap-height ~14% of canvas height, four short lines" ✓).',
+    '3. TYPOGRAPHY: never name a font. Describe it by characteristics: weight, width, stroke contrast, terminals, corner treatment, letter spacing, case, line-height.',
+    '4. Reproduce the exact texts to render inside double quotes, in Portuguese, verbatim, and state that spelling and accents must be perfect.',
+    '5. ALWAYS bake in explicitly: the 3 depth layers, the negative-space percentage, the safe zones, the label prominence, headline dominance, the eye-flow, and the human mode (film grain, noise, print texture) — these are the ones weak prompts drop.',
+    ctx.temFoto ? '6. A REAL PHOTO of the client is attached as reference. Describe HOW TO INTEGRATE it: which side, crop, how the lighting matches the background, gaze direction toward the headline, shadow falloff. NEVER describe the person\'s facial features, age, hair or body — the attached photo defines the identity and must be preserved exactly.' : '6. No real photo is attached: build a conceptual composition (objects, screenshots, mockups, graphic elements). Never invent a generic AI person.',
+    ctx.temProduto ? '7. A REAL PRODUCT photo is attached: keep the product exactly as shown, integrate with matching lighting.' : '',
+    '8. Never include any logo, symbol, emblem, monogram or invented brand mark. The brand mark is applied later by the system.',
+    '',
+    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 220-380 words, one dense paragraph plus a short "Text to render:" list.',
+  ].filter(Boolean).join('\n');
+
+  const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 1200, system: sys, messages: [{ role: 'user', content: user }] }),
+    });
+    if (!r.ok) { console.error('diretor:', (await r.text()).slice(0, 160)); return null; }
+    const d = await r.json();
+    const t = (d.content || []).map(c => c.text || '').join('').trim();
+    return t.length > 120 ? t : null; // resposta curta demais = não confiável
+  } catch (e) { console.error('diretor:', e.message); return null; }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -102,7 +147,28 @@ module.exports = async (req, res) => {
         openai = t.ok ? 'gpt-image-1 ACESSÍVEL ✅' : ('ERRO: ' + JSON.stringify(tj.error || tj).slice(0, 200));
       } catch (e) { openai = 'falha de rede: ' + e.message; }
     }
-    return res.status(200).json({ diagnostico: true, tem_OPENAI_API_KEY: temChave, teste_openai: openai });
+    let diretor = 'sem ANTHROPIC_API_KEY ❌';
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const t = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 4, messages: [{ role: 'user', content: 'oi' }] }),
+        });
+        if (t.ok) diretor = MODEL_DIRETOR() + ' ACESSÍVEL ✅';
+        else { const j = await t.json().catch(() => ({})); diretor = 'FALHOU ❌ ' + String((j.error && j.error.message) || t.status).slice(0, 110); }
+      } catch (e) { diretor = 'erro: ' + e.message; }
+    }
+    return res.status(200).json({
+      diagnostico: true,
+      versao: 'A1-diretor-de-arte',
+      tem_OPENAI_API_KEY: temChave,
+      teste_openai: openai,
+      diretor_de_arte: diretor,
+      engine_6_ativo: true,
+      logo_enviada_ao_gerador: false,
+      input_fidelity: 'high',
+    });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
@@ -232,9 +298,10 @@ module.exports = async (req, res) => {
       } catch (e) { return null; }
     }
     try {
-      // logo da marca (sempre que existir)
-      const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url&limit=1`, { headers: SBH() }).then(r => r.json());
-      if (Array.isArray(logos) && logos[0]) { const im = await baixarImg(logos[0].url); if (im) baseImgs.push({ ...im, tag: 'logo' }); }
+      // LOGO: NÃO enviamos ao gerador. O Engine 6.0 é explícito ("este sistema gera imagens SEM logo"
+      // e proíbe símbolo/ícone/emblema): o gpt-image-1 SEMPRE redesenha a logo de referência e a
+      // distorce. A assinatura da marca sai como TEXTO simples (permitido pelo Engine); o PNG
+      // original será sobreposto por código numa próxima etapa.
       // REGRA CARROSSEL: foto/produto reais SÓ no primeiro slide (capa).
       const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
       // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
@@ -277,7 +344,9 @@ module.exports = async (req, res) => {
       }
       preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
-      const instr = (engine === false ? prompt : engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo })) + preserva;
+      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
+      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto') });
+      const instr = (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
       form.append('quality', 'medium');
@@ -304,7 +373,9 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const promptSemLogo = (engine === false ? prompt : engine6(M6, { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo })) + extra;
+      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo };
+      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false });
+      const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
