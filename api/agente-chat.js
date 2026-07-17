@@ -186,6 +186,12 @@ REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em te
 DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido.
 Ao final do lote, dispare a ordem ao Designer:
 <ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
+
+REGRA CRÍTICA DA ORDEM AO DESIGNER — existem DUAS tarefas diferentes e usar a errada TRAVA a fila:
+• "criar_post" = LOTE. Use SOMENTE quando os posts JÁ EXISTEM no calendário COM copy e headline gravadas (via <detalhe>). O Designer vai buscar esses conteúdos no banco. Se você usar "criar_post" para posts que ainda não têm copy, a ordem fica pendente para sempre e o cliente não consegue gerar arte nenhuma.
+• "criar_avulso" = ARTES SOLTAS, sem conteúdo no calendário (ex.: "quero 2 criativos avulsos"). Aqui o briefing NÃO pode ir em texto corrido: cada arte vai como um item do array "itens", senão o Designer não tem como saber quantas são nem do que tratam:
+<ordem_servico>{"para":"criativo","tarefa":"criar_avulso","detalhe":"2 criativos avulsos","itens":[{"tipo_visual":"conceitual","brief":"tema completo e específico da arte 1","formato":"4:5"},{"tipo_visual":"pessoa_conceito","brief":"tema completo e específico da arte 2","formato":"4:5"}]}</ordem_servico>
+Cada "brief" precisa ser AUTOSSUFICIENTE (o Designer só lê ele, não lê esta conversa). "tipo_visual" segue o critério abaixo.
 E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
 
 tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
@@ -744,7 +750,7 @@ const handler = async (req, res) => {
     let ordens=[];
     const AGENTES_VALIDOS=['identidade','mercado','diagnostico','estrategia','criativo','publicacao','trafego','video'];
     texto=texto.replace(/<ordem_servico>([\s\S]*?)<\/ordem_servico>/g,(_,j)=>{
-      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa&&AGENTES_VALIDOS.includes(String(o.para)))ordens.push(o)}catch(e){}
+      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa&&AGENTES_VALIDOS.includes(String(o.para)))ordens.push(o)}catch(e){console.error('tag ordem_servico invalida:',String(j).slice(0,120))}
       return '';
     });
     // TRIAL: o Tráfego NÃO dispara tarefas para outros agentes (só análise/sugestão).
@@ -756,7 +762,18 @@ const handler = async (req, res) => {
           // em Tarefas. Ao aprovar, roda a sequência Estratégia → Criativo → Tráfego (substituir criativo).
           const ehCadeia=(agente==='trafego'&&o.tarefa==='novo_criativo_ads');
           const body={user_id:targetId,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:ehCadeia?'aguardando_aprovacao':'pendente'};
-          if(ehCadeia)body.payload={sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
+          // O PARSER JOGAVA A INTENÇÃO FORA: só para/tarefa/detalhe sobreviviam. Uma ordem de
+          // "2 criativos avulsos: conceitual X e pessoa_conceito Y" virava PROSA no `detalhe` —
+          // nenhum campo dizia que eram 2 avulsos, de que tipo, com que tema. O executor
+          // roteava pelo `de_agente`, caía no lote, procurava conteúdos planejados, não achava
+          // e a ordem ficava pendente PARA SEMPRE, em silêncio. Igual ao caso da `conteudos`.
+          // Agora `itens` estruturado sobrevive no payload (jsonb já existente, zero migration).
+          const itens=Array.isArray(o.itens)?o.itens.filter(i=>i&&i.brief).slice(0,10):[];
+          if(itens.length){
+            body.payload={...(body.payload||{}),itens:itens.map(i=>({tipo_visual:String(i.tipo_visual||'conceitual'),brief:String(i.brief).slice(0,400),formato:String(i.formato||'4:5')}))};
+            body.total=itens.length; body.progresso=0;
+          }
+          if(ehCadeia)body.payload={...(body.payload||{}),sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
           return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
         }));
       }catch(e){}

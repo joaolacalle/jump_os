@@ -5,7 +5,40 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'application/json' });
 
-const VERSAO = '2026.07.16-cena-editorial';
+const VERSAO = '2026.07.17-pacote-1';
+
+// ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
+// O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
+// `midia_url` é TEXT — UMA imagem por conteúdo. O parâmetro `slide` viajava até aqui,
+// o Engine 6.0 tinha a regra de carrossel... e o slide 2 SOBRESCREVIA o midia_url do
+// slide 1. Carrossel nunca existiu: era um post com uma imagem chamado de carrossel.
+// SEM MIGRATION: `meta` é jsonb default '{}' — os slides moram em meta.slides.
+// `midia_url` continua sendo a CAPA (slide 1), então tudo que já lê midia_url
+// (calendário, dashboard, histórico, publicação no Instagram) segue funcionando.
+// CUIDADO: PATCH em jsonb SUBSTITUI o objeto inteiro — tem que ler, mesclar e gravar,
+// senão apaga meta.headline e meta.oferta (seria a 5ª vez do mesmo tipo de erro).
+async function gravarSlide(conteudoId, url, slide, total) {
+  if (!conteudoId || !url) return;
+  const n = Math.max(1, Number(slide) || 1);
+  const tot = Math.max(1, Number(total) || 1);
+  const patch = { status: 'aguardando_aprovacao' };
+  if (n === 1) patch.midia_url = url; // a capa continua onde todo mundo já procura
+  try {
+    if (tot > 1) {
+      const atual = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudoId}&select=meta`, { headers: SBH() })
+        .then(r => r.json()).then(a => (Array.isArray(a) && a[0] ? (a[0].meta || {}) : {})).catch(() => ({}));
+      const slides = Array.isArray(atual.slides) ? atual.slides.slice() : [];
+      const i = slides.findIndex(x => Number(x && x.n) === n);
+      const item = { n, url, em: new Date().toISOString() };
+      if (i >= 0) slides[i] = item; else slides.push(item);
+      slides.sort((a, b) => Number(a.n) - Number(b.n));
+      patch.meta = { ...atual, slides, total_slides: tot }; // mescla: preserva headline/oferta
+    }
+  } catch (e) { console.error('gravarSlide meta:', e.message); }
+  await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudoId}`, {
+    method: 'PATCH', headers: SBH(), body: JSON.stringify(patch),
+  }).catch(() => {});
+}
 
 // BUG (Arte 3): a copy era cortada com slice(0,90) NO MEIO DA FRASE e o gerador
 // renderizava o toco verbatim ("...A diferença entre" e parava). Corta na última
@@ -294,12 +327,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({ user_id: targetId, categoria: 'gerados', nome: nome || 'Arte IA', url, path: path || null }),
       });
       if (!rIns.ok) { const t = await rIns.text(); return res.status(500).json({ error: 'Falha ao salvar em Meus Arquivos', detalhe: t.slice(0, 160) }); }
-      if (conteudo_id) {
-        await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudo_id}`, {
-          method: 'PATCH', headers: SBH(),
-          body: JSON.stringify({ midia_url: url, status: 'aguardando_aprovacao' })
-        }).catch(() => {});
-      }
+      if (conteudo_id) await gravarSlide(conteudo_id, url, req.body.slide, req.body.total);
       return res.status(200).json({ ok: true, registrado: true });
     }
 
@@ -570,10 +598,7 @@ module.exports = async (req, res) => {
 
     // Se veio de um conteúdo planejado (e não é preview), vincula a arte e marca para aprovação
     if (registrar !== false && conteudo_id && publicUrl) {
-      await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudo_id}`, {
-        method: 'PATCH', headers: SBH(),
-        body: JSON.stringify({ midia_url: publicUrl, status: 'aguardando_aprovacao' })
-      }).catch(() => {});
+      await gravarSlide(conteudo_id, publicUrl, slide, total);
     }
 
     // Se o storage funcionou, manda a URL; senão, manda base64 (imagem garantida)
