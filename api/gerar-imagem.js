@@ -5,6 +5,21 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'application/json' });
 
+const VERSAO = '2026.07.16-cena-editorial';
+
+// BUG (Arte 3): a copy era cortada com slice(0,90) NO MEIO DA FRASE e o gerador
+// renderizava o toco verbatim ("...A diferença entre" e parava). Corta na última
+// frase completa; se não houver, na última palavra inteira. Nunca no meio.
+function cortarFrase(s, max) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const c = t.slice(0, max);
+  const p = Math.max(c.lastIndexOf('. '), c.lastIndexOf('! '), c.lastIndexOf('? '));
+  if (p > max * 0.4) return c.slice(0, p + 1).trim();
+  const e = c.lastIndexOf(' ');
+  return (e > 0 ? c.slice(0, e) : c).trim();
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // JUMP OS — CONTENT ENGINE 6.0 VISUAL (BLOCO IMUTÁVEL)
@@ -76,7 +91,7 @@ function engine6(M, o) {
     '=== CONTENT OF THIS PIECE ===',
     'LABEL: "' + String(o.label || o.pilar || 'JUMP').toUpperCase() + '"',
     'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
-    o.copy ? ('SUPPORT COPY (max 6 words, extract the essence): "' + String(o.copy).slice(0, 90) + '"') : '',
+    o.copy ? ('SUPPORT COPY (max 6 words — extract the essence, never render this text raw): "' + cortarFrase(o.copy, 90) + '"') : '',
     'CTA (max 2 words): "' + (o.cta || (o.total > 1 ? 'SWIPE →' : 'SAIBA MAIS')) + '"',
     o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
     '',
@@ -95,35 +110,85 @@ function engine6(M, o) {
 // ═══════════════════════════════════════════════════════════════════════════
 const MODEL_DIRETOR = () => process.env.AGENT_MODEL_DIRETOR || 'claude-haiku-4-5';
 
+// MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
+//   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
+//               (referência do João: parede de concreto + luminária + letras de aço)
+//   EDITORIAL = canvas dividido em ZONAS: zona de texto chapada + zona fotográfica full-bleed,
+//               fundidas por gradiente. (referências: EA2000, BMSEG, Chaleur)
+// LEI COMUM: sempre existe uma camada fotográfica REAL. Texto sobre fundo vazio é falha.
+function escolherModo(o, ctx) {
+  const m = String(o.modo || '').toLowerCase();
+  if (m === 'cena' || m === 'editorial') return m;
+  // Produto real precisa de arquitetura de zonas (ficar íntegro e legível) → EDITORIAL.
+  let base = ctx.temProduto || o.tipo === 'produto' ? 'editorial' : 'cena';
+  // Recriação RADICAL (100%) troca o modo — conceito novo de verdade, não a mesma peça repintada.
+  if (Number(ctx.variacao) === 100) base = (base === 'cena') ? 'editorial' : 'cena';
+  return base;
+}
+
+const BLOCO_CENA = [
+  '=== MODE OF THIS PIECE: CENA (cinematic photograph) ===',
+  'The ENTIRE canvas is ONE PHOTOGRAPH of a real physical place. Build it in this order and state each step explicitly in the prompt:',
+  'S1. THE SET: choose ONE concrete physical location that carries the theme (a dark industrial room with a raw concrete wall, a workshop bench, a studio corner, a desk under a single lamp). Describe the surface material, its pores, stains, seams and wear. The set comes BEFORE any layout decision.',
+  'S2. THE HEADLINE IS A PHYSICAL OBJECT, NOT AN OVERLAY: give it a real material (cast concrete, brushed or galvanised steel letters bolted to the wall, painted stencil, extruded metal, letterpress) mounted INSIDE the set — receiving the same light, casting real directional shadows, carrying the same grain as the wall. Write it explicitly: "the letters are physical objects in the scene, lit by the lamp, casting their own shadows — not a graphic overlay".',
+  'S3. PRACTICAL LIGHT IN FRAME: one visible light fixture inside the shot (hanging industrial lamp, neon tube, window shaft, desk lamp). Describe the cone, the hotspot on the surface, and the falloff — 60-75% of the canvas drops to near-black or deep shadow. Flat, even lighting is a FAILURE.',
+  'S4. CAMERA: state focal length, camera height, distance and depth of field (e.g. "35mm, camera at chest height, 2m from the wall, f/2.8, foreground softly out of focus").',
+  'S5. ACCENT AS LIGHT: the accent colour enters as a PHYSICAL LIGHT SOURCE in the environment (a small neon sign, an exit light, a coloured gel glowing on a far corner of the wall), plus the label and the CTA. Never as a highlighter.',
+  'S6. Support copy, label and CTA are small, physical (painted, engraved, printed) and sit quietly — the scene carries the weight.',
+].join('\n');
+
+const BLOCO_EDITORIAL = [
+  '=== MODE OF THIS PIECE: EDITORIAL (flat, agency-grade) ===',
+  'The canvas is split into ZONES. Build it in this order and state each step explicitly in the prompt:',
+  'E1. ZONE SPLIT: divide the canvas into a TEXT ZONE (solid colour or subtle gradient from the palette, ~45-55%) and a PHOTOGRAPHIC ZONE (~45-55%). Typically: photograph on the right / upper-right BLEEDING OFF the canvas edge, text block on the left. State the boundary and state that the photo runs off the edge — never a floating rectangle, never a framed thumbnail, never a rounded card.',
+  'E2. THE FUSION: the two zones are welded by a soft gradient and shadow — the photograph dissolves into the solid colour and the solid colour is tinted by the light of the photograph. State this explicitly. A hard rectangular seam between photo and colour is a FAILURE.',
+  'E3. THE PHOTOGRAPH IS REAL AND SPECIFIC: a real product / real object / real scene, shot with directional light, real shadows and shallow depth of field — described in detail (angle, lighting direction, material, focus). Never a vector illustration or an icon standing in for a photograph.',
+  'E4. FLAT COMPONENTS HAVE REAL STRUCTURE: the label is a SOLID FILLED PILL (not a hollow outline box). Under the headline, one short thin accent rule (2-3px, ~10% of canvas width). Info boxes, when present: 1px accent stroke, generous inner padding, an icon on the left, a bold accent title plus light body text inside. The CTA is a SOLID FILLED PILL or a bold arrow group. Everything aligns to ONE left margin.',
+  'E5. ONE THEMATIC GRAPHIC BRIDGES THE ZONES: a single element in the accent colour that starts in the flat zone and physically touches the photograph (concentric arcs leaving a sound source, a line chart falling across the objects, a thin arrow entering the photo). This is what makes flat design look designed instead of assembled. Choose it from the THEME, never generic.',
+  'E6. LIGHT: the photographic zone carries real directional light and deep shadow; the flat zone stays quiet. Never both busy.',
+].join('\n');
+
 async function diretorDeArte(M, o, ctx) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const engine = engine6(M, o);
+  const modo = escolherModo(o, ctx);
   const sys = [
     'You are an award-winning art director for premium Brazilian Instagram brands.',
     'You receive a DESIGN SYSTEM (it is LAW — never violate, never omit) and a content brief.',
-    'Your job: write ONE final, dense, concrete image-generation prompt in English for an image model that does NOT reason.',
+    'Your job: write ONE final, dense, concrete image-generation prompt in English for an image model that does NOT reason. It renders literally what you describe — so describe matter, not intentions.',
     '',
-    'HOW TO WRITE IT:',
-    '1. Describe the FINISHED ARTWORK as if describing a photograph of it: exact composition, where each element sits (top-left, lower third...), size relationships, colors by HEX, lighting direction, materials, texture, depth.',
-    '2. Turn every rule into a CONCRETE visual decision. Never restate a rule as a rule ("headline must dominate" ✗ → "the headline occupies the upper-left half, cap-height ~14% of canvas height, four short lines" ✓).',
-    '3. TYPOGRAPHY: never name a font. Describe it by characteristics: weight, width, stroke contrast, terminals, corner treatment, letter spacing, case, line-height.',
-    '4. Reproduce the exact texts to render inside double quotes, in Portuguese, verbatim. CRITICAL — Brazilian Portuguese accents: the image model invents accents (it wrote "À FAZÊR" and "CONCORRENTÊ" instead of "a fazer" and "concorrente"). In the "Text to render:" list, write each line EXACTLY as it must appear and add: "Render this text character-for-character. Do NOT add, remove or invent any accent mark. Words without accents must stay without accents."',
-    '5. ALWAYS bake in explicitly: the 3 depth layers, the negative-space percentage, the safe zones, the label prominence, headline dominance, the eye-flow, and the human mode — these are the ones weak prompts drop.',
-    '5a. BACKGROUND IS NEVER FLAT (mandatory): describe a real, visible textured surface — e.g. matte paper grain, fine film grain over the whole frame, subtle paper fiber, soft vignette, faint technical grid, light leak or gradient glow bleeding from one corner. State the grain as VISIBLE (film grain 3-5%) and covering the ENTIRE canvas, not just a corner. A plain flat dark background is a FAILURE.',
-    '5b. SCENE ELEMENTS (mandatory): the artwork must contain 2-4 concrete visual elements that illustrate THE THEME (mockups, UI cards, charts, chat bubbles, calendar/grid fragments, cables, product boxes, screens, geometric shards). They live in background/foreground layers at 20-60% opacity, never competing with the headline. Never deliver headline-on-empty-background.',
-    '5c. ACCENT COLOR (mandatory): use the CTA color as NEON accent in at least 3 places — one or two KEY WORDS inside the headline highlighted in that color (or underlined/boxed with it), plus the label, plus the CTA and a thin graphic line/arrow. The rest of the headline stays in the light neutral. Never let the accent color be only on the CTA.',
-    ctx.temFoto ? '6. A REAL PHOTO of the client is attached as reference. Describe HOW TO INTEGRATE it: which side, crop, how the lighting matches the background, gaze direction toward the headline, shadow falloff. NEVER describe the person\'s facial features, age, hair or body — the attached photo defines the identity and must be preserved exactly.' : '6. No real photo is attached: build a conceptual composition (objects, screenshots, mockups, graphic elements). Never invent a generic AI person.',
-    ctx.temProduto ? '7. A REAL PRODUCT photo is attached: keep the product exactly as shown, integrate with matching lighting.' : '',
-    '8. Never include any logo, symbol, emblem, monogram or invented brand mark. The brand mark is applied later by the system.',
-    o.headline ? '' : '9. NO HEADLINE WAS PROVIDED (free-form request): extract/write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
-    ctx.variacao ? ('10. THIS IS A RECREATION. The client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
-      25: 'keep the concept and layout; change lighting, textures, secondary elements, crop and color accents. Same idea, fresh execution.',
-      50: 'keep the brand system and the headline, but rebuild the composition: different layout structure, different visual metaphor, different placement and photographic treatment.',
-      100: 'start over. New concept, new metaphor, new composition, new lighting. Only the palette, typography rules and the text stay. It must not resemble the previous version.',
+    '=== LAW 0 — THERE IS ALWAYS A REAL PHOTOGRAPHIC LAYER (absolute) ===',
+    'Every reference-grade piece is built on real photographic matter. Text floating on an empty coloured background, decorated with a few outlined shapes, is an AMATEUR FAILURE and is forbidden. Whatever the mode: real surfaces, real objects, real light, real depth, real grain.',
+    '',
+    modo === 'cena' ? BLOCO_CENA : BLOCO_EDITORIAL,
+    '',
+    '=== HOW TO WRITE IT (both modes) ===',
+    '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',
+    '2. DOMINANCE IS WON BY LIGHT AND CONTRAST — NEVER BY SIZE. The headline is the brightest, highest-contrast thing in the frame while everything else sits in shadow or low contrast. It occupies AT MOST 30% of the canvas area (cap-height 8-14% of canvas height). A headline that fills half the canvas is a slide deck, not a campaign: FAILURE.',
+    '3. LENGTH IS YOUR RESPONSIBILITY. The brief may hand you a long sentence. If the headline exceeds 8 words, REWRITE it down to the strongest 8 words or fewer, keeping the meaning and the punch. Never render a 15-word paragraph as a headline. Same for support copy: rewrite it to 6 words maximum. NEVER render a sentence that is cut off mid-thought.',
+    '4. TYPOGRAPHY: never name a font. Describe weight, width, stroke contrast, terminals, corner treatment, tracking, case, line-height. Mixing weight or colour inside the headline is allowed ONLY per whole line (line 1 neutral, line 2 accent) — never per random word.',
+    '5. ACCENT DISCIPLINE: the accent colour appears in exactly 3-4 places and they are STRUCTURAL (label pill, thin rule, CTA pill, the thematic graphic, icon strokes) or, in CENA mode, physical light. STRICTLY FORBIDDEN: underlining words, highlighting or colouring isolated words inside the headline. That is a marker pen, not art direction.',
+    '6. NEGATIVE SPACE IS ATMOSPHERE, NOT BLANK. The empty percentage the design system asks for means "no elements there" — that area must still be full of matter: textured surface, light falloff, gradient, grain, dust in the light beam. A flat empty area is a FAILURE.',
+    '7. HUMAN MODE: visible film grain 3-5% across the ENTIRE frame, micro-wear, real optics and real shadows. Goal: a photograph of a real campaign, not an AI render.',
+    '8. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
+    '',
+    '=== SPECIFICS ===',
+    ctx.temFoto ? 'A REAL PHOTO of the client is attached as reference. Describe HOW TO INTEGRATE it into the composition: which side, crop, how the lighting of the set matches the photo, gaze direction pointing toward the headline, shadow falloff. NEVER describe the person\'s facial features, age, hair or body — the attached photo defines the identity and must be preserved exactly.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
+    ctx.temProduto ? 'A REAL PRODUCT photo is attached: keep the product exactly as shown — same shape, colours, label, materials. It is the hero of the photographic zone. Integrate it with matching lighting and a real contact shadow.' : '',
+    'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
+    o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
+    ctx.variacao ? ('THIS IS A RECREATION — the client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
+      25: 'keep the concept and layout; change the light, textures, secondary elements, crop and colour accents. Same idea, fresh execution.',
+      50: 'keep the brand system and the headline, but rebuild the composition: different structure, different visual metaphor, different placement and photographic treatment.',
+      100: 'start over. New set, new concept, new metaphor, new composition, new light. Only the palette, the typography rules and the text stay. It must not resemble the previous version.',
     }[ctx.variacao] || 'change the composition meaningfully.')) : '',
-    ctx.ajuste ? ('11. THE CLIENT ASKED SPECIFICALLY: "' + String(ctx.ajuste).slice(0, 300) + '". This instruction OVERRIDES your own preferences (but never the design system).') : '',
+    ctx.ajuste ? ('THE CLIENT ASKED SPECIFICALLY: "' + String(ctx.ajuste).slice(0, 300) + '". This instruction OVERRIDES your own preferences (but never the design system).') : '',
     '',
-    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 220-380 words, one dense paragraph plus a short "Text to render:" list.',
+    '=== TEXT TO RENDER (accent bug — the model invents accents) ===',
+    'End the prompt with a short list titled "Text to render:", one line per string, each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear after your rewrite. Check every line: correct spelling and correct accents (ja -> "já", automatizou, concorrente, você, não, negócios).',
+    'Then append this sentence verbatim: "Render every line character-for-character. Do NOT add, remove or invent any accent mark. Words written without an accent must stay without an accent. Do not add any other text anywhere in the image."',
+    '',
+    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 240-400 words: one dense paragraph, then the "Text to render:" list.',
   ].filter(Boolean).join('\n');
 
   const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
@@ -131,7 +196,7 @@ async function diretorDeArte(M, o, ctx) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 1200, system: sys, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 1400, system: sys, messages: [{ role: 'user', content: user }] }),
     });
     if (!r.ok) { console.error('diretor:', (await r.text()).slice(0, 160)); return null; }
     const d = await r.json();
@@ -172,7 +237,8 @@ module.exports = async (req, res) => {
     }
     return res.status(200).json({
       diagnostico: true,
-      versao: 'A1-diretor-de-arte',
+      versao: VERSAO,
+      modos: 'CENA (foto real, texto = objeto físico) | EDITORIAL (zonas: chapado + foto full-bleed)',
       tem_OPENAI_API_KEY: temChave,
       teste_openai: openai,
       diretor_de_arte: diretor,
@@ -244,7 +310,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -357,9 +423,11 @@ module.exports = async (req, res) => {
       if (temProduto) {
         preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
       }
-      preserva += ' The provided LOGO must be used EXACTLY as given (same shape and colors), placed ONCE only (typically bottom area), never recreated, redrawn, duplicated or invented. Do NOT add any extra signature, brand name text or second logo anywhere in the image. ===';
+      // A LOGO NÃO é mais enviada ao gerador. A frase antiga afirmava que existia uma logo anexa
+      // ("the provided LOGO...") — instrução órfã que CONVIDAVA o modelo a inventar uma marca.
+      preserva += ' Do NOT add, draw, invent or duplicate any logo, symbol, emblem, monogram, watermark or extra brand signature anywhere in the image — the real brand mark is applied later by the system. ===';
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
-      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas };
+      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto'), variacao: Number(variacao) || 0, ajuste });
       const instr = (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
@@ -388,7 +456,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas };
+      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
       const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
