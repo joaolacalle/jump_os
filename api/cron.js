@@ -352,6 +352,32 @@ async function jobOrdens() {
     lotesSemana++;
   }
 
+  // 1.9) RESGATE DE ÓRFÃ — bug achado ao ler o schema, não o código.
+  //      `executarLoteCriativos` marca a ordem como 'processando'. Se o navegador fechar no
+  //      meio (ou a função estourar os 60s), ela fica 'processando' PARA SEMPRE: a fila busca
+  //      só 'pendente', então a ordem some da tela e nunca mais roda — em silêncio.
+  //      CRITÉRIO = payload.batendo (heartbeat), NUNCA created_at: created_at é a hora da
+  //      CRIAÇÃO. Uma ordem criada ontem e iniciada há 2min tem created_at antigo — por
+  //      created_at ela seria ressuscitada NO MEIO DO VOO e o lote rodaria DUAS VEZES,
+  //      queimando a cota em dobro. O heartbeat diz quando ela mexeu pela última vez.
+  //      progresso/total já existem no schema: a retomada continua de onde parou.
+  let orfas = 0;
+  const LIMITE_MS = 3600e3; // 1h sem bater o coração = morreu
+  try {
+    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload,created_at,progresso,total`, { headers: SBH() }).then(r => r.json());
+    for (const o of (Array.isArray(travadas) ? travadas : [])) {
+      // sem heartbeat = ordem antiga, de antes desta versão: cai no created_at como último recurso.
+      const marca = ((o.payload || {}).batendo) || o.created_at;
+      if (!marca || (Date.now() - new Date(marca).getTime()) < LIMITE_MS) continue; // ainda viva: não encosta
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ status: 'pendente', payload: { ...(o.payload || {}), batendo: null, resgatada_em: new Date().toISOString() } }),
+      }).catch(() => {});
+      orfas++;
+    }
+  } catch (e) { console.error('resgate de orfa:', e.message); }
+
+
   // 2) Lembrete: para cada usuário com ordens pendentes, cria 1 recado (anti-duplicata por dia)
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.pendente&select=user_id`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
   const porUser = {};
@@ -388,7 +414,7 @@ async function jobOrdens() {
     convertidos++;
   }
 
-  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, lembretes, convertidos };
+  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, orfas_resgatadas: orfas, lembretes, convertidos };
 }
 
 async function jobLimpeza() {

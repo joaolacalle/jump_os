@@ -310,7 +310,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -338,6 +338,27 @@ module.exports = async (req, res) => {
         };
       }
     } catch (e) {}
+
+    // ── RESERVA DA VIA EXPRESSA (80/20) ──
+    // O lote da semana NUNCA pode comer a cota inteira: 20% fica reservado ao pedido de
+    // última hora do humano. Sem isto o robô gerava as 10 artes do plano e, quando o dono
+    // pedia um post urgente, não sobrava imagem — foi exatamente o que aconteceu.
+    // Validado no SERVIDOR: o front não burla mandando origem:'expressa'.
+    const TETO_LOTE = 0.8;
+    // PISO: abaixo de 5 imagens/mês não existe 80/20 — floor(1*0.8)=0 e o lote nasceria MORTO
+    // (o trial básico tem cota 1: o cliente clicaria "Gerar as artes" e levaria 403 antes da
+    // primeira arte). Com cota pequena não há o que repartir: a fila por prioridade já protege
+    // o humano, que passa na frente do robô de qualquer forma.
+    const RESERVA_MIN = 5;
+    if (!reload && String(origem || '') === 'lote' && lim.imagens != null && Number(lim.imagens) >= RESERVA_MIN) {
+      const teto = Math.floor(Number(lim.imagens) * TETO_LOTE);
+      if (Number(uso.imagens || 0) >= teto) {
+        return res.status(403).json({
+          error: `A fila automática já usou as ${teto} imagens reservadas ao plano (de ${lim.imagens}). O resto fica guardado para os seus pedidos de última hora.`,
+          limite: true, tipo_limite: 'reserva', reserva: true, teto,
+        });
+      }
+    }
 
     const ehReload = !!reload;
     if (ehReload) {
