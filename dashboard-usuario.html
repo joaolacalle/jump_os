@@ -436,10 +436,9 @@ async function autoGerarSemana(uid){
     pend=ok;
     for(const c of pend){
       if(localStorage.getItem('jump_parar_lote')==='1')return; // parado pelo usuário
-      const meta=c.meta||{};
-      const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.`;
+      // CONTRATO ÚNICO (era a mesma sopa do aprovar.html — headline nunca chegava).
       try{
-        const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({prompt,tamanho:(c.formato||'').includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:(window._ctx&&window._ctx.viewId)||null,origem:'lote'})});
+        const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(JUMP.payloadDoConteudo(c,{origem:'lote',ver_id:(window._ctx&&window._ctx.viewId)||null}))});
         const d=await r.json();
         if(d&&d.limite)break; // cota do plano/trial esgotada
         const cinco=new Date(Date.now()-5*864e5).toISOString();

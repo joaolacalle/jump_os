@@ -40,7 +40,7 @@
 <div class="app">
 <main class="main">
   <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div></div>
-  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tudo que os agentes têm para fazer fica aqui — as ordens que você criou e as que um agente passou para outro. Clique em "Executar agora" para abrir o agente e tocar a tarefa.</p>
+  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tudo que os agentes têm para fazer fica aqui — as ordens que você criou e as que um agente passou para outro. Clique em "Executar agora": o agente abre e já toca a tarefa.</p>
 
   <div class="ord-filtros">
     <button class="ord-f on" data-f="ativa" onclick="filtrar('ativa',this)">Ativas</button>
@@ -190,23 +190,55 @@ function render(){
     if(o.tarefa==='detalhar_semana')rota='Estratégia → Copy da semana';
     const podeExec=(o.status==='pendente'||o.status==='erro');
     const precisaAprovar=(o.status==='aguardando_aprovacao');
+    // C4: CARD EXPANSÍVEL (igual à dashboard). Antes tudo ficava aberto e o João não
+    // conseguia identificar as tarefas no meio do ruído. Agora: o essencial sempre visível,
+    // os detalhes ao clicar.
+    const itens=Array.isArray((o.payload||{}).itens)?o.payload.itens:[];
+    const detalhes=[
+      `<div style="font-family:var(--M);font-size:10.5px;color:var(--t3);line-height:1.9">
+        👤 Gerado por <b>${de.n||o.de_agente||'—'}</b><br>
+        ⚡ Executa: <b>${ag.n}</b><br>
+        📅 ${quando}<br>
+        🔖 tarefa: <code>${JUMP.esc(o.tarefa||'—')}</code>
+        ${o.ordem_pai?'<br>🔗 parte de uma sequência':''}
+        ${(o.payload||{}).batendo?'<br>💓 rodando desde '+new Date(o.payload.batendo).toLocaleString('pt-BR'):''}
+      </div>`,
+      itens.length?`<div style="margin-top:9px;border-top:1px solid var(--bd);padding-top:9px">
+        <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-bottom:5px">${itens.length} ARTE(S) NESTA ORDEM</div>
+        ${itens.map((it,n)=>`<div style="font-size:12px;color:var(--t2);padding:4px 0;line-height:1.5">
+          <b style="color:var(--g)">${n+1}.</b> <span style="font-family:var(--M);font-size:9.5px;background:var(--bd);padding:2px 5px;border-radius:4px">${JUMP.esc(it.tipo_visual||'conceitual')}</span> ${JUMP.esc(it.brief||'')}
+        </div>`).join('')}</div>`:'',
+      o.status==='erro'&&o.resultado?`<div style="margin-top:9px;font-size:11.5px;color:#f87171;font-family:var(--M)">⚠️ ${JUMP.esc(String((o.resultado||{}).erro||JSON.stringify(o.resultado)).slice(0,220))}</div>`:''
+    ].filter(Boolean).join('');
     return `<div class="ord-card" style="--ac:${ag.nc}">
       <div class="ord-ico">${ag.ico}</div>
       <div class="ord-body">
         <div class="ord-rota">${rota}</div>
-        <div class="ord-tarefa">${JUMP.esc(o.detalhe||o.tarefa||'')}</div>
-        <div class="ord-meta">${badge}${rec}${prog}${per}<span class="ord-tempo">${tempo}</span></div>${barra}
-        <div class="ord-info">👤 Gerado por <b>${de.n||o.de_agente||'—'}</b> · ⚡ Executa: <b>${ag.n}</b> · 📅 ${quando}</div>
+        <div class="ord-tarefa" style="cursor:pointer" onclick="toggleOrd('${o.id}')">${JUMP.esc(o.detalhe||o.tarefa||'')} <span id="ch-${o.id}" style="color:var(--t3);font-size:11px">▾</span></div>
+        <div class="ord-meta">${badge}${rec}${prog}${per}${itens.length?`<span class="ord-tempo">▤ ${itens.length} arte(s)</span>`:''}<span class="ord-tempo">${tempo}</span></div>${barra}
+        <div class="ord-info" id="det-${o.id}" style="display:none">${detalhes}</div>
       </div>
       <div class="ord-acts">
         ${precisaAprovar?`<button class="btn btn-g btn-sm" onclick="aprovarOrdem('${o.id}',this)">✓ ${o.tarefa==='aprovar_estrategia'?'Aprovar estratégia':'Aprovar sugestão'}</button>`:''}
-        ${podeExec?`<a class="btn btn-g btn-sm" href="agentes.html?agente=${o.para_agente}">${o.status==='erro'?'Tentar de novo →':'Executar agora →'}</a>`:''}
+        ${podeExec?`<a class="btn btn-g btn-sm" href="agentes.html?agente=${o.para_agente}&exec=${o.id}">${o.status==='erro'?'Tentar de novo →':'Executar agora →'}</a>`:''}
         <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">Remover</button>
       </div>
     </div>`;
   }).join('');
+  reabrirOrds();
 }
 
+// C4: abre/fecha os detalhes. Lembra o estado para o auto-refresh não fechar na sua cara.
+const ABERTOS={};
+function toggleOrd(id){
+  const d=document.getElementById('det-'+id),ch=document.getElementById('ch-'+id);
+  if(!d)return;
+  const abrir=d.style.display==='none';
+  d.style.display=abrir?'block':'none';
+  if(ch)ch.textContent=abrir?'▴':'▾';
+  ABERTOS[id]=abrir;
+}
+function reabrirOrds(){Object.keys(ABERTOS).forEach(id=>{if(ABERTOS[id]){const d=document.getElementById('det-'+id),ch=document.getElementById('ch-'+id);if(d){d.style.display='block';if(ch)ch.textContent='▴'}}})}
 let REFRESH_TIMER=null;
 function temAtivo(){
   const ordAtiva=(TODAS||[]).some(o=>o.status==='pendente'||o.status==='processando');

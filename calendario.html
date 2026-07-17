@@ -141,11 +141,19 @@ function verDia(d){
   const evs=evDoDia(d);
   const w=document.getElementById('dia-lista');
   if(!evs.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3)">Nenhum conteúdo neste dia. Peça ao Agente de Estratégia para preencher seu calendário.</div>';return}
-  w.innerHTML=evs.map(e=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="editarConteudo('${e.id}')">
-    <span style="font-size:17px">${(e.formato||'').includes('reel')?'🎬':(e.formato||'').includes('carros')?'🖼':'📝'}</span>
-    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:3px">${JUMP.esc(e.formato||'post')} · <span class="ck ${checkin(e)[0]}">${checkin(e)[1]}</span> · <span style="color:var(--g)">editar ✎</span></div></div>
-    ${e.status==='aguardando_aprovacao'?'<a href="aprovar.html" class="btn btn-g btn-sm" onclick="event.stopPropagation()">Aprovar →</a>':''}
-  </div>`).join('');
+  // FONTE ÚNICA DE EDIÇÃO: editar em dois lugares é como nascem divergências silenciosas.
+  // O calendário passa a ser VISUALIZAÇÃO — o clique leva ao Aprovar com o card já aberto.
+  w.innerHTML=evs.map(e=>{const t=JUMP.tipoPeca(e);return `<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="abrirNoAprovar('${e.id}')">
+    <span style="font-size:17px">${t.ico}</span>
+    <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:3px">${JUMP.esc(t.label)} · <span class="ck ${checkin(e)[0]}">${checkin(e)[1]}</span> · <span style="color:var(--g)">abrir ✎</span></div></div>
+    ${e.status==='aguardando_aprovacao'?'<span class="btn btn-g btn-sm">Aprovar →</span>':''}
+  </div>`}).join('');
+}
+// C3: leva ao Aprovar com o card aberto. Mantém o ?ver= (modo supervisor) para não
+// derrubar quem está vendo a conta de outro cliente.
+function abrirNoAprovar(id){
+  const ver=new URLSearchParams(location.search).get('ver');
+  location.href='aprovar.html?id='+encodeURIComponent(id)+(ver?('&ver='+encodeURIComponent(ver)):'');
 }
 let EDIT=null,PREVIEW=null;
 function toast(m,t){ if(window.JUMP&&JUMP.toast)JUMP.toast(m,t); else alert(m); }

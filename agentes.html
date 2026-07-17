@@ -447,6 +447,15 @@ const AGS=[
   const q=new URLSearchParams(location.search).get('agente');
     if(q){const m=AGS.find(a=>q.toLowerCase().includes(a.id)||a.n.toLowerCase()===q.toLowerCase());if(m)selecionar(m.id)}
     document.getElementById('loading').classList.add('hide');
+    // ?exec=<id> — o botão "Executar agora" de ordens.html era um <a href> puro: SÓ NAVEGAVA.
+    // A própria página admitia ("abra o agente e toque a tarefa"): dizia EXECUTAR e fazia ABRIR.
+    // O usuário clicava, caía na conversa e nada acontecia. Agora o link executa a ordem citada.
+    const execId=new URLSearchParams(location.search).get('exec');
+    if(execId){
+      // limpa a URL: F5 não pode re-executar (nem gastar cota de novo)
+      try{history.replaceState({},'',location.pathname+'?agente='+encodeURIComponent(q||'criativo'))}catch(e){}
+      setTimeout(()=>{executarOrdens(null,execId).catch(()=>{})},600); // deixa o chat montar antes
+    }
   }catch(e){}
 })();
 function nivel(){return LV[(CTX.viewCliente&&CTX.viewCliente.plano)||CTX.cliente.plano]||1}
@@ -610,11 +619,36 @@ async function executarOrdens(btn,soId){
     let executadas=0,travadas=0;
     for(const o of ords){
       const tarefa=String(o.tarefa||'').toLowerCase();
-      // O caminho do LOTE só vale para ordens criadas pela ESTRATÉGIA. Tarefa manual do usuário
-      // (mesmo chamada 'criar_post') é AVULSA — antes caía no lote e dizia 'não encontrei
-      // conteúdos planejados', ficando pendente para sempre.
-      const doPlano=(o.de_agente==='estrategia');
-      if(doPlano&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
+      const itens=Array.isArray((o.payload||{}).itens)?o.payload.itens.filter(i=>i&&i.brief):[];
+      // ROTEAMENTO POR INTENÇÃO, NÃO POR REMETENTE.
+      // Era `doPlano=(o.de_agente==='estrategia')`: qualquer ordem vinda da Estratégia caía no
+      // LOTE. Mas a Estratégia também pede AVULSOS ("2 criativos avulsos: conceitual X e
+      // pessoa_conceito Y") — isso ia pro lote, procurava conteúdo planejado, não achava,
+      // devolvia 'vazio' e a ordem ficava pendente PARA SEMPRE. Era o loop do print do João.
+      // Agora: tem itens estruturados no payload → são avulsas, ponto. Sem adivinhação.
+      if(itens.length){
+        addMsg('a','🎨 '+itens.length+' arte(s) avulsa(s) nesta ordem. Vou gerar uma por uma.');
+        let feitas=0;
+        for(const it of itens){
+          if(PARAR){addMsg('a','⏸️ Geração interrompida. A ordem continua pendente.');break}
+          const brief=String(it.brief||'').trim(); if(!brief)continue;
+          try{
+            await gerarPorOrdem(brief,String(it.formato||'4:5'),String(it.tipo_visual||'conceitual'),brief);
+            feitas++;
+            try{await JUMP.sb.from('ordens_servico').update({progresso:feitas,total:itens.length,payload:{...(o.payload||{}),batendo:new Date().toISOString()}}).eq('id',o.id)}catch(e){}
+          }catch(e){
+            // uma arte que falha não pode derrubar as outras nem a ordem inteira
+            addMsg('a','⚠️ Falhou uma arte desta ordem ('+JUMP.esc(e.message||'erro')+'). Sigo para a próxima.');
+          }
+        }
+        if(!feitas){travadas++;continue} // nada saiu: a ordem continua pendente
+      }else if(tarefa.indexOf('criar_avulso')>=0){
+        // 'criar_avulso' SEM itens = a Estratégia emitiu a tag errada (versão antiga do prompt).
+        // Cai no briefing cru em vez de virar ordem-zumbi no lote.
+        const brief=o.detalhe||o.tarefa||'post';
+        addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
+        await gerarPorOrdem(brief,'4:5','conceitual',brief);
+      }else if(o.de_agente==='estrategia'&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
         // FALHA ISOLADA: antes era `return` — UMA ordem travada abortava a fila INTEIRA e o
         // seu pedido, que estava atrás, nunca rodava. Agora ela fica pendente e as outras seguem.
@@ -651,6 +685,19 @@ async function executarOrdens(btn,soId){
     if(b&&b.parentElement){b.disabled=false;b.innerHTML=bHtml||'⚡ Executar todas'}
   }
 }
+// O botão da pendência: não manda o usuário descobrir a frase mágica nem trocar de agente
+// na mão — abre o Estrategista com o pedido já escrito e enviado. Um clique, não uma instrução.
+async function pedirCopyDaSemana(btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo o Estrategista...'}
+  try{
+    await selecionar('estrategia');           // troca de agente e monta o chat
+    await new Promise(r=>setTimeout(r,350));  // deixa o AG assentar antes de disparar
+    await enviarTexto('Escrever a copy da semana'); // enviarTexto: não depende do campo de input
+  }catch(e){
+    JUMP.toast('Abra o Agente de Estratégia e peça "Escrever a copy da semana".','err');
+    if(btn){btn.disabled=false;btn.innerHTML='✍️ Escrever a copy agora'}
+  }
+}
 // LOTE DA SEMANA: lê os conteúdos planejados no calendário e gera a arte de CADA UM (com os dados reais).
 // Retorna false se parou por cota (a ordem continua pendente).
 async function executarLoteCriativos(uid,ordem){
@@ -662,7 +709,13 @@ async function executarLoteCriativos(uid,ordem){
   const semCopy=pend.filter(c=>!(c.copy&&String(c.copy).trim())||!((c.meta&&c.meta.headline)||'').trim());
   pend=pend.filter(c=>(c.copy&&String(c.copy).trim())&&((c.meta&&c.meta.headline)||'').trim());
   if(semCopy.length){
-    addMsg('a','✋ '+semCopy.length+' post(s) ainda estão sem copy/headline. A arte só sai depois do texto — peça ao Agente de Estratégia "Escrever a copy da semana" primeiro. Deixei a ordem pendente.');
+    // PENDÊNCIA VISÍVEL, NÃO RECADO. Antes isto era só um texto: "peça ao Estrategista" e a
+    // ordem sumia de cena, pendente em silêncio. Recado não resolve — botão resolve.
+    // O usuário não deve ter que traduzir um aviso em ação, nem saber a frase mágica.
+    const nomes=semCopy.slice(0,3).map(c=>'• '+JUMP.esc(String(c.tema||c.titulo||'post').slice(0,60))).join('<br>');
+    addMsg('a','<b>✋ '+semCopy.length+' post(s) sem copy</b><br><span style="color:var(--t2);font-size:13px">A arte nasce do texto: sem headline e copy, a arte sai vazia.</span><br><br>'
+      +'<span style="font-size:13px;color:var(--t2)">'+nomes+(semCopy.length>3?'<br>• +'+(semCopy.length-3)+' outro(s)':'')+'</span><br><br>'
+      +'<button class="btn btn-g btn-sm" onclick="pedirCopyDaSemana(this)">✍️ Escrever a copy agora</button>');
     if(!pend.length)return 'vazio';
   }
   if(!pend||!pend.length){

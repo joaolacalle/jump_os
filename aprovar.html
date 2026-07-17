@@ -62,7 +62,55 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
-    // Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
+    // ── CARD ÚNICO: navegação entre slides (sem re-render, sem piscar) ────────────
+const SLIDES={};
+function navSlide(id,d){
+  const im=document.getElementById('sl-img-'+id); if(!im)return;
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const sl=JUMP.slidesDe(c); if(sl.length<2)return;
+  let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
+  im.src=sl[i]; im.dataset.i=i; SLIDES[id]=i;
+  const n=document.getElementById('sl-n-'+id); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+// Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
+async function regerarSlide(id,btn){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const im=document.getElementById('sl-img-'+id);
+  const i=im?Number(im.dataset.i||0):0, tot=JUMP.totalSlides(c);
+  const b=btn||event&&event.target;
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Gerando...'}
+  try{
+    const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
+    const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'Falha ao gerar');
+    await recarregar(); JUMP.toast('✓ Slide '+(i+1)+' regerado.');
+  }catch(e){JUMP.toast(e.message||'Erro ao regerar','err');if(b){b.disabled=false;b.innerHTML='🎨 Regerar este slide'}}
+}
+// Regerar o carrossel INTEIRO (gasta N imagens) — confirma antes: é dinheiro do cliente.
+async function regerarCarrossel(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const tot=JUMP.totalSlides(c);
+  if(!confirm('Regerar os '+tot+' slides? Isso gasta '+tot+' imagens da sua cota.'))return;
+  const b=event&&event.target; if(b){b.disabled=true}
+  liberarGeracao();
+  for(let n=1;n<=tot;n++){
+    if(deveParar()){JUMP.toast('Geração interrompida.');break}
+    if(b)b.innerHTML='<span class="spin-i"></span> '+n+'/'+tot+'...';
+    try{
+      const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:n,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
+      const d=await r.json();
+      if(d&&d.limite){JUMP.toast(d.error||'Cota esgotada. Os slides restantes ficam como estavam.','err');break}
+    }catch(e){JUMP.toast('Falhou o slide '+n+'. Sigo para o próximo.','err')}
+  }
+  await recarregar(); JUMP.toast('✓ Carrossel regerado.');
+}
+async function recarregar(){
+  const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
+  ITENS=data||[]; render();
+}
+// Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
     if(SEM_COPY.length){
       const b=document.getElementById('fila-bar');
       if(b){b.style.display='block';
@@ -81,27 +129,52 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
     }
   }catch(e){}
 })();
+// C3: chegou do calendário com ?id= — abre no card certo em vez de largar o usuário na lista.
+function focarCard(){
+  const id=new URLSearchParams(location.search).get('id'); if(!id)return;
+  const el=document.getElementById('card-'+id);
+  if(!el){JUMP.toast('Esse conteúdo ainda não está aguardando aprovação.');return}
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
+  setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
+}
 function render(){
   document.getElementById('pend-n').textContent=ITENS.length+' pendente'+(ITENS.length===1?'':'s');
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=ITENS.length?'none':'block';
   g.innerHTML=ITENS.map(c=>{
-    const ico=(c.formato||'').includes('reel')?'🎬':(c.formato||'').includes('carros')?'🖼':'📝';
+    const tp=JUMP.tipoPeca(c);              // mesma verdade do calendário
+    const ico=tp.ico;
     const prazo=c.data_sugerida?new Date(c.data_sugerida).toLocaleDateString('pt-BR'):null;
     const acoes=PLANO==='basico'
       ?`<button class="btn btn-g btn-sm" style="flex:1" onclick="baixar('${c.id}')">⬇ Baixar</button>
         <button class="btn btn-o btn-sm" onclick="abrirRej('${c.id}')">Ajustar</button>`
       :`<button class="btn btn-g btn-sm" style="flex:1" onclick="aprovar('${c.id}')">✓ Aprovar e publicar</button>
         <button class="btn btn-o btn-sm" onclick="abrirRej('${c.id}')">Rejeitar</button>`;
-    return `<div class="ap-card">
-      <div class="ap-img">${c.midia_url?`<img src="${c.midia_url}" alt="">`:ico}</div>
+    // CARD ÚNICO: carrossel não vira N cards — vira UM card com setas.
+    const sl=JUMP.slidesDe(c), tot=JUMP.totalSlides(c), multi=sl.length>1;
+    const setas=multi?`
+        <button class="ap-seta" onclick="navSlide('${c.id}',-1)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;line-height:1">‹</button>
+        <button class="ap-seta" onclick="navSlide('${c.id}',1)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;line-height:1">›</button>
+        <span id="sl-n-${c.id}" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">1/${sl.length}</span>`:'';
+    const regerar=multi
+      ? `<button class="btn btn-o btn-sm" onclick="regerarSlide('${c.id}')" title="Gasta 1 imagem">🎨 Regerar este slide</button>
+         <button class="btn btn-o btn-sm" onclick="regerarCarrossel('${c.id}')" title="Gasta ${tot} imagens">🎨 Regerar carrossel inteiro (${tot})</button>`
+      : `<button class="btn btn-o btn-sm" onclick="regerarSlide('${c.id}')" title="Gasta 1 imagem">🎨 Regerar imagem</button>`;
+    return `<div class="ap-card" id="card-${c.id}">
+      <div class="ap-img" style="position:relative">${sl.length?`<img id="sl-img-${c.id}" src="${sl[0]}" alt="" data-i="0">`:ico}
+        <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
+        ${setas}
+      </div>
       <div class="ap-body">
         <div class="ap-t">${JUMP.esc(c.tema||'Conteúdo')}</div>
-        <div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(c.formato||'post')}${prazo?' · publica '+prazo:''}</div>
+        <div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(tp.label)}${prazo?' · publica '+prazo:''}</div>
         <div class="ap-leg">${JUMP.esc(c.copy||'')}</div>
+        <div class="ap-acts" style="flex-wrap:wrap;gap:6px">${regerar}</div>
         <div class="ap-acts">${acoes}</div>
       </div></div>`;
   }).join('');
+  focarCard();
 }
 // Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
 // ⏹ FREIO COMPARTILHADO: vale para as filas da Aprovação, do Criativo e do painel.
@@ -144,15 +217,13 @@ async function gerarFila(){
     const st=document.getElementById('fila-status');
     if(st)st.textContent=`Gerando arte ${i+1} de ${RASCUNHOS.length}…`;
     try{
-      const meta=c.meta||{};
-      // monta um prompt direto a partir do conteúdo planejado
-      const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". `+
-        `Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}`+
-        `Follow the brand visual identity (colors, fonts, style from the brand). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.`;
+      // CONTRATO ÚNICO. Antes esta página amassava headline+copy+oferta numa sopa de texto
+      // e mandava só como `prompt` — a headline REAL nunca chegava ao servidor e o Diretor
+      // era instruído a INVENTAR uma. Agora vai estruturado, igual ao calendário.
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-        body:JSON.stringify({prompt,tamanho:c.formato&&c.formato.includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
+        body:JSON.stringify(JUMP.payloadDoConteudo(c,{origem:'lote',ver_id:CTX.viewId||null}))
       });
       const d=await r.json();
       if(d&&d.ok){
