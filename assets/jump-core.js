@@ -224,5 +224,71 @@ window.JUMP=(function(){
     document.body.style.overflow=mostrar?'hidden':'';
   }
 
-  return{sb,guard,logout,toast,api,apiSilencioso,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar};
+
+  // ══ CONTRATO ÚNICO DE GERAÇÃO DE ARTE ══════════════════════════════════════════
+  // Existiam 4 portas para gerar arte com 4 contratos DIFERENTES:
+  //   calendario.html  → mandava headline/copy/oferta/formato/pilar  ✅
+  //   agentes.html     → mandava tudo                                 ✅
+  //   aprovar.html     → amassava tudo numa sopa de texto            ❌
+  //   dashboard        → idem                                         ❌
+  // A sopa era assim: `Instagram feed post. Headline: "...". Support copy: "...".
+  // Agency-grade, layered depth, top label, dominant headline...` — mandada como
+  // `prompt`, SEM nenhum campo estruturado. No servidor virava:
+  //     oArte = { tema: <a sopa>, headline: undefined, copy: undefined }
+  // e o Diretor recebia "NO HEADLINE WAS PROVIDED: write the headline yourself".
+  // A headline REAL, escrita pela Estratégia, nunca saía da página. O Diretor
+  // inventava uma a partir da sopa — origem do "POR QUE AGENTE DE IA VAI MUDAR".
+  // Aquele "Agency-grade, layered depth..." ainda era um mini-engine de ANTES do
+  // Engine 6.0, brigando com o Engine 6.0 dentro do mesmo prompt.
+  // 4ª vez do mesmo padrão (conteudos/coluna, ordem/detalhe, lista/cardápio, headline/sopa):
+  // dado estruturado achatado em texto livre, falha silenciosa.
+  // A partir daqui: UMA porta, UM contrato. Quem gerar arte, gera por aqui.
+  function payloadDoConteudo(c, opts){
+    c = c || {}; opts = opts || {};
+    const meta = c.meta || {};
+    const formato = String(c.formato || 'feed');
+    const ehReel = /reel|v[íi]deo|video/i.test(formato);
+    return {
+      // `prompt` = o TEMA cru. Nunca uma frase montada, nunca jargão de design:
+      // o Engine 6.0 + o Diretor de Arte são donos da direção de arte, não a página.
+      prompt: c.tema || meta.headline || '',
+      headline: meta.headline || c.tema || '',
+      copy: c.copy || '',
+      oferta: meta.oferta || '',
+      formato: formato,
+      pilar: c.pilar || '',
+      tipo: c.tipo_visual || 'conceitual',
+      tamanho: opts.tamanho || (ehReel ? '9:16' : '4:5'),
+      slide: opts.slide || 1,
+      total: opts.total || 1,   // quantidade de slides: depende do schema real da `conteudos`
+      conteudo_id: c.id || null,
+      origem: opts.origem || 'expressa',   // 'lote' respeita a reserva de cota 80/20
+      ver_id: opts.ver_id || null,
+      variacao: opts.variacao || 0,
+      ajuste: opts.ajuste || '',
+      reload: !!opts.reload,
+    };
+  }
+  // Badge do tipo de peça — usado no calendário e no Aprovar (mesma verdade nos dois).
+  // Só olha `formato`, que existe de verdade. NÃO inventa coluna de contagem de slides:
+  // o schema da `conteudos` precisa ser perguntado ao banco antes (regra do João).
+  // Slides de um conteúdo. meta.slides é a fonte; midia_url é a capa (compatibilidade).
+  function slidesDe(c){
+    c = c || {}; const m = c.meta || {};
+    const arr = Array.isArray(m.slides) ? m.slides.filter(x => x && x.url) : [];
+    if (arr.length) return arr.slice().sort((a,b)=>Number(a.n)-Number(b.n)).map(x=>x.url);
+    return c.midia_url ? [c.midia_url] : [];
+  }
+  function totalSlides(c){
+    const m = (c || {}).meta || {};
+    return Math.max(Number(m.total_slides) || 0, slidesDe(c).length, 1);
+  }
+  function tipoPeca(c){
+    const f = String((c || {}).formato || 'feed').toLowerCase();
+    if (f.indexOf('carrossel') >= 0 || f.indexOf('carousel') >= 0 || totalSlides(c) > 1) return { id:'carrossel', label:'Carrossel', ico:'▤' };
+    if (f.indexOf('reel') >= 0 || f.indexOf('video') >= 0 || f.indexOf('vídeo') >= 0) return { id:'reels', label:'Estático de reels', ico:'▶' };
+    return { id:'feed', label:'Feed', ico:'▣' };
+  }
+
+  return{sb,guard,logout,toast,api,apiSilencioso,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
 })();
