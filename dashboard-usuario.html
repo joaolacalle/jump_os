@@ -415,10 +415,15 @@ function flipCard(id,nr,num,lbl,backT,backX){
       if((window._apr||[]).length)JUMPGUIA.dica('tem_criativos','Seus criativos estão prontos. Aprove aqui e o Agente de Publicação posta na data agendada — depois de aprovado, o post não pode mais ser editado.','Criativos prontos');
     }catch(e){}
     // 4b: Criativo gera as artes planejadas da semana em segundo plano (respeita a cota do plano/trial)
-    if(!(TASKS.length&&feitas<TASKS.length))autoGerarSemana(uid);
+    // ❌ REMOVIDO: autoGerarSemana(uid) — a dashboard GERAVA IMAGEM SOZINHA ao abrir.
+    // O usuário pagava sem pedir, só por carregar a página. Geração agora é sempre
+    // um ato explícito (Aprovações → "Gerar artes") ou o lote agendado do cron.
+    void 0;
   }catch(e){if(e.message!=='no-session'&&e.message!=='no-role')console.error(e)}
 })();
 
+// MANTIDA (não é mais chamada no load): geração explícita do painel, se um dia
+// voltar, tem que ser por clique. origem:'lote' respeita a reserva de 20% do humano.
 async function autoGerarSemana(uid){
   try{
     if(localStorage.getItem('jump_parar_lote')==='1')return; // freio compartilhado
@@ -434,7 +439,7 @@ async function autoGerarSemana(uid){
       const meta=c.meta||{};
       const prompt=`Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, dominant headline, generous negative space. Portuguese text 100% correct.`;
       try{
-        const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({prompt,tamanho:(c.formato||'').includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:(window._ctx&&window._ctx.viewId)||null})});
+        const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({prompt,tamanho:(c.formato||'').includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:(window._ctx&&window._ctx.viewId)||null,origem:'lote'})});
         const d=await r.json();
         if(d&&d.limite)break; // cota do plano/trial esgotada
         const cinco=new Date(Date.now()-5*864e5).toISOString();

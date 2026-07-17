@@ -517,6 +517,23 @@ async function logChat(role,texto,agente){
     if(error)console.error('logChat falhou:',error.message);
   }catch(e){console.error('logChat erro:',e)}
 }
+// ═══ PRIORIDADE DERIVADA — o schema já tinha a resposta ═══
+// `de_agente` é NOT NULL: existe em TODA ordem, desde sempre. Não criamos coluna
+// `prioridade` de propósito — coluna precisa ser preenchida em todo insert futuro e,
+// no dia em que alguém esquecer, entra o default e a fila quebra EM SILÊNCIO (foi
+// assim que a `conteudos` nos custou semanas). Valor derivado não dessincroniza.
+// Override opcional e sem migration: payload.prioridade (o payload já é jsonb).
+const PRIO_AGENTE={usuario:10,publicacao:6,criativo:5,trafego:5,estrategia:1};
+function prioOrdem(o){
+  const p=Number((o&&o.payload||{}).prioridade);
+  if(Number.isFinite(p))return p;
+  const v=PRIO_AGENTE[String((o&&o.de_agente)||'').toLowerCase()];
+  return (v===undefined)?3:v;
+}
+// GENTE ESPERANDO PASSA NA FRENTE DO ROBÔ. Só empate cai no created_at (FIFO antigo).
+function ordenarPorPrioridade(l){
+  return (l||[]).slice().sort((a,b)=>(prioOrdem(b)-prioOrdem(a))||(new Date(a.created_at||0)-new Date(b.created_at||0)));
+}
 async function verificarOrdens(alvo){
   try{
     const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',alvo||'criativo').in('status',['pendente','processando']).order('created_at',{ascending:true});
@@ -531,10 +548,24 @@ async function verificarOrdens(alvo){
       bx.innerHTML='⏳ <b>Ordem em andamento</b><div style="font-size:12.5px;color:var(--t2);margin-top:6px">'+data.map(o=>'• '+(o.detalhe||o.tarefa)+' — '+(o.progresso||0)+'/'+(o.total||'?')).join('<br>')+'</div><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:7px">Já estou trabalhando nisto. Acompanhe em Tarefas de serviço.</div>';
       w.appendChild(bx);w.scrollTop=w.scrollHeight;return;
     }
-    const acao=(alvo==='estrategia')
-      ? '<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>'
-      : '<button class="btn btn-g btn-sm" onclick="executarOrdens()">⚡ Executar ordem agora</button>';
-    box.innerHTML='📨 <b>Você tem '+data.length+' ordem(ns) pendente(s)</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+data.map(o=>'• '+(o.detalhe||o.tarefa)).join('<br>')+'</div>'+acao;
+    // A fila agora respeita PRIORIDADE, não ordem de chegada.
+    const ords=ordenarPorPrioridade(data);
+    let corpo,acao;
+    if(alvo==='estrategia'){
+      corpo='<div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+ords.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
+      acao='<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>';
+    }else{
+      // BOTÃO POR ORDEM: antes era tudo-ou-nada — um pedido seu ficava preso atrás do lote.
+      corpo='<div style="margin:6px 0">'+ords.map(o=>{
+        const seu=prioOrdem(o)>=10;
+        const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
+        return '<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--t2);padding:3px 0">'+
+          '<span style="flex:1;min-width:0">'+tag+JUMP.esc(o.detalhe||o.tarefa)+'</span>'+
+          '<button class="btn btn-o btn-sm" title="Executar só esta" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
+      }).join('')+'</div>';
+      acao='<button class="btn btn-g btn-sm" onclick="executarOrdens(this)">⚡ Executar todas</button>';
+    }
+    box.innerHTML='📨 <b>Você tem '+ords.length+' ordem(ns) pendente(s)</b>'+corpo+acao;
     w.appendChild(box);w.scrollTop=w.scrollHeight;
   }catch(e){}
 }
@@ -561,18 +592,22 @@ function pararLote(btn){
   if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando após a arte atual...'}
   JUMP.toast('Vou parar assim que a arte atual terminar.');
 }
-async function executarOrdens(btn){
+// soId = executa SÓ aquela ordem (botão ▶ da linha). Sem soId = executa todas, por prioridade.
+async function executarOrdens(btn,soId){
   if(EXECUTANDO)return; // trava: evita executar a mesma ordem duas vezes
   EXECUTANDO=true;
+  PARAR=false;
   const box=document.querySelector('.ordens-box');
-  const b=box?box.querySelector('button'):null;
-  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando a ordem...'}
+  const b=(btn&&btn.tagName==='BUTTON')?btn:(box?box.querySelector('button'):null);
+  const bHtml=b?b.innerHTML:'';
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando...'}
   try{
     const uid=CTX.viewId||CTX.user.id;
     // Lê as ordens REAIS e executa cada uma conforme a TAREFA (não assume ficha técnica).
-    const{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente','criativo').eq('status','pendente').order('created_at',{ascending:true});
-    if(!ords||!ords.length){if(box)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
-    let executadas=0;
+    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente','criativo').eq('status','pendente');
+    ords=soId?(ords||[]).filter(o=>o.id===soId):ordenarPorPrioridade(ords);
+    if(!ords||!ords.length){if(box&&!soId)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
+    let executadas=0,travadas=0;
     for(const o of ords){
       const tarefa=String(o.tarefa||'').toLowerCase();
       // O caminho do LOTE só vale para ordens criadas pela ESTRATÉGIA. Tarefa manual do usuário
@@ -581,8 +616,9 @@ async function executarOrdens(btn){
       const doPlano=(o.de_agente==='estrategia');
       if(doPlano&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
-        if(ok===false){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}return} // parou por cota: mantém pendente
-        if(ok==='vazio'){if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}continue} // nada produzido: a ordem CONTINUA pendente (e NÃO conta como executada)
+        // FALHA ISOLADA: antes era `return` — UMA ordem travada abortava a fila INTEIRA e o
+        // seu pedido, que estava atrás, nunca rodava. Agora ela fica pendente e as outras seguem.
+        if(ok===false||ok==='vazio'){travadas++;continue}
       }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
         await gerarFichaTecnica(uid);
       }else{
@@ -604,12 +640,16 @@ async function executarOrdens(btn){
         }
       }catch(e){}
     }
-    if(executadas){if(box)box.remove();JUMP.toast('✓ Ordem executada!')}
-    else JUMP.toast('Nada foi executado — a ordem continua pendente.','err');
+    if(executadas&&!travadas){if(box)box.remove();JUMP.toast('✓ Ordem executada!')}
+    else if(executadas){JUMP.toast('✓ '+executadas+' executada(s) · '+travadas+' continua(m) pendente(s).')}
+    else JUMP.toast('Nada foi executado — a(s) ordem(ns) continua(m) pendente(s).','err');
+    if(executadas||travadas)await verificarOrdens('criativo').catch(()=>{});
   }catch(e){
-    if(b){b.disabled=false;b.innerHTML='⚡ Executar ordem agora'}
     JUMP.toast(e.message||'Erro ao executar ordens','err');
-  }finally{EXECUTANDO=false}
+  }finally{
+    EXECUTANDO=false;
+    if(b&&b.parentElement){b.disabled=false;b.innerHTML=bHtml||'⚡ Executar todas'}
+  }
 }
 // LOTE DA SEMANA: lê os conteúdos planejados no calendário e gera a arte de CADA UM (com os dados reais).
 // Retorna false se parou por cota (a ordem continua pendente).
@@ -661,7 +701,9 @@ async function executarLoteCriativos(uid,ordem){
   stop.innerHTML='<button class="btn btn-o btn-sm" onclick="pararLote(this)">⏹ Parar geração</button><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:5px">Interrompe após a arte atual. Nenhum token é gasto depois disso.</div>';
   document.getElementById('msgs').appendChild(stop);
   let feitos=0;
-  if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando'}).eq('id',ordem.id)}catch(e){}}
+  // HEARTBEAT em payload.batendo (jsonb, já existe — zero migration): marca a hora REAL do início.
+  // O cron usa isto para saber se a ordem morreu; created_at não serve (é a criação, não o início).
+  if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
   for(const c of pend){
     // FREIO: para na hora se o usuário mandou parar OU se a ordem foi REMOVIDA em Tarefas.
     if(PARAR||(function(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}})()){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
@@ -683,7 +725,7 @@ async function executarLoteCriativos(uid,ordem){
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
         body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:c.pilar||'',total:1,
-          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
+          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
       if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';if(stop.parentElement)stop.remove();return false}
@@ -692,7 +734,8 @@ async function executarLoteCriativos(uid,ordem){
       lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
       w.scrollTop=w.scrollHeight;
       // progresso visível em Tarefas (ex: 3/5), em tempo real
-      if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando'}).eq('id',ordem.id)}catch(e){}}
+      // bate o heartbeat a cada arte: enquanto o navegador trabalha, o cron não encosta.
+      if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
     }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
   }
   if(stop.parentElement)stop.remove();
@@ -793,7 +836,7 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine){
   w.appendChild(lbl);w.scrollTop=w.scrollHeight;
   const r=await fetch('/api/gerar-imagem',{
     method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-    body:JSON.stringify({prompt,tamanho,tipo,slide:1,reload:false,engine:semEngine?false:undefined,ver_id:CTX.viewId||null})
+    body:JSON.stringify({prompt,tamanho,tipo,slide:1,reload:false,engine:semEngine?false:undefined,ver_id:CTX.viewId||null,origem:'expressa'})
   });
   const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
   if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));

@@ -70,7 +70,15 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
         '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+SEM_COPY.length+' post(s) ainda sem copy — a arte só é criada depois do texto.</span>'+
         '<a href="agentes.html?agente=estrategia" class="btn btn-g btn-sm" style="margin-left:auto">Escrever a copy →</a></div>';}
     }
-    if(RASCUNHOS.length) gerarFila();
+    // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
+    // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
+    if(RASCUNHOS.length){
+      const b=document.getElementById('fila-bar');
+      if(b){b.style.display='block';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">🎨</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+RASCUNHOS.length+' post(s) com copy pronta, esperando a arte.</span>'+
+        '<button class="btn btn-g btn-sm" style="margin-left:auto" onclick="liberarGeracao();gerarFila()">🎨 Gerar as artes</button></div>';}
+    }
   }catch(e){}
 })();
 function render(){
@@ -144,7 +152,7 @@ async function gerarFila(){
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-        body:JSON.stringify({prompt,tamanho:c.formato&&c.formato.includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null})
+        body:JSON.stringify({prompt,tamanho:c.formato&&c.formato.includes('reel')?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
       });
       const d=await r.json();
       if(d&&d.ok){
