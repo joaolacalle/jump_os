@@ -129,12 +129,14 @@ function escolherModo(o, ctx) {
 const BLOCO_CENA = [
   '=== MODE OF THIS PIECE: CENA (cinematic photograph) ===',
   'The ENTIRE canvas is ONE PHOTOGRAPH of a real physical place. Build it in this order and state each step explicitly in the prompt:',
-  'S1. THE SET: choose ONE concrete physical location that carries the theme (a dark industrial room with a raw concrete wall, a workshop bench, a studio corner, a desk under a single lamp). Describe the surface material, its pores, stains, seams and wear. The set comes BEFORE any layout decision.',
+  'S1. THE SET IS DERIVED FROM THE THEME — THIS IS NOT A STYLE, IT IS A DEDUCTION. Read the theme, ask "where does this actually happen, physically, in the real world?", and shoot THERE. The set must be so specific to the theme that it could not be reused for a different post. Describe the surface material, its pores, stains, seams and wear. The set comes BEFORE any layout decision.',
+  'S1b. HARD BAN — the default dark room: a raw/dark concrete or industrial wall with a hanging lamp is FORBIDDEN unless the theme is literally about construction, a workshop or a factory. It is the lazy answer and it means you skipped the deduction. If the theme is software, AI, agents, automation, systems or work: the set contains real SCREENS with real interfaces glowing, a conversation thread lit on a monitor, dashboards, cables, terminals, a control room, a desk mid-work — the light of the screens IS the light of the scene. Money theme: a real counter, notes, a card machine. Food: a real kitchen, a bench, ingredients. Deduce it. Never pick from a menu.',
+  'S1c. IF A REAL PHOTO IS ATTACHED: the set is built AROUND that photo. The subject is transplanted and re-lit, never re-shot. The photo does not bend to serve the set — the set bends to serve the photo. Never describe the subject itself: describe only WHERE it sits, HOW the light falls on it, and the world around it.',
   'S2. THE HEADLINE IS A PHYSICAL OBJECT, NOT AN OVERLAY: give it a real material (cast concrete, brushed or galvanised steel letters bolted to the wall, painted stencil, extruded metal, letterpress) mounted INSIDE the set — receiving the same light, casting real directional shadows, carrying the same grain as the wall. Write it explicitly: "the letters are physical objects in the scene, lit by the lamp, casting their own shadows — not a graphic overlay".',
   'S3. PRACTICAL LIGHT IN FRAME: one visible light fixture inside the shot (hanging industrial lamp, neon tube, window shaft, desk lamp). Describe the cone, the hotspot on the surface, and the falloff — 60-75% of the canvas drops to near-black or deep shadow. Flat, even lighting is a FAILURE.',
   'S4. CAMERA: state focal length, camera height, distance and depth of field (e.g. "35mm, camera at chest height, 2m from the wall, f/2.8, foreground softly out of focus").',
   'S5. ACCENT AS LIGHT: the accent colour enters as a PHYSICAL LIGHT SOURCE in the environment (a small neon sign, an exit light, a coloured gel glowing on a far corner of the wall), plus the label and the CTA. Never as a highlighter.',
-  'S6. Support copy, label and CTA are small, physical (painted, engraved, printed) and sit quietly — the scene carries the weight.',
+  'S6. EVERY SINGLE PIECE OF TEXT IS PHYSICAL MATTER — not only the headline. The label, the support copy and the CTA are engraved plaques, lit signage, printed cards, embossed panels or cut vinyl EXISTING IN THE SET, each catching the light and casting its own small shadow. Small painted lettering is where this model hallucinates (it rendered "SAIBA MAIS" as "SMEA MAS"): text made of matter does not hallucinate. They stay small and quiet — the scene carries the weight — but they are objects.',
 ].join('\n');
 
 const BLOCO_EDITORIAL = [
@@ -142,7 +144,7 @@ const BLOCO_EDITORIAL = [
   'The canvas is split into ZONES. Build it in this order and state each step explicitly in the prompt:',
   'E1. ZONE SPLIT: divide the canvas into a TEXT ZONE (solid colour or subtle gradient from the palette, ~45-55%) and a PHOTOGRAPHIC ZONE (~45-55%). Typically: photograph on the right / upper-right BLEEDING OFF the canvas edge, text block on the left. State the boundary and state that the photo runs off the edge — never a floating rectangle, never a framed thumbnail, never a rounded card.',
   'E2. THE FUSION: the two zones are welded by a soft gradient and shadow — the photograph dissolves into the solid colour and the solid colour is tinted by the light of the photograph. State this explicitly. A hard rectangular seam between photo and colour is a FAILURE.',
-  'E3. THE PHOTOGRAPH IS REAL AND SPECIFIC: a real product / real object / real scene, shot with directional light, real shadows and shallow depth of field — described in detail (angle, lighting direction, material, focus). Never a vector illustration or an icon standing in for a photograph.',
+  'E3. THE PHOTOGRAPH IS REAL, SPECIFIC AND DEDUCED FROM THE THEME: ask "where does this actually happen in the real world?" and shoot THERE — a real product / real object / real scene, directional light, real shadows, shallow depth of field (angle, lighting direction, material, focus). It must be so specific to the theme it could not be reused for another post. If the theme is software/AI/automation: real screens with real interfaces, a conversation thread on a monitor, a dashboard mid-work. Never a vector illustration or an icon standing in for a photograph. If a photo is ATTACHED, it IS this zone — build around it, never describe the subject itself.',
   'E4. FLAT COMPONENTS HAVE REAL STRUCTURE: the label is a SOLID FILLED PILL (not a hollow outline box). Under the headline, one short thin accent rule (2-3px, ~10% of canvas width). Info boxes, when present: 1px accent stroke, generous inner padding, an icon on the left, a bold accent title plus light body text inside. The CTA is a SOLID FILLED PILL or a bold arrow group. Everything aligns to ONE left margin.',
   'E5. ONE THEMATIC GRAPHIC BRIDGES THE ZONES: a single element in the accent colour that starts in the flat zone and physically touches the photograph (concentric arcs leaving a sound source, a line chart falling across the objects, a thin arrow entering the photo). This is what makes flat design look designed instead of assembled. Choose it from the THEME, never generic.',
   'E6. LIGHT: the photographic zone carries real directional light and deep shadow; the flat zone stays quiet. Never both busy.',
@@ -165,7 +167,7 @@ async function diretorDeArte(M, o, ctx) {
     '=== HOW TO WRITE IT (both modes) ===',
     '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',
     '2. DOMINANCE IS WON BY LIGHT AND CONTRAST — NEVER BY SIZE. The headline is the brightest, highest-contrast thing in the frame while everything else sits in shadow or low contrast. It occupies AT MOST 30% of the canvas area (cap-height 8-14% of canvas height). A headline that fills half the canvas is a slide deck, not a campaign: FAILURE.',
-    '3. LENGTH IS YOUR RESPONSIBILITY. The brief may hand you a long sentence. If the headline exceeds 8 words, REWRITE it down to the strongest 8 words or fewer, keeping the meaning and the punch. Never render a 15-word paragraph as a headline. Same for support copy: rewrite it to 6 words maximum. NEVER render a sentence that is cut off mid-thought.',
+    '3. LENGTH IS YOUR RESPONSIBILITY — BUT MEANING OUTRANKS LENGTH. If the headline exceeds 8 words, REWRITE it into a COMPLETE, SELF-CONTAINED statement of 8 words or fewer. Do NOT truncate, do NOT trim words off the end: rewrite. A fragment that leaves the reader asking "...what?" is a FAILURE worse than a long headline — "POR QUE AGENTE DE IA VAI MUDAR" (change WHAT?) is broken; "SEU CONCORRENTE JÁ AUTOMATIZOU" is complete. Read your headline back and ask: does this stand alone and land? If not, rewrite it again. Same for support copy: rewrite to 6 words maximum, always a complete thought. NEVER render a sentence cut off mid-thought.',
     '4. TYPOGRAPHY: never name a font. Describe weight, width, stroke contrast, terminals, corner treatment, tracking, case, line-height. Mixing weight or colour inside the headline is allowed ONLY per whole line (line 1 neutral, line 2 accent) — never per random word.',
     '5. ACCENT DISCIPLINE: the accent colour appears in exactly 3-4 places and they are STRUCTURAL (label pill, thin rule, CTA pill, the thematic graphic, icon strokes) or, in CENA mode, physical light. STRICTLY FORBIDDEN: underlining words, highlighting or colouring isolated words inside the headline. That is a marker pen, not art direction.',
     '6. NEGATIVE SPACE IS ATMOSPHERE, NOT BLANK. The empty percentage the design system asks for means "no elements there" — that area must still be full of matter: textured surface, light falloff, gradient, grain, dust in the light beam. A flat empty area is a FAILURE.',
@@ -173,8 +175,8 @@ async function diretorDeArte(M, o, ctx) {
     '8. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
     '',
     '=== SPECIFICS ===',
-    ctx.temFoto ? 'A REAL PHOTO of the client is attached as reference. Describe HOW TO INTEGRATE it into the composition: which side, crop, how the lighting of the set matches the photo, gaze direction pointing toward the headline, shadow falloff. NEVER describe the person\'s facial features, age, hair or body — the attached photo defines the identity and must be preserved exactly.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
-    ctx.temProduto ? 'A REAL PRODUCT photo is attached: keep the product exactly as shown — same shape, colours, label, materials. It is the hero of the photographic zone. Integrate it with matching lighting and a real contact shadow.' : '',
+    ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene and re-lit, never re-photographed. Describe ONLY: which side they sit on, the crop, how the light of the set falls on them, gaze direction pointing toward the headline, contact shadow. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
+    ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone. Describe ONLY where it sits, the surface under it, the light hitting it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
     o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
     ctx.variacao ? ('THIS IS A RECREATION — the client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
@@ -245,6 +247,8 @@ module.exports = async (req, res) => {
       engine_6_ativo: true,
       logo_enviada_ao_gerador: false,
       input_fidelity: 'high',
+      quality: 'medium (decisão de custo do João; a preservação vem do CONTRATO-MOLDURA + input_fidelity, não da qualidade)',
+      contrato_preservacao: 'moldura (abre e fecha) + duas colunas TRAVADO/LIBERADO + lista enumerada',
     });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -436,21 +440,51 @@ module.exports = async (req, res) => {
       form.append('model', 'gpt-image-1');
       const temPessoa = baseImgs.some(b => b.tag === 'pessoa');
       const temProduto = baseImgs.some(b => b.tag === 'produto');
-      // Identity/Product Preservation Engine (destilado) — preservação absoluta
-      let preserva = ' === PRESERVATION LOCK (ABSOLUTE PRIORITY OVER STYLE) ===';
+      // ── CONTRATO DE PRESERVAÇÃO ────────────────────────────────────────────────
+      // REGRESSÃO QUE EU CRIEI NO PACOTE DO DIRETOR: o `preserva` era colado só NO FIM,
+      // depois de ~400 palavras mandando "the ENTIRE canvas is ONE PHOTOGRAPH of a real
+      // place, build the SET". Re-fotografar o lugar = re-fotografar quem está nele. A trava
+      // não enfraqueceu — a instrução contrária ficou 10x mais forte. (Com `medium` +
+      // input_fidelity=high a foto era preservada 100% ANTES da doutrina CENA. Não é qualidade.)
+      // 3 correções, custo zero:
+      //  1. MOLDURA: o contrato ABRE e FECHA o prompt. Chegar no rodapé é chegar tarde.
+      //  2. DUAS COLUNAS: "preserve tudo" contra "construa cena nova" é contradição — o modelo
+      //     resolve mexendo no sujeito. Dizer o que PODE mudar dá vazão legal à ordem de mudar.
+      //  3. LISTA ENUMERADA: vago o modelo negocia, enumerado ele obedece (foi o que fez o
+      //     acento parar de alucinar: "Text to render" + character-for-character).
+      const travados = [];
+      if (temPessoa) travados.push('face shape and geometry', 'jawline', 'nose', 'eyes and eyebrows', 'lips', 'skin texture, marks, freckles, moles, wrinkles', 'hairline and haircut', 'beard', 'tattoos (exact artwork, placement and scale)', 'necklace, watch, rings, glasses, piercings and every accessory worn', 'body proportions', 'apparent age');
+      if (temProduto) travados.push('product silhouette and proportions', 'exact colours', 'label artwork and the typography printed on it', 'surface texture and material', 'filling, topping, coating and internal detail', 'finish and gloss', 'the exact count/quantity of items shown');
+      const LIBERADOS = 'clothing, pose, body position, framing and crop, background, environment and set, lighting, shadows, colour grade and film grain, and the surface the subject or product rests on';
+
+      const cabecalho = travados.length
+        ? '=== PRESERVATION CONTRACT — READ BEFORE ANYTHING ELSE (OUTRANKS EVERY OTHER INSTRUCTION BELOW) ==='
+          + ' The attached photo is REAL and it is the source of truth. The subject in it is NOT re-photographed and NOT re-rendered: it is transplanted into the scene and re-lit.'
+          + ' Everything described below builds the world AROUND the attached photo — the photo never bends to serve the scene, the scene bends to serve the photo.'
+          + ' YOU MAY freely change: ' + LIBERADOS + '.'
+          + ' YOU MAY NOT change anything about the subject itself. If any instruction below conflicts with this contract, this contract wins and that instruction is discarded.'
+          + ' This is a PHOTOREALISTIC photograph — never an illustration, cartoon, vector, drawing or CGI render. ===\n\n'
+        : '';
+
+      let preserva = '\n\n=== PRESERVATION CONTRACT — FINAL CHECK (ABSOLUTE PRIORITY OVER STYLE) ===';
       if (temPessoa) {
-        preserva += ' The provided person photo is the absolute identity source — this is a PHOTOREALISTIC composition, NOT an illustration, cartoon, vector or drawing. Keep the EXACT same person: face shape, jawline, nose, eyes, eyebrows, lips, skin texture, marks, freckles, moles, wrinkles, hairline, beard, tattoos, piercings, jewelry, body proportions and age. Do NOT beautify, smooth, slim, rejuvenate or stylize. No lookalike, no inspired version — the exact same individual, as a real photo taken another day. Identity preservation wins over any creative choice. Reject plastic/wax skin, CGI look, illustration, distorted hands/face, uncanny valley.';
+        preserva += ' The person in the attached photo is the absolute identity source: the exact same individual, as if photographed again on another day. No lookalike, no "inspired by", no sibling. Do NOT beautify, smooth, slim, rejuvenate, retouch or stylise. Reject plastic or waxy skin, CGI look, uncanny valley, distorted hands or face.';
       }
       if (temProduto) {
-        preserva += ' The provided product photo must NOT be altered: keep its exact shape, colors, label, materials and details. Do not redesign, recolor or invent variations of the product. Integrate it realistically into the composition exactly as it is.';
+        preserva += ' The product in the attached photo is the absolute source of truth: it is a REAL product a real customer will receive. Do NOT redesign, recolour, improve, beautify, restyle or invent variations of it. An altered product turns this piece into false advertising.';
       }
-      // A LOGO NÃO é mais enviada ao gerador. A frase antiga afirmava que existia uma logo anexa
-      // ("the provided LOGO...") — instrução órfã que CONVIDAVA o modelo a inventar uma marca.
+      if (travados.length) {
+        preserva += ' PRESERVE EXACTLY, item by item — copy each one pixel-faithfully from the attached photo, changing NOTHING:\n'
+          + travados.map(t => '- ' + t).join('\n')
+          + '\nGo through that list one item at a time and confirm each is identical to the attached photo. Anything NOT on that list may change freely: ' + LIBERADOS + '.';
+      }
       preserva += ' Do NOT add, draw, invent or duplicate any logo, symbol, emblem, monogram, watermark or extra brand signature anywhere in the image — the real brand mark is applied later by the system. ===';
+
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
-      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: baseImgs.some(b => b.tag === 'pessoa'), temProduto: baseImgs.some(b => b.tag === 'produto'), variacao: Number(variacao) || 0, ajuste });
-      const instr = (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
+      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste });
+      // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
+      const instr = cabecalho + (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
       form.append('quality', 'medium');
