@@ -175,7 +175,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD"}</conteudo>
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+Use "avulso":true SOMENTE quando o cliente pede UM post solto agora ("preciso de um conteúdo avulso", "cria um post sobre X pra hoje") — nesse caso NÃO é plano mensal, então ele NÃO espera aprovação do calendário: já emita também o <detalhe> com o bloco de texto completo na MESMA resposta, para a arte ser gerada de imediato.
 Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
@@ -854,9 +855,11 @@ const handler = async (req, res) => {
     let erroGravacao=null;
     if(conteudos.length){
       try{
-        // PORTÃO: o plano da Estratégia nasce como 'proposto' — só entra no calendário quando o
-        // usuário aprovar a tarefa "Aprovar a estratégia do mês". Os demais agentes seguem normal.
-        const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':(agente==='estrategia'?'proposto':'rascunho');
+        // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
+        // Mas AVULSO ('preciso de um post agora') NÃO é plano — nasce 'rascunho' e segue direto
+        // pro Designer. Antes o avulso caía no portão do plano, ficava 'proposto', o backstop não
+        // o via (só buscava rascunho/aprovado) e a ordem NUNCA saía — o bug do print do João.
+        const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':((agente==='estrategia'&&!ct.avulso)?'proposto':'rascunho');
         const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
           method:'POST',headers:H(),
           body:JSON.stringify({
