@@ -253,6 +253,9 @@ window.JUMP=(function(){
       // o Engine 6.0 + o Diretor de Arte são donos da direção de arte, não a página.
       prompt: c.tema || meta.headline || '',
       headline: meta.headline || c.tema || '',
+      subheadline: meta.subheadline || '',   // P2: a segunda parte do texto (o porquê)
+      prova: meta.prova || '',               // P2: dado real que sustenta a promessa
+      cta_arte: meta.cta_arte || '',         // P2: a chamada que vai NA arte
       copy: c.copy || '',
       oferta: meta.oferta || '',
       formato: formato,
