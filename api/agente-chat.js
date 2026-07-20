@@ -160,6 +160,7 @@ Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
 MIX VISUAL OBRIGATÓRIO (regra do Content Engine 6.0: "foto pessoa = 2 slides max em 5"):
 Ao definir "tipo_visual" de cada post, DISTRIBUA — nunca use o mesmo tipo em tudo:
 - "pessoal" (foto real do cliente): NO MÁXIMO 40% dos posts do período. É o mais forte, mas satura.
+REGRA DO TEXTO DA ARTE (converte, não só emociona): uma arte com só a headline fica pobre e não vende. Todo <detalhe> deve trazer o BLOCO COMPLETO: (1) headline = o gancho; (2) subheadline = a SEGUNDA parte, o porquê, o que cria desejo ou tensão; (3) prova = um dado/número/fato REAL do OS_DATA que sustenta a promessa (jamais inventado — se não houver, deixe vazio); (4) cta_arte = a ação. É VOCÊ, Estratégia, quem compõe esse texto e o entrega mastigado ao Designer — o Designer não inventa texto, ele distribui na cena o que você mandou. Headline sem subheadline é entrega incompleta.
 - "produto": use nos posts de oferta/prova/lançamento — o sistema usa as fotos reais de produto do cliente.
 - "conceitual": use nos educativos/técnicos — composição gráfica, mockups, screenshots, sem pessoa.
 - "pessoa_conceito": só quando a cena PRECISA de gente e o post não é sobre o cliente.
@@ -179,7 +180,7 @@ Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência,
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
 Para CADA post listado, escreva a headline da arte e a copy pronta. Roteiro SOMENTE se o formato for reels. Emita as tags ANTES do texto, usando o id exato:
-<detalhe>{"id":"ID_DO_POST","headline":"texto exato da arte","copy":"legenda pronta (máx 600 caracteres, hook + CTA)","oferta":"prova/oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio"}</detalhe>
+<detalhe>{"id":"ID_DO_POST","headline":"gancho da arte (máx 8 palavras, frase COMPLETA)","subheadline":"a SEGUNDA parte do texto: 1 frase que explica o PORQUÊ da headline e cria contexto/desejo","prova":"1 dado, número ou fato REAL do OS_DATA que sustenta a promessa (ou vazio — NUNCA invente)","cta_arte":"chamada curta que vai NA ARTE (ex: SAIBA MAIS, QUERO TESTAR)","copy":"legenda do Instagram, separada da arte (máx 600 caract., hook + CTA)","oferta":"oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio"}</detalhe>
 Detalhe SÓ os posts listados (a semana), nunca o mês todo.
 
 REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post citado PRECISA da sua tag na MESMA resposta.
@@ -821,7 +822,7 @@ const handler = async (req, res) => {
         try{
           const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato`);
           if(!atual)continue;
-          const meta={...(atual.meta||{}),headline:d.headline||'',oferta:d.oferta||''};
+          const meta={...(atual.meta||{}),headline:d.headline||'',subheadline:d.subheadline||'',prova:d.prova||'',cta_arte:d.cta_arte||'',oferta:d.oferta||''};
           const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
             method:'PATCH',headers:H(),
             body:JSON.stringify({copy:d.copy||null,roteiro:d.roteiro||null,meta})
@@ -864,7 +865,7 @@ const handler = async (req, res) => {
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
           })
         }).catch(()=>null)));
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
@@ -878,6 +879,31 @@ const handler = async (req, res) => {
           conteudos.length=conteudos.length-falhas.length; // só conta o que entrou de verdade
         }
       }catch(e){erroGravacao='falha ao gravar os posts: '+e.message}
+    }
+
+    let notaBackstop=null;
+    // ── P1: BACKSTOP DA ORDEM AO DESIGNER (não confiar no LLM p/ efeito colateral) ──
+    // Cobre o AVULSO: conteúdo pronto (copy+headline), imagem, que não é plano mensal
+    // 'proposto' e ficou sem arte. O caminho da semana já dá baixa acima; aqui pegamos o resto.
+    if(agente!=='publicacao'){
+      try{
+        const IMGF=c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0&&f.indexOf('story')<0};
+        // pega conteúdos recentes deste usuário, prontos p/ virar arte e ainda sem imagem
+        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,criativo_url`);
+        const pend=(Array.isArray(prontos)?prontos:[]).filter(c=>IMGF(c)&&!c.criativo_url&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
+        if(pend.length){
+          const ja=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id&limit=1`);
+          if(!(Array.isArray(ja)&&ja.length)){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+              method:'POST',headers:H(),
+              body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:'criativo',tarefa:'criar_post',
+                detalhe:'Criar '+pend.length+' arte(s) pendente(s)',status:'pendente',total:pend.length,progresso:0,
+                payload:{origem:'backstop'}})
+            }).catch(()=>{});
+            notaBackstop='🎨 '+pend.length+' arte(s) enviada(s) ao Designer automaticamente.';
+          }
+        }
+      }catch(e){console.error('backstop ordem designer:',e.message);}
     }
 
     // GARANTIA + DRIP (Leva B/Fase 1): a Estratégia planeja o mês inteiro no calendário, mas o lote
@@ -1089,6 +1115,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
+    if(notaBackstop){ texto+='\n\n'+notaBackstop; }
     if(erroGravacao){
       texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
     }

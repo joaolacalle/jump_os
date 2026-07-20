@@ -124,8 +124,10 @@ function engine6(M, o) {
     '=== CONTENT OF THIS PIECE ===',
     'LABEL: "' + String(o.label || o.pilar || 'JUMP').toUpperCase() + '"',
     'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
-    o.copy ? ('SUPPORT COPY (max 6 words — extract the essence, never render this text raw): "' + cortarFrase(o.copy, 90) + '"') : '',
-    'CTA (max 2 words): "' + (o.cta || (o.total > 1 ? 'SWIPE →' : 'SAIBA MAIS')) + '"',
+    o.subheadline ? ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"') : '',
+    o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + String(o.prova).slice(0, 90) + '"') : '',
+    o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
+    'CTA (max 2 words): "' + (o.cta_arte || o.cta || (o.total > 1 ? 'SWIPE →' : 'SAIBA MAIS')) + '"',
     o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
     '',
     'QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?',
@@ -211,6 +213,7 @@ async function diretorDeArte(M, o, ctx) {
     ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene and re-lit, never re-photographed. Describe ONLY: which side they sit on, the crop, how the light of the set falls on them, gaze direction pointing toward the headline, contact shadow. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
     ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone. Describe ONLY where it sits, the surface under it, the light hitting it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
+    '3b. USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
     o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
     ctx.variacao ? ('THIS IS A RECREATION — the client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
       25: 'keep the concept and layout; change the light, textures, secondary elements, crop and colour accents. Same idea, fresh execution.',
@@ -342,7 +345,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -509,7 +512,7 @@ module.exports = async (req, res) => {
       preserva += ' Do NOT add, draw, invent or duplicate any logo, symbol, emblem, monogram, watermark or extra brand signature anywhere in the image — the real brand mark is applied later by the system. ===';
 
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
-      const oArte = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
@@ -539,7 +542,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
       const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
