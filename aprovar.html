@@ -29,6 +29,16 @@
   <div class="card" id="vazio" style="display:none"><div style="text-align:center;padding:24px;font-family:var(--M);font-size:13px;color:var(--t3)">✓ Nenhum conteúdo aguardando.<br><span style="font-size:11px">Quando os agentes gerarem conteúdo, ele aparece aqui para sua revisão.</span></div></div>
 </main>
 </div>
+<!-- MODAL EDIÇÃO (P6) -->
+<div class="modal-bg" id="modal-edit">
+  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="modal-t" style="margin:0">Editar conteúdo</div>
+      <button class="btn btn-o btn-sm" onclick="fecharEdicao()">✕</button>
+    </div>
+    <div id="edit-body"></div>
+  </div>
+</div>
 <!-- MODAL REJEITAR -->
 <div class="modal-bg" id="modal-rej">
   <div class="modal">
@@ -142,39 +152,87 @@ function render(){
   document.getElementById('pend-n').textContent=ITENS.length+' pendente'+(ITENS.length===1?'':'s');
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=ITENS.length?'none':'block';
+  // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
   g.innerHTML=ITENS.map(c=>{
-    const tp=JUMP.tipoPeca(c);              // mesma verdade do calendário
+    const tp=JUMP.tipoPeca(c);
     const ico=tp.ico;
-    const prazo=c.data_sugerida?new Date(c.data_sugerida).toLocaleDateString('pt-BR'):null;
-    const acoes=PLANO==='basico'
-      ?`<button class="btn btn-g btn-sm" style="flex:1" onclick="baixar('${c.id}')">⬇ Baixar</button>
-        <button class="btn btn-o btn-sm" onclick="abrirRej('${c.id}')">Ajustar</button>`
-      :`<button class="btn btn-g btn-sm" style="flex:1" onclick="aprovar('${c.id}')">✓ Aprovar e publicar</button>
-        <button class="btn btn-o btn-sm" onclick="abrirRej('${c.id}')">Rejeitar</button>`;
-    // CARD ÚNICO: carrossel não vira N cards — vira UM card com setas.
-    const sl=JUMP.slidesDe(c), tot=JUMP.totalSlides(c), multi=sl.length>1;
-    const setas=multi?`
-        <button class="ap-seta" onclick="navSlide('${c.id}',-1)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;line-height:1">‹</button>
-        <button class="ap-seta" onclick="navSlide('${c.id}',1)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;line-height:1">›</button>
-        <span id="sl-n-${c.id}" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">1/${sl.length}</span>`:'';
-    const regerar=multi
-      ? `<button class="btn btn-o btn-sm" onclick="regerarSlide('${c.id}')" title="Gasta 1 imagem">🎨 Regerar este slide</button>
-         <button class="btn btn-o btn-sm" onclick="regerarCarrossel('${c.id}')" title="Gasta ${tot} imagens">🎨 Regerar carrossel inteiro (${tot})</button>`
-      : `<button class="btn btn-o btn-sm" onclick="regerarSlide('${c.id}')" title="Gasta 1 imagem">🎨 Regerar imagem</button>`;
-    return `<div class="ap-card" id="card-${c.id}">
-      <div class="ap-img" style="position:relative">${sl.length?`<img id="sl-img-${c.id}" src="${sl[0]}" alt="" data-i="0">`:ico}
+    const sl=JUMP.slidesDe(c);
+    return `<div class="ap-card ap-card-mini" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
+      <div class="ap-img" style="position:relative">${sl.length?`<img src="${sl[0]}" alt="">`:ico}
         <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
-        ${setas}
+        ${sl.length>1?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">▤ ${sl.length}</span>`:''}
       </div>
-      <div class="ap-body">
-        <div class="ap-t">${JUMP.esc(c.tema||'Conteúdo')}</div>
-        <div style="font-family:var(--M);font-size:10px;color:var(--t3)">${JUMP.esc(tp.label)}${prazo?' · publica '+prazo:''}</div>
-        <div class="ap-leg">${JUMP.esc(c.copy||'')}</div>
-        <div class="ap-acts" style="flex-wrap:wrap;gap:6px">${regerar}</div>
-        <div class="ap-acts">${acoes}</div>
+      <div class="ap-body" style="padding:10px 12px">
+        <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
+        <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
       </div></div>`;
   }).join('');
   focarCard();
+}
+
+// ── P6: CARD DE EDIÇÃO (modal) — aqui vivem TODOS os botões ────────────────────
+let EDIT_ID=null;
+function abrirEdicao(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  EDIT_ID=id;
+  const tp=JUMP.tipoPeca(c), sl=JUMP.slidesDe(c), tot=JUMP.totalSlides(c), multi=sl.length>1;
+  const prazo=c.data_sugerida?new Date(c.data_sugerida).toLocaleDateString('pt-BR'):null;
+  const m=c.meta||{};
+  const setas=multi?`
+    <button class="ap-seta" onclick="navSlideEdit(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:17px">‹</button>
+    <button class="ap-seta" onclick="navSlideEdit(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:17px">›</button>
+    <span id="edit-sl-n" style="position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:10px;padding:3px 8px;border-radius:6px">1/${sl.length}</span>`:'';
+  const regerar=multi
+    ? `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar este slide</button>
+       <button class="btn btn-o btn-sm" onclick="regerarCarrossel('${id}')" title="Gasta ${tot} imagens">🎨 Recriar carrossel (${tot})</button>`
+    : `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar imagem</button>`;
+  const aprovarBtn=PLANO==='basico'
+    ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
+    : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`;
+  document.getElementById('edit-body').innerHTML=`
+    <div class="ap-img" style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:14px">
+      ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0" style="width:100%;display:block">`:tp.ico}
+      <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
+      ${setas}
+    </div>
+    <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-bottom:10px">${JUMP.esc(tp.label)}${prazo?' · publica '+prazo:''}</div>
+    ${m.headline?`<div class="f-group"><label class="f-label">Headline</label><div style="font-size:14px;font-weight:700">${JUMP.esc(m.headline)}</div></div>`:''}
+    <div class="f-group"><label class="f-label">Legenda (copy)</label><textarea class="f-textarea" id="edit-copy" rows="4">${JUMP.esc(c.copy||'')}</textarea></div>
+    <div class="ap-acts" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${regerar}
+      <button class="btn btn-o btn-sm" onclick="salvarCopy()">💾 Salvar legenda</button></div>
+    <div class="ap-acts" style="gap:6px">
+      ${aprovarBtn}
+      <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
+      <button class="btn btn-r" onclick="excluirPost('${id}')">🗑 Excluir</button>
+    </div>`;
+  document.getElementById('modal-edit').classList.add('show');
+}
+function fecharEdicao(){document.getElementById('modal-edit').classList.remove('show');EDIT_ID=null;}
+function navSlideEdit(d){
+  const c=ITENS.find(x=>x.id===EDIT_ID); if(!c)return;
+  const sl=JUMP.slidesDe(c); const im=document.getElementById('edit-img'); if(!im||sl.length<2)return;
+  let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
+  im.src=sl[i]; im.dataset.i=i;
+  const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+async function salvarCopy(){
+  if(!EDIT_ID)return;
+  const nova=document.getElementById('edit-copy').value;
+  try{
+    await JUMP.sb.from('conteudos').update({copy:nova}).eq('id',EDIT_ID);
+    const c=ITENS.find(x=>x.id===EDIT_ID); if(c)c.copy=nova;
+    JUMP.toast('✓ Legenda salva.');
+  }catch(e){JUMP.toast('Erro ao salvar','err')}
+}
+// P4: EXCLUIR — apaga de vez, com confirmação. Diferente de "Pedir ajuste" (que devolve
+// ao agente e ensina o Designer). Excluir é para erro/lixo: nada volta, nada é aprendido.
+async function excluirPost(id){
+  if(!confirm('Excluir este post de vez? Esta ação não volta para o agente e não pode ser desfeita.'))return;
+  try{
+    await JUMP.sb.from('conteudos').update({status:'excluido'}).eq('id',id);
+    ITENS=ITENS.filter(i=>i.id!==id); fecharEdicao(); render();
+    JUMP.toast('Post excluído.');
+  }catch(e){JUMP.toast('Erro ao excluir','err')}
 }
 // Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
 // ⏹ FREIO COMPARTILHADO: vale para as filas da Aprovação, do Criativo e do painel.

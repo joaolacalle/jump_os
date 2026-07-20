@@ -208,7 +208,22 @@ function render(){
         ${itens.map((it,n)=>`<div style="font-size:12px;color:var(--t2);padding:4px 0;line-height:1.5">
           <b style="color:var(--g)">${n+1}.</b> <span style="font-family:var(--M);font-size:9.5px;background:var(--bd);padding:2px 5px;border-radius:4px">${JUMP.esc(it.tipo_visual||'conceitual')}</span> ${JUMP.esc(it.brief||'')}
         </div>`).join('')}</div>`:'',
-      o.status==='erro'&&o.resultado?`<div style="margin-top:9px;font-size:11.5px;color:#f87171;font-family:var(--M)">⚠️ ${JUMP.esc(String((o.resultado||{}).erro||JSON.stringify(o.resultado)).slice(0,220))}</div>`:''
+      o.status==='erro'&&o.resultado?`<div style="margin-top:9px;font-size:11.5px;color:#f87171;font-family:var(--M)">⚠️ ${JUMP.esc(String((o.resultado||{}).erro||JSON.stringify(o.resultado)).slice(0,220))}</div>`:'',
+      // P5: gestão da fila — só faz sentido para ordens que estão NA fila do Designer.
+      (o.para_agente==='criativo'&&(o.status==='pendente'||o.status==='pausada'))?`
+        <div style="margin-top:11px;border-top:1px solid var(--bd);padding-top:10px">
+          <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-bottom:7px">GESTÃO DA FILA</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn btn-o btn-sm" onclick="moverFila('${o.id}',1)" title="Subir na fila">▲ Subir</button>
+            <button class="btn btn-o btn-sm" onclick="moverFila('${o.id}',-1)" title="Descer na fila">▼ Descer</button>
+            ${o.status==='pausada'
+              ?`<button class="btn btn-g btn-sm" onclick="pausarOrdem('${o.id}',false)">▶ Retomar</button>`
+              :`<button class="btn btn-o btn-sm" onclick="pausarOrdem('${o.id}',true)">⏸ Pausar</button>`}
+            <a class="btn btn-g btn-sm" href="agentes.html?agente=criativo&exec=${o.id}">⚡ Executar</a>
+            <button class="btn btn-r btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
+          </div>
+          <div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">prioridade atual: ${(o.payload||{}).prioridade!=null?o.payload.prioridade:'automática ('+({usuario:10,publicacao:6,criativo:5,trafego:5,estrategia:1}[o.de_agente]||3)+')'}</div>
+        </div>`:''
     ].filter(Boolean).join('');
     return `<div class="ord-card" style="--ac:${ag.nc}">
       <div class="ord-ico">${ag.ico}</div>
@@ -230,6 +245,25 @@ function render(){
 
 // C4: abre/fecha os detalhes. Lembra o estado para o auto-refresh não fechar na sua cara.
 const ABERTOS={};
+// P5: mover na fila = ajustar payload.prioridade (o gancho já existe; a fila ordena por ele).
+// Não reordena por índice frágil — soma/subtrai na prioridade do próprio item.
+async function moverFila(id,dir){
+  const o=TODAS.find(x=>String(x.id)===String(id)); if(!o)return;
+  const base=(o.payload||{}).prioridade!=null?Number(o.payload.prioridade):({usuario:10,publicacao:6,criativo:5,trafego:5,estrategia:1}[o.de_agente]||3);
+  const nova=Math.max(0,Math.min(99,base+dir));
+  try{
+    await JUMP.sb.from('ordens_servico').update({payload:{...(o.payload||{}),prioridade:nova}}).eq('id',id);
+    JUMP.toast(dir>0?'▲ Subiu na fila':'▼ Desceu na fila'); await carregar();
+  }catch(e){JUMP.toast('Erro ao reordenar','err')}
+}
+// Pausar/retomar: status 'pausada' sai da busca de 'pendente' do executor, então não roda —
+// e o resgate de órfã não a toca (só olha 'processando'). Retomar devolve a 'pendente'.
+async function pausarOrdem(id,pausar){
+  try{
+    await JUMP.sb.from('ordens_servico').update({status:pausar?'pausada':'pendente'}).eq('id',id);
+    JUMP.toast(pausar?'⏸ Ordem pausada':'▶ Ordem retomada'); await carregar();
+  }catch(e){JUMP.toast('Erro','err')}
+}
 function toggleOrd(id){
   const d=document.getElementById('det-'+id),ch=document.getElementById('ch-'+id);
   if(!d)return;
