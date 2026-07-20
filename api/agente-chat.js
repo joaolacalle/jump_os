@@ -176,7 +176,7 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
-Use "avulso":true SOMENTE quando o cliente pede UM post solto agora ("preciso de um conteúdo avulso", "cria um post sobre X pra hoje") — nesse caso NÃO é plano mensal, então ele NÃO espera aprovação do calendário: já emita também o <detalhe> com o bloco de texto completo na MESMA resposta, para a arte ser gerada de imediato.
+Use "avulso":true SOMENTE quando o cliente pede UM post solto agora ("preciso de um conteúdo avulso", "cria um post sobre X pra hoje"). NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
 Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
@@ -790,7 +790,11 @@ const handler = async (req, res) => {
     // ═══ AUTO-REPARO (Estratégia): se o agente DESCREVEU o plano mas não emitiu nenhuma tag
     //     <conteudo>, o calendário ficaria vazio e ele "diria" que salvou. Em vez de confiar,
     //     pedimos SOMENTE as tags numa segunda passada. Fim da falha silenciosa. ═══
-    if(agente==='estrategia' && conteudos.length===0 && /calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|lote/i.test(texto)){
+    // Intenção de registrar conteúdo sem ter emitido <conteudo>: dispara o reparo.
+    // Cobre plano mensal E avulso ('conteúdo avulso', 'esse post', 'a arte vai aparecer em
+    // aprovações') — vocabulário-independente: é a AÇÃO prometida sem a TAG.
+    const prometeuConteudo=/calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|\blote\b|conte[úu]do avulso|avulso|esse post|este post|a arte vai aparecer|apareç?er[áa]? em aprova|enviei ao designer|ordem foi enviada|vai para aprova/i.test(texto);
+    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo){
       try{
         const r2=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
@@ -798,7 +802,7 @@ const handler = async (req, res) => {
           body:JSON.stringify({
             model:MODEL_DE(agente),max_tokens:8000,system,
             messages:[...messages,{role:'assistant',content:texto},
-              {role:'user',content:'Você descreveu o plano mas NÃO registrou os posts — o calendário do cliente está vazio. Responda AGORA somente com as tags <conteudo>{...}</conteudo>, uma por post do plano acima, com data_sugerida real (YYYY-MM-DD) conferida no calendário fornecido. Sem nenhum texto antes ou depois, sem markdown.'}],
+              {role:'user',content:'Você descreveu conteúdo mas NÃO registrou as tags — o sistema não salvou nada. Responda AGORA somente com as tags, sem nenhum texto antes ou depois, sem markdown: uma <conteudo>{...}</conteudo> por post (com data_sugerida YYYY-MM-DD; use "avulso":true se for um post solto pedido agora, não um plano do mês). Se for avulso, inclua também a <detalhe>{...}</detalhe> correspondente com headline, subheadline, prova e cta_arte.'}],
           }),
         });
         const d2=await r2.json();
@@ -807,6 +811,8 @@ const handler = async (req, res) => {
           (t2.match(/<conteudo>([\s\S]*?)<\/conteudo>/g)||[]).forEach(bloco=>{
             try{const o=JSON.parse(bloco.replace(/<\/?conteudo>/g,'').trim());if(o.tema)conteudos.push(o)}catch(e){}
           });
+          // No avulso o texto (headline/subheadline/prova/cta) vem DENTRO do <conteudo> —
+          // não há <detalhe> separado porque não existe id ainda. Nada a capturar aqui.
         }
       }catch(e){}
     }
