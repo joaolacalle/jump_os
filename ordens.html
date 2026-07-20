@@ -179,9 +179,9 @@ function render(){
     const quando=isNaN(_d)?'—':_d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' às '+_d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     const _pl=o.payload||{};
     const per=_pl.periodo?`<span class="ord-per">🗓 ${JUMP.esc(_pl.periodo)}</span>`:'';
-    // Progresso (N/T) só faz sentido em LOTE (imagens/publicações) — não em tarefa simples.
-    const ehLote=['criar_post','publicar_calendario','detalhar_semana'].indexOf(o.tarefa)>=0;
-    const tot=ehLote?Number(o.total||0):0,pg=Number(o.progresso||0);
+    // Progresso (N/T): qualquer ordem com total>1 mostra barra. Antes só 3 tarefas eram lote,
+    // então os 5 infográficos de um 'criar_avulso' rodavam SEM barra de progresso visível.
+    const tot=Number(o.total||0),pg=Number(o.progresso||0);
     const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot}</span>`:'';
     const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
