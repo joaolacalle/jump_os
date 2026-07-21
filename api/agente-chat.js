@@ -199,7 +199,7 @@ E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovaçõe
 tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
 
 VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
-ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). Marque que é para ADS no tema.
+ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed.
 ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
 ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
   criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor). 
@@ -266,9 +266,15 @@ Seja prático e específico ao negócio dele.`,
 
 ESTRUTURA DE CAMPANHA: monte com 4 públicos — (1) QUENTE (engajou/visitou perfil/lista), (2) LOOKALIDE (semelhante a clientes), (3) INTERESSE (segmentação fria por interesse do nicho), (4) RETARGETING (visitou site/checkout). Distribua o budget conforme o objetivo (topo/meio/fundo de funil) e explique a lógica.
 
-PAPEL: a INFRAESTRUTURA é do cliente (criar BM, pixel, conta de anúncio, verificar domínio, configurar conversões) — oriente, mas não execute isso. VOCÊ gerencia as CAMPANHAS ativamente: ao comando do cliente OU por sua própria sugestão, você estrutura, sobe, duplica, escala, pausa e ajusta campanhas/conjuntos/anúncios. Sempre confirme com o cliente antes de subir/duplicar algo que gere custo.
+PAPEL — VOCÊ É UM CONSULTOR DE TRÁFEGO, NÃO UM EXECUTOR. Por segurança, o JUMP NUNCA acessa o cartão do cliente nem sobe gastos no nome dele — o dinheiro de anúncio fica 100% sob controle do cliente. O que você faz, com excelência:
+1) LÊ os números REAIS das campanhas do cliente (quando ele conecta o Meta Ads, você enxerga ROAS, CPL, CTR, CPM, frequência, gasto — sem ele digitar nada).
+2) DIAGNOSTICA o que está travando (público saturado, oferta fraca, criativo fatigado, lance errado).
+3) ENTREGA a estratégia pronta e mastigada: estrutura de campanha, públicos, budget sugerido, copy do anúncio, e qual criativo usar.
+4) O CLIENTE EXECUTA no Gerenciador de Anúncios dele — você o guia passo a passo, mas quem aperta o botão é ele.
+NUNCA diga que você "subiu", "escalou", "pausou" ou "duplicou" uma campanha — você NÃO faz isso e afirmar que fez é mentir para o cliente. Diga sempre: "recomendo que você suba/pause/escale assim: [passos]".
+INFRAESTRUTURA (criar BM, pixel, conta de anúncio, verificar domínio, configurar conversões): você ORIENTA o cliente passo a passo — especialmente o cliente iniciante que não sabe usar o Gerenciador. Guie com paciência, mas a interface da Meta muda com frequência, então dê a orientação geral e aponte a Central de Ajuda da Meta quando um passo específico não bater com o que ele vê.
 
-ANÁLISE: com os números do cliente (ROAS, CPL, CTR, CPM, frequência), diagnostique e proponha ajustes com justificativa.
+ANÁLISE: quando o cliente conectou o Meta Ads, os números (ROAS, CPL, CTR, CPM, frequência, gasto) chegam a você automaticamente — analise os dados REAIS e diagnostique com justificativa. Se ele ainda NÃO conectou, oriente-o a conectar em "Conexões" para você enxergar tudo; enquanto isso, trabalhe com o que ele descrever, mas deixe claro que a análise fica muito melhor com a conta conectada.
 
 ═══ ECONOMIA DE CRIATIVO (REGRA IMPORTANTE — anúncios consomem saldo) ═══
 Na maioria das vezes o problema NÃO é a arte — é segmentação, oferta ou público. ANTES de pedir um criativo novo, ESGOTE os ajustes que NÃO consomem saldo:
@@ -347,7 +353,7 @@ Mapa de funções (quem faz o quê):
 - ESTRATÉGIA: planos, calendários, COPIES e ROTEIROS (de Reels/vídeo/carrossel). Todo TEXTO/roteiro nasce aqui.
 - DESIGNER (criativo): SOMENTE imagens estáticas (posts, infográficos). NÃO escreve roteiro, NÃO faz vídeo. Se pedirem roteiro/vídeo → manda para Estratégia (roteiro) ou Editor de Vídeo (vídeo).
 - PUBLICAÇÃO: agendamento e postagem.
-- TRÁFEGO: campanhas, públicos, budget, otimização de anúncios.
+- TRÁFEGO: consultor de anúncios — lê seus números reais, diagnostica e entrega a estratégia (você executa no seu Gerenciador).
 - EDITOR DE VÍDEO: edição/montagem de vídeos e Reels (a partir do roteiro da Estratégia).
 Exemplo correto (Designer recebe "cria imagem para um reels"): "Posso criar a arte de capa/post estático. O roteiro do Reel é com o Agente de Estratégia, e a edição do vídeo com o Editor de Vídeo. Quer que eu crie a arte estática agora?" — e só gera imagem se confirmado.`;
 
@@ -524,13 +530,28 @@ const handler = async (req, res) => {
         }
       }catch(e){}
     }
-    if(agente==='identidade'||agente==='criativo'){
+    if(agente==='identidade'||agente==='criativo'||agente==='estrategia'){
       try{
         const ups=await sbGet(`uploads?user_id=eq.${targetId}&select=categoria`);
         const cats={};(Array.isArray(ups)?ups:[]).forEach(u=>cats[u.categoria]=(cats[u.categoria]||0)+1);
         const logo=cats.logo||0,pess=cats.pessoais||0,prod=cats.produtos||0;
         acervoTxt=`\nACERVO DE IMAGENS DO CLIENTE: logo=${logo}, fotos pessoais=${pess}, produtos=${prod}.`
           +((logo+pess+prod)===0?' ATENÇÃO: acervo VAZIO — peça para enviar imagens em "Meus arquivos" ANTES de iniciar a consultoria.':' Acervo disponível — pode analisar a identidade visual.');
+        // DISTRIBUIÇÃO ADAPTATIVA (Estratégia): a repartição persona/produto/conceitual
+        // depende do que o cliente REALMENTE tem. Sem foto pessoal, 'pessoal' é impossível;
+        // sem produto, 'produto' é impossível — o cálculo se redistribui em 'conceitual'.
+        if(agente==='estrategia'){
+          const temP=pess>0, temProd=prod>0;
+          acervoTxt+=`\nDISTRIBUIÇÃO DE TIPO VISUAL (recalcule conforme o acervo REAL acima):`
+            +(temP?`\n• tem ${pess} foto(s) pessoal(is): pode usar "pessoal" em ATÉ 40% dos posts (é forte mas satura).`:`\n• SEM foto pessoal: NÃO use "pessoal" — não há foto do cliente. Se a cena pedir gente, use "pessoa_conceito" (pessoa genérica).`)
+            +(temProd?`\n• tem ${prod} foto(s) de produto: use "produto" nos posts de oferta/vitrine/prova.`:`\n• SEM foto de produto: NÃO use "produto" — não há produto para mostrar.`)
+            +((!temP&&!temProd)?`\n• ACERVO SEM PESSOA E SEM PRODUTO: o mês inteiro deve ser "conceitual" (dado/dica/lista/tese visual) e, quando a cena precisar de gente, "pessoa_conceito". NÃO prometa arte com o rosto do cliente nem com o produto — eles não existem no acervo.`:``)
+            +`\nAo emitir cada <conteudo>, o tipo_visual DEVE ser coerente com esta disponibilidade.`;
+          // se percebeu que falta acervo, guarde na memória para o cálculo futuro
+          if(!temP||!temProd){
+            acervoTxt+=`\n(Se o cliente disser que NÃO tem/NÃO quer usar rosto ou produto, registre <memoria>{"chave":"acervo_sem_${!temP?'persona':'produto'}","valor":"confirmado pelo cliente"}</memoria> para os próximos planejamentos.)`;
+          }
+        }
       }catch(e){}
     }
     // Editor de Vídeo: saber se há vídeos crus para editar (e a URL do mais recente)
@@ -673,7 +694,7 @@ const handler = async (req, res) => {
         if(Array.isArray(wk)&&wk.length){
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
-            '\nSe o cliente pedir para detalhar/produzir a semana, emita uma tag <detalhe> para CADA id acima.';
+            '\nDETALHE AGORA, PROATIVAMENTE (não espere o cliente pedir): emita uma tag <detalhe> para CADA id acima, com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy). Assim que você detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
         }
       }catch(e){}
     }
@@ -874,7 +895,7 @@ const handler = async (req, res) => {
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', criativo_proprio:!!ct.criativo_url}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url}
           })
         }).catch(()=>null)));
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era

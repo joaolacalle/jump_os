@@ -156,12 +156,15 @@ async function jobSeguranca() {
 async function jobPublicar() {
   const agoraISO = new Date().toISOString();
   const posts = await fetch(
-    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,copy,midia_url,erro_publicacao&order=data_agendada.asc&limit=25`,
+    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,copy,midia_url,erro_publicacao,meta&order=data_agendada.asc&limit=25`,
     { headers: SBH() }
   ).then(r => r.json()).catch(() => []);
-  if (!Array.isArray(posts) || !posts.length) return { publicados: 0, fila: 0 };
+  // ELO DO ADS: arte com finalidade 'anuncio' NUNCA é publicada organicamente — o cliente a
+  // baixa e sobe no Gerenciador dele. Filtro no código (finalidade vive em meta jsonb).
+  const posts0 = Array.isArray(posts) ? posts.filter(p => !(p.meta && p.meta.finalidade === 'anuncio')) : [];
+  if (!posts0.length) return { publicados: 0, fila: 0 };
   let pub = 0; const porUser = {}; // anti-bloqueio: 1 publicação por conta por rodada (espaçamento natural)
-  for (const p of posts) {
+  for (const p of posts0) {
     if (porUser[p.user_id]) continue;
     const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${p.user_id}&select=plano,tipo_cortesia,status,bloqueado`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
     if (!cli || cli.bloqueado || cli.status !== 'ativo') continue;
@@ -234,7 +237,7 @@ async function jobPublicar() {
       }
     }
   }
-  return { publicados: pub, fila: posts.length };
+  return { publicados: pub, fila: posts0.length };
 }
 
 
