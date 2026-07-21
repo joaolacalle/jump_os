@@ -72,37 +72,30 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
-    // ── CARD ÚNICO: navegação entre slides (sem re-render, sem piscar) ────────────
-const SLIDES={};
-function navSlide(id,d){
-  const im=document.getElementById('sl-img-'+id); if(!im)return;
+    // Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
+async function regerarSlide(id){
   const c=ITENS.find(x=>x.id===id); if(!c)return;
-  const sl=JUMP.slidesDe(c); if(sl.length<2)return;
-  let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
-  im.src=sl[i]; im.dataset.i=i; SLIDES[id]=i;
-  const n=document.getElementById('sl-n-'+id); if(n)n.textContent=(i+1)+'/'+sl.length;
-}
-// Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
-async function regerarSlide(id,btn){
-  const c=ITENS.find(x=>x.id===id); if(!c)return;
-  const im=document.getElementById('sl-img-'+id);
+  // P6: a imagem vive no modal ('edit-img'), não mais no grid ('sl-img-<id>').
+  const im=document.getElementById('edit-img');
   const i=im?Number(im.dataset.i||0):0, tot=JUMP.totalSlides(c);
-  const b=btn||event&&event.target;
-  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Gerando...'}
+  const b=(typeof event!=='undefined'&&event)?event.target:null;
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Recriando...'}
   try{
     const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
       body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
     const d=await r.json();
-    if(!r.ok||!d.ok)throw new Error(d.error||'Falha ao gerar');
-    await recarregar(); JUMP.toast('✓ Slide '+(i+1)+' regerado.');
-  }catch(e){JUMP.toast(e.message||'Erro ao regerar','err');if(b){b.disabled=false;b.innerHTML='🎨 Regerar este slide'}}
+    if(!r.ok||!(d.ok||d.url||d.midia_url))throw new Error(d.error||'Falha ao gerar');
+    await recarregar();
+    abrirEdicao(id);          // reabre o modal com a imagem NOVA (senão "não acontece nada")
+    JUMP.toast('✓ Imagem recriada.');
+  }catch(e){JUMP.toast(e.message||'Erro ao recriar','err');if(b){b.disabled=false;b.innerHTML='🎨 Recriar imagem'}}
 }
 // Regerar o carrossel INTEIRO (gasta N imagens) — confirma antes: é dinheiro do cliente.
 async function regerarCarrossel(id){
   const c=ITENS.find(x=>x.id===id); if(!c)return;
   const tot=JUMP.totalSlides(c);
   if(!confirm('Regerar os '+tot+' slides? Isso gasta '+tot+' imagens da sua cota.'))return;
-  const b=event&&event.target; if(b){b.disabled=true}
+  const b=(typeof event!=='undefined'&&event)?event.target:null; if(b){b.disabled=true}
   liberarGeracao();
   for(let n=1;n<=tot;n++){
     if(deveParar()){JUMP.toast('Geração interrompida.');break}
@@ -114,7 +107,7 @@ async function regerarCarrossel(id){
       if(d&&d.limite){JUMP.toast(d.error||'Cota esgotada. Os slides restantes ficam como estavam.','err');break}
     }catch(e){JUMP.toast('Falhou o slide '+n+'. Sigo para o próximo.','err')}
   }
-  await recarregar(); JUMP.toast('✓ Carrossel regerado.');
+  await recarregar(); abrirEdicao(id); JUMP.toast('✓ Carrossel recriado.');
 }
 async function recarregar(){
   const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
@@ -164,6 +157,7 @@ function render(){
       </div>
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
+        ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
       </div></div>`;
   }).join('');
@@ -196,6 +190,7 @@ function abrirEdicao(id){
       ${setas}
     </div>
     <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-bottom:10px">${JUMP.esc(tp.label)}${prazo?' · publica '+prazo:''}</div>
+    ${m.finalidade==='anuncio'?`<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:11px 13px;margin-bottom:12px"><div style="font-weight:700;font-size:12.5px;color:#fbbf24">🎯 Este criativo é para ANÚNCIO</div><div style="font-size:12px;color:var(--t2);margin-top:4px;line-height:1.55">Ao aprovar, ele <b>não é publicado no seu feed</b>. Baixe a arte e suba no seu Gerenciador de Anúncios, no anúncio que o Consultor de Tráfego recomendou.</div></div>`:''}
     ${m.headline?`<div class="f-group"><label class="f-label">Headline</label><div style="font-size:14px;font-weight:700">${JUMP.esc(m.headline)}</div></div>`:''}
     <div class="f-group"><label class="f-label">Legenda (copy)</label><textarea class="f-textarea" id="edit-copy" rows="4">${JUMP.esc(c.copy||'')}</textarea></div>
     <div class="ap-acts" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${regerar}

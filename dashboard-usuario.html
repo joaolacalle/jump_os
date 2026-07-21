@@ -288,7 +288,7 @@ function flipCard(id,nr,num,lbl,backT,backX){
       {done:!!ob.checkin,t:'Fazer o check-in com o Agente de Identidade',b:'Conte sobre seu negócio uma única vez — tudo parte daqui.',link:'agentes.html?agente=identidade',btn:'Fazer →',min:1},
       {done:igOn,t:'Conectar seu Instagram',b:'Libera o diagnóstico real do perfil.',link:'conectar-conta.html',btn:'Conectar →',min:1},
       {done:upLogo,t:'Enviar sua logo e fotos de produtos',b:'Os agentes criam artes com a sua identidade.',link:'upload.html',btn:'Enviar →',min:1},
-      {done:adsOn,t:'Conectar o Meta Ads',b:'O Agente de Tráfego acompanha e otimiza as campanhas.',link:'conectar-conta.html#ads',btn:'Conectar →',min:3},
+      {done:adsOn,t:'Conectar o Meta Ads',b:'O Consultor de Tráfego lê seus números reais e diz o que ajustar.',link:'conectar-conta.html#ads',btn:'Conectar →',min:3},
       {done:upVideo,t:'Enviar um vídeo bruto para edição',b:'O Agente Editor corta, legenda e entrega pronto.',link:'upload.html',btn:'Enviar →',min:3},
     ].filter(t=>t.min<=level);
     const feitas=TASKS.filter(t=>t.done).length;
@@ -335,7 +335,7 @@ function flipCard(id,nr,num,lbl,backT,backX){
     renderIG(m,igOn);
 
     const adsBack=level>=3
-      ?['Investimento total no período. O Agente de Tráfego realoca o budget diariamente entre os 4 públicos.','Retorno sobre investimento. Abaixo de 2x o Agente sugere correção de criativo ou público.','Custo por lead. O Agente compara com o benchmark do nicho e ajusta as campanhas.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
+      ?['Investimento total no período. O Consultor de Tráfego analisa a distribuição entre os 4 públicos e recomenda como realocar.','Retorno sobre investimento. Abaixo de 2x, o Consultor aponta se o problema é criativo, oferta ou público.','Custo por lead. O Consultor compara com o benchmark do nicho e recomenda ajustes para você aplicar.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
       :['Total investido em anúncios no período. Resultado consolidado das suas campanhas.','ROAS = retorno sobre o valor investido. Ex: 3x significa R$3 de retorno por R$1 investido.','Custo por lead captado. Quanto menor, mais eficiente está a campanha.','Total de cliques nos seus anúncios no período.'];
     document.getElementById('ads-stats').innerHTML=
       flipCard('e','var(--g-rgb)',JUMP.fmtBRL(m.investido),'Investido','O que significa',adsOn?adsBack[0]:'Conecte o Meta Ads para acompanhar o investimento.')+
