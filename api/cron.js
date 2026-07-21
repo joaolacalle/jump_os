@@ -270,21 +270,90 @@ async function jobMetricas() {
         alcance = (d0 && d0.total_value && d0.total_value.value)
           || (d0 && d0.values && d0.values.length && d0.values[d0.values.length - 1].value) || 0;
       } catch (e) { erros.push('insights: ' + String(e.message).slice(0, 100)); }
-      // interações dos últimos 30 dias (likes + comentários das mídias recentes)
-      let inter = 0, posts30 = 0;
+      // interações + saves + shares dos últimos 30 dias, e ranking por post.
+      // saved/shares vêm de insights por mídia (Instagram Login entrega; impressions não-Reels NÃO).
+      let inter = 0, posts30 = 0, saves = 0, shares = 0, reachPosts = 0;
+      const porPost = [];
+      let porFormato = { IMAGE: { n:0, eng:0 }, CAROUSEL_ALBUM: { n:0, eng:0 }, VIDEO: { n:0, eng:0 }, REELS: { n:0, eng:0 } };
+      const porDiaHora = {}; // 'dow-hh' -> soma de engajamento (melhor horário)
       try {
-        const md = await fetch(`https://graph.instagram.com/v19.0/me/media?fields=like_count,comments_count,timestamp&limit=30&access_token=${c.token}`).then(r => r.json());
+        const md = await fetch(`https://graph.instagram.com/v19.0/me/media?fields=id,caption,media_type,media_product_type,like_count,comments_count,timestamp,permalink,media_url,thumbnail_url&limit=30&access_token=${c.token}`).then(r => r.json());
         if (md.error) { erros.push('media: ' + md.error.message.slice(0, 120)); }
         const corte = Date.now() - 30 * 24 * 3600 * 1000;
         for (const m of (md.data || [])) {
           if (new Date(m.timestamp).getTime() < corte) continue;
-          posts30++; inter += (m.like_count || 0) + (m.comments_count || 0);
+          posts30++;
+          const eng = (m.like_count || 0) + (m.comments_count || 0);
+          inter += eng;
+          // insights por post (saved, shares, reach) — falha silenciosa por post não derruba a coleta
+          let sv = 0, sh = 0, rc = 0;
+          try {
+            const pi = await fetch(`https://graph.instagram.com/v19.0/${m.id}/insights?metric=saved,shares,reach&access_token=${c.token}`).then(r => r.json());
+            for (const d of (pi.data || [])) {
+              const v = (d.values && d.values[0] && d.values[0].value) || 0;
+              if (d.name === 'saved') sv = v; else if (d.name === 'shares') sh = v; else if (d.name === 'reach') rc = v;
+            }
+          } catch (_) {}
+          saves += sv; shares += sh; reachPosts += rc;
+          // formato (REELS quando media_product_type=REELS)
+          const fmt = (m.media_product_type === 'REELS') ? 'REELS' : (m.media_type || 'IMAGE');
+          if (porFormato[fmt]) { porFormato[fmt].n++; porFormato[fmt].eng += eng + sv + sh; }
+          // melhor horário (dia da semana + hora do post, ponderado por engajamento)
+          const dt = new Date(m.timestamp);
+          const chave = dt.getDay() + '-' + String(dt.getHours()).padStart(2, '0');
+          porDiaHora[chave] = (porDiaHora[chave] || 0) + eng + sv + sh;
+          porPost.push({ id: m.id, cap: (m.caption || '').slice(0, 80), tipo: fmt, likes: m.like_count || 0, coments: m.comments_count || 0, saves: sv, shares: sh, reach: rc, eng: eng + sv + sh, link: m.permalink || '', thumb: m.thumbnail_url || m.media_url || '', quando: m.timestamp });
         }
       } catch (e) { erros.push('media: ' + String(e.message).slice(0, 100)); }
+      // share rate = shares ÷ alcance dos posts (o sinal nº1 de 2026 segundo Mosseri)
+      const shareRate = reachPosts ? Math.round((shares / reachPosts) * 1000) / 10 : 0;
+      // melhor horário: a chave com maior engajamento acumulado
+      const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      let melhorHorario = null;
+      { const top = Object.entries(porDiaHora).sort((a,b)=>b[1]-a[1])[0];
+        if (top) { const [d,h] = top[0].split('-'); melhorHorario = DOW[Number(d)] + ' ' + h + 'h'; } }
+      // melhor formato: o de maior engajamento médio
+      let melhorFormato = null;
+      { const cand = Object.entries(porFormato).filter(([,x])=>x.n>0).map(([k,x])=>[k, x.eng/x.n]).sort((a,b)=>b[1]-a[1])[0];
+        const NOMES = { IMAGE:'Feed', CAROUSEL_ALBUM:'Carrossel', VIDEO:'Vídeo', REELS:'Reels' };
+        if (cand) melhorFormato = NOMES[cand[0]] || cand[0]; }
+      // crescimento de seguidores (série dos últimos 28 dias) — para o gráfico de linha
+      let novos28 = 0, serieSeguidores = [];
+      try {
+        const fc = await fetch(`https://graph.instagram.com/v19.0/me/insights?metric=follower_count&period=day&access_token=${c.token}`).then(r => r.json());
+        const vals = (fc.data && fc.data[0] && fc.data[0].values) || [];
+        serieSeguidores = vals.map(v => ({ d: (v.end_time || '').slice(0,10), n: v.value || 0 }));
+        novos28 = vals.reduce((a,v)=>a+(v.value||0), 0);
+      } catch (_) {}
+      // demografia (idade/gênero/cidade) — exige 100+ seguidores; falha silenciosa se não houver
+      let demografia = null;
+      if ((prof.followers_count || 0) >= 100) {
+        try {
+          const dem = await fetch(`https://graph.instagram.com/v19.0/me/insights?metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=age,gender&access_token=${c.token}`).then(r => r.json());
+          const tv = dem.data && dem.data[0] && dem.data[0].total_value && dem.data[0].total_value.breakdowns;
+          if (tv && tv[0] && tv[0].results) demografia = tv[0].results.map(x => ({ k: (x.dimension_values||[]).join(' · '), v: x.value }));
+        } catch (_) {}
+      }
       // engajamento: interações ÷ alcance (padrão de mercado); fallback: ÷ seguidores
       const base = alcance || seguidores || 1;
       const engaj = Math.round((inter / base) * 1000) / 10; // 1 casa decimal
-      const corpo = { user_id: c.user_id, data_coleta: hoje, seguidores, engajamento_30d: engaj, alcance, posts: posts30 };
+      const topPosts = porPost.slice().sort((a,b)=>b.eng-a.eng);
+      const corpo = {
+        user_id: c.user_id, data_coleta: hoje,
+        seguidores, engajamento_30d: engaj, alcance, posts: posts30,
+        alcance_30d: alcance, novos_seguidores_30d: novos28,
+        melhor_horario: melhorHorario, melhor_formato: melhorFormato,
+        taxa_alcance: seguidores ? Math.round((alcance / seguidores) * 1000) / 10 : null,
+        dados_raw: {
+          saves, shares, share_rate: shareRate,
+          serie_seguidores: serieSeguidores,
+          demografia,
+          top_posts: topPosts.slice(0, 6),
+          pior_post: topPosts.length > 2 ? topPosts[topPosts.length - 1] : null,
+          por_formato: porFormato,
+          coletado_em: new Date().toISOString(),
+        },
+      };
       const rIns = idHoje
         ? await fetch(`${SUPABASE_URL}/rest/v1/metricas?id=eq.${idHoje}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify(corpo) })
         : await fetch(`${SUPABASE_URL}/rest/v1/metricas`, { method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(corpo) });
