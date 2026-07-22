@@ -37,10 +37,19 @@
 
       <!-- NÍVEL 2: derivar da cor da marca -->
       <div style="font-family:var(--M);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:9px">2 · Ou use a cor da sua marca</div>
-      <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;margin-bottom:18px">
-        <label class="cp-sw"><input type="color" id="marca" value="#A855F7"></label>
-        <div style="flex:1"><div style="font-size:13px;font-weight:800">Cor da marca</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">O sistema monta a harmonia completa a partir dela</div></div>
-        <button class="btn btn-g btn-sm" onclick="derivarDaMarca()" style="white-space:nowrap">Gerar →</button>
+      <div style="padding:12px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;margin-bottom:18px">
+        <div style="display:flex;align-items:center;gap:11px">
+          <label class="cp-sw"><input type="color" id="marca" value="#A855F7"></label>
+          <div style="flex:1"><div style="font-size:13px;font-weight:800">Cor da marca</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">O sistema monta a harmonia completa a partir dela</div></div>
+          <button class="btn btn-g btn-sm" onclick="derivarDaMarca()" style="white-space:nowrap">Gerar →</button>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:11px;padding-top:11px;border-top:1px solid var(--bd)">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer">
+            <input type="radio" name="mdmarca" value="escuro" checked style="accent-color:var(--g)"> 🌙 Painel escuro</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer">
+            <input type="radio" name="mdmarca" value="claro" style="accent-color:var(--g)"> ☀️ Painel claro</label>
+        </div>
+        <div id="marca-ident" style="display:none;margin-top:11px;padding-top:11px;border-top:1px solid var(--bd)"></div>
       </div>
 
       <!-- NÍVEL 3: ajuste fino (colapsado — não estica a página) -->
@@ -199,7 +208,10 @@ const PALETAS=[
   {n:'Oceano',  c1:'#38BDF8',c2:'#7DD3FC',c3:'#B4CBDA',c4:'#0B1017',c5:'#141C26',t1:'#EEF4F8'},
   {n:'Dourado', c1:'#FBBF24',c2:'#FCD34D',c3:'#D8CBA8',c4:'#12100A',c5:'#1E1A11',t1:'#F7F3E8'},
   {n:'Coral',   c1:'#FB7185',c2:'#FDA4AF',c3:'#DCC0C4',c4:'#130E10',c5:'#201619',t1:'#F8EFF1'},
-  {n:'Claro',   c1:'#7C3AED',c2:'#9D6BF5',c3:'#6B6478',c4:'#F4F2F7',c5:'#FFFFFF',t1:'#1A1720'},
+  {n:'Claro',   c1:'#7C3AED',c2:'#9D6BF5',c3:'#6B6478',c4:'#F4F2F7',c5:'#FFFFFF',t1:'#1A1720',bg:'claro'},
+  {n:'Areia',   c1:'#B45309',c2:'#D97706',c3:'#6F6558',c4:'#F7F3EC',c5:'#FFFDF9',t1:'#2A2318',bg:'claro'},
+  {n:'Menta',   c1:'#047857',c2:'#059669',c3:'#5C6B63',c4:'#F0F6F3',c5:'#FFFFFF',t1:'#12211A',bg:'claro'},
+  {n:'Céu',     c1:'#0369A1',c2:'#0284C7',c3:'#5A6672',c4:'#F0F4F8',c5:'#FFFFFF',t1:'#141D26',bg:'claro'},
 ];
 // ── utilidades de cor (derivar harmonia + garantir legibilidade)
 function _rgb(h){h=(h||'').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');return[parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]}
@@ -214,8 +226,20 @@ function _fromHsl(hh,ss,ll){hh=((hh%360)+360)%360;const c=(1-Math.abs(2*ll-1))*s
   if(hh<60){r=c;g=x;b=0}else if(hh<120){r=x;g=c;b=0}else if(hh<180){r=0;g=c;b=x}else if(hh<240){r=0;g=x;b=c}else if(hh<300){r=x;g=0;b=c}else{r=c;g=0;b=x}
   return _hex((r+m)*255,(g+m)*255,(b+m)*255)}
 // 1 cor da marca → harmonia completa, com contraste garantido
-function harmoniaDe(marca){
+function harmoniaDe(marca,modo){
   const[h,sat,l]=_hsl(marca);
+  if(modo==='claro'){
+    // FUNDO CLARO: o destaque precisa ESCURECER para ter contraste sobre o branco
+    return{
+      c1:_fromHsl(h,Math.max(sat,.55),Math.min(l,.42)),  // principal: escuro o bastante p/ ler
+      c2:_fromHsl(h,Math.max(sat*.9,.5),.5),             // secundária: um degrau acima
+      c3:_fromHsl(h,.10,.42),                            // legendas: cinza com o tom da marca
+      c4:_fromHsl(h,.14,.965),                           // fundo: quase branco, levemente tingido
+      c5:'#FFFFFF',                                      // caixas: brancas, destacam do fundo
+      t1:_fromHsl(h,.22,.11),                            // texto: quase preto com o tom
+      bg:'claro'
+    };
+  }
   const escuro=l<.55; // marca escura? clareia para virar destaque legível no fundo escuro
   const c1=escuro?_fromHsl(h,Math.max(sat,.5),.62):marca;
   return{
@@ -246,7 +270,7 @@ function harmoniaDe(marca){
     document.getElementById('t1').value=t.t1||PADRAO.t1||'#F5F2EC';
     // cor da marca parte do destaque atual; paletas e prévia prontas ao abrir
     const _mk=document.getElementById('marca'); if(_mk)_mk.value=t.c1||PADRAO.c1;
-    renderPaletas(); pintarPreview(temaAtual()); checarContraste(temaAtual());
+    renderPaletas(); carregarCoresDaMarca(); pintarPreview(temaAtual()); checarContraste(temaAtual());
       document.getElementById('cfg-nome').value=(CTX.viewCliente&&CTX.viewCliente.nome)||CTX.cliente.nome||'';
     document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
@@ -275,7 +299,11 @@ function harmoniaDe(marca){
   }catch(e){}
 })();
 function temaAtual(){
-  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,c4:document.getElementById('c4').value,c5:document.getElementById('c5').value,t1:document.getElementById('t1').value,bg:'escuro'};
+  const c4=document.getElementById('c4').value;
+  return{c1:document.getElementById('c1').value,c2:document.getElementById('c2').value,c3:document.getElementById('c3').value,
+    c4:c4,c5:document.getElementById('c5').value,t1:document.getElementById('t1').value,
+    // o modo (claro/escuro) segue o FUNDO escolhido — inclusive o menu lateral harmoniza
+    bg:_lum(c4)>.5?'claro':'escuro'};
 }
 function preview(){
   const t=temaAtual(); JUMP.applyTheme(t); pintarPreview(t); checarContraste(t);
@@ -302,7 +330,37 @@ function checarContraste(t){
 }
 function aplicarCampos(t){
   ['c1','c2','c3','c4','c5','t1'].forEach(k=>{const el=document.getElementById(k);if(el&&t[k])el.value=t[k]});
-  preview();
+  preview(); // o modo (claro/escuro) sai da luminância do fundo, dentro de temaAtual()
+}
+// ── O que o Agente de Identidade descobriu da marca alimenta esta tela.
+// Sem isto, o cliente que fez o check-in mas ainda não aplicou o tema veria o roxo
+// padrão — teria que digitar de novo uma cor que o sistema já sabe.
+async function carregarCoresDaMarca(){
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid)
+      .in('chave',['paleta_primaria','paleta_secundaria','cor_cta']);
+    if(!mems||!mems.length)return;
+    const hex=[];
+    mems.forEach(m=>String(m.valor||'').split(',').forEach(v=>{
+      v=v.trim(); if(/^#[0-9a-fA-F]{6}$/.test(v)&&!hex.includes(v))hex.push(v);
+    }));
+    if(!hex.length)return;
+    // a primeira cor da paleta vira o ponto de partida do "Gerar"
+    const mk=document.getElementById('marca');
+    const temaSalvo=(CTX.viewCliente&&CTX.viewCliente.tema)||CTX.cliente.tema;
+    if(mk&&!temaSalvo)mk.value=hex[0];
+    const w=document.getElementById('marca-ident'); if(!w)return;
+    w.style.display='block';
+    w.innerHTML='<div style="font-family:var(--M);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:7px">Cores que o Agente de Identidade encontrou na sua marca</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+hex.slice(0,6).map(h=>
+        `<button onclick="usarCorDaMarca('${h}')" title="Usar ${h}" style="width:30px;height:30px;border-radius:8px;background:${h};border:1px solid var(--bd);cursor:pointer;transition:.15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='none'"></button>`
+      ).join('')+'</div>';
+  }catch(e){ /* opcional: a tela funciona igual sem as memórias */ }
+}
+function usarCorDaMarca(hex){
+  document.getElementById('marca').value=hex;
+  derivarDaMarca();
 }
 function renderPaletas(){
   const w=document.getElementById('paletas'); if(!w)return;
@@ -320,8 +378,9 @@ function usarPaleta(i){
 }
 function derivarDaMarca(){
   const m=document.getElementById('marca').value;
-  const t=harmoniaDe(m); aplicarCampos(t);
-  JUMP.toast('Harmonia gerada a partir da sua cor — ajuste o que quiser e salve.');
+  const modo=(document.querySelector('input[name="mdmarca"]:checked')||{}).value||'escuro';
+  const t=harmoniaDe(m,modo); aplicarCampos(t);
+  JUMP.toast('Harmonia '+(modo==='claro'?'clara':'escura')+' gerada a partir da sua cor.');
 }
 function restaurar(){
   aplicarCampos(PADRAO);
