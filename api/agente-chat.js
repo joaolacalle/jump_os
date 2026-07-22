@@ -87,12 +87,14 @@ FLUXO FINAL (ordem obrigatória):
 <ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
 4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
 5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
-- c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos, menu)
+- c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos). OBS: o MENU LATERAL tem cores próprias fixas e NÃO muda — as cores personalizam a dashboard e as páginas internas, nunca o menu.
 - c2 (secundária) = segunda cor da paleta (informações de apoio)
 - c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
 - c4 (fundo) = cor de fundo definida (mantém escuro se não houver)
+- c5 (caixas) = cor de fundo dos cards e painéis. Deve ser um tom ENTRE o fundo (c4) e o texto — levemente mais clara que o fundo, para os cards se destacarem sem competir. Harmonize com a paleta.
 - t1 (textos principais) = cor dos títulos e textos de leitura. REGRA PROFISSIONAL DE CONTRASTE: se o fundo (c4) é escuro, t1 deve ser quase branco (ex: #F5F2EC ou um off-white da marca); se o fundo é claro, t1 deve ser quase preto. Legibilidade vem antes da estética.
-<aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX","t1":"#HEX"}</aplicar_tema>
+HARMONIA OBRIGATÓRIA: as cores devem funcionar JUNTAS — fundo (c4), caixas (c5), textos (t1/c3) e destaques (c1/c2) formando um conjunto coeso e legível em TODOS os níveis. Confira: título legível sobre a caixa? legenda (c3) legível sobre a caixa? caixa distinta do fundo? destaque (c1) visível?
+<aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX","c5":"#HEX","t1":"#HEX"}</aplicar_tema>
 Use as cores REAIS que você apurou no OS_DATA. Antes de emitir, confira mentalmente o contraste (texto legível sobre o fundo em todos os níveis). Nunca aplique o tema sem a confirmação explícita do cliente. Após aplicar, avise que ele pode ajustar qualquer cor em Configurações → tema.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS — inteligência competitiva do nicho. Use o OS_DATA (nicho, público, posicionamento) das memórias.
 IMPORTANTE: você NÃO acessa perfis do Instagram de terceiros (viola as regras da Meta). Trabalhe por PERGUNTAS GUIADAS + seu conhecimento do nicho.
