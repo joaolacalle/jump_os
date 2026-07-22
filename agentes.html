@@ -58,6 +58,8 @@
 .img-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 .typing{align-self:flex-start;display:flex;gap:5px;padding:13px 16px}
 .typing span{width:7px;height:7px;border-radius:50%;background:rgb(var(--ac,var(--g-rgb)));animation:ty 1.2s infinite}
+.pulsa{animation:pulsaBtn 1.1s ease-in-out 5;box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.6)}
+@keyframes pulsaBtn{0%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.55)}70%{box-shadow:0 0 0 11px rgba(var(--ac,var(--g-rgb)),0)}100%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),0)}}
 .typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
 @keyframes ty{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
 /* caixa de mensagem: um só campo em pill, com o botão integrado dentro */
@@ -410,9 +412,12 @@ const AGS=[
     // O usuário clicava, caía na conversa e nada acontecia. Agora o link executa a ordem citada.
     const execId=new URLSearchParams(location.search).get('exec');
     if(execId){
-      // limpa a URL: F5 não pode re-executar (nem gastar cota de novo)
+      // limpa a URL: F5 não pode re-disparar nada
       try{history.replaceState({},'',location.pathname+'?agente='+encodeURIComponent(q||'criativo'))}catch(e){}
-      setTimeout(()=>{executarOrdens(null,execId).catch(()=>{})},600); // deixa o chat montar antes
+      // 🔴 ANTES executava SOZINHO (setTimeout → executarOrdens). O usuário abria o agente e a
+      // tarefa já rodava sem ele pedir — gastando cota sem consentimento. Agora o link LEVA
+      // até a ordem e DESTACA o botão; quem decide apertar é o usuário.
+      setTimeout(()=>destacarOrdem(execId),700);
     }
   }catch(e){}
 })();
@@ -638,6 +643,21 @@ function pararLote(btn){
   JUMP.toast('Vou parar assim que a arte atual terminar.');
 }
 // soId = executa SÓ aquela ordem (botão ▶ da linha). Sem soId = executa todas, por prioridade.
+// Vindo de "Executar agora" (Tarefas): rola até a ordem e pulsa o botão. NÃO executa sozinho.
+function destacarOrdem(id){
+  try{
+    const box=document.querySelector('.ordens-box'); if(!box)return;
+    box.scrollIntoView({behavior:'smooth',block:'center'});
+    const alvo=box.querySelector('button[onclick*="'+id+'"]')||box.querySelector('button');
+    if(!alvo)return;
+    alvo.classList.add('pulsa');
+    const aviso=document.createElement('div');
+    aviso.style.cssText='font-size:11.5px;color:var(--t3);margin-top:7px;line-height:1.5';
+    aviso.textContent='Sua tarefa está aqui — toque no botão para eu atender.';
+    box.appendChild(aviso);
+    setTimeout(()=>alvo.classList.remove('pulsa'),6000);
+  }catch(e){}
+}
 // ── NATUREZA DE CADA AGENTE — decide COMO uma ordem é atendida ────────────────
 // PRODUÇÃO: a ordem vira um artefato (arte, vídeo). O front executa e entrega.
 // CONSULTORIA: a ordem é uma pergunta de trabalho. O agente ATENDE NA CONVERSA.
