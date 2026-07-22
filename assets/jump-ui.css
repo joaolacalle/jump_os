@@ -2,7 +2,7 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{overflow-x:hidden}
 :root{
-  --ch:#000000;--ch2:#1C1A18;--ch3:#252220;--card:#343434;
+  --ch:#0E0E13;--ch2:#1C1A18;--ch3:#252220;--card:#191922;
   --g:#A855F7;--g2:#B975F9;--g-rgb:168,85,247;--glow:rgba(var(--g-rgb),.18);
   --a2:#B975F9;--a3:#FFFFFF;
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
@@ -19,7 +19,11 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 .grain{position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:180px 180px;mix-blend-mode:overlay}
 /* APP LAYOUT */
 .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-.sidebar{background:#0F0E0D;border-right:1px solid var(--bd);padding:22px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sidebar{
+  /* variáveis BLINDADAS — o tema do usuário não altera o menu lateral (evita fonte invisível) */
+  --t1:#F5F2EC; --t2:rgba(245,242,236,.68); --t3:rgba(245,242,236,.45);
+  --g:#7dd35b; --g-rgb:125,211,91; --bd:rgba(245,242,236,.09); --red:#f87171;
+  background:#0F0E0D;border-right:1px solid rgba(245,242,236,.09);padding:22px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .sb-logo{padding:0 8px 20px;border-bottom:1px solid var(--bd);margin-bottom:16px}
 .sb-logo img{height:30px;object-fit:contain}
 .sb-nav{display:flex;flex-direction:column;gap:3px;flex:1}
@@ -161,8 +165,9 @@ td strong{color:var(--t1)}
 .rb-link:hover{color:var(--t1)}
 .rb-link.on{background:rgba(168,85,247,.18);color:var(--pu);border:1px solid rgba(168,85,247,.45)}
 /* TABS DE PÁGINA */
-.ptabs{display:flex;gap:6px;border-bottom:1px solid var(--bd);margin-bottom:20px;flex-wrap:wrap}
-.ptab{font-family:var(--M);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:11px 16px;color:var(--t3);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;margin-bottom:-1px}
+.ptabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:20px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.ptabs::-webkit-scrollbar{height:4px}.ptabs::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+.ptab{font-family:var(--M);font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:11px 12px;color:var(--t3);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
 .ptab:hover{color:var(--t1)}
 .ptab.on{color:var(--g);border-bottom-color:var(--g)}
 .tabpane{display:none}.tabpane.on{display:block}
@@ -315,4 +320,57 @@ a{transition:color .18s,opacity .18s}
 @media(prefers-reduced-motion:reduce){
   .btn,.card,.stat,.ap-card,.sb-link{transition:none!important;transform:none!important}
   .modal,.vm-card,[id$="-overlay"]>div:first-child{animation:none!important}
+}
+
+
+/* ═══ BENTO GRID (2026) — hierarquia por tamanho: tile maior = dado mais crítico ═══ */
+.bento{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-bottom:18px}
+.bt{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px 20px;position:relative;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.bt:hover{transform:translateY(-2px);border-color:rgba(var(--g-rgb),.28);box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.bt-hero{grid-column:span 7;grid-row:span 2;display:flex;flex-direction:column}
+.bt-side{grid-column:span 5}
+.bt-7{grid-column:span 7}
+.bt-5{grid-column:span 5}
+.bt-4{grid-column:span 4}
+.bt-3{grid-column:span 3}
+.bt-12{grid-column:span 12}
+.bt-lbl{font-family:var(--M);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.bt-num{font-size:40px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.bt-num-sm{font-size:26px;font-weight:800;line-height:1.05;letter-spacing:-.01em}
+.bt-delta{font-family:var(--M);font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.bt-up{color:#4ade80}.bt-down{color:#f87171}.bt-flat{color:var(--t3)}
+.bt-veredito{margin-top:auto;padding-top:14px;border-top:1px solid var(--bd);font-size:13.5px;line-height:1.55;color:var(--t2)}
+.bt-veredito b{color:var(--t1)}
+/* estado vazio que ENSINA (não parece defeito) */
+.bt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 18px;min-height:120px}
+.bt-empty-i{font-size:26px;margin-bottom:9px;opacity:.55}
+.bt-empty-t{font-size:13px;font-weight:700;color:var(--t2);margin-bottom:5px}
+.bt-empty-b{font-size:11.5px;color:var(--t3);line-height:1.5;max-width:260px}
+/* skeleton (não spinner) — placeholder no formato do conteúdo */
+.sk{background:linear-gradient(90deg,var(--bd) 25%,rgba(var(--g-rgb),.07) 50%,var(--bd) 75%);background-size:200% 100%;animation:skpulse 1.4s ease-in-out infinite;border-radius:7px}
+@keyframes skpulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.sk-num{height:36px;width:70%;margin-bottom:9px}.sk-lbl{height:9px;width:45%}
+/* ação dentro do tile de dicas */
+.bt-act{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--bd)}
+.bt-act:last-child{border-bottom:0}
+.bt-act-i{font-size:15px;flex-shrink:0;line-height:1.35}
+.bt-act-t{font-size:12.5px;color:var(--t2);line-height:1.5;flex:1}
+.bt-act-t b{color:var(--t1)}
+.bt-act-btn{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:7px;background:rgba(var(--g-rgb),.12);color:var(--g);border:1px solid rgba(var(--g-rgb),.25);white-space:nowrap;flex-shrink:0;transition:.18s}
+.bt-act-btn:hover{background:rgba(var(--g-rgb),.2)}
+/* faixa compacta de agentes — navegação NÃO grita mais alto que dado */
+.ag-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ag-chip{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border-radius:11px;background:var(--card);border:1px solid var(--bd);font-size:12.5px;font-weight:700;color:var(--t2);transition:.18s}
+.ag-chip:hover{color:var(--t1);border-color:rgba(var(--g-rgb),.3);transform:translateY(-1px)}
+.ag-chip i{font-style:normal;font-size:14px}
+/* card de ads bloqueado (não-Pro): preview borrado + CTA */
+.bt-lock{position:relative;overflow:hidden}
+.bt-lock .bt-blur{filter:blur(7px);opacity:.4;pointer-events:none;user-select:none}
+.bt-lock-ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px;padding:18px;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.55))}
+@media(max-width:980px){
+  .bt-hero{grid-column:span 12;grid-row:auto}
+  .bt-side,.bt-7,.bt-5,.bt-4,.bt-3{grid-column:span 12}
+}
+@media(min-width:981px) and (max-width:1240px){
+  .bt-4{grid-column:span 6}.bt-3{grid-column:span 6}
 }
