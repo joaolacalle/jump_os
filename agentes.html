@@ -106,10 +106,12 @@
       </div>
       <div class="mem-pane" id="mem-pane"></div>
       <div class="chat-msgs" id="msgs">
-        <div class="empty-chat" id="empty">
-          <div class="ec-ico">👈</div>
-          <div class="ec-t">Escolha um agente</div>
-          <div class="ec-b">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
+        <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
+          <div style="text-align:center;margin-bottom:18px">
+            <div class="ec-t">Por onde você quer começar?</div>
+            <div class="ec-b" style="max-width:440px;margin:5px auto 0">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
+          </div>
+          <div id="onb-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;max-width:720px;margin:0 auto"></div>
         </div>
       </div>
       <div class="chat-in">
@@ -364,7 +366,7 @@ const AGS=[
   {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
   {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
-  {id:'trafego',ico:'📢',n:'Tráfego',r:'Meta Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Ver campanhas',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?']},
+  {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
   {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
 (async()=>{
@@ -381,6 +383,7 @@ const AGS=[
       }
     }catch(e){}
     renderList();
+    carregarEstados(); // em paralelo: não trava a abertura da página
     atualizarUso(Number((CTX.cliente.uso||{}).tokens||0));
     const verP=new URLSearchParams(location.search).get('ver');
   if(verP){document.querySelectorAll('a[href$=".html"]').forEach(a=>{const h=a.getAttribute('href');if(h&&!h.includes('ver=')&&!h.includes('dashboard-supervisor')&&!h.includes('dashboard-admin')&&!h.includes('home')&&!h.includes('login')){a.setAttribute('href',h+(h.includes('?')?'&':'?')+'ver='+verP)}})}
@@ -399,12 +402,68 @@ const AGS=[
   }catch(e){}
 })();
 function nivel(){return LV[(CTX.viewCliente&&CTX.viewCliente.plano)||CTX.cliente.plano]||1}
+// ── ESTADO POR AGENTE: quanto ele já sabe de você e quando vocês falaram
+let ESTADO={};
+async function carregarEstados(){
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const[{data:mems},{data:msgs}]=await Promise.all([
+      JUMP.sb.from('memorias').select('agente').eq('user_id',uid),
+      JUMP.sb.from('chat_mensagens').select('agente,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(400)
+    ]);
+    const e={};
+    (mems||[]).forEach(m=>{const a=m.agente||'global';(e[a]=e[a]||{}).mem=((e[a].mem)||0)+1});
+    (msgs||[]).forEach(m=>{const a=m.agente;if(!a)return;e[a]=e[a]||{};if(!e[a].ult)e[a].ult=m.created_at});
+    // memórias globais valem para todos (o que a marca sabe de si)
+    const glob=(e.global&&e.global.mem)||0;
+    ESTADO={}; AGS.forEach(a=>{const x=e[a.id]||{};ESTADO[a.id]={mem:(x.mem||0)+glob,ult:x.ult||null}});
+    renderList();
+  }catch(err){ /* estado é enfeite: se falhar, a lista funciona igual */ }
+}
+function quando(iso){
+  if(!iso)return null;
+  const d=Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+  if(d<=0)return 'hoje'; if(d===1)return 'ontem';
+  if(d<7)return 'há '+d+' dias';
+  if(d<30)return 'há '+Math.floor(d/7)+' sem';
+  return 'há '+Math.floor(d/30)+' mes'+(Math.floor(d/30)>1?'es':'');
+}
+// ── ONBOARDING: em vez de uma tela vazia, mostra POR ONDE COMEÇAR
+function renderOnboarding(){
+  const w=document.getElementById('onb-grid'); if(!w)return;
+  const nv=nivel();
+  const libs=AGS.filter(a=>a.min<=nv).slice(0,6);
+  w.innerHTML=libs.map(a=>{
+    const st=ESTADO[a.id]||{}; const q=quando(st.ult);
+    const sug=(a.sug&&a.sug[0])||'';
+    return `<div style="background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:13px 15px;cursor:pointer;transition:.18s;border-left:2px solid rgba(${a.nc||'168,85,247'},.5)"
+      onclick="comecarCom('${a.id}',${JSON.stringify(sug).replace(/"/g,'&quot;')})"
+      onmouseover="this.style.borderColor='rgba(var(--g-rgb),.4)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.borderColor='var(--bd)';this.style.transform='none'">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:15px">${a.ico}</span>
+        <span style="font-size:13px;font-weight:800;color:var(--t1)">${a.n}</span>
+        ${q?`<span style="font-family:var(--M);font-size:8.5px;color:var(--t3);margin-left:auto">${q}</span>`:''}
+      </div>
+      <div style="font-size:11.5px;color:var(--t2);line-height:1.45">${sug?'“'+sug+'”':a.r}</div>
+    </div>`;
+  }).join('');
+}
+function comecarCom(id,txt){
+  selecionar(id);
+  if(txt)setTimeout(()=>{const i=document.getElementById('inp');if(i){i.value=txt;i.focus();i.dispatchEvent(new Event('input'))}},260);
+}
 function renderList(){
+  renderOnboarding();
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
+    const st=ESTADO[a.id]||{}; const q=quando(st.ult);
+    const linha = !ok ? a.r
+      : (st.mem||q) ? [st.mem?st.mem+' memória'+(st.mem>1?'s':''):null, q].filter(Boolean).join(' · ')
+      : a.r;
     return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" style="border-left:2px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.8':'.3'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
       <span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
-      <div><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${a.r}</div></div>
+      <div style="min-width:0"><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${linha}</div></div>
       ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
   }).join('');
@@ -1512,7 +1571,11 @@ function atualizarUso(tk){
   const bar=document.getElementById('tok-bar');
   bar.style.width=pct+'%';
   bar.className='bar-f'+(pct>=95?' full':pct>=75?' warn':'');
-  document.getElementById('tok-txt').textContent=JUMP.fmtNum(tk)+' / '+JUMP.fmtNum(lim)+' tokens no mês';
+  const rest=100-pct;
+  document.getElementById('tok-txt').textContent =
+    pct>=95 ? 'Seu limite de conversas do mês está no fim'
+    : pct>=75 ? 'Você já usou '+pct+'% das conversas deste mês'
+    : 'Você tem '+rest+'% das conversas do mês disponíveis';
 }
 async function toggleMem(){
   const p=document.getElementById('mem-pane');
