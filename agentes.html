@@ -530,7 +530,10 @@ async function selecionar(id){
       else if(p.tipo==='preview'&&p.d)renderPreview(p.d,p.req);
     }
   }catch(e){}
-  if(id==='criativo'||id==='estrategia')verificarOrdens(id);
+  // 🔴 ERA `if(id==='criativo'||id==='estrategia')`: os outros 5 agentes NUNCA mostravam
+  // suas ordens pendentes. O usuário criava tarefa para o Mercado, abria o Mercado e não
+  // via nada. Agora TODO agente mostra o que tem para fazer.
+  verificarOrdens(id);
   if(id==='estrategia')atualizarBotaoEstrategia();
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
@@ -577,18 +580,35 @@ async function verificarOrdens(alvo){
     const ords=ordenarPorPrioridade(data);
     let corpo,acao;
     if(alvo==='estrategia'){
-      corpo='<div style="font-size:12.5px;color:var(--t2);margin:6px 0">'+ords.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
-      acao='<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>';
+      // 🔴 ERA: TODA ordem da Estratégia virava "escrever a copy da semana" — o pedido avulso
+      // do usuário aparecia na lista mas o único botão fazia OUTRA coisa (ficava preso).
+      // Agora: o fluxo semanal tem o botão dele; cada pedido avulso tem execução própria.
+      const semanais=ords.filter(ehFluxoSemanal), avulsas=ords.filter(o=>!ehFluxoSemanal(o));
+      corpo='<div style="margin:6px 0">';
+      if(semanais.length) corpo+='<div style="font-size:12.5px;color:var(--t2);padding:3px 0">'
+        +semanais.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
+      corpo+=avulsas.map(o=>{
+        const seu=prioOrdem(o)>=10;
+        const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
+        return '<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--t2);padding:3px 0">'+
+          '<span style="flex:1;min-width:0">'+tag+JUMP.esc(o.detalhe||o.tarefa)+'</span>'+
+          '<button class="btn btn-o btn-sm" title="Atender esta agora" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
+      }).join('')+'</div>';
+      acao=(semanais.length?'<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>':'')
+        +(avulsas.length?' <button class="btn btn-'+(semanais.length?'o':'g')+' btn-sm" onclick="executarOrdens(this)">⚡ Atender '+(avulsas.length>1?'os pedidos':'o pedido')+'</button>':'');
     }else{
+      const consult=naturezaDe(alvo)==='consultoria';
       // BOTÃO POR ORDEM: antes era tudo-ou-nada — um pedido seu ficava preso atrás do lote.
       corpo='<div style="margin:6px 0">'+ords.map(o=>{
         const seu=prioOrdem(o)>=10;
         const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
         return '<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--t2);padding:3px 0">'+
           '<span style="flex:1;min-width:0">'+tag+JUMP.esc(o.detalhe||o.tarefa)+'</span>'+
-          '<button class="btn btn-o btn-sm" title="Executar só esta" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
+          '<button class="btn btn-o btn-sm" title="'+(consult?'Atender esta agora':'Executar só esta')+'" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
       }).join('')+'</div>';
-      acao='<button class="btn btn-g btn-sm" onclick="executarOrdens(this)">⚡ Executar todas</button>';
+      // consultoria ATENDE (responde na conversa); produção EXECUTA (gera artefato)
+      acao='<button class="btn btn-g btn-sm" onclick="executarOrdens(this)">'
+        +(consult?'💬 Atender '+(ords.length>1?'todas':'agora'):'⚡ Executar todas')+'</button>';
     }
     box.innerHTML='📨 <b>Você tem '+ords.length+' ordem(ns) pendente(s)</b>'+corpo+acao;
     w.appendChild(box);w.scrollTop=w.scrollHeight;
@@ -618,6 +638,20 @@ function pararLote(btn){
   JUMP.toast('Vou parar assim que a arte atual terminar.');
 }
 // soId = executa SÓ aquela ordem (botão ▶ da linha). Sem soId = executa todas, por prioridade.
+// ── NATUREZA DE CADA AGENTE — decide COMO uma ordem é atendida ────────────────
+// PRODUÇÃO: a ordem vira um artefato (arte, vídeo). O front executa e entrega.
+// CONSULTORIA: a ordem é uma pergunta de trabalho. O agente ATENDE NA CONVERSA.
+// Antes tudo caía num else que GERAVA ARTE — uma tarefa "analise meus concorrentes"
+// mandada ao Mercado viraria uma imagem. Agora cada natureza tem seu caminho.
+const NATUREZA={criativo:'producao',video:'producao',
+  estrategia:'consultoria',mercado:'consultoria',diagnostico:'consultoria',
+  trafego:'consultoria',publicacao:'consultoria',identidade:'consultoria'};
+function naturezaDe(ag){return NATUREZA[ag]||'consultoria'}
+// Ordens do fluxo semanal da Estratégia (têm botão próprio: "Escrever a copy da semana")
+function ehFluxoSemanal(o){
+  const t=String(o.tarefa||'').toLowerCase();
+  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
+}
 async function executarOrdens(btn,soId){
   if(EXECUTANDO)return; // trava: evita executar a mesma ordem duas vezes
   EXECUTANDO=true;
@@ -628,11 +662,36 @@ async function executarOrdens(btn,soId){
   if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando...'}
   try{
     const uid=CTX.viewId||CTX.user.id;
-    // Lê as ordens REAIS e executa cada uma conforme a TAREFA (não assume ficha técnica).
-    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente','criativo').eq('status','pendente');
+    // 🔴 ERA `.eq('para_agente','criativo')` FIXO: o usuário pode criar tarefa para 7 agentes,
+    // mas o botão só procurava as do Criativo — as outras 6 nunca executavam (ficavam presas
+    // e o botão dizia "nenhuma ordem pendente"). Agora busca as do AGENTE ABERTO.
+    const alvoExec=AG||'criativo';
+    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente',alvoExec).eq('status','pendente');
     ords=soId?(ords||[]).filter(o=>o.id===soId):ordenarPorPrioridade(ords);
     if(!ords||!ords.length){if(box&&!soId)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
     let executadas=0,travadas=0;
+    // ── CONSULTORIA: a ordem é uma pergunta de trabalho, não um pedido de arte.
+    // O agente atende NA CONVERSA (com todo o contexto dele) e a ordem é fechada.
+    if(naturezaDe(alvoExec)==='consultoria'){
+      const pend=ords.filter(o=>!ehFluxoSemanal(o)); // o fluxo semanal tem botão próprio
+      if(!pend.length){JUMP.toast('Nenhuma tarefa avulsa pendente para este agente.');return}
+      for(const o of pend){
+        const pedido=(o.detalhe||o.tarefa||'').trim();
+        if(!pedido){travadas++;continue}
+        const deQuem=o.de_agente&&o.de_agente!=='usuario'?` (pedido do Agente de ${o.de_agente})`:'';
+        // manda como mensagem: o agente responde com tudo que sabe do cliente
+        await enviarTexto(`[Tarefa de serviço${deQuem}] ${pedido}`);
+        const{error:eC}=await JUMP.sb.from('ordens_servico')
+          .update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
+        if(eC){travadas++;continue}
+        executadas++;
+      }
+      if(executadas){if(box)box.remove();JUMP.toast('✓ '+executadas+' tarefa(s) atendida(s) na conversa.')}
+      else JUMP.toast('Não consegui atender agora — a(s) tarefa(s) continua(m) pendente(s).','err');
+      if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
+      return;
+    }
+    // ── PRODUÇÃO (Criativo/Vídeo): a ordem vira um artefato
     for(const o of ords){
       const tarefa=String(o.tarefa||'').toLowerCase();
       const itens=Array.isArray((o.payload||{}).itens)?o.payload.itens.filter(i=>i&&i.brief):[];
@@ -693,7 +752,7 @@ async function executarOrdens(btn,soId){
     if(executadas&&!travadas){if(box)box.remove();JUMP.toast('✓ Ordem executada!')}
     else if(executadas){JUMP.toast('✓ '+executadas+' executada(s) · '+travadas+' continua(m) pendente(s).')}
     else JUMP.toast('Nada foi executado — a(s) ordem(ns) continua(m) pendente(s).','err');
-    if(executadas||travadas)await verificarOrdens('criativo').catch(()=>{});
+    if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
   }catch(e){
     JUMP.toast(e.message||'Erro ao executar ordens','err');
   }finally{
@@ -751,7 +810,7 @@ async function executarLoteCriativos(uid,ordem){
         // SAÍDA DIRETA: se a tarefa de aprovação sumiu, os posts ficariam presos p/ sempre.
         const w2=document.getElementById('msgs');
         const d2=document.createElement('div');d2.className='msg a';
-        d2.innerHTML='📋 <b>'+prop+' post(s) aguardando sua aprovação.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">Aprove para eles entrarem no calendário e eu liberar as artes.</div><button class="btn btn-g btn-sm" onclick="aprovarPropostas(this)">✓ Aprovar estratégia agora</button>';
+        d2.innerHTML='⏸ <b>Ainda não posso gerar as artes.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">O Agente de Estratégia deixou <b>'+prop+' post(s)</b> esperando a sua aprovação. Assim que você aprovar, eles entram no calendário e eu libero as artes.</div><button class="btn btn-g btn-sm" onclick="aprovarPropostas(this)">✓ Aprovar a estratégia</button>';
         w2.appendChild(d2);w2.scrollTop=w2.scrollHeight;
         return 'vazio';
       }
