@@ -336,6 +336,7 @@ REGRAS DO JUMP OS:
 - ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
 - ENTREGUE PRIMEIRO, PERGUNTE DEPOIS: se as memórias dão base mínima, produza a entrega completa AGORA assumindo o mais provável (deixe claro o que assumiu). No máximo 1 pergunta opcional AO FINAL para refinar. NUNCA responda só com lista de perguntas — exceto o check-in do Agente de Identidade, que é guiado.
 - Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
+- ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere duas artes automaticamente: PERGUNTE ANTES, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?". Só produza depois da resposta. O padrão, se o cliente mandar seguir sem escolher, é UMA arte para os dois — nunca gaste duas imagens do saldo dele sem autorização.
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
 - FORMATAÇÃO LIMPA E PROFISSIONAL (economiza tokens e fica elegante): escreva em texto corrido, natural. NÃO use markdown decorativo — proibido: ###, ##, **negrito**, tabelas com |, linhas de --- ou ═══, blocos de código com crases. Evite emojis (no máximo 1 quando fizer sentido real). Use frases e parágrafos curtos. Para listas, use traço simples "- item" só quando necessário. Pense: conversa de consultor por mensagem, não documento formatado.
 - AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
@@ -689,6 +690,25 @@ const handler = async (req, res) => {
 
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
     let semanaTxt='';
+    // ── O CRIATIVO PRECISA ENXERGAR A FILA (antes respondia "peça o plano à Estratégia"
+    // mesmo havendo posts propostos esperando aprovação — o cliente via como desencontro).
+    if(agente==='criativo'){
+      try{
+        const [prop,apr] = await Promise.all([
+          sbGet(`conteudos?user_id=eq.${targetId}&status=eq.proposto&select=id,tema&limit=20`),
+          sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&select=id,tema,formato,copy&limit=20`)
+        ]);
+        const nProp=Array.isArray(prop)?prop.length:0;
+        const comCopy=Array.isArray(apr)?apr.filter(c=>c.copy&&String(c.copy).trim()):[];
+        const semCopy=Array.isArray(apr)?apr.filter(c=>!(c.copy&&String(c.copy).trim())):[];
+        if(nProp||comCopy.length||semCopy.length){
+          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (use isto, NÃO diga que o cliente precisa pedir um plano) ═══';
+          if(nProp)semanaTxt+=`\n- ${nProp} post(s) PROPOSTOS pela Estratégia aguardando a APROVAÇÃO DO CLIENTE. Você não pode gerar as artes deles ainda. Diga isso com clareza e aponte a página Aprovações.`;
+          if(semCopy.length)semanaTxt+=`\n- ${semCopy.length} post(s) aprovados mas SEM COPY/headline. A arte só sai depois do texto — peça ao cliente que acione o Estrategista ("Escrever a copy da semana").`;
+          if(comCopy.length)semanaTxt+=`\n- ${comCopy.length} post(s) PRONTOS para você gerar a arte agora: ${comCopy.slice(0,6).map(c=>`id:${c.id} · ${c.formato||'feed'} · ${c.tema}`).join(' | ')}. Ofereça gerar.`;
+        }
+      }catch(e){}
+    }
     if(agente==='estrategia'){
       try{
         const lim=new Date(Date.now()+7*864e5).toISOString();
