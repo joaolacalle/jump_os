@@ -39,7 +39,7 @@
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando ordens...</div></div>
 <div class="app">
 <main class="main">
-  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div></div>
+  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div><button class="btn btn-g btn-sm" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
   <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tudo que os agentes têm para fazer fica aqui — as ordens que você criou e as que um agente passou para outro. Clique em "Executar agora": o agente abre e já toca a tarefa.</p>
 
   <div class="ord-filtros">
@@ -50,6 +50,67 @@
   </div>
 
   <div id="ord-lista"><div style="font-size:13px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+<!-- MODAL INCLUIR ORDEM (usuário cria ordens que modelam o negócio) -->
+<div id="ordem-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharIncluirOrdem()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📋 Incluir tarefa</div>
+      <button onclick="fecharIncluirOrdem()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Crie uma tarefa para um agente executar — algo que modela o seu negócio (ex: "criar uma promoção", "montar um post do clube de desconto"). Ela fica em Tarefas de Serviço e você executa quando quiser.</p>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">Para qual agente</label>
+      <select class="f-input" id="ordem-para">
+        <option value="estrategia">📋 Estratégia (planos, copy, calendário)</option>
+        <option value="criativo">🖼 Criativo (artes, posts)</option>
+        <option value="video">🎬 Editor de Vídeo (Reels)</option>
+        <option value="publicacao">📅 Publicação (agendamento, DM)</option>
+        <option value="trafego">📢 Tráfego (anúncios)</option>
+        <option value="diagnostico">📊 Diagnóstico (métricas)</option>
+        <option value="mercado">🔍 Mercado (concorrência)</option>
+      </select>
+    </div>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">O que você quer que ele faça</label>
+      <textarea class="f-input" id="ordem-tarefa" rows="3" placeholder="Ex: criar uma promoção de 20% para a primeira semana do mês, com post de feed e story" maxlength="500"></textarea>
+    </div>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Repetir</label>
+      <select class="f-input" id="ordem-recorrencia">
+        <option value="">Uma vez (avulsa)</option>
+        <option value="mensal">Todo mês</option>
+        <option value="semanal">Toda semana</option>
+      </select>
+      <div style="font-size:11px;color:var(--t3);margin-top:5px;font-family:var(--M)">Nas recorrentes, você recebe um lembrete no dia para executar.</div>
+    </div>
+
+    <div class="f-row" style="display:flex;gap:10px;margin-bottom:14px">
+      <div class="f-group" style="flex:1"><label class="f-label">Consome (opcional)</label>
+        <select class="f-input" id="ordem-recurso" onchange="checarSaldoOrdem()">
+          <option value="">Nada específico</option>
+          <option value="imagens">Imagens</option>
+          <option value="videos">Vídeos</option>
+          <option value="dm">Palavras-chave DM</option>
+        </select>
+      </div>
+      <div class="f-group" style="flex:1"><label class="f-label">Quantidade</label>
+        <input class="f-input" id="ordem-qtd" type="number" min="1" placeholder="Ex: 5" oninput="checarSaldoOrdem()">
+      </div>
+    </div>
+    <div id="ordem-saldo" style="font-size:12px;margin-bottom:10px"></div>
+
+    <div id="ordem-result" style="font-size:12.5px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-g" id="ordem-save" onclick="salvarIncluirOrdem()" style="flex:1">Criar ordem</button>
+      <button class="btn btn-o" onclick="fecharIncluirOrdem()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
 </main>
 </div>
 
@@ -159,7 +220,7 @@ function render(){
 
   if(!lista.length){
     const vazio=FILTRO==='ativa'?'Nenhuma tarefa ativa':(FILTRO==='concluida'?'Nenhuma tarefa concluída ainda':'Nenhuma tarefa aqui');
-    wrap.innerHTML='<div class="ord-empty"><div style="font-size:40px;margin-bottom:12px">📋</div><div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">'+vazio+'</div><div style="font-size:13px">Crie tarefas pelo botão "Incluir tarefa" no chat de qualquer agente, ou peça uma estratégia ao Estrategista.</div></div>';
+    wrap.innerHTML='<div class="ord-empty"><div style="font-size:40px;margin-bottom:12px">📋</div><div style="font-size:15px;color:var(--t1);font-weight:700;margin-bottom:6px">'+vazio+'</div><div style="font-size:13px">Crie tarefas pelo botão "Incluir tarefa" aqui em cima, ou peça uma estratégia ao Estrategista.</div></div>';
     return;
   }
   wrap.innerHTML=lista.map(o=>{
@@ -302,6 +363,59 @@ async function cancelar(id){
     TODAS=TODAS.filter(o=>o.id!==id);render();
   }catch(e){JUMP.toast('Erro ao remover','err');}
 }
+function abrirIncluirOrdem(){
+  document.getElementById('ordem-overlay').style.display='flex';
+  document.getElementById('ordem-result').innerHTML='';
+  // na página Tarefas não há "agente atual" — o usuário escolhe o destino no select.
+}
+function fecharIncluirOrdem(){document.getElementById('ordem-overlay').style.display='none';}
+// calcula o saldo restante de um recurso (limite - uso do mês)
+function saldoRecurso(recurso){
+  const cli=CTX.viewCliente||CTX.cliente;
+  const lim=(cli.limites||{});
+  const uso=(cli.uso||{});
+  const mesAtual=new Date().toISOString().slice(0,7);
+  const usado=(uso.mes===mesAtual)?(Number(uso[recurso]||0)):0;
+  const total=Number(lim[recurso]??0);
+  return {total,usado,resta:Math.max(0,total-usado)};
+}
+function checarSaldoOrdem(){
+  const rec=document.getElementById('ordem-recurso').value;
+  const qtd=+document.getElementById('ordem-qtd').value||0;
+  const el=document.getElementById('ordem-saldo');
+  if(!rec||!qtd){el.innerHTML='';return true;}
+  const nome={imagens:'imagens',videos:'vídeos',dm:'palavras-chave de DM'}[rec]||rec;
+  const s=saldoRecurso(rec);
+  if(qtd>s.resta){
+    el.innerHTML=`<span style="color:var(--red)">⚠️ Você pediu ${qtd} ${nome}, mas só tem ${s.resta} de saldo este mês (${s.usado}/${s.total} usados). Reduza a quantidade ou peça mais ao seu gestor.</span>`;
+    return false;
+  }
+  el.innerHTML=`<span style="color:var(--g)">✓ Você tem saldo (${s.resta} ${nome} disponíveis).</span>`;
+  return true;
+}
+async function salvarIncluirOrdem(){
+  const para=document.getElementById('ordem-para').value;
+  const tarefa=document.getElementById('ordem-tarefa').value.trim();
+  const recorrencia=document.getElementById('ordem-recorrencia').value;
+  const recurso=document.getElementById('ordem-recurso').value;
+  const qtd=+document.getElementById('ordem-qtd').value||0;
+  const res=document.getElementById('ordem-result');
+  if(tarefa.length<5){res.innerHTML='<span style="color:var(--red)">Descreva a ordem (o que você quer que o agente faça).</span>';return;}
+  // bloqueia se a quantidade excede o saldo
+  if(recurso&&qtd&&!checarSaldoOrdem()){
+    res.innerHTML='<span style="color:var(--red)">Ajuste a quantidade — ela excede seu saldo do mês.</span>';
+    return;
+  }
+  const btn=document.getElementById('ordem-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Salvando...';
+  try{
+    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null},CTX.token);
+    res.innerHTML='<span style="color:var(--g)">✓ Tarefa criada! Você acompanha em Tarefas de Serviço.</span>';
+    JUMP.toast('📋 Ordem registrada');
+    setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';document.getElementById('ordem-qtd').value='';document.getElementById('ordem-saldo').innerHTML='';if(typeof carregar==='function')carregar();},1400);
+  }catch(e){res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro')+'</span>';btn.disabled=false;btn.textContent='Criar ordem';}
+}
+
 </script>
 </body>
 </html>

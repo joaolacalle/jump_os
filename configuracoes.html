@@ -94,6 +94,22 @@
         <button class="btn btn-g btn-sm" onclick="salvarDados()">Salvar dados</button>
       </div>
       <div class="card">
+        <div class="sec-lbl" style="margin-top:0">🔗 Conexões</div>
+        <div id="conex-wrap" style="display:flex;flex-direction:column;gap:10px">
+          <div id="cx-ig" style="display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--bg);border:1px solid var(--bd);border-radius:12px">
+            <div id="cx-ig-ico" style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;background:rgba(0,0,0,.3)">📸</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:800">Instagram</div><div id="cx-ig-s" style="font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;color:var(--t3)">Não conectado</div></div>
+            <a href="conectar-conta.html" id="cx-ig-btn" class="btn btn-g btn-sm">Conectar →</a>
+          </div>
+          <div id="cx-ads" style="display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--bg);border:1px solid var(--bd);border-radius:12px">
+            <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;background:rgba(0,0,0,.3)">📢</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:800">Meta Ads <span style="font-size:10px;color:var(--t3);font-weight:600">(Pro)</span></div><div id="cx-ads-s" style="font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;color:var(--t3)">Não conectado</div></div>
+            <a href="conectar-conta.html#ads" id="cx-ads-btn" class="btn btn-o btn-sm">Conectar →</a>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--t3);margin-top:11px;line-height:1.55">O Instagram habilita a publicação automática, a análise da dashboard e as respostas de DM. O Meta Ads (Pro) permite ao Consultor de Tráfego ler seus números reais — nunca alteramos suas campanhas.</div>
+      </div>
+      <div class="card">
         <div class="sec-lbl" style="margin-top:0">🔒 Senha</div>
         <div class="f-group"><label class="f-label">Nova senha</label><input class="f-input" type="password" id="cfg-senha" placeholder="mín. 6 caracteres"></div>
         <button class="btn btn-o btn-sm" onclick="trocarSenha()">Alterar senha</button>
@@ -179,6 +195,8 @@ const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#000000',c5:'#343434',b
         document.querySelector('#cfg-trial-box label').style.display='none';
       }
     }
+    // status das conexões (movido da dashboard)
+    carregarConexoes();
     // dados de cobrança via PayPal (status, próxima cobrança, valor)
     carregarAssinatura(p);
     document.getElementById('loading').classList.add('hide');
@@ -197,6 +215,26 @@ function restaurar(){
   document.getElementById('t1').value=PADRAO.t1||'#F5F2EC';
   JUMP.applyTheme(PADRAO);
   JUMP.toast('Padrão JUMP restaurado — clique em Salvar para manter.');
+}
+async function carregarConexoes(){
+  try{
+    const uid=(CTX.viewCliente||CTX.cliente||{}).id||CTX.user.id;
+    const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',uid);
+    let igOn=false,adsOn=false,igMeta=null;
+    (cc||[]).forEach(c=>{
+      if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta')){igOn=true;igMeta=c.meta||null}
+      if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
+    });
+    if(igOn){
+      const st=document.getElementById('cx-ig-s');st.textContent='● Conectado';st.style.color='var(--g)';
+      const b=document.getElementById('cx-ig-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
+      if(igMeta&&igMeta.ig_picture){document.getElementById('cx-ig-ico').innerHTML='<img src="'+igMeta.ig_picture+'" style="width:38px;height:38px;border-radius:10px;object-fit:cover" alt="">';}
+    }
+    if(adsOn){
+      const st=document.getElementById('cx-ads-s');st.textContent='● Conectado';st.style.color='var(--g)';
+      const b=document.getElementById('cx-ads-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
+    }
+  }catch(e){console.error('conexões:',e)}
 }
 async function salvarTema(){
   const t=temaAtual();

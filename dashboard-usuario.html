@@ -136,15 +136,21 @@
   </div>  <!-- INSTAGRAM STATS — flip -->
   <div class="sec-lbl">Instagram — desempenho
     <span style="margin-left:auto;display:inline-flex;gap:5px">
-      <span class="per-btn on" data-d="30" onclick="setPeriodo(30,this)">30d</span>
-      <span class="per-btn" data-d="60" onclick="setPeriodo(60,this)">60d</span>
-      <span class="per-btn" data-d="90" onclick="setPeriodo(90,this)">90d</span>
+      <span class="per-btn on" data-d="30" onclick="setPeriodo(30,this)">30 dias</span>
+      <span class="per-btn" data-d="60" onclick="setPeriodo(60,this)">60 dias</span>
+      <span class="per-btn" data-d="90" onclick="setPeriodo(90,this)">90 dias</span>
     </span>
   </div>
-  <div class="fs-grid" id="ig-stats"></div>
-  <div id="per-aviso" style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;line-height:1.5"></div>
-  <!-- INSIGHTS ORGÂNICOS (Onda 2): crescimento, share rate, melhor horário, ranking, demografia, dicas -->
-  <div id="ig-insights" style="margin-top:18px"></div>
+  <!-- BENTO ORGÂNICO: hero (veredito) + KPIs + ações + conteúdo + público -->
+  <div class="bento" id="bento-ig">
+    <div class="bt bt-hero"><div class="sk sk-lbl" style="margin-bottom:12px"></div><div class="sk sk-num"></div><div class="sk" style="height:52px;margin:14px 0"></div><div class="sk" style="height:34px"></div></div>
+    <div class="bt-side" style="display:grid;gap:14px;grid-row:span 2;align-content:start">
+      <div class="bt"><div class="sk sk-lbl" style="margin-bottom:10px"></div><div class="sk" style="height:24px;width:55%"></div></div>
+      <div class="bt"><div class="sk sk-lbl" style="margin-bottom:10px"></div><div class="sk" style="height:24px;width:55%"></div></div>
+      <div class="bt"><div class="sk sk-lbl" style="margin-bottom:10px"></div><div class="sk" style="height:24px;width:55%"></div></div>
+    </div>
+  </div>
+  <div id="per-aviso" style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:-6px;margin-bottom:16px;line-height:1.5"></div>
 
   <!-- CARROSSEL: criativos a aprovar (só aparece quando há pendentes) -->
   <div id="aprovar-carrossel" style="display:none;margin-bottom:16px">
@@ -154,37 +160,18 @@
     <div class="apr-track" id="apr-track"></div>
   </div>
 
-  <!-- ADS STATS — flip -->
-  <div class="sec-lbl">Meta Ads — resultados</div>
-  <div class="fs-grid" id="ads-stats"></div>
+  <!-- ADS — seção própria (Pro). Separada do orgânico: naturezas de dado diferentes. -->
+  <div class="sec-lbl" id="ads-lbl">Meta Ads — tráfego pago <span class="pill pill-p" style="margin-left:9px;font-size:9px">Pro</span></div>
+  <div class="bento" id="bento-ads"></div>
   <!-- Sugestões do Agente de Tráfego (Pro) -->
   <div class="ads-pro" id="ads-pro" style="display:none">
     <div class="ads-pro-h"><span style="font-size:18px">📢</span><div class="ads-pro-t">Sugestões do Agente de Tráfego</div><span class="pill pill-p" style="margin-left:auto">Pro</span></div>
     <div id="traf-sugestoes"></div>
   </div>
-  <div class="card" id="ads-upsell" style="display:none;margin-top:12px;border-color:rgba(168,85,247,.25)">
-    <div style="font-size:13px;color:var(--t2);line-height:1.6">🔒 <strong style="color:var(--pu)">Gestão e correção de tráfego pelo Agente</strong> — sugestões de otimização, realocação de budget e direção de correção estão disponíveis no <strong>plano Pro</strong>. Seu plano atual mostra o resumo dos resultados.</div>
-  </div>
 
-  <!-- AGENTES -->
+  <!-- AGENTES — faixa compacta (navegação não compete com o dado) -->
   <div class="sec-lbl">Seus agentes</div>
-  <div class="ag-grid8" id="ag-grid"></div>
-
-  <!-- CONEXÕES -->
-  <div class="sec-lbl">Contas conectadas</div>
-  <div class="conn-row">
-    <div class="conn" id="conn-ig">
-      <div class="conn-ico">📸</div>
-      <div><div class="conn-t">Instagram</div><div class="conn-s off" id="ig-status">Não conectado</div></div>
-      <a href="conectar-conta.html" class="btn btn-g btn-sm" id="ig-btn">Conectar →</a>
-    </div>
-    <div class="conn" id="conn-ads">
-      <div class="conn-ico">📢</div>
-      <div><div class="conn-t">Meta Ads</div><div class="conn-s off" id="ads-status">Não conectado</div></div>
-      <a href="conectar-conta.html#ads" class="btn btn-o btn-sm" id="ads-btn">Conectar →</a>
-    </div>
-  </div>
-
+  <div class="ag-chips" id="ag-grid"></div>
 
 </main>
 </div>
@@ -204,13 +191,6 @@ const AGENTS=[
 ];
 const LV={basico:1,plus:2,pro:3};
 
-function flipCard(id,nr,num,lbl,backT,backX){
-  return `<div class="fs" style="--nr:${nr}" onclick="this.classList.toggle('flip')">
-    <div class="fs-in">
-      <div class="fs-f"><div class="fs-n">${num}</div><div class="fs-l">${lbl}</div><div class="fs-hint">↻ detalhes</div></div>
-      <div class="fs-b"><div class="fs-bt">${backT}</div><div class="fs-bx">${backX}</div></div>
-    </div></div>`;
-}
 
 (async()=>{
   try{
@@ -273,11 +253,8 @@ function flipCard(id,nr,num,lbl,backT,backX){
         if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
       });
     }catch(e){console.error('conexões:',e)}
-    if(igOn){document.getElementById('ig-status').textContent='● Conectado';document.getElementById('ig-status').className='conn-s on';document.getElementById('conn-ig').classList.add('ok');document.getElementById('ig-btn').textContent='Gerenciar';document.getElementById('ig-btn').className='btn btn-o btn-sm';
-      // foto de perfil da conta conectada no ícone
-      if(igMeta&&igMeta.ig_picture){const ico=document.querySelector('#conn-ig .conn-ico');if(ico)ico.innerHTML='<img class="conn-pic" src="'+igMeta.ig_picture+'" alt="">'}
-    }
-    if(adsOn){document.getElementById('ads-status').textContent='● Conectado';document.getElementById('ads-status').className='conn-s on';document.getElementById('conn-ads').classList.add('ok');document.getElementById('ads-btn').textContent='Gerenciar';document.getElementById('ads-btn').className='btn btn-o btn-sm'}
+    // Os cards de status de conexão foram movidos para a página Configurações.
+    // igOn/adsOn seguem sendo usados aqui pelos insights e cards de Ads.
 
     /* ══ TAREFAS DE ATIVAÇÃO (por plano) ══ */
     let upLogo=false,upVideo=false;
@@ -342,17 +319,12 @@ function flipCard(id,nr,num,lbl,backT,backX){
       if(igMeta.ig_media!==undefined&&igMeta.ig_media)m.posts=igMeta.ig_media;
     }
 
-    renderIG(m,igOn);
-    renderInsights(m,igOn);
+    renderBentoIG(m,igOn);
 
     const adsBack=level>=3
       ?['Investimento total no período. O Consultor de Tráfego analisa a distribuição entre os 4 públicos e recomenda como realocar.','Retorno sobre investimento. Abaixo de 2x, o Consultor aponta se o problema é criativo, oferta ou público.','Custo por lead. O Consultor compara com o benchmark do nicho e recomenda ajustes para você aplicar.','Cliques no link. Combinado com o CPL, indica a qualidade do criativo.']
       :['Total investido em anúncios no período. Resultado consolidado das suas campanhas.','ROAS = retorno sobre o valor investido. Ex: 3x significa R$3 de retorno por R$1 investido.','Custo por lead captado. Quanto menor, mais eficiente está a campanha.','Total de cliques nos seus anúncios no período.'];
-    document.getElementById('ads-stats').innerHTML=
-      flipCard('e','var(--g-rgb)',JUMP.fmtBRL(m.investido),'Investido','O que significa',adsOn?adsBack[0]:'Conecte o Meta Ads para acompanhar o investimento.')+
-      flipCard('f','var(--g-rgb)',(m.roas||0)+'x','ROAS','O que significa',adsOn?adsBack[1]:'Sem conta de anúncios conectada.')+
-      flipCard('g','var(--g-rgb)',JUMP.fmtBRL(m.cpl),'Custo por lead','O que significa',adsOn?adsBack[2]:'Valor zerado até a conexão.')+
-      flipCard('h','var(--g-rgb)',JUMP.fmtNum(m.cliques),'Cliques','O que significa',adsOn?adsBack[3]:'Conecte para medir os cliques reais.');
+    renderBentoAds(m,adsOn,level);
 
     /* PRO: sugestões do tráfego | Básico/Plus: upsell */
     if(level>=3){
@@ -367,8 +339,6 @@ function flipCard(id,nr,num,lbl,backT,backX){
       else{
         tw.innerHTML=sugs.map(s=>`<div class="rec rec-traf"><span class="rec-ico">⚡</span><div style="flex:1"><div class="rec-t">${JUMP.esc(s.titulo)}</div><div class="rec-b">${JUMP.esc(s.mensagem)}</div><div class="rec-acts"><button class="btn btn-g btn-sm" onclick="resolverSug('${s.id}',true)">✓ Aprovar correção</button><button class="btn btn-o btn-sm" onclick="resolverSug('${s.id}',false)">Recusar</button></div></div></div>`).join('');
       }
-    }else{
-      document.getElementById('ads-upsell').style.display='block';
     }
 
     /* RECADOS: bugs/alertas + aprovações a vencer (1 dia) */
@@ -395,9 +365,8 @@ function flipCard(id,nr,num,lbl,backT,backX){
     /* AGENTES com lock */
     document.getElementById('ag-grid').innerHTML=AGENTS.map(a=>{
       const un=a.min<=level;
-      return `<a href="${un?'agentes.html?agente='+encodeURIComponent(a.n.toLowerCase()):'#'}" class="agc${un?'':' locked'}" style="--nc:var(--g);--nr:var(--g-rgb)">
-        ${un?'':'<span class="agc-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
-        <div class="agc-ico">${a.ico}</div><div class="agc-name">${a.n}</div></a>`;
+      return `<a href="${un?'agentes.html?agente='+encodeURIComponent(a.n.toLowerCase()):'configuracoes.html#assinatura'}" class="ag-chip" style="${un?'':'opacity:.5'}" title="${un?'Falar com '+a.n:'Disponível no plano '+(a.min===2?'Plus':'Pro')}">
+        <i>${a.ico}</i>${a.n}${un?'':' 🔒'}</a>`;
     }).join('');
 
     // Aviso de período de teste (trial) — cota reduzida
@@ -516,81 +485,127 @@ async function recusarConteudo(id,btn){
 // 30/60/90 usa SOMENTE as métricas coletadas pelo nosso sistema (tabela `metricas`).
 // Antes isso era um botão que só dava um aviso e não trocava nada.
 let PERIODO=30, METRICAS=[];
-// ── ONDA 2: a vitrine de insights orgânicos ──────────────────────────────────
-function seta(v){ if(!v)return '<span style="color:var(--t3)">—</span>'; const up=v>0; return `<span style="color:${up?'#4ade80':'#f87171'};font-weight:700">${up?'▲':'▼'} ${Math.abs(v)}</span>`; }
-function miniCard(num,lbl,extra){ return `<div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:15px 16px"><div style="font-size:22px;font-weight:800;line-height:1.1">${num}</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;margin-top:5px">${lbl}</div>${extra?`<div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.4">${extra}</div>`:''}</div>`; }
-function graficoLinha(serie){
-  if(!serie||serie.length<2)return '<div style="font-size:12px;color:var(--t3);font-family:var(--M);padding:20px 0;text-align:center">Sem série de crescimento ainda — o gráfico aparece após alguns dias de coleta.</div>';
-  const W=560,H=120,pad=8; const vals=serie.map(p=>p.n); const acc=[]; let run=0; for(const v of vals){run+=v;acc.push(run);}
+// ── DASHBOARD BENTO: hierarquia por tamanho (tile maior = dado mais crítico) ─────
+function delta(v,suf){ if(v===0||v==null)return '<span class="bt-delta bt-flat">— sem variação</span>';
+  const up=v>0; return `<span class="bt-delta ${up?'bt-up':'bt-down'}">${up?'▲':'▼'} ${Math.abs(v)}${suf||''}</span>`; }
+function spark(serie,h){
+  h=h||46; if(!serie||serie.length<2)return '';
+  const W=300,pad=3,vals=serie.map(p=>p.n),acc=[];let run=0;for(const v of vals){run+=v;acc.push(run)}
   const mn=Math.min(...acc),mx=Math.max(...acc),rng=(mx-mn)||1;
-  const pts=acc.map((v,i)=>{const x=pad+(i/(acc.length-1))*(W-pad*2);const y=H-pad-((v-mn)/rng)*(H-pad*2);return x.toFixed(1)+','+y.toFixed(1);});
+  const pts=acc.map((v,i)=>{const x=pad+(i/(acc.length-1))*(W-pad*2);const y=h-pad-((v-mn)/rng)*(h-pad*2);return x.toFixed(1)+','+y.toFixed(1)});
   const d='M'+pts.join(' L');
-  const area=d+` L${W-pad},${H-pad} L${pad},${H-pad} Z`;
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><defs><linearGradient id="gLine" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--g)" stop-opacity=".35"/><stop offset="100%" stop-color="var(--g)" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#gLine)"/><path d="${d}" fill="none" stroke="var(--g)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return `<svg viewBox="0 0 ${W} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block"><defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--g)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--g)" stop-opacity="0"/></linearGradient></defs><path d="${d} L${W-pad},${h-pad} L${pad},${h-pad} Z" fill="url(#spk)"/><path d="${d}" fill="none" stroke="var(--g)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+// O VEREDITO: a frase que responde "estou bem ou mal?" em 4 segundos
+function veredito(m,raw,IGON){
+  if(!IGON)return 'Conecte seu Instagram e o sistema começa a medir seu desempenho real.';
+  const nov=m.novos||0, eng=m.engaj||0;
+  if(nov>0&&eng>=5)return `Você ganhou <b>${JUMP.fmtNum(nov)} seguidores</b> e mantém engajamento de <b>${eng}%</b> — acima da média da maioria dos nichos. Continue nessa linha.`;
+  if(nov>0)return `Crescimento de <b>${JUMP.fmtNum(nov)} seguidores</b> no período. O engajamento está em ${eng}% — reforçar ganchos pode acelerar.`;
+  if(nov<0)return `Você <b>perdeu seguidores</b> no período. Consistência de publicação costuma reverter — fale com o Estrategista.`;
+  if((m.posts||0)===0)return 'Nenhuma publicação no período. O sistema mede o desempenho a partir do seu primeiro post.';
+  return `Seu perfil está estável. Com ${JUMP.fmtNum(m.posts||0)} publicações no período, o próximo passo é aumentar alcance e compartilhamentos.`;
+}
+function tileEmpty(ico,t,b){ return `<div class="bt-empty"><div class="bt-empty-i">${ico}</div><div class="bt-empty-t">${t}</div><div class="bt-empty-b">${b}</div></div>`; }
+function rankPosts(top){
+  if(!top||!top.length)return tileEmpty('📸','Ainda sem posts para ranquear','Publique pelo sistema e em alguns dias seus melhores conteúdos aparecem aqui, ordenados por desempenho.');
+  return top.slice(0,5).map((p,i)=>`<a href="${p.link||'#'}" target="_blank" style="display:flex;gap:11px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);text-decoration:none;color:inherit">
+    <div style="font-family:var(--M);font-size:13px;font-weight:800;color:${i===0?'var(--g)':'var(--t3)'};width:20px">${i+1}º</div>
+    ${p.thumb?`<img src="${p.thumb}" style="width:44px;height:44px;border-radius:9px;object-fit:cover" alt="">`:'<div style="width:44px;height:44px;border-radius:9px;background:var(--bd);display:flex;align-items:center;justify-content:center">📄</div>'}
+    <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${JUMP.esc(p.cap||'(sem legenda)')}</div>
+    <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:3px">${p.tipo} · ❤ ${p.likes} · 💬 ${p.coments} · 🔖 ${p.saves} · ↗ ${p.shares}</div></div></a>`).join('');
 }
 function barraDemo(demo){
-  if(!demo||!demo.length)return '';
-  const top=demo.slice().sort((a,b)=>b.v-a.v).slice(0,6); const mx=Math.max(...top.map(d=>d.v))||1;
-  return top.map(d=>`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t2)">${JUMP.esc(d.k)}</span><span style="font-family:var(--M);color:var(--t3)">${d.v}</span></div><div style="height:6px;background:var(--bd);border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(d.v/mx*100)}%;background:var(--g)"></i></div></div>`).join('');
+  if(!demo||!demo.length)return tileEmpty('👥','Público em construção','A demografia (idade e gênero) fica disponível a partir de 100 seguidores.');
+  const top=demo.slice().sort((a,b)=>b.v-a.v).slice(0,6),mx=Math.max(...top.map(d=>d.v))||1;
+  return top.map(d=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span style="color:var(--t2)">${JUMP.esc(d.k)}</span><span style="font-family:var(--M);color:var(--t3)">${d.v}</span></div><div style="height:7px;background:var(--bd);border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(d.v/mx*100)}%;background:var(--g);border-radius:5px"></i></div></div>`).join('');
 }
-function rankPosts(top){
-  if(!top||!top.length)return '<div style="font-size:12px;color:var(--t3);font-family:var(--M)">Sem posts no período para ranquear.</div>';
-  return top.slice(0,5).map((p,i)=>`<a href="${p.link||'#'}" target="_blank" style="display:flex;gap:11px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);text-decoration:none;color:inherit">
-    <div style="font-family:var(--M);font-size:13px;font-weight:700;color:${i===0?'var(--g)':'var(--t3)'};width:20px">${i+1}º</div>
-    ${p.thumb?`<img src="${p.thumb}" style="width:42px;height:42px;border-radius:8px;object-fit:cover">`:'<div style="width:42px;height:42px;border-radius:8px;background:var(--bd);display:flex;align-items:center;justify-content:center">📄</div>'}
-    <div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${JUMP.esc(p.cap||'(sem legenda)')}</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:2px">${p.tipo} · ❤ ${p.likes} · 💬 ${p.coments} · 🔖 ${p.saves} · ↗ ${p.shares}</div></div>
-  </a>`).join('');
-}
-function renderInsights(m,IGON){
-  const w=document.getElementById('ig-insights'); if(!w)return;
-  if(!IGON){ w.innerHTML=''; return; }
-  const raw=m.raw||{}; const dicas=gerarDicas(m,raw);
-  w.innerHTML=`
-    <div class="sec-lbl">Crescimento e engajamento</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-bottom:14px">
-      ${miniCard(JUMP.fmtNum(m.novos||0),'Novos seguidores (28d)', seta(m.tend&&m.tend.seg))}
-      ${miniCard((raw.share_rate||0)+'%','Share rate','O sinal nº1 do algoritmo em 2026')}
-      ${miniCard(JUMP.fmtNum(raw.saves||0),'Salvamentos','Conteúdo que vale guardar')}
-      ${miniCard(m.melhorHorario||'—','Melhor horário', m.melhorFormato?('Formato campeão: '+m.melhorFormato):'')}
-    </div>
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 18px;margin-bottom:16px">
-      <div style="font-size:12.5px;font-weight:700;margin-bottom:10px">Crescimento de seguidores (28 dias)</div>
-      ${graficoLinha(raw.serie_seguidores)}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px" class="ins-2col">
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 18px">
-        <div style="font-size:12.5px;font-weight:700;margin-bottom:12px">🏆 Posts que mais performaram</div>
-        ${rankPosts(raw.top_posts)}
-      </div>
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 18px">
-        <div style="font-size:12.5px;font-weight:700;margin-bottom:12px">👥 Seu público</div>
-        ${raw.demografia&&raw.demografia.length?barraDemo(raw.demografia):'<div style="font-size:12px;color:var(--t3);font-family:var(--M);line-height:1.5">Demografia disponível a partir de 100 seguidores.</div>'}
-      </div>
-    </div>
-    ${dicas.length?`<div style="background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(74,222,128,.02));border:1px solid rgba(74,222,128,.28);border-radius:16px;padding:16px 18px">
-      <div style="font-size:12.5px;font-weight:700;margin-bottom:10px">💡 O que o Agente de Diagnóstico recomenda</div>
-      ${dicas.map(d=>`<div style="display:flex;gap:9px;padding:7px 0;font-size:12.5px;color:var(--t2);line-height:1.5"><span>${d.ico}</span><span>${d.txt}</span></div>`).join('')}
-    </div>`:''}`;
-}
-// Dicas geradas dos DADOS REAIS (o Diagnóstico transforma número em ação)
+// AÇÕES: as dicas viram bloco PRIMÁRIO com botão — o sistema manda fazer, não só informa
 function gerarDicas(m,raw){
   const d=[];
-  if(m.melhorHorario) d.push({ico:'⏰',txt:`Seu público engaja mais em <b>${m.melhorHorario}</b> — priorize publicar nesse horário.`});
-  if(m.melhorFormato) d.push({ico:'🎬',txt:`<b>${m.melhorFormato}</b> é seu formato que mais engaja — peça ao Estrategista para reforçá-lo no próximo plano.`});
-  if((raw.share_rate||0)>0 && (raw.share_rate||0)<1) d.push({ico:'↗',txt:`Seu share rate está em ${raw.share_rate}% — abaixo de 1%. Conteúdo que ensina ou surpreende costuma ser mais compartilhado; vale reforçar CTAs de "marca alguém".`});
-  if((m.engaj||0)>=5) d.push({ico:'🔥',txt:`Engajamento de ${m.engaj}% está forte (acima de 5%). Mantenha a linha dos posts recentes.`});
-  else if((m.engaj||0)>0) d.push({ico:'📈',txt:`Engajamento em ${m.engaj}%. Abaixo de 5% na maioria dos nichos — teste ganchos mais fortes na primeira linha.`});
-  if(raw.pior_post&&raw.pior_post.cap) d.push({ico:'🔍',txt:`Seu post de menor desempenho foi "${JUMP.esc(raw.pior_post.cap)}". Compare com os campeões acima e veja o que mudou no tema ou formato.`});
-  if((m.tend&&m.tend.seg||0)<0) d.push({ico:'⚠',txt:`Você perdeu seguidores no período. Consistência de publicação e reels costumam reverter — fale com o Estrategista.`});
-  return d.slice(0,5);
+  if(m.melhorHorario)d.push({ico:'⏰',txt:`Seu público engaja mais em <b>${m.melhorHorario}</b>.`,btn:'Ajustar calendário',link:'calendario.html'});
+  if(m.melhorFormato)d.push({ico:'🎬',txt:`<b>${m.melhorFormato}</b> é o formato que mais engaja no seu perfil.`,btn:'Pedir mais',link:'agentes.html?agente=estrategia'});
+  if((raw.share_rate||0)>0&&(raw.share_rate||0)<1)d.push({ico:'↗',txt:`Share rate em <b>${raw.share_rate}%</b> — abaixo de 1%. Conteúdo que ensina ou surpreende é mais compartilhado.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia'});
+  if((m.engaj||0)>0&&(m.engaj||0)<5)d.push({ico:'📈',txt:`Engajamento em <b>${m.engaj}%</b>. Ganchos mais fortes na primeira linha costumam elevar essa taxa.`,btn:'Revisar copy',link:'agentes.html?agente=criativo'});
+  if(raw.pior_post&&raw.pior_post.cap)d.push({ico:'🔍',txt:`Seu conteúdo de menor desempenho: "${JUMP.esc((raw.pior_post.cap||'').slice(0,50))}". Compare com os campeões.`,btn:'Ver histórico',link:'historico.html'});
+  if((m.tend&&m.tend.seg||0)<0)d.push({ico:'⚠',txt:`Você <b>perdeu seguidores</b> no período. Consistência costuma reverter.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia'});
+  return d.slice(0,4);
 }
-function renderIG(mm,IGON){
-  document.getElementById('ig-stats').innerHTML=
-      flipCard('a','var(--g-rgb)',JUMP.fmtNum(mm.alcance),'Alcance','O que é alcance',IGON?'Contas únicas que viram seu conteúdo nos últimos 30 dias. O Agente de Diagnóstico usa este dado para otimizar formatos e horários.':'Conecte seu Instagram para o sistema medir o alcance real do perfil.')+
-      flipCard('b','var(--g-rgb)',JUMP.fmtNum(mm.seguidores),'Seguidores','Crescimento',IGON?'Total atual de seguidores. O sistema acompanha a variação e relaciona com os conteúdos publicados.':'Sem conta conectada — valor zerado.')+
-      flipCard('c','var(--g-rgb)',(mm.engaj||0)+'%','Engajamento','Taxa de engajamento',IGON?'Interações ÷ alcance. Acima de 5% é forte na maioria dos nichos — os agentes priorizam formatos que elevam esta taxa.':'Conecte o Instagram para medir as interações reais.')+
-      flipCard('d','var(--g-rgb)',JUMP.fmtNum(mm.posts),'Posts no mês','Frequência',IGON?'Publicações nos últimos 30 dias. O calendário do Agente de Estratégia define a frequência ideal pro seu nicho.':'Valor zerado até a conexão da conta.');
-
+// ── ADS (Pro): hero de ROAS + KPIs. Não-Pro vê preview BORRADO + CTA (amarra o valor ao Pro)
+function renderBentoAds(m,adsOn,level){
+  const w=document.getElementById('bento-ads'); if(!w)return;
+  const lbl=document.getElementById('ads-lbl');
+  // Básico/Plus: bloqueado com preview do que está perdendo
+  if(level<3){
+    if(lbl)lbl.style.display='flex';
+    w.innerHTML=`<div class="bt bt-12 bt-lock">
+      <div class="bt-blur">
+        <div class="bt-lbl">💰 Retorno sobre investimento</div>
+        <div class="bt-num">4,2x</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px">
+          <div><div class="bt-lbl">Investido</div><div class="bt-num-sm">R$ 18.432</div></div>
+          <div><div class="bt-lbl">Custo por lead</div><div class="bt-num-sm">R$ 14,80</div></div>
+          <div><div class="bt-lbl">Conversões</div><div class="bt-num-sm">1.246</div></div>
+        </div>
+      </div>
+      <div class="bt-lock-ov">
+        <div style="font-size:26px">🔒</div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">Inteligência de tráfego pago</div>
+        <div style="font-size:12.5px;color:var(--t2);max-width:420px;line-height:1.55">No plano <b>Pro</b>, o Consultor de Tráfego lê os números reais das suas campanhas — ROAS, custo por lead, CTR — e diz exatamente o que ajustar. Você continua no controle do investimento.</div>
+        <a href="configuracoes.html#assinatura" class="btn btn-g btn-sm" style="margin-top:4px">Conhecer o Pro →</a>
+      </div></div>`;
+    return;
+  }
+  // Pro sem conexão: estado que ENSINA (não parece defeito)
+  if(!adsOn){
+    w.innerHTML=`<div class="bt bt-12">${tileEmpty('📢','Conecte o Meta Ads','Ao conectar, o Consultor de Tráfego passa a ler seus números reais e diagnosticar o que está travando. O JUMP nunca altera suas campanhas nem acessa seu cartão.')}
+      <div style="text-align:center;margin-top:-8px"><a href="conectar-conta.html#ads" class="btn btn-g btn-sm">Conectar Meta Ads →</a></div></div>`;
+    return;
+  }
+  // Pro conectado: hero ROAS + os KPIs de apoio
+  w.innerHTML=`
+    <div class="bt bt-hero" style="grid-row:span 1">
+      <div class="bt-lbl">💰 Retorno sobre investimento (ROAS)</div>
+      <div class="bt-num">${(m.roas||0)}x</div>
+      <div class="bt-veredito">${(m.roas||0)>=2?`Cada R$1 investido retorna <b>R$${(m.roas||0).toString().replace('.',',')}</b>. Acima de 2x é saudável — o Consultor sugere onde escalar.`:`Retorno abaixo de 2x. O Consultor de Tráfego analisa se o gargalo é criativo, oferta ou público.`}</div>
+    </div>
+    <div class="bt-side" style="display:grid;gap:14px;align-content:start">
+      <div class="bt"><div class="bt-lbl">Investido</div><div class="bt-num-sm">${JUMP.fmtBRL(m.investido)}</div></div>
+      <div class="bt"><div class="bt-lbl">Custo por lead</div><div class="bt-num-sm">${JUMP.fmtBRL(m.cpl)}</div></div>
+      <div class="bt"><div class="bt-lbl">Cliques</div><div class="bt-num-sm">${JUMP.fmtNum(m.cliques)}</div></div>
+    </div>`;
+}
+function renderBentoIG(m,IGON){
+  const w=document.getElementById('bento-ig'); if(!w)return;
+  const raw=m.raw||{}, dicas=IGON?gerarDicas(m,raw):[];
+  const t=m.tend||{};
+  w.innerHTML=`
+  <!-- HERO: o veredito em 4 segundos -->
+  <div class="bt bt-hero">
+    <div class="bt-lbl">👥 Seguidores</div>
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <div class="bt-num">${IGON?JUMP.fmtNum(m.seguidores||0):'—'}</div>
+      ${IGON?delta(t.seg||0):''}
+    </div>
+    <div style="margin:14px 0 4px">${IGON?spark(raw.serie_seguidores,52):''}</div>
+    <div class="bt-veredito">${veredito(m,raw,IGON)}</div>
+  </div>
+  <!-- OS TRÊS QUE IMPORTAM -->
+  <div class="bt-side" style="display:grid;gap:14px;grid-row:span 2;align-content:start">
+    <div class="bt"><div class="bt-lbl">📡 Alcance</div><div class="bt-num-sm">${IGON?JUMP.fmtNum(m.alcance||0):'—'}</div><div style="margin-top:6px">${IGON?delta(t.alc||0):''}</div></div>
+    <div class="bt"><div class="bt-lbl">💬 Engajamento</div><div class="bt-num-sm">${IGON?(m.engaj||0)+'%':'—'}</div><div style="margin-top:6px;font-size:11.5px;color:var(--t3);line-height:1.45">${IGON?((m.engaj||0)>=5?'Acima da média do mercado':'Referência: 5% é forte'):'Conecte para medir'}</div></div>
+    <div class="bt"><div class="bt-lbl">↗ Share rate</div><div class="bt-num-sm">${IGON?(raw.share_rate||0)+'%':'—'}</div><div style="margin-top:6px;font-size:11.5px;color:var(--t3);line-height:1.45">O sinal nº1 do algoritmo em 2026</div></div>
+  </div>
+  ${dicas.length?`
+  <!-- O QUE FAZER AGORA: bloco primário (o sistema manda fazer) -->
+  <div class="bt bt-12" style="border-color:rgba(var(--g-rgb),.22);background:linear-gradient(135deg,rgba(var(--g-rgb),.05),transparent)">
+    <div class="bt-lbl">💡 O que fazer agora — recomendações do Diagnóstico</div>
+    ${dicas.map(d=>`<div class="bt-act"><span class="bt-act-i">${d.ico}</span><span class="bt-act-t">${d.txt}</span><a href="${d.link}" class="bt-act-btn">${d.btn}</a></div>`).join('')}
+  </div>`:''}
+  <!-- CONTEÚDO -->
+  <div class="bt bt-7"><div class="bt-lbl">🏆 Posts que mais performaram</div>${IGON?rankPosts(raw.top_posts):tileEmpty('🔌','Instagram não conectado','Conecte sua conta para o sistema medir e ranquear seus conteúdos.')}</div>
+  <!-- PÚBLICO -->
+  <div class="bt bt-5"><div class="bt-lbl">👥 Seu público${m.melhorHorario?' · melhor horário: '+m.melhorHorario:''}</div>${IGON?barraDemo(raw.demografia):tileEmpty('🔌','Sem dados de público','Conecte o Instagram para ver idade, gênero e o melhor horário do seu público.')}</div>`;
 }
 function setPeriodo(dias,el){
   document.querySelectorAll('.per-btn').forEach(b=>b.classList.toggle('on',b===el));
@@ -607,13 +622,20 @@ function aplicarPeriodo(){
   }
   const ult=jan[0]||{}; // mais recente
   const med=k=>Math.round(jan.reduce((t,x)=>t+(Number(x[k])||0),0)/jan.length);
+  const ant=jan[jan.length-1]||{}; // mais antiga do período (para a tendência)
   const mm={
     alcance:med('alcance')||med('alcance_30d'),
     seguidores:Number(ult.seguidores)||0,
     engaj:Math.round((jan.reduce((t,x)=>t+(Number(x.engajamento_30d)||0),0)/jan.length)*10)/10,
-    posts:Number(ult.posts!=null?ult.posts:(ult.total_posts||0))||0
+    posts:Number(ult.posts!=null?ult.posts:(ult.total_posts||0))||0,
+    novos:Number(ult.novos_seguidores_30d)||0,
+    melhorHorario:ult.melhor_horario||null,
+    melhorFormato:ult.melhor_formato||null,
+    raw:ult.dados_raw||{},
+    tend:{ seg:(Number(ult.seguidores)||0)-(Number(ant.seguidores)||0),
+           alc:(Number(ult.alcance||ult.alcance_30d)||0)-(Number(ant.alcance||ant.alcance_30d)||0) }
   };
-  renderIG(mm,true);
+  renderBentoIG(mm,true);
   if(av)av.innerHTML='Últimos '+PERIODO+' dias · <b>'+jan.length+' coleta(s)</b> do JUMP OS. Este filtro considera apenas os dados coletados pelo nosso sistema.';
 }
 
