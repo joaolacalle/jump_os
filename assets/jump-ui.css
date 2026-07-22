@@ -181,6 +181,13 @@ td strong{color:var(--t1)}
 }
 [data-theme="light"] .grain{opacity:.015}
 [data-theme="light"] .sidebar,[data-theme="light"] .mob-top{background:#FFFFFF}
+/* variante CLARA do menu: sem isto, as variáveis blindadas (texto quase branco)
+   ficariam invisíveis sobre o menu branco do modo claro. */
+[data-theme="light"] .sidebar{
+  --t1:#1A1916; --t2:rgba(26,25,22,.72); --t3:rgba(26,25,22,.45);
+  --g:#6B21A8; --g-rgb:107,33,168; --bd:rgba(20,25,22,.12); --red:#dc2626;
+  border-right:1px solid rgba(20,25,22,.10)}
+[data-theme="light"] .sb-link:hover{background:rgba(20,25,22,.05)}
 [data-theme="light"] .fs-b{background:#F7F4EE}
 [data-theme="light"] th{background:rgba(0,0,0,.03)}
 [data-theme="light"] .f-input,[data-theme="light"] .f-select,[data-theme="light"] .f-textarea{background:rgba(0,0,0,.04)}
