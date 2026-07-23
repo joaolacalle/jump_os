@@ -67,7 +67,12 @@
   }
   const API={
     init(uid){UID=uid||'x';carregar();css()},
-    boasVindas(){ if(VISTOS.boas_vindas)return; VISTOS.boas_vindas=true;salvar(); iP=0;render(); },
+    boasVindas(pendente){
+      // pendente=true → o cliente ainda NÃO concluiu o check-in: mostra sempre (é o manual
+      // que o conduz até lá). Sem isso, quem já viu uma vez ficava sem orientação nenhuma.
+      if(!pendente&&VISTOS.boas_vindas)return;
+      VISTOS.boas_vindas=true;salvar(); iP=0;render();
+    },
     fechar(){fechar()},
     voltar(){if(iP>0){iP--;render()}},
     proximo(){ if(iP<PASSOS.length-1){iP++;render()} else fechar(); },
