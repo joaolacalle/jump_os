@@ -6,6 +6,37 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ═══ CARD DE EDIÇÃO (modelo aprovado pelo João) ═══ */
+.ed-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:13px;padding-bottom:12px;border-bottom:1px solid var(--bd)}
+.ed-status{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:8px;background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
+.ed-status.venc{background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.35)}
+.ed-tipo,.ed-data,.ed-ig{font-family:var(--M);font-size:10px;color:var(--t3);padding:5px 9px;border-radius:8px;border:1px solid var(--bd)}
+.ed-ig{margin-left:auto}
+.ed-alerta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--t2);line-height:1.5}
+.ed-alerta>div{flex:1;min-width:200px}
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:820px){.ed-grid{grid-template-columns:1fr}}
+.ed-col{display:flex;flex-direction:column;gap:12px}
+.ed-thumbs{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px}
+.ed-th{width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex-shrink:0;opacity:.55;transition:.15s}
+.ed-th:hover{opacity:.85}
+.ed-th.on{border-color:var(--g);opacity:1}
+.ed-acts-img{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.ed-bloco{background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
+.ed-lbl{font-family:var(--M);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.ed-mini-btn{margin-left:auto;font-family:var(--M);font-size:9px;letter-spacing:.05em;padding:4px 8px;border-radius:6px;background:rgba(var(--g-rgb),.12);color:var(--g);border:1px solid rgba(var(--g-rgb),.25);cursor:pointer}
+.ed-mini-btn:hover{background:rgba(var(--g-rgb),.2)}
+.ed-val{font-size:14.5px;font-weight:700;line-height:1.35;color:var(--t1)}
+.ed-val-sm{font-size:12.5px;color:var(--t2);line-height:1.5}
+.ed-mini{font-size:12px;color:var(--t2);line-height:1.5;padding:3px 0}
+.ed-tag{display:inline-block;font-family:var(--M);font-size:10.5px;color:var(--g);background:rgba(var(--g-rgb),.1);border-radius:6px;padding:3px 7px;margin:0 4px 4px 0}
+.ed-ads{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:11px;padding:11px 13px;font-size:12.5px;color:#fbbf24}
+.ed-ads div{color:var(--t2);margin-top:4px;font-size:12px;line-height:1.5}
+.ed-foot{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)}
+.ed-foot-r{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+@media(max-width:560px){.ed-foot-r{margin-left:0;width:100%}.ed-foot-r .btn{flex:1}}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -160,6 +191,8 @@ function render(){
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
         ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
+        ${(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
+          return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
       </div></div>`;
   }).join('');
@@ -185,24 +218,90 @@ function abrirEdicao(id){
   const aprovarBtn=PLANO==='basico'
     ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
     : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`;
+  // ── #1 POST VENCIDO: a data sugerida já passou e ninguém aprovou. Antes ficava mudo
+  // (o cliente aprovava algo que "publica dia 12" com o dia 12 no passado). Agora avisa e reagenda.
+  const dtSug=c.data_sugerida?new Date(c.data_sugerida):null;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const vencido=dtSug&&dtSug<hoje&&c.status!=='publicado';
+  const diasAtras=vencido?Math.round((hoje-dtSug)/86400000):0;
+  const hashtags=(String(c.copy||'').match(/#[\wÀ-ÿ]+/g)||[]);
+
   document.getElementById('edit-body').innerHTML=`
-    <div class="ap-img" style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:14px">
-      ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0" style="width:100%;display:block">`:tp.ico}
-      <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
-      ${setas}
+    <!-- CABEÇALHO: estado, data e canal -->
+    <div class="ed-head">
+      <span class="ed-status ${vencido?'venc':''}">${vencido?'⏰ Data vencida':(c.status==='aprovado'?'✓ Aprovado':'◷ Aguardando você')}</span>
+      <span class="ed-tipo">${tp.ico} ${JUMP.esc(tp.label)}</span>
+      <span class="ed-data">${prazo?('📅 '+prazo):'📅 sem data'}</span>
+      <span class="ed-ig">📸 Instagram</span>
     </div>
-    <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-bottom:10px">${JUMP.esc(tp.label)}${prazo?' · publica '+prazo:''}</div>
-    ${m.finalidade==='anuncio'?`<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:11px 13px;margin-bottom:12px"><div style="font-weight:700;font-size:12.5px;color:#fbbf24">🎯 Este criativo é para ANÚNCIO</div><div style="font-size:12px;color:var(--t2);margin-top:4px;line-height:1.55">Ao aprovar, ele <b>não é publicado no seu feed</b>. Baixe a arte e suba no seu Gerenciador de Anúncios, no anúncio que o Consultor de Tráfego recomendou.</div></div>`:''}
-    ${m.headline?`<div class="f-group"><label class="f-label">Headline</label><div style="font-size:14px;font-weight:700">${JUMP.esc(m.headline)}</div></div>`:''}
-    <div class="f-group"><label class="f-label">Legenda (copy)</label><textarea class="f-textarea" id="edit-copy" rows="4">${JUMP.esc(c.copy||'')}</textarea></div>
-    <div class="ap-acts" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${regerar}
-      <button class="btn btn-o btn-sm" onclick="salvarCopy()">💾 Salvar legenda</button></div>
-    <div class="ap-acts" style="gap:6px">
-      ${aprovarBtn}
-      <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
-      <button class="btn btn-r" onclick="excluirPost('${id}')">🗑 Excluir</button>
+    ${vencido?`<div class="ed-alerta">
+      <div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Ele não foi aprovado a tempo, então não foi publicado.</div>
+      <button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button>
+    </div>`:''}
+
+    <div class="ed-grid">
+      <!-- COLUNA ESQUERDA: a peça -->
+      <div>
+        <div class="ap-img" style="position:relative;border-radius:12px;overflow:hidden">
+          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0" style="width:100%;display:block">`:`<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;font-size:38px;background:var(--bg)">${tp.ico}</div>`}
+          ${setas}
+        </div>
+        ${sl.length>1?`<div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>`:''}
+        <div class="ed-acts-img">${regerar}</div>
+      </div>
+
+      <!-- COLUNA DIREITA: o conteúdo editável -->
+      <div class="ed-col">
+        ${m.finalidade==='anuncio'?`<div class="ed-ads">🎯 <b>Criativo para ANÚNCIO</b><div>Ao aprovar, ele <b>não é publicado no seu feed</b>. Baixe a arte e suba no seu Gerenciador de Anúncios.</div></div>`:''}
+        ${m.headline?`<div class="ed-bloco"><div class="ed-lbl">Headline da arte</div><div class="ed-val">${JUMP.esc(m.headline)}</div></div>`:''}
+        ${m.subheadline||m.prova||m.cta_arte?`<div class="ed-bloco"><div class="ed-lbl">Textos da peça</div>
+          ${m.subheadline?`<div class="ed-mini">${JUMP.esc(m.subheadline)}</div>`:''}
+          ${m.prova?`<div class="ed-mini">📊 ${JUMP.esc(m.prova)}</div>`:''}
+          ${m.cta_arte?`<div class="ed-mini">→ ${JUMP.esc(m.cta_arte)}</div>`:''}</div>`:''}
+        <div class="ed-bloco">
+          <div class="ed-lbl">Texto do post <button class="ed-mini-btn" onclick="salvarCopy()">💾 Salvar</button></div>
+          <textarea class="f-textarea" id="edit-copy" rows="7">${JUMP.esc(c.copy||'')}</textarea>
+        </div>
+        <div class="ed-bloco">
+          <div class="ed-lbl">Formato</div><div class="ed-val-sm">${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div>
+        </div>
+        <div class="ed-bloco">
+          <div class="ed-lbl">Hashtags</div>
+          <div class="ed-val-sm">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span style="color:var(--t3)">Nenhuma — adicione no texto do post</span>'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AÇÕES: destrutivas à esquerda, decisão à direita -->
+    <div class="ed-foot">
+      <div class="ed-foot-l">
+        <button class="btn btn-r btn-sm" onclick="excluirPost('${id}')">🗑 Excluir</button>
+      </div>
+      <div class="ed-foot-r">
+        <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
+        ${aprovarBtn}
+      </div>
     </div>`;
   document.getElementById('modal-edit').classList.add('show');
+}
+// miniatura clicada: troca o slide grande
+function irSlide(i){
+  const c=ITENS.find(x=>x.id===EDIT_ID); if(!c)return;
+  const sl=JUMP.slidesDe(c); const im=document.getElementById('edit-img'); if(!im||!sl[i])return;
+  im.src=sl[i]; im.dataset.i=i;
+  document.querySelectorAll('.ed-th').forEach((t,k)=>t.classList.toggle('on',k===i));
+  const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+// #1 POST VENCIDO: reagenda em vez de deixar o cliente aprovar algo com data no passado
+async function reagendar(id){
+  const d=new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0);
+  try{
+    const{error}=await JUMP.sb.from('conteudos').update({data_sugerida:d.toISOString(),data_agendada:null}).eq('id',id);
+    if(error)throw error;
+    const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=d.toISOString();
+    JUMP.toast('Reagendado para '+d.toLocaleDateString('pt-BR')+'.');
+    abrirEdicao(id);
+  }catch(e){JUMP.toast('Não consegui reagendar: '+(e.message||'erro'),'err')}
 }
 function fecharEdicao(){document.getElementById('modal-edit').classList.remove('show');EDIT_ID=null;}
 function navSlideEdit(d){

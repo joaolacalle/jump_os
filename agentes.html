@@ -385,7 +385,7 @@ let CTX=null,AG=null,BUSY=false;
 const LV={basico:1,plus:2,pro:3};
 const AGS=[
   {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
-  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Analise meu concorrente @perfil','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
+  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
   {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
@@ -997,7 +997,22 @@ async function gerarFichaTecnica(uid){
   const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
   const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
   const estilo=M.estilo_visual||'EDITORIAL';
-  const promptFicha='Professional brand identity guide board (brand style sheet). Show ONLY: a color palette with swatches ('+paleta+'), typography samples ('+fontes+'), and one example Instagram post mockup. Style: '+estilo+', premium, clean editorial layout, dark background, organized grid, generous spacing between text. Do NOT invent any logo or brand symbol. High quality realistic design presentation, sharp legible text with correct letter spacing.';
+  // 🔴 A ficha era GENÉRICA: fundo escuro fixo (mesmo para marca clara) e mockup de post sem
+  // relação com o negócio. Agora ela mostra a marca DELE aplicada no mundo DELE.
+  const nicho=M.nicho||'', marca=M.marca||'', publico=M.publico_alvo||'';
+  const claro=/claro|light|branco|off-?white|minimal/i.test(String(M.dna_visual||'')+String(M.paleta_primaria||''));
+  const promptFicha='Professional brand identity guide board (brand style sheet) for '
+    +(marca?('the brand "'+marca+'"'):'this brand')+(nicho?(', a business in: '+nicho):'')+'. '
+    +'Layout as an organized grid showing: (1) the color palette as labeled swatches ('+paleta+'); '
+    +'(2) typography samples ('+fontes+') with a headline sample and a body sample; '
+    +'(3) ONE realistic Instagram post mockup shown inside a phone frame — the mockup content must be about '
+    +(nicho||'this business')+(publico?(' speaking to '+publico):'')+', using EXACTLY the palette colors above, '
+    +'so the client sees how their brand looks applied to a real post of their own niche; '
+    +'(4) a small area reserved for the brand signature written as plain TEXT'+(marca?(' reading "'+marca+'"'):'')+'. '
+    +'Style: '+estilo+', premium, clean editorial presentation, '+(claro?'light neutral background':'dark neutral background')
+    +', generous spacing, sharp legible text with correct letter spacing. '
+    +'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
+    +'High quality realistic design presentation board.';
   await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true); // ficha não é post: sem o Engine 6.0
   await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
   await logChat('assistant','Gerei sua ficha técnica visual a partir do seu DNA do Negócio. Veja acima.','criativo');
