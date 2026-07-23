@@ -143,7 +143,11 @@ function engine6(M, o) {
 // + o DNA do Negócio e ESCREVE A CENA FINAL — é o que o ChatGPT faz quando o
 // cliente cola o Engine na mão. Se falhar, cai no Engine puro (nunca derruba).
 // ═══════════════════════════════════════════════════════════════════════════
-const MODEL_DIRETOR = () => process.env.AGENT_MODEL_DIRETOR || 'claude-haiku-4-5';
+// ⚠️ PADRÃO SEGURO: já descobrimos na prática que um modelo pequeno NÃO deduz a cena —
+// ele procura um exemplo para copiar e a arte sai genérica. O fallback era 'claude-haiku-4-5':
+// se a env var sumisse (troca de projeto, deploy novo, erro de digitação), a qualidade caía
+// em SILÊNCIO, sem erro nenhum. O padrão agora é o modelo que sabemos que funciona.
+const MODEL_DIRETOR = () => process.env.AGENT_MODEL_DIRETOR || 'claude-sonnet-5';
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
@@ -223,8 +227,9 @@ async function diretorDeArte(M, o, ctx) {
     ctx.ajuste ? ('THE CLIENT ASKED SPECIFICALLY: "' + String(ctx.ajuste).slice(0, 300) + '". This instruction OVERRIDES your own preferences (but never the design system).') : '',
     '',
     '=== TEXT TO RENDER (accent bug — the model invents accents) ===',
-    'End the prompt with a short list titled "Text to render:", one line per string, each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear after your rewrite. Check every line: correct spelling and correct accents (ja -> "já", automatizou, concorrente, você, não, negócios).',
-    'Then append this sentence verbatim: "Render every line character-for-character. Do NOT add, remove or invent any accent mark. Words written without an accent must stay without an accent. Do not add any other text anywhere in the image."',
+    'End the prompt with a list titled "Text to render:", ONE line per text string that appears in the art (headline lines, subheadline, proof, CTA, label), each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear. This list is the single source of truth for every glyph — the model must copy from it, not re-spell.',
+    'Check every line before writing it: (a) NUMBERS are digits, never letters — "8 agentes" never "B agentes"; (b) accents correct — automatizando (not "sutamatizando"), você, só, não, já, negócios; (c) no invented, doubled or dropped letters. Spell each word letter by letter in your head.',
+    'Then append this sentence verbatim: "Render every line character-for-character exactly as written in the Text-to-render list. Do NOT re-spell, translate, add, remove, double or invent any letter, digit or accent mark. Numbers stay as digits. Words without an accent stay without an accent. Do not add any other text anywhere in the image."',
     '',
     'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 240-400 words: one dense paragraph, then the "Text to render:" list.',
   ].filter(Boolean).join('\n');
@@ -493,6 +498,7 @@ module.exports = async (req, res) => {
           + ' The attached photo is REAL and it is the source of truth. The subject in it is NOT re-photographed and NOT re-rendered: it is transplanted into the scene and re-lit.'
           + ' Everything described below builds the world AROUND the attached photo — the photo never bends to serve the scene, the scene bends to serve the photo.'
           + ' YOU MAY freely change: ' + LIBERADOS + '.'
+          + ' CRITICAL: preserving the subject does NOT mean a plain or minimalist background. Build the SAME rich, cinematic, textured environment you would build WITHOUT an attached photo — real set, practical light, depth, atmosphere. A locked subject on a bare flat background is a FAILURE. Freeze the person/product; go full-force on the world around them.'
           + ' YOU MAY NOT change anything about the subject itself. If any instruction below conflicts with this contract, this contract wins and that instruction is discarded.'
           + ' This is a PHOTOREALISTIC photograph — never an illustration, cartoon, vector, drawing or CGI render. ===\n\n'
         : '';
