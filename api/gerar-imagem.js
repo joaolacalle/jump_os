@@ -71,6 +71,16 @@ function engine6(M, o) {
   const elems = { MINIMAL: '2-4', BALANCED: '4-7', DENSE: '8-12' }[(M.complexidade_visual || 'BALANCED').toUpperCase()] || '4-7';
   const temp = (M.temperatura_emocional || 'PREMIUM').toUpperCase();
   const estilo = (M.estilo_visual || 'EDITORIAL').toUpperCase();
+  // O OS_DATA já guarda tudo isto (memórias globais gravadas pelo Identidade) — só não
+  // estava chegando à arte. É o que torna a peça do dentista diferente da do restaurante.
+  const negocio = [
+    M.marca ? ('Brand: ' + M.marca) : '',
+    M.nicho ? ('Niche / industry: ' + M.nicho) : '',
+    M.produtos_precos ? ('What they sell: ' + String(M.produtos_precos).slice(0, 220)) : '',
+    M.publico_alvo ? ('Audience: ' + String(M.publico_alvo).slice(0, 180)) : '',
+    M.posicionamento ? ('Positioning: ' + String(M.posicionamento).slice(0, 180)) : '',
+    M.arquetipo ? ('Brand archetype: ' + M.arquetipo) : '',
+  ].filter(Boolean).join('\n');
 
   return [
     'You are an art director creating premium Instagram content following a professional design system. Execute EVERY rule below — they are non-negotiable.',
@@ -81,6 +91,9 @@ function engine6(M, o) {
     paleta ? ('Use EXCLUSIVELY these colors: ' + paleta + '. CTA color: ' + CTA + ' with locked saturation. Validate before rendering: am I using ONLY these colors? If an external color appears, STOP and fix.') : 'Use a restrained, consistent premium palette (max 3 colors).',
     T1 || T2 ? ('Typography: headline in ' + (T1 || 'a bold grotesque') + ' Bold; support copy in ' + (T2 || T1 || 'a clean sans') + '.') : '',
     DNA ? ('Brand visual DNA: ' + DNA) : '',
+    // CONTEXTO DE NEGÓCIO: sem isto o diretor inventa cenário genérico. Com isto, a cena
+    // nasce do mundo real do cliente (consultório, oficina, cozinha, escritório, estúdio...).
+    negocio ? ('=== BUSINESS CONTEXT (the scene must belong to THIS world) ===\n' + negocio + '\nEvery physical element you choose — environment, props, textures, wardrobe, objects — must plausibly belong to this business. A generic office/laptop scene is a failure unless this business IS an office business.') : '',
     '',
     '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
     'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
@@ -122,7 +135,12 @@ function engine6(M, o) {
     'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
     '',
     '=== CONTENT OF THIS PIECE ===',
-    'LABEL: "' + String(o.label || o.pilar || 'JUMP').toUpperCase() + '"',
+    // 🔴 O fallback era 'JUMP' — a NOSSA marca renderizada na arte do CLIENTE (o produto é
+    // multi-nicho: um consultório, uma padaria ou um escritório receberiam "JUMP" na peça).
+    // Agora: pilar (educação/prova/oferta...) → marca do cliente → o modelo deriva do tema.
+    (o.label || o.pilar || M.marca)
+      ? ('LABEL: "' + String(o.label || o.pilar || M.marca).toUpperCase() + '"')
+      : 'LABEL: derive a SHORT category word (1-2 words, uppercase) from the theme itself — it must describe the CONTENT (e.g. "MÉTODO", "BASTIDORES", "RESULTADO"). Never write the name of any software, tool or platform that is not this client\'s own brand.',
     'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
     o.subheadline ? ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"') : '',
     o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + String(o.prova).slice(0, 90) + '"') : '',
