@@ -58,6 +58,12 @@
 .img-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 .typing{align-self:flex-start;display:flex;gap:5px;padding:13px 16px}
 .typing span{width:7px;height:7px;border-radius:50%;background:rgb(var(--ac,var(--g-rgb)));animation:ty 1.2s infinite}
+.fila-it{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.fila-it:last-of-type{border-bottom:0}
+.fila-b{width:26px;height:26px;border-radius:7px;flex-shrink:0;background:rgba(var(--ac,var(--g-rgb)),.13);border:1px solid rgba(var(--ac,var(--g-rgb)),.3);color:var(--t1);font-size:11px;transition:.15s}
+.fila-b:hover{background:rgba(var(--ac,var(--g-rgb)),.24)}
+.fila-x{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.3)}
+.fila-x:hover{background:rgba(248,113,113,.24)}
 .pulsa{animation:pulsaBtn 1.1s ease-in-out 5;box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.6)}
 @keyframes pulsaBtn{0%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.55)}70%{box-shadow:0 0 0 11px rgba(var(--ac,var(--g-rgb)),0)}100%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),0)}}
 .typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
@@ -119,6 +125,7 @@
         <div class="ag-dash" id="ag-dash"></div>
       </div>
       <div class="mem-pane" id="mem-pane"></div>
+      <div class="mem-pane" id="fila-pane"></div>
       <div class="chat-msgs" id="msgs">
         <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
           <div style="text-align:center;margin-bottom:18px">
@@ -503,8 +510,11 @@ async function selecionar(id){
   // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir tarefa)
   const btns=(a.btns||[]).map(b=>`<button class="ag-db" id="btn-${b.fn}" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
   document.getElementById('ag-dash').innerHTML=btns+
+    `<button class="ag-db" id="fila-btn" onclick="toggleFila()">📋 Fila</button>`+
     `<button class="ag-db" id="mem-btn" onclick="toggleMem()">🧠 O que aprendi</button>`;
   document.getElementById('mem-pane').classList.remove('show');
+  document.getElementById('fila-pane').classList.remove('show');
+  contarFila(); // mostra quantas tarefas esperam este agente
   document.getElementById('inp').disabled=false;
   document.getElementById('send').disabled=false;
   const w=document.getElementById('msgs');
@@ -643,6 +653,68 @@ function pararLote(btn){
   JUMP.toast('Vou parar assim que a arte atual terminar.');
 }
 // soId = executa SÓ aquela ordem (botão ▶ da linha). Sem soId = executa todas, por prioridade.
+// ── FILA DO AGENTE: ver, atender uma a uma, ou EXCLUIR o que foi pedido por engano ──
+// Antes a única saída era executar (gastando cota) ou ir até a página Tarefas. Agora o
+// controle está onde a decisão acontece: dentro da conversa com o agente.
+async function contarFila(){
+  try{
+    const b=document.getElementById('fila-btn'); if(!b||!AG)return;
+    const{count}=await JUMP.sb.from('ordens_servico').select('id',{count:'exact',head:true})
+      .eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',AG).in('status',['pendente','processando']);
+    b.innerHTML=count?`📋 Fila <b style="color:rgb(var(--ac,var(--g-rgb)))">${count}</b>`:'📋 Fila';
+  }catch(e){}
+}
+async function toggleFila(){
+  const p=document.getElementById('fila-pane');
+  if(p.classList.contains('show')){p.classList.remove('show');return}
+  document.getElementById('mem-pane').classList.remove('show');
+  p.classList.add('show');
+  p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Carregando a fila...</div>';
+  try{
+    const{data}=await JUMP.sb.from('ordens_servico').select('*')
+      .eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',AG)
+      .in('status',['pendente','processando']).order('created_at',{ascending:true});
+    if(!data||!data.length){
+      p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Nada na fila deste agente. Tudo em dia.</div>';
+      return;
+    }
+    const consult=naturezaDe(AG)==='consultoria';
+    p.innerHTML='<div class="mem-grp">📋 Tarefas esperando este agente</div>'+data.map(o=>{
+      const seu=(o.de_agente==='usuario'||!o.de_agente);
+      const quem=seu?'Você pediu':'Do Agente de '+JUMP.esc(o.de_agente);
+      const quando=o.created_at?new Date(o.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'';
+      return `<div class="fila-it" id="fila-${o.id}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;color:var(--t1);line-height:1.45">${JUMP.esc(o.detalhe||o.tarefa||'tarefa')}</div>
+          <div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:3px">${quem} · ${quando}${o.status==='processando'?' · em andamento':''}</div>
+        </div>
+        <button class="fila-b" title="${consult?'Atender agora':'Executar agora'}" onclick="executarOrdens(this,'${o.id}')">▶</button>
+        <button class="fila-b fila-x" title="Excluir esta tarefa" onclick="excluirOrdem('${o.id}',this)">✕</button>
+      </div>`;
+    }).join('')
+    +'<div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:9px;line-height:1.5">Pediu por engano? Use o ✕ para remover antes de mandar executar — nada é gerado sem o seu comando.</div>';
+  }catch(e){
+    p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--red)">Não consegui ler a fila agora.</div>';
+  }
+}
+async function excluirOrdem(id,btn){
+  if(!confirm('Remover esta tarefa da fila? O agente não vai executá-la.'))return;
+  btn.disabled=true;btn.textContent='…';
+  try{
+    const{error}=await JUMP.sb.from('ordens_servico').delete().eq('id',id);
+    if(error)throw error;
+    const it=document.getElementById('fila-'+id);
+    if(it){it.style.opacity='.35';it.style.textDecoration='line-through';setTimeout(()=>it.remove(),350)}
+    JUMP.toast('Tarefa removida da fila.');
+    contarFila();
+    // some também o card de ordens do chat, se ficou vazio
+    const box=document.querySelector('.ordens-box');
+    if(box)setTimeout(()=>verificarOrdens(AG).catch(()=>{}),400);
+  }catch(e){
+    btn.disabled=false;btn.textContent='✕';
+    JUMP.toast('Não consegui remover: '+(e.message||'erro'),'err');
+  }
+}
 // Vindo de "Executar agora" (Tarefas): rola até a ordem e pulsa o botão. NÃO executa sozinho.
 function destacarOrdem(id){
   try{
@@ -709,6 +781,7 @@ async function executarOrdens(btn,soId){
       if(executadas){if(box)box.remove();JUMP.toast('✓ '+executadas+' tarefa(s) atendida(s) na conversa.')}
       else JUMP.toast('Não consegui atender agora — a(s) tarefa(s) continua(m) pendente(s).','err');
       if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
+      contarFila();
       return;
     }
     // ── PRODUÇÃO (Criativo/Vídeo): a ordem vira um artefato
@@ -728,7 +801,9 @@ async function executarOrdens(btn,soId){
           if(PARAR){addMsg('a','⏸️ Geração interrompida. A ordem continua pendente.');break}
           const brief=String(it.brief||'').trim(); if(!brief)continue;
           try{
-            await gerarPorOrdem(brief,String(it.formato||'4:5'),String(it.tipo_visual||'conceitual'),brief);
+            await gerarPorOrdem(brief,String(it.formato||'4:5'),String(it.tipo_visual||'conceitual'),brief,false,{
+              headline:it.headline||'', subheadline:it.subheadline||'', prova:it.prova||'',
+              cta_arte:it.cta_arte||'', oferta:it.oferta||'', copy:it.copy||'', pilar:it.pilar||'', total:1});
             feitas++;
             try{await JUMP.sb.from('ordens_servico').update({progresso:feitas,total:itens.length,payload:{...(o.payload||{}),batendo:new Date().toISOString()}}).eq('id',o.id)}catch(e){}
           }catch(e){
@@ -773,6 +848,7 @@ async function executarOrdens(btn,soId){
     else if(executadas){JUMP.toast('✓ '+executadas+' executada(s) · '+travadas+' continua(m) pendente(s).')}
     else JUMP.toast('Nada foi executado — a(s) ordem(ns) continua(m) pendente(s).','err');
     if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
+    contarFila();
   }catch(e){
     JUMP.toast(e.message||'Erro ao executar ordens','err');
   }finally{
@@ -872,7 +948,9 @@ async function executarLoteCriativos(uid,ordem){
     try{
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:c.pilar||'',total:1,
+        // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
+        // a arte saía só com a headline, que a própria Engine classifica como falha.
+        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:c.pilar||'',total:1,
           tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
@@ -977,14 +1055,17 @@ async function finalizarRota1(btn){
   w.appendChild(m);w.scrollTop=w.scrollHeight;
   await logChat('assistant','Identidade concluída! Próximo passo: vá ao Agente de Mercado para analisarmos seus concorrentes e oportunidades do nicho.','criativo');
 }
-async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine){
+async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
   const w=document.getElementById('msgs');
   const lbl=document.createElement('div');lbl.className='msg a';
   lbl.innerHTML='🎨 <b>'+titulo+'</b> — gerando...';
   w.appendChild(lbl);w.scrollTop=w.scrollHeight;
   const r=await fetch('/api/gerar-imagem',{
     method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
-    body:JSON.stringify({prompt,tamanho,tipo,slide:1,reload:false,engine:semEngine?false:undefined,ver_id:CTX.viewId||null,origem:'expressa'})
+    // 🔴 O bloco de texto (headline/subheadline/prova/cta_arte/oferta) PRECISA chegar à Engine:
+    // ela declara que "renderizar só a headline quando há subheadline/prova é uma FALHA".
+    // Antes só o `prompt` era enviado — a Estratégia preenchia tudo e o executor jogava fora.
+    body:JSON.stringify(Object.assign({prompt,tamanho,tipo,slide:1,reload:false,engine:semEngine?false:undefined,ver_id:CTX.viewId||null,origem:'expressa'},txt||{}))
   });
   const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
   if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));
@@ -1684,6 +1765,7 @@ function atualizarUso(tk){
 async function toggleMem(){
   const p=document.getElementById('mem-pane');
   if(p.classList.contains('show')){p.classList.remove('show');return}
+  document.getElementById('fila-pane').classList.remove('show');
   try{
     const{data}=await JUMP.sb.from('memorias').select('chave,valor,agente').eq('user_id',CTX.viewId||CTX.user.id).or(`agente.eq.${AG},agente.eq.global`).order('updated_at',{ascending:false}).limit(40);
     if(!data||!data.length){

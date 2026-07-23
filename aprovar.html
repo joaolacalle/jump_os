@@ -126,9 +126,11 @@ async function recarregar(){
     if(RASCUNHOS.length){
       const b=document.getElementById('fila-bar');
       if(b){b.style.display='block';
+        // Aprovar é para REVISAR e APROVAR. Gerar arte é trabalho do Agente Criativo —
+        // acontece no chat dele ou pela Tarefa de Serviço, onde há briefing e controle de saldo.
         b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">🎨</span>'+
         '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+RASCUNHOS.length+' post(s) com copy pronta, esperando a arte.</span>'+
-        '<button class="btn btn-g btn-sm" style="margin-left:auto" onclick="liberarGeracao();gerarFila()">🎨 Gerar as artes</button></div>';}
+        '<a class="btn btn-o btn-sm" style="margin-left:auto" href="agentes.html?agente=criativo">Falar com o Criativo →</a></div>';}
     }
   }catch(e){}
 })();
