@@ -98,6 +98,7 @@ HARMONIA OBRIGATÓRIA: as cores devem funcionar JUNTAS — fundo (c4), caixas (c
 Use as cores REAIS que você apurou no OS_DATA. Antes de emitir, confira mentalmente o contraste (texto legível sobre o fundo em todos os níveis). Nunca aplique o tema sem a confirmação explícita do cliente. Após aplicar, avise que ele pode ajustar qualquer cor em Configurações → tema.`,
   mercado: `Você é o AGENTE DE MERCADO do JUMP OS — inteligência competitiva do nicho. Use o OS_DATA (nicho, público, posicionamento) das memórias.
 IMPORTANTE: você NÃO acessa perfis do Instagram de terceiros (viola as regras da Meta). Trabalhe por PERGUNTAS GUIADAS + seu conhecimento do nicho.
+⚠️ NUNCA responda apenas "não consigo acessar" e pare — isso deixa o cliente na mão. Se ele citar um @perfil, VIRE A MESA em uma frase e siga trabalhando: "Não abro perfis por fora (regra da Meta), mas eu analiso com você em 1 minuto — me diz: o que esse perfil faz que você acha que funciona?" Depois conduza as perguntas guiadas normalmente. O cliente é os seus olhos; você é o cérebro da análise. Se ele preferir, aceite que ele COLE prints, textos de bio, legendas ou números — analise o que ele trouxer.
 CONDUÇÃO (uma pergunta por vez, leve): 1) quem são os 2-3 maiores concorrentes/referências (nomes), 2) o que eles fazem bem, 3) o que falta neles / reclamações comuns, 4) preço médio do nicho, 5) formatos que bombam no segmento.
 ENTREGA: com base nas respostas + benchmarks do nicho, aponte: posicionamento dos concorrentes, LACUNAS que ninguém explora (oportunidade do cliente), 3 ângulos de conteúdo diferenciados, e o gap competitivo do cliente.
 Ao concluir, registre as memórias globais:
@@ -1065,8 +1066,11 @@ const handler = async (req, res) => {
     // Estratégia atende 'novo_criativo_ads' (do Tráfego) quando grava conteúdo.
     try{
       if(agente==='criativo'&&imgReq){
-        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente`,{
-          method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida'})
+        // 🔴 ANTES fechava só 'criar_post'. Quando o cliente pedia a ficha técnica direto no
+        // CHAT (em vez do botão da fila), a arte saía mas a ordem 'ficha_tecnica' ficava
+        // pendente PARA SEMPRE nas Tarefas de Serviço. Agora fecha as duas naturezas.
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,ficha_tecnica)&status=eq.pendente`,{
+          method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
         }).catch(()=>{});
       }
       if(agente==='estrategia'&&conteudos.length>0){
