@@ -185,7 +185,18 @@ Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFIC
    • o pedido chegou por uma TAREFA DE SERVIÇO (a mensagem começa com "[Tarefa de serviço]") — tarefa de serviço é SEMPRE avulsa, nunca vira plano do mês;
    • é algo pontual/urgente ("pra hoje", "pra essa campanha", "pro story de amanhã").
 → "avulso":false (entra como PROPOSTO e espera a aprovação do cliente) SOMENTE quando ele pede planejamento: "monta meu mês", "calendário", "plano de conteúdo", "quantos posts por semana".
-NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o cliente esperar uma aprovação que ele nunca pediu. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
+NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o cliente esperar uma aprovação que ele nunca pediu.
+
+⚠️ PROTOCOLO DE BRIEFING (obrigatório TAMBÉM na peça avulsa — não é "só uma imagem"):
+Uma peça avulsa exige a MESMA inteligência de uma peça do plano. Antes de escrever headline/subheadline/prova/cta_arte, decida conscientemente:
+1) OBJETIVO da peça: vender, capturar lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
+2) PÚBLICO e MOMENTO: quem vê isso e em que estágio está (frio/morno/quente)?
+3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil). Se o bloco "O QUE OS OUTROS AGENTES JÁ DESCOBRIRAM" existir no seu contexto, ele é insumo obrigatório — não invente por cima dele.
+4) ÂNGULO/PROMESSA: qual a promessa única? Evite o clichê que todo concorrente usa (as lacunas de mercado apontam o espaço livre).
+5) PROVA: existe número/fato REAL do cliente para sustentar? Se não houver, deixe vazio — nunca invente.
+6) CTA: escolha pelo estágio — frio = "SAIBA MAIS/VER COMO"; morno = "QUERO TESTAR/GARANTIR"; quente = "COMPRAR AGORA". Máx 2 palavras, verbo de ação.
+7) PILAR: classifique (educação|prova|autoridade|oferta|bastidor) — vira o rótulo da arte.
+Se faltar informação essencial do cliente (oferta real, prazo, preço), pergunte UMA vez e produza com o que ele responder. Só então emita as tags. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
 Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
@@ -214,7 +225,14 @@ VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos o
 ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed.
 ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
 ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
-  criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor). 
+  criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor).
+
+⚠️ VOCÊ NÃO É UM GERADOR DE IMAGEM GENÉRICO — e o cliente precisa PERCEBER isso, sem sermão.
+Muita gente chega com o hábito de ferramenta genérica: "faz uma imagem de X". NUNCA recuse, NUNCA dê aula sobre o processo. Faça assim:
+1) ENTREGUE: produza a arte com o que ele deu.
+2) MOSTRE A DIFERENÇA FAZENDO: aplique automaticamente o que só você tem — paleta e tipografia da marca, tom, público, e o bloco de texto completo (headline + subheadline + prova + CTA). Depois, em UMA linha, diga o que você acrescentou por conta própria: "Usei a paleta da sua marca e escrevi a chamada no seu tom de voz."
+3) OFEREÇA O PRÓXIMO NÍVEL em 1 frase, só quando fizer sentido: "Se quiser, o Agente de Estratégia define o ângulo com base no seu nicho e nos concorrentes — aí a peça vira parte do plano, não uma imagem solta."
+A régua: o cliente deve SENTIR a diferença na arte, não ouvir sobre ela. Uma peça que já sai com a cara da marca ensina mais que qualquer explicação.
 
 Você cria seguindo o OS_DATA/VISUAL_SYSTEM da marca (memórias: paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual, intensidade_visual, complexidade_visual, temperatura_emocional, arquetipo, posicionamento).
 
@@ -583,12 +601,40 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    // Memórias (agente + globais)
-    let mems=await sbGet(`memorias?user_id=eq.${targetId}&or=(agente.eq.${agente},agente.eq.global)&select=chave,valor&limit=40`);
+    // ── MEMÓRIA POR DEPENDÊNCIA (antes: só as próprias + globais) ──────────────
+    // 🔴 BUG ESTRUTURAL: o Mercado grava concorrentes/lacunas_mercado/oportunidades/
+    // formatos_nicho com agente='mercado'. Como a Estratégia lia apenas
+    // or=(agente.eq.estrategia,agente.eq.global), ela NUNCA via essa pesquisa —
+    // mesmo o prompt dela mandando "use as memórias (mercado, diagnóstico)".
+    // O trabalho de um agente morria dentro dele. Agora cada agente lê também a
+    // memória de quem ele DEPENDE, e sabe de onde veio cada informação.
+    const DEPENDE_DE={
+      estrategia:['mercado','diagnostico'],   // planeja com pesquisa de nicho + desempenho real
+      criativo:['estrategia'],                // executa a direção da estratégia
+      video:['estrategia'],
+      trafego:['diagnostico','mercado','estrategia'],
+      publicacao:['estrategia'],
+      diagnostico:['mercado'],                // interpreta números à luz do nicho
+      mercado:['diagnostico'],                // pesquisa olhando o desempenho real
+      identidade:[]                           // a identidade é a raiz: não depende de ninguém
+    };
+    const fontes=[agente,'global'].concat(DEPENDE_DE[agente]||[]);
+    const filtroMem=fontes.map(a=>`agente.eq.${a}`).join(',');
+    let mems=await sbGet(`memorias?user_id=eq.${targetId}&or=(${filtroMem})&select=chave,valor,agente&limit=60`);
     if(!Array.isArray(mems))mems=[];
-    const memTxt=(mems||[]).length
-      ? 'MEMÓRIAS SOBRE ESTE CLIENTE:\n'+(mems||[]).map(m=>`- ${m.chave}: ${m.valor}`).join('\n')
-      : 'MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
+    const proprias=mems.filter(m=>m.agente===agente||m.agente==='global');
+    const deOutros=mems.filter(m=>m.agente!==agente&&m.agente!=='global');
+    let memTxt;
+    if(!mems.length){
+      memTxt='MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
+    }else{
+      memTxt='MEMÓRIAS SOBRE ESTE CLIENTE:\n'+proprias.map(m=>`- ${m.chave}: ${m.valor}`).join('\n');
+      if(deOutros.length){
+        const NOME={mercado:'Agente de Mercado',diagnostico:'Agente de Diagnóstico',estrategia:'Agente de Estratégia'};
+        memTxt+='\n\nO QUE OS OUTROS AGENTES JÁ DESCOBRIRAM (use como base — é trabalho real feito para este cliente, não invente por cima):\n'
+          +deOutros.map(m=>`- [${NOME[m.agente]||m.agente}] ${m.chave}: ${m.valor}`).join('\n');
+      }
+    }
 
     // Histórico recente
     let hist=await sbGet(`chat_mensagens?user_id=eq.${targetId}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
@@ -943,7 +989,7 @@ const handler = async (req, res) => {
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url}
           })
         }).catch(()=>null)));
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
