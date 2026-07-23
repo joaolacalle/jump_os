@@ -178,7 +178,14 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
-Use "avulso":true SOMENTE quando o cliente pede UM post solto agora ("preciso de um conteúdo avulso", "cria um post sobre X pra hoje"). NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
+═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
+Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
+→ "avulso":true (peça específica, vai direto para a arte, SEM aprovação de calendário) quando:
+   • o cliente descreve UMA peça concreta com propósito próprio ("preciso de um banner para a promoção dos 7 dias", "faz uma arte do clube de desconto", "quero um post do lançamento") — NÃO importa se ele usou a palavra "avulso";
+   • o pedido chegou por uma TAREFA DE SERVIÇO (a mensagem começa com "[Tarefa de serviço]") — tarefa de serviço é SEMPRE avulsa, nunca vira plano do mês;
+   • é algo pontual/urgente ("pra hoje", "pra essa campanha", "pro story de amanhã").
+→ "avulso":false (entra como PROPOSTO e espera a aprovação do cliente) SOMENTE quando ele pede planejamento: "monta meu mês", "calendário", "plano de conteúdo", "quantos posts por semana".
+NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o cliente esperar uma aprovação que ele nunca pediu. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
 Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
@@ -196,6 +203,9 @@ REGRA CRÍTICA DA ORDEM AO DESIGNER — existem DUAS tarefas diferentes e usar a
 • "criar_avulso" = ARTES SOLTAS, sem conteúdo no calendário (ex.: "quero 2 criativos avulsos"). Aqui o briefing NÃO pode ir em texto corrido: cada arte vai como um item do array "itens", senão o Designer não tem como saber quantas são nem do que tratam:
 <ordem_servico>{"para":"criativo","tarefa":"criar_avulso","detalhe":"2 criativos avulsos","itens":[{"tipo_visual":"conceitual","brief":"tema completo e específico da arte 1","formato":"4:5"},{"tipo_visual":"pessoa_conceito","brief":"tema completo e específico da arte 2","formato":"4:5"}]}</ordem_servico>
 Cada "brief" precisa ser AUTOSSUFICIENTE (o Designer só lê ele, não lê esta conversa). "tipo_visual" segue o critério abaixo.
+⚠️ ORDEM COMPLETA — NUNCA MANDE UMA ORDEM "PELADA". O Designer não vê esta conversa: se você mandar só "criar banner", ele inventa tudo e a arte sai fraca. Todo item DEVE trazer o pacote fechado:
+{"tipo_visual":"...","formato":"4:5|9:16|1:1","brief":"o que a arte comunica, para quem, em que contexto","headline":"gancho da arte (máx 8 palavras, frase completa)","subheadline":"1 frase que explica o porquê e cria desejo","prova":"dado/fato REAL do DNA do Negócio ou vazio — nunca invente","cta_arte":"chamada curta que vai NA ARTE","oferta":"a oferta real ou vazio"}
+Se faltar headline/cta_arte, a ordem está incompleta: escreva-os você mesmo ANTES de disparar — esse é o seu trabalho como estrategista, não o do Designer.
 E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
 
 tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
@@ -289,7 +299,8 @@ Na maioria das vezes o problema NÃO é a arte — é segmentação, oferta ou p
 Só peça criativo NOVO quando houver DADO concreto de fadiga (ex: CTR < 1% após ~1000 impressões, frequência > 3, queda de performance comprovada) — nunca por achismo.
 
 CADEIA DE CORREÇÃO: você NUNCA cria/edita o criativo. Quando (e só quando) um criativo novo se justificar, abra ordem para a ESTRATÉGIA:
-<ordem_servico>{"para":"estrategia","tarefa":"novo_criativo_ads","detalhe":"formato, ângulo, motivo com DADO (ex: CTR 0,7% após 1500 impressões = fadiga), público-alvo"}</ordem_servico>
+<ordem_servico>{"para":"estrategia","tarefa":"novo_criativo_ads","detalhe":"resumo em 1 linha","itens":[{"formato":"4:5|9:16","angulo":"o ângulo/promessa que deve mudar","motivo_dado":"o número que prova a necessidade (ex: CTR 0,7% após 1500 impressões = fadiga)","publico":"o público-alvo da campanha","oferta":"a oferta real em teste"}]}</ordem_servico>
+⚠️ ORDEM COMPLETA: a Estratégia não vê a sua análise — se você mandar só "criar criativo novo", ela inventa o ângulo e o problema não é resolvido. Cada item precisa do pacote acima, com o DADO que justifica.
 Avise que o novo criativo virá pela Estratégia → Aprovações. Respeite o saldo de imagens do plano.
 VERACIDADE: só use números/ofertas reais do cliente. Nunca invente métricas. Responda em texto limpo.`,
   video: `Você é o AGENTE EDITOR DE VÍDEO do JUMP OS (plano Pro) — editor de Reels profissional. 
@@ -815,7 +826,22 @@ const handler = async (req, res) => {
           // Agora `itens` estruturado sobrevive no payload (jsonb já existente, zero migration).
           const itens=Array.isArray(o.itens)?o.itens.filter(i=>i&&i.brief).slice(0,10):[];
           if(itens.length){
-            body.payload={...(body.payload||{}),itens:itens.map(i=>({tipo_visual:String(i.tipo_visual||'conceitual'),brief:String(i.brief).slice(0,400),formato:String(i.formato||'4:5')}))};
+            // 🔴 ANTES o item era recortado para 3 campos e o BLOCO DE TEXTO era descartado:
+            // a Estratégia preenchia headline/subheadline/prova/cta_arte e o parser jogava fora,
+            // então a Engine 6.0 recebia só o brief e a arte saía com uma headline solta —
+            // o que a própria Engine classifica como FALHA. Agora o pacote chega inteiro.
+            body.payload={...(body.payload||{}),itens:itens.map(i=>({
+              tipo_visual:String(i.tipo_visual||'conceitual'),
+              brief:String(i.brief).slice(0,400),
+              formato:String(i.formato||'4:5'),
+              headline:String(i.headline||'').slice(0,120),
+              subheadline:String(i.subheadline||'').slice(0,200),
+              prova:String(i.prova||'').slice(0,120),
+              cta_arte:String(i.cta_arte||'').slice(0,40),
+              oferta:String(i.oferta||'').slice(0,120),
+              copy:String(i.copy||'').slice(0,600),
+              pilar:String(i.pilar||'')
+            }))};
             body.total=itens.length; body.progresso=0;
           }
           if(ehCadeia)body.payload={...(body.payload||{}),sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
