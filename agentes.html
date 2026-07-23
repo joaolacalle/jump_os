@@ -950,7 +950,7 @@ async function executarLoteCriativos(uid,ordem){
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
         // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
         // a arte saía só com a headline, que a própria Engine classifica como falha.
-        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:c.pilar||'',total:1,
+        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:meta.pilar||c.pilar||'',total:1,
           tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
