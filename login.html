@@ -321,6 +321,26 @@ async function doLogin(){
 }
 
 /* ══ SIGNUP ══ */
+// Grava o interessado (falha em silêncio não pode travar a tela)
+async function entrarNaLista(d){
+  try{
+    await fetch('/api/admin-users',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'entrar_lista',...d})});
+  }catch(e){}
+}
+// Substitui o formulário por um convite honesto — sem muro, sem cobrança
+function mostrarListaEspera(st,email){
+  const c=document.getElementById('tab-signup')||document.getElementById('form-signup')||document.querySelector('.card');
+  if(!c){alert((st.titulo||'Acesso antecipado')+'\n\n'+(st.mensagem||''));return}
+  const safe=String(email).replace(/[<>]/g,'');
+  c.innerHTML='<div style="text-align:center;padding:8px 2px">'
+    +'<div style="font-size:34px;margin-bottom:10px">🎟️</div>'
+    +'<div style="font-size:19px;font-weight:800;margin-bottom:8px">'+(st.titulo||'Acesso antecipado')+'</div>'
+    +'<div style="font-size:13.5px;color:var(--t2);line-height:1.6;margin-bottom:14px">'+(st.mensagem||'')+'</div>'
+    +'<div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.28);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--t2);line-height:1.55">'
+    +'✓ Você entrou na fila com <b>'+safe+'</b>.<br>Avisamos por e-mail assim que sua vaga abrir — <b>sem cobrança nenhuma</b> até lá.</div>'
+    +'<div style="margin-top:16px"><a href="home.html" class="btn btn-o btn-sm">← Voltar ao site</a></div></div>';
+}
 async function doSignup(){
   const name=document.getElementById('signup-name').value.trim();
   const email=document.getElementById('signup-email').value.trim();
@@ -331,6 +351,28 @@ async function doSignup(){
   const btn=document.getElementById('btn-signup');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Criando conta...';
   try{
+    // ── ACESSO ANTECIPADO: enquanto o app da Meta está em dev mode, uma conta nova não
+    // consegue conectar o Instagram. Em vez de deixar a pessoa PAGAR e frustrar, ela entra
+    // na lista. Só o CADASTRO é barrado — quem já tem conta continua entrando normalmente,
+    // e os e-mails da allowlist (você + contas de teste) passam direto.
+    // ANTI-PIRATARIA: e-mails que caem na mesma caixa (pontos/+alias do Gmail) hoje
+    // criavam contas novas e repetiam o teste grátis. Aqui a checagem é servidora.
+    try{
+      const ck=await fetch('/api/admin-users',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'checar_email',email})}).then(r=>r.json());
+      if(ck&&ck.duplicado){
+        showMsg('msg-signup','Já existe uma conta com este e-mail. Faça login ou use "Esqueci a senha".','err');
+        btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+        return;
+      }
+    }catch(e){}
+    const st=await fetch('/api/admin-users',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'status_acesso',email})}).then(r=>r.json()).catch(()=>({modo:'aberto'}));
+    if(st&&st.modo==='lista_espera'&&!st.liberado){
+      await entrarNaLista({nome:name,email});
+      mostrarListaEspera(st,email);
+      return;
+    }
     const planoFinal=planoSel||'basico';
     const redirectUrl=`${location.origin}/checkout.html?plano=${planoFinal}`;
     const{data,error}=await sb.auth.signUp({

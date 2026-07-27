@@ -182,6 +182,31 @@
   <!-- TAB BACKEND -->
   <div class="tabpane" id="pane-back">
     <div class="bk-grid">
+      <!-- ACESSO AO SISTEMA: lista de espera enquanto a Meta não libera o app -->
+      <div class="bk-card" style="grid-column:1/-1;border-color:rgba(251,191,36,.3)">
+        <div class="bk-t">🎟️ Acesso ao sistema</div>
+        <div class="bk-b">Com a Meta em modo de desenvolvimento, uma conta nova não conecta o Instagram. Em <b>lista de espera</b>, quem tentar se cadastrar entra na fila em vez de pagar — <b>quem já tem conta continua entrando normalmente</b>, e os e-mails liberados abaixo passam direto.</div>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="radio" name="acmodo" value="aberto" id="ac-aberto" style="accent-color:var(--g)"> 🟢 Aberto (qualquer um assina)</label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="radio" name="acmodo" value="lista_espera" id="ac-lista" style="accent-color:#fbbf24"> 🎟️ Lista de espera</label>
+          <span id="ac-qtd" style="margin-left:auto;font-family:var(--M);font-size:11px;color:var(--t3)"></span>
+        </div>
+        <div style="display:grid;gap:9px">
+          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Título da mensagem</div>
+            <input class="f-input" id="ac-titulo" placeholder="Acesso antecipado"></div>
+          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Mensagem para o interessado</div>
+            <textarea class="f-textarea" id="ac-msg" rows="2" placeholder="Estamos liberando novas contas por semana..."></textarea></div>
+          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">E-mails liberados (um por linha) — você e as contas de teste</div>
+            <textarea class="f-textarea" id="ac-allow" rows="3" placeholder="voce@email.com"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+          <button class="btn btn-g btn-sm" onclick="salvarAcesso()">Salvar acesso</button>
+          <button class="btn btn-o btn-sm" onclick="verLista()">Ver quem está na fila</button>
+        </div>
+        <div id="ac-lista-box" style="margin-top:12px"></div>
+      </div>
       <div class="bk-card" style="grid-column:1/-1">
         <div class="bk-t">🔗 APIs do sistema</div>
         <div class="bk-b">Painéis de todas as APIs usadas pelo JUMP OS — acesso rápido para recargas, chaves e configuração.</div>
@@ -474,6 +499,7 @@ let CTX=null,ALL=[],SUPS=[],USERS=[];
   try{
     CTX=await JUMP.guard(['admin']);
     await carregar();
+    carregarAcesso(); // estado do cadastro (aberto / lista de espera)
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
 })();
@@ -692,6 +718,58 @@ async function abrirConfigTokens(){
   document.getElementById('ct-pro').value=tp.pro||0;
   document.getElementById('ct-trial').value=tr.tokens||0;
   document.getElementById('modal-cfgtok').classList.add('show');
+}
+// ── ACESSO AO SISTEMA (lista de espera) ──
+async function carregarAcesso(){
+  try{
+    const d=await JUMP.api('get_config',{},CTX.token);
+    const v=((d.config||{}).acesso)||{};
+    document.getElementById(v.modo==='lista_espera'?'ac-lista':'ac-aberto').checked=true;
+    document.getElementById('ac-titulo').value=v.titulo||'Acesso antecipado';
+    document.getElementById('ac-msg').value=v.mensagem||'Estamos liberando novas contas por semana. Entre na lista e avisamos assim que a sua vaga abrir.';
+    document.getElementById('ac-allow').value=(v.allowlist||[]).join('\n');
+  }catch(e){}
+}
+async function salvarAcesso(){
+  const modo=(document.querySelector('input[name="acmodo"]:checked')||{}).value||'aberto';
+  const allow=String(document.getElementById('ac-allow').value||'').split('\n')
+    .map(x=>x.trim().toLowerCase()).filter(x=>x.includes('@'));
+  if(modo==='lista_espera'&&!allow.length&&!confirm('Nenhum e-mail liberado. Você não conseguirá criar contas novas nem para testar. Salvar assim?'))return;
+  try{
+    await JUMP.api('set_config',{chave:'acesso',valor:{
+      modo, titulo:document.getElementById('ac-titulo').value.trim(),
+      mensagem:document.getElementById('ac-msg').value.trim(), allowlist:allow
+    }},CTX.token);
+    JUMP.toast(modo==='lista_espera'?'🎟️ Lista de espera ativada':'🟢 Cadastro aberto');
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+async function verLista(){
+  const box=document.getElementById('ac-lista-box');
+  box.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Carregando...</div>';
+  try{
+    const d=await JUMP.api('listar_espera',{},CTX.token);
+    const L=d.lista||[];
+    document.getElementById('ac-qtd').textContent=L.length?(L.length+' na fila'):'';
+    if(!L.length){box.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Ninguém na fila ainda.</div>';return}
+    box.innerHTML='<div style="max-height:280px;overflow:auto;border:1px solid var(--bd);border-radius:10px">'
+      +'<table style="width:100%;font-size:12px;border-collapse:collapse">'
+      +'<tr><th style="text-align:left;padding:7px 9px">Nome</th><th style="text-align:left;padding:7px 9px">E-mail</th><th style="text-align:left;padding:7px 9px">Instagram</th><th style="text-align:left;padding:7px 9px">Entrou</th></tr>'
+      +L.map(x=>'<tr style="border-top:1px solid var(--bd)"><td style="padding:7px 9px">'+JUMP.esc(x.nome||'—')
+        +'</td><td style="padding:7px 9px">'+JUMP.esc(x.email||'')
+        +'</td><td style="padding:7px 9px">'+(x.instagram?'@'+JUMP.esc(x.instagram):'—')
+        +'</td><td style="padding:7px 9px;font-family:var(--M);font-size:10px;color:var(--t3)">'+(x.created_at?new Date(x.created_at).toLocaleDateString('pt-BR'):'')+'</td></tr>').join('')
+      +'</table></div>'
+      +'<button class="btn btn-o btn-sm" style="margin-top:8px" onclick="baixarLista()">⬇ Baixar CSV</button>';
+    window._lista=L;
+  }catch(e){box.innerHTML='<div style="font-size:11px;color:var(--red)">'+(e.message||'erro')+'</div>'}
+}
+function baixarLista(){
+  const L=window._lista||[]; if(!L.length)return;
+  const csv='nome,email,instagram,nicho,entrou\n'+L.map(x=>[x.nome,x.email,x.instagram,x.nicho,x.created_at]
+    .map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='lista-espera-jump.csv';a.click();
 }
 async function salvarCfgTokens(){
   try{

@@ -163,6 +163,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 
   <!-- CONTEÚDO -->
   <div class="wrap" id="content" style="display:none">
+    <!-- POR QUE ESTOU AQUI: trial vencido ≠ assinatura cancelada ≠ primeiro acesso -->
+    <div id="ck-motivo" style="display:none"></div>
     <!-- RESUMO -->
     <div class="sum-card">
       <div class="sc-lbl">Resumo da ativação</div>
@@ -257,6 +259,22 @@ const PLANOS={
 };
 
 const params=new URLSearchParams(location.search);
+// Explica o motivo em vez de jogar a pessoa numa tela de pagamento sem contexto.
+(function(){
+  const M={
+    trial:{t:'Seu período de teste terminou',b:'Os 7 dias acabaram. Ative sua assinatura para o sistema voltar a produzir — seu DNA do Negócio e tudo que os agentes aprenderam continuam salvos.'},
+    assinatura:{t:'Sua assinatura está inativa',b:'Identificamos um cancelamento ou falha no pagamento. Reative para retomar de onde parou — nada foi perdido.'},
+    novo:{t:'Ative seu acesso',b:'Seu check-in está pronto. Ative os 7 dias de teste e o sistema começa a produzir para o seu negócio.'},
+  }[params.get('motivo')];
+  if(!M)return;
+  document.addEventListener('DOMContentLoaded',()=>{
+    const w=document.getElementById('ck-motivo'); if(!w)return;
+    w.style.display='block';
+    w.innerHTML='<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:14px;padding:14px 16px;margin-bottom:16px">'
+      +'<div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:5px">'+M.t+'</div>'
+      +'<div style="font-size:13px;color:var(--t2);line-height:1.6">'+M.b+'</div></div>';
+  });
+})();
 let plano=params.get('plano');
 if(!plano||!PLANOS[plano])plano='plus';
 let userEmail=null,userId=null,userToken=null;
