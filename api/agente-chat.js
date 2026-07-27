@@ -374,6 +374,7 @@ REGRAS DO JUMP OS:
 - Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
 - ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere duas artes automaticamente: PERGUNTE ANTES, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?". Só produza depois da resposta. O padrão, se o cliente mandar seguir sem escolher, é UMA arte para os dois — nunca gaste duas imagens do saldo dele sem autorização.
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
+- RESPOSTA LONGA = DIVIDIR, NUNCA CORTAR: se uma entrega for ficar muito extensa (diagnóstico completo, plano detalhado, análise de mercado), entregue o ESSENCIAL de forma organizada, feche com o próximo passo e ofereça aprofundar em qualquer ponto ("quer que eu detalhe a parte X?"). Uma entrega redonda + convite a continuar é melhor que um texto que corta no meio. Se o cliente pedir "continue", retome EXATAMENTE de onde parou, sem repetir o que já foi dito.
 - FORMATAÇÃO LIMPA E PROFISSIONAL (economiza tokens e fica elegante): escreva em texto corrido, natural. NÃO use markdown decorativo — proibido: ###, ##, **negrito**, tabelas com |, linhas de --- ou ═══, blocos de código com crases. Evite emojis (no máximo 1 quando fizer sentido real). Use frases e parágrafos curtos. Para listas, use traço simples "- item" só quando necessário. Pense: conversa de consultor por mensagem, não documento formatado.
 - AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
 <memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
@@ -798,7 +799,7 @@ const handler = async (req, res) => {
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
       body:JSON.stringify({
         model:MODEL_DE(agente),
-        max_tokens:(agente==='estrategia')?8000:((agente==='identidade'||agente==='criativo')?3000:1100),
+        max_tokens:(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500)),
         system,messages,
         // Modelos novos (Sonnet 5/Opus) vêm com raciocínio 'high' por padrão e estouram os 60s da
         // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
@@ -1263,7 +1264,11 @@ const handler = async (req, res) => {
       texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
     }
     if(truncou){
-      texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
+      if(agente==='estrategia'){
+        texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
+      }else{
+        texto+='\n\n⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.';
+      }
     }
     return res.status(200).json({resposta:texto,truncado:truncou,detalhados,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
