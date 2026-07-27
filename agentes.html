@@ -1103,7 +1103,14 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
   });
   const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
   if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));
-  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+d.url+'\',this)">⬇ Baixar</button>';
+  // LOGO real só em POSTS (não na ficha técnica: brand board, semEngine=true, tem assinatura tipográfica).
+  // O backend já registrou a arte crua na biblioteca; se aplicarmos a logo, apontamos esse registro pra ela.
+  let dOut=d;
+  if(semEngine!==true){
+    dOut=await comporLogoNaArte(d);
+    if(dOut.url!==d.url&&d.path){try{const uid=CTX.viewId||CTX.user.id;await JUMP.sb.from('uploads').update({url:dOut.url,path:dOut.path}).eq('user_id',uid).eq('path',d.path)}catch(e){}}
+  }
+  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+dOut.url+'" style="width:100%;border-radius:10px;margin-top:6px"><button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+dOut.url+'\',this)">⬇ Baixar</button>';
   w.scrollTop=w.scrollHeight;
 }
 let _lastDay=null;
