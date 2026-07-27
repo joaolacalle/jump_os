@@ -65,6 +65,60 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
   try {
+    // ═══ AÇÕES PÚBLICAS (antes do JWT) — a tela de login não tem sessão ainda ═══
+    // Devolvem SÓ o estado de acesso e recebem cadastro na lista. Nada sensível.
+    const actPub = (req.body || {}).action;
+    if (actPub === 'status_acesso') {
+      const [row] = await sbGet(`config?chave=eq.acesso&select=valor`);
+      const v = (row && row.valor) || {};
+      return res.status(200).json({
+        ok: true,
+        modo: v.modo === 'lista_espera' ? 'lista_espera' : 'aberto',
+        titulo: v.titulo || 'Acesso antecipado',
+        mensagem: v.mensagem || 'Estamos liberando novas contas por semana. Entre na lista e avisamos assim que a sua vaga abrir.',
+        // allowlist NÃO é devolvida (evita expor e-mails); a checagem é feita aqui no servidor
+        liberado: Array.isArray(v.allowlist) && v.allowlist
+          .map(e => String(e).trim().toLowerCase())
+          .includes(String((req.body || {}).email || '').trim().toLowerCase()),
+      });
+    }
+    // ANTI-PIRATARIA: e-mails que caem na MESMA caixa (pontos e +alias do Gmail)
+    // hoje viram contas diferentes e repetem o teste grátis. A coluna email_norm
+    // (ver sql/normalizar-emails.sql) guarda a forma canônica; aqui só comparamos.
+    if (actPub === 'checar_email') {
+      const raw = String((req.body || {}).email || '').trim().toLowerCase();
+      if (!raw.includes('@')) return res.status(400).json({ error: 'E-mail inválido' });
+      const [loc, dom] = raw.split('@');
+      const semAlias = loc.split('+')[0];
+      const norm = (dom === 'gmail.com' || dom === 'googlemail.com')
+        ? semAlias.replace(/\./g, '') + '@gmail.com'
+        : semAlias + '@' + dom;
+      try {
+        const rows = await sbGet(`clientes?email_norm=eq.${encodeURIComponent(norm)}&select=id&limit=1`);
+        return res.status(200).json({ ok: true, duplicado: Array.isArray(rows) && rows.length > 0 });
+      } catch (e) {
+        // se a coluna ainda não existir, não bloqueia ninguém (falha segura)
+        return res.status(200).json({ ok: true, duplicado: false });
+      }
+    }
+
+    if (actPub === 'entrar_lista') {
+      const { nome, email, instagram, nicho } = req.body || {};
+      if (!email || !String(email).includes('@')) return res.status(400).json({ error: 'E-mail inválido' });
+      const dup = await sbGet(`lista_espera?email=eq.${encodeURIComponent(String(email).trim().toLowerCase())}&select=id`);
+      if (Array.isArray(dup) && dup.length) return res.status(200).json({ ok: true, jaEstava: true });
+      await fetch(`${SUPABASE_URL}/rest/v1/lista_espera`, {
+        method: 'POST', headers: H(),
+        body: JSON.stringify({
+          nome: String(nome || '').slice(0, 120),
+          email: String(email).trim().toLowerCase().slice(0, 160),
+          instagram: String(instagram || '').replace('@', '').slice(0, 80),
+          nicho: String(nicho || '').slice(0, 160),
+        }),
+      });
+      return res.status(200).json({ ok: true });
+    }
+
     // 1. Identificar solicitante pelo JWT
     const jwt = (req.headers.authorization || '').replace('Bearer ', '');
     if (!jwt) return res.status(401).json({ error: 'Não autenticado' });
@@ -469,6 +523,12 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, config: cfg });
     }
 
+    if (action === 'listar_espera') {
+      if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
+      const rows = await sbGet(`lista_espera?select=*&order=created_at.desc&limit=500`);
+      return res.status(200).json({ ok: true, lista: Array.isArray(rows) ? rows : [] });
+    }
+
     if (action === 'set_config') {
       if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
       const { chave, valor } = req.body;
@@ -497,7 +557,7 @@ OS 8 AGENTES:
 - Estratégia: monta o calendário e as copies do mês.
 - Criativo: gera as imagens e artes.
 - Publicação (Plus+): agenda posts e cria campanhas de DM automática.
-- Tráfego (Pro): gerencia anúncios (Meta Ads).
+- Tráfego (Pro): consultor de anúncios (Meta Ads) — lê os números reais do cliente, diagnostica e entrega a estratégia; o cliente executa no Gerenciador dele. O JUMP nunca mexe no dinheiro de anúncio do cliente.
 - Editor de Vídeo (Pro): edita Reels.
 
 CICLO MENSAL: Todo dia 25 chega o aviso para gerar a estratégia do mês seguinte. Abra o Agente de Estratégia e clique em gerar.

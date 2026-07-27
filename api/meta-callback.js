@@ -108,6 +108,23 @@ module.exports = async (req, res) => {
       token_expira_em: tokenExpiraEm,   // ← NOVO: para a renovação automática
       via: 'oauth',
     };
+    // ── ANTI-PIRATARIA: uma conta Instagram = uma conta JUMP ────────────────────
+    // E-mail é grátis e infinito; conta Instagram Business com seguidores, não.
+    // Como o JUMP só entrega valor com o perfil conectado, essa é a trava natural
+    // contra quem cicla e-mails para repetir o teste. Também evita a conexão dupla
+    // acidental. Caso legítimo de migração: o admin remove a conexão antiga.
+    const igId = String(meta.ig_id || '');
+    if (igId) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${encodeURIComponent(igId)}&user_id=neq.${uid}&select=user_id&limit=1`, { headers: SBH() });
+        const j = await r.json();
+        if (Array.isArray(j) && j.length) {
+          console.warn('ig ja vinculado a outra conta:', igId, '->', j[0].user_id);
+          return volta('erro=instagram_ja_vinculado');
+        }
+      } catch (e) { /* falha de checagem não pode impedir uma conexão legítima */ }
+    }
+
     // 4. Salvar conexão
     await sbDel('contas_conectadas', `user_id=eq.${uid}&tipo=eq.instagram`);
     await sbIns('contas_conectadas', {

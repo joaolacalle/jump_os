@@ -100,16 +100,43 @@ module.exports = async (req, res) => {
         }
       }
     }
-    if (type === 'BILLING.SUBSCRIPTION.CANCELLED' || type === 'BILLING.SUBSCRIPTION.SUSPENDED') {
+    // ── ASSINATURA ENCERRADA / SUSPENSA / INADIMPLENTE ────────────────────────
+    // 🔴 ANTES: gravava só `status:'cancelado'` e MANTINHA o assinatura_id. Como o guard
+    // do front olhava apenas a existência do assinatura_id, quem cancelava continuava
+    // usando o sistema de graça, para sempre. Agora o status é preciso E o guard o lê.
+    // PAYMENT.SALE.DENIED / PAYMENT_FAILED não eram tratados: cartão recusado = acesso
+    // seguia liberado. Agora marcam inadimplente.
+    const ENCERRA = {
+      'BILLING.SUBSCRIPTION.CANCELLED': 'cancelado',
+      'BILLING.SUBSCRIPTION.SUSPENDED': 'suspenso',
+      'BILLING.SUBSCRIPTION.EXPIRED': 'cancelado',
+      'PAYMENT.SALE.DENIED': 'inadimplente',
+      'BILLING.SUBSCRIPTION.PAYMENT.FAILED': 'inadimplente',
+    };
+    if (ENCERRA[type]) {
       const resource = event.resource || {};
       let userId = '';
       try { userId = JSON.parse(resource.custom_id || '{}').userId || ''; } catch (e) {}
+      // fallback: alguns eventos de pagamento não trazem custom_id — acha pelo id da assinatura
+      if (!userId) {
+        const subId = resource.billing_agreement_id || resource.id || '';
+        if (subId) {
+          try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/clientes?assinatura_id=eq.${encodeURIComponent(subId)}&select=id&limit=1`, { headers: H() });
+            const j = await r.json();
+            if (Array.isArray(j) && j[0]) userId = j[0].id;
+          } catch (e) {}
+        }
+      }
       if (userId) {
         await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${userId}`, {
           method: 'PATCH',
           headers: { ...H(), 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ status: 'cancelado' }),
+          body: JSON.stringify({ status: ENCERRA[type] }),
         });
+        console.log('assinatura', ENCERRA[type], 'user:', userId);
+      } else {
+        console.error('webhook: não identifiquei o usuário para', type);
       }
     }
     return res.status(200).json({ received: true });
