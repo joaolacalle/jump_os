@@ -412,7 +412,11 @@ const AGS=[
     const verP=new URLSearchParams(location.search).get('ver');
   if(verP){document.querySelectorAll('a[href$=".html"]').forEach(a=>{const h=a.getAttribute('href');if(h&&!h.includes('ver=')&&!h.includes('dashboard-supervisor')&&!h.includes('dashboard-admin')&&!h.includes('home')&&!h.includes('login')){a.setAttribute('href',h+(h.includes('?')?'&':'?')+'ver='+verP)}})}
   const q=new URLSearchParams(location.search).get('agente');
-    if(q){const m=AGS.find(a=>q.toLowerCase().includes(a.id)||a.n.toLowerCase()===q.toLowerCase());if(m)selecionar(m.id)}
+  const preQ=new URLSearchParams(location.search).get('q'); // pergunta pré-montada (dashboard → agente), já com os números reais
+    if(q){const m=AGS.find(a=>q.toLowerCase().includes(a.id)||a.n.toLowerCase()===q.toLowerCase());if(m){selecionar(m.id);
+      // pré-preenche o campo — NÃO envia sozinho (o usuário confere e aperta enter; nada de cota sem comando)
+      if(preQ)setTimeout(()=>{const i=document.getElementById('inp');if(i){i.value=preQ;i.focus();i.dispatchEvent(new Event('input'))}},340);
+    }}
     document.getElementById('loading').classList.add('hide');
     // ?exec=<id> — o botão "Executar agora" de ordens.html era um <a href> puro: SÓ NAVEGAVA.
     // A própria página admitia ("abra o agente e toque a tarefa"): dizia EXECUTAR e fazia ABRIR.
@@ -925,6 +929,9 @@ async function executarLoteCriativos(uid,ordem){
   stop.innerHTML='<button class="btn btn-o btn-sm" onclick="pararLote(this)">⏹ Parar geração</button><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:5px">Interrompe após a arte atual. Nenhum token é gasto depois disso.</div>';
   document.getElementById('msgs').appendChild(stop);
   let feitos=0;
+  // TETO DE 40% de foto de pessoa no lote (Engine 6.0: "foto pessoa = 2 em 5"). Backstop do código
+  // caso o modelo fure a distribuição da Estratégia — além do teto, a peça vira conceitual.
+  const capPessoa=Math.max(1,Math.round(pend.length*0.4)); let usadasPessoa=0;
   // HEARTBEAT em payload.batendo (jsonb, já existe — zero migration): marca a hora REAL do início.
   // O cron usa isto para saber se a ordem morreu; created_at não serve (é a criação, não o início).
   if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
@@ -941,6 +948,9 @@ async function executarLoteCriativos(uid,ordem){
       }catch(e){}
     }
     const meta=c.meta||{};
+    const _tv=String(c.tipo_visual||'conceitual');
+    const _querPessoa=(_tv==='pessoal'||_tv==='pessoa_conceito');
+    const _semFP=_querPessoa&&usadasPessoa>=capPessoa; // teto atingido → esta arte sai conceitual
     const w=document.getElementById('msgs');
     const lbl=document.createElement('div');lbl.className='msg a';
     lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — gerando...';
@@ -951,13 +961,17 @@ async function executarLoteCriativos(uid,ordem){
         // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
         // a arte saía só com a headline, que a própria Engine classifica como falha.
         body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:meta.pilar||c.pilar||'',total:1,
-          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote'})
+          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:_semFP})
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
       if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';if(stop.parentElement)stop.remove();return false}
       if(!r.ok||!d||!d.ok){lbl.innerHTML='⚠️ Não consegui gerar "'+JUMP.esc(c.tema||'')+'"'+((d&&d.error)?(': '+d.error):'')+'.';continue}
       feitos++;
-      lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+d.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
+      if(_querPessoa&&!_semFP)usadasPessoa++;
+      // sobrepõe a logo real (o backend já gravou a arte crua no conteúdo; trocamos por a versão com logo)
+      const dL=await comporLogoNaArte(d);
+      if(dL.url!==d.url){try{await JUMP.sb.from('conteudos').update({midia_url:dL.url}).eq('id',c.id)}catch(e){}}
+      lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+dL.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
       w.scrollTop=w.scrollHeight;
       // progresso visível em Tarefas (ex: 3/5), em tempo real
       // bate o heartbeat a cada arte: enquanto o navegador trabalha, o cron não encosta.
@@ -994,9 +1008,10 @@ async function aprovarPropostas(btn){
 async function gerarFichaTecnica(uid){
   const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid);
   const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
-  const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+', cta '+(M.cor_cta||'');
+  const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+(M.paleta_terciaria?(', '+M.paleta_terciaria):'')+', cta '+(M.cor_cta||'');
   const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
   const estilo=M.estilo_visual||'EDITORIAL';
+  const estFoto=M.estilo_fotografico||'', comp=M.tipo_de_composicao||'', obrig=M.elementos_obrigatorios||'', proib=M.elementos_proibidos||'';
   // 🔴 A ficha era GENÉRICA: fundo escuro fixo (mesmo para marca clara) e mockup de post sem
   // relação com o negócio. Agora ela mostra a marca DELE aplicada no mundo DELE.
   const nicho=M.nicho||'', marca=M.marca||'', publico=M.publico_alvo||'';
@@ -1011,6 +1026,10 @@ async function gerarFichaTecnica(uid){
     +'(4) a small area reserved for the brand signature written as plain TEXT'+(marca?(' reading "'+marca+'"'):'')+'. '
     +'Style: '+estilo+', premium, clean editorial presentation, '+(claro?'light neutral background':'dark neutral background')
     +', generous spacing, sharp legible text with correct letter spacing. '
+    +(comp?('Compose the board using a '+comp+' layout. '):'')
+    +(estFoto?('The Instagram post mockup photography follows this style: '+estFoto+'. '):'')
+    +(obrig?('Always feature these brand elements: '+obrig+'. '):'')
+    +(proib?('Never include these elements: '+proib+'. '):'')
     +'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
     +'High quality realistic design presentation board.';
   await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true); // ficha não é post: sem o Engine 6.0
@@ -1396,6 +1415,33 @@ async function carregarLogosUser(){
     if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
   }catch(e){}
 }
+// ── LOGO POR CÓDIGO — o gerador NUNCA desenha a logo (o Engine 6.0 proíbe). Pegamos o PNG REAL
+// de Meus Arquivos e sobrepomos SEM alterar, no navegador (canvas). O projeto não tem package.json,
+// então zero dependência nova e zero risco na Vercel. Qualquer erro (sem logo, CORS/taint) devolve
+// a arte SEM logo — nunca trava a entrega.
+function _carregarImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
+async function comporLogoNaArte(d){
+  try{
+    if(!d||!d.url)return d;
+    if(!(LOGOS_USER&&LOGOS_USER.principal))await carregarLogosUser();
+    const logoUrl=LOGOS_USER&&LOGOS_USER.principal; if(!logoUrl)return d; // sem logo → arte como está
+    const [art,logo]=await Promise.all([_carregarImg(d.url),_carregarImg(logoUrl)]);
+    if(!art||!logo||!art.naturalWidth||!logo.naturalWidth)return d;
+    const cv=document.createElement('canvas');cv.width=art.naturalWidth;cv.height=art.naturalHeight;
+    const cx=cv.getContext('2d');cx.drawImage(art,0,0);
+    // canto inferior direito, ~15% da largura, proporção preservada, margem 4% (a Engine reserva esse canto)
+    const lw=Math.round(cv.width*0.15), lh=Math.round(lw*(logo.naturalHeight/logo.naturalWidth||1)), mg=Math.round(cv.width*0.04);
+    cx.drawImage(logo, cv.width-lw-mg, cv.height-lh-mg, lw, lh);
+    const blob=await new Promise(res=>{try{cv.toBlob(res,'image/png',0.92)}catch(e){res(null)}});
+    if(!blob)return d; // canvas \"tainted\" (bucket sem CORS) → devolve sem logo
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/gerados/arte-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.png';
+    const up=await JUMP.sb.storage.from('user-uploads').upload(path,blob,{upsert:true,contentType:'image/png'});
+    if(up.error)return d;
+    const url=JUMP.sb.storage.from('user-uploads').getPublicUrl(path).data.publicUrl;
+    return Object.assign({},d,{url,path});
+  }catch(e){return d;} // NUNCA trava a arte por causa da logo
+}
 function ajustarPreviaLogo(){
   const box=document.getElementById('vm-previa-box');
   if(!box)return;
@@ -1669,7 +1715,8 @@ async function gerarImagem(req,btn,ehRecriar){
       throw new Error((d.error||'Erro ao gerar')+(d.detalhe?(' — '+d.detalhe):''));
     }
     if(host)host.remove();
-    renderPreview(d,req);
+    const d2=await comporLogoNaArte(d); // sobrepõe a logo real (sem alterar); sem logo/erro → mantém a arte
+    renderPreview(d2,req);
   }catch(e){
     if(btn){btn.disabled=false;btn.innerHTML=ehRecriar?'🔄 Recriar':'✨ Gerar imagem';}
     JUMP.toast(e.message,'err');

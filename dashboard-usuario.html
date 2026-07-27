@@ -526,11 +526,11 @@ function barraDemo(demo){
 function gerarDicas(m,raw){
   const d=[];
   if(m.melhorHorario)d.push({ico:'⏰',txt:`Seu público engaja mais em <b>${m.melhorHorario}</b>.`,btn:'Ajustar calendário',link:'calendario.html'});
-  if(m.melhorFormato)d.push({ico:'🎬',txt:`<b>${m.melhorFormato}</b> é o formato que mais engaja no seu perfil.`,btn:'Pedir mais',link:'agentes.html?agente=estrategia'});
-  if((raw.share_rate||0)>0&&(raw.share_rate||0)<1)d.push({ico:'↗',txt:`Share rate em <b>${raw.share_rate}%</b> — abaixo de 1%. Conteúdo que ensina ou surpreende é mais compartilhado.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia'});
-  if((m.engaj||0)>0&&(m.engaj||0)<5)d.push({ico:'📈',txt:`Engajamento em <b>${m.engaj}%</b>. Ganchos mais fortes na primeira linha costumam elevar essa taxa.`,btn:'Revisar copy',link:'agentes.html?agente=criativo'});
+  if(m.melhorFormato)d.push({ico:'🎬',txt:`<b>${m.melhorFormato}</b> é o formato que mais engaja no seu perfil.`,btn:'Pedir mais',link:'agentes.html?agente=estrategia&q='+encodeURIComponent(`Meu formato que mais engaja é ${m.melhorFormato}. Aproveite isso no plano do próximo mês e me diga como distribuir os posts.`)});
+  if((raw.share_rate||0)>0&&(raw.share_rate||0)<1)d.push({ico:'↗',txt:`Share rate em <b>${raw.share_rate}%</b> — abaixo de 1%. Conteúdo que ensina ou surpreende é mais compartilhado.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia&q='+encodeURIComponent(`Meu share rate está em ${raw.share_rate}% (abaixo de 1%). Que ângulos de conteúdo você sugere pra aumentar os compartilhamentos?`)});
+  if((m.engaj||0)>0&&(m.engaj||0)<5)d.push({ico:'📈',txt:`Engajamento em <b>${m.engaj}%</b>. Ganchos mais fortes na primeira linha costumam elevar essa taxa.`,btn:'Revisar copy',link:'agentes.html?agente=criativo&q='+encodeURIComponent(`Meu engajamento está em ${m.engaj}%. Me ajude a fortalecer os ganchos das legendas e das artes pra elevar essa taxa.`)});
   if(raw.pior_post&&raw.pior_post.cap)d.push({ico:'🔍',txt:`Seu conteúdo de menor desempenho: "${JUMP.esc((raw.pior_post.cap||'').slice(0,50))}". Compare com os campeões.`,btn:'Ver histórico',link:'historico.html'});
-  if((m.tend&&m.tend.seg||0)<0)d.push({ico:'⚠',txt:`Você <b>perdeu seguidores</b> no período. Consistência costuma reverter.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia'});
+  if((m.tend&&m.tend.seg||0)<0)d.push({ico:'⚠',txt:`Você <b>perdeu seguidores</b> no período. Consistência costuma reverter.`,btn:'Falar com Estratégia',link:'agentes.html?agente=estrategia&q='+encodeURIComponent(`Perdi ${Math.abs(m.tend.seg)} seguidor(es) no período (estou com ${m.seguidores||0}). O que ajusto na estratégia pra reverter?`)});
   return d.slice(0,4);
 }
 // ── ADS (Pro): hero de ROAS + KPIs. Não-Pro vê preview BORRADO + CTA (amarra o valor ao Pro)
