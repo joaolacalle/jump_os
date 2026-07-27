@@ -64,6 +64,9 @@ function engine6(M, o) {
   const CTA = M.cor_cta || P1 || '';
   const T1 = M.tipografia_primaria || '', T2 = M.tipografia_secundaria || '';
   const DNA = M.dna_visual || M.estilo_visual || '';
+  // Campos novos do Script A (via Identidade) — refinam a direção de arte de cada marca.
+  const estFoto = M.estilo_fotografico || '', composic = M.tipo_de_composicao || '', agress = M.nivel_de_agressividade || '';
+  const obrig = M.elementos_obrigatorios || '', proib = M.elementos_proibidos || '';
   const paleta = [P1, P2, P3].filter(Boolean).join(', ');
   const reels = String(o.formato || '').toLowerCase().indexOf('reel') >= 0 || String(o.formato || '').toLowerCase().indexOf('story') >= 0;
   const intens = (M.intensidade_visual || 'MEDIA').toUpperCase();
@@ -94,6 +97,14 @@ function engine6(M, o) {
     // CONTEXTO DE NEGÓCIO: sem isto o diretor inventa cenário genérico. Com isto, a cena
     // nasce do mundo real do cliente (consultório, oficina, cozinha, escritório, estúdio...).
     negocio ? ('=== BUSINESS CONTEXT (the scene must belong to THIS world) ===\n' + negocio + '\nEvery physical element you choose — environment, props, textures, wardrobe, objects — must plausibly belong to this business. A generic office/laptop scene is a failure unless this business IS an office business.') : '',
+    // BRAND VISUAL RULES: os campos novos do DNA que direcionam composição, fotografia e energia.
+    [estFoto, composic, agress, obrig, proib].some(Boolean) ? ('=== BRAND VISUAL RULES (from the client\'s DNA — obey them) ===\n' + [
+      estFoto ? ('Photographic style: ' + estFoto + ' — any photographic layer must follow it.') : '',
+      composic ? ('Composition type: ' + composic + ' — lay the piece out this way.') : '',
+      agress ? ('Visual energy / aggressiveness: ' + agress + ' — calibrate contrast, scale and tension to this.') : '',
+      obrig ? ('ALWAYS include these brand elements: ' + obrig + '.') : '',
+      proib ? ('NEVER include these elements: ' + proib + '.') : '',
+    ].filter(Boolean).join('\n')) : '',
     '',
     '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
     'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
@@ -104,6 +115,7 @@ function engine6(M, o) {
     '',
     '=== 4. BRANDING ===',
     'ALLOWED: brand name as plain text, minimalist typographic signature. FORBIDDEN: graphic symbol, icon logo, crest, emblem, complex monogram, invented handwriting.',
+    'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
     '',
     '=== 5. READING PRIORITY ===',
     'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
@@ -368,7 +380,7 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem } = req.body || {};
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem, sem_foto_pessoa } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -465,7 +477,9 @@ module.exports = async (req, res) => {
       // REGRA CARROSSEL: foto/produto reais SÓ no primeiro slide (capa).
       const primeiroSlide = (slide === undefined || slide === null || Number(slide) <= 1);
       // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
-      if ((tipo === 'pessoal' || tipo === 'pessoa_conceito') && primeiroSlide) {
+      // TETO 40%: o lote conta quantas artes já usaram a pessoa e manda sem_foto_pessoa quando estoura
+      // (Engine 6.0: "foto pessoa = 2 slides max em 5"). Aí a peça vira conceitual em vez de saturar.
+      if ((tipo === 'pessoal' || tipo === 'pessoa_conceito') && primeiroSlide && !sem_foto_pessoa) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
         // PERMUTAÇÃO: alterna entre as fotos da pasta (nunca repete a mesma) — usa as mais recentes.
         if (Array.isArray(fotos) && fotos.length) {

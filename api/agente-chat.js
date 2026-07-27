@@ -63,6 +63,7 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"dna_visual","valor":"..."}</memoria>
 <memoria>{"chave":"paleta_primaria","valor":"#HEX,#HEX,#HEX"}</memoria>
 <memoria>{"chave":"paleta_secundaria","valor":"#HEX,#HEX,#HEX"}</memoria>
+<memoria>{"chave":"paleta_terciaria","valor":"#HEX,#HEX (cores de apoio/detalhe; se não houver, repita a secundária)"}</memoria>
 <memoria>{"chave":"cor_cta","valor":"#HEX"}</memoria>
 <memoria>{"chave":"tipografia_primaria","valor":"..."}</memoria>
 <memoria>{"chave":"tipografia_secundaria","valor":"..."}</memoria>
@@ -71,6 +72,11 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"intensidade_visual","valor":"BAIXA/MEDIA/ALTA/EXTREMA (padrão da marca conforme o nicho/arquétipo)"}</memoria>
 <memoria>{"chave":"complexidade_visual","valor":"MINIMAL/BALANCED/DENSE"}</memoria>
 <memoria>{"chave":"temperatura_emocional","valor":"PREMIUM/CALMO/TENSO/URGENTE/LUXUOSO/AGRESSIVO"}</memoria>
+<memoria>{"chave":"estilo_fotografico","valor":"editorial documental / produto limpo / lifestyle / urbano / studio (padrão fotográfico da marca)"}</memoria>
+<memoria>{"chave":"tipo_de_composicao","valor":"centralizada / assimétrica peso esquerdo / assimétrica peso direito / grid modular / livre orgânica"}</memoria>
+<memoria>{"chave":"nivel_de_agressividade","valor":"baixo / médio-baixo / médio / médio-alto / alto (energia visual conforme nicho/arquétipo)"}</memoria>
+<memoria>{"chave":"elementos_obrigatorios","valor":"elementos visuais que SEMPRE aparecem na marca (ou vazio)"}</memoria>
+<memoria>{"chave":"elementos_proibidos","valor":"elementos visuais que NUNCA devem aparecer (ou vazio)"}</memoria>
 <memoria>{"chave":"video_ritmo","valor":"DINAMICO/MODERADO/CALMO (ritmo de corte dos reels conforme o nicho/arquétipo)"}</memoria>
 <memoria>{"chave":"video_legenda","valor":"ANIMADA/MINIMALISTA (estilo de legenda na tela)"}</memoria>
 <memoria>{"chave":"video_rosto","valor":"SIM/NAO (o cliente aparece falando nos vídeos?)"}</memoria>
@@ -81,7 +87,7 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 ⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
 
 FLUXO FINAL (ordem obrigatória):
-1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora.
+1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
 2) Registre as memórias do OS_DATA (tags acima) e finalize a consultoria com <checkin_completo/>.
 3) Dispare a ordem ao Designer para gerar a ficha técnica visual:
 <ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
@@ -148,11 +154,11 @@ Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, m
 Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
-- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando frequência e máx 2 vídeos/semana.
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência e o bloco COTA E CAPACIDADE do contexto (artes/mês, vídeos/mês e perfil de captação). Nunca planeje mais vídeos do que restam nem do que o cliente consegue gravar.
 - RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
 Pergunte se pode produzir os conteúdos.
 
-CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o limite de imagens do plano dele ao definir quantos posts com arte: básico=12 artes/mês, plus=18, pro=25. Não planeje mais artes do que o limite do plano permite.
+CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o limite de imagens do plano ao definir quantos posts com arte: use os números REAIS do bloco "COTA E CAPACIDADE" injetado no contexto (artes/mês e vídeos/mês do plano) — nunca presuma valores fixos. Não planeje mais artes do que restam.
 
 ═══ ETAPA 2 — PRODUÇÃO EM LOTES (após aprovar o plano) ═══
 Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos de uma vez). A cada lote, pergunte se quer o próximo.
@@ -235,7 +241,7 @@ Muita gente chega com o hábito de ferramenta genérica: "faz uma imagem de X". 
 3) OFEREÇA O PRÓXIMO NÍVEL em 1 frase, só quando fizer sentido: "Se quiser, o Agente de Estratégia define o ângulo com base no seu nicho e nos concorrentes — aí a peça vira parte do plano, não uma imagem solta."
 A régua: o cliente deve SENTIR a diferença na arte, não ouvir sobre ela. Uma peça que já sai com a cara da marca ensina mais que qualquer explicação.
 
-Você cria seguindo o OS_DATA/VISUAL_SYSTEM da marca (memórias: paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual, intensidade_visual, complexidade_visual, temperatura_emocional, arquetipo, posicionamento).
+Você cria seguindo o OS_DATA/VISUAL_SYSTEM da marca (memórias: paleta_primaria, paleta_secundaria, paleta_terciaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios, elementos_proibidos, dna_visual, intensidade_visual, complexidade_visual, temperatura_emocional, arquetipo, posicionamento).
 
 QUANDO FOR GERAR UMA IMAGEM, monte o PROMPT em inglês seguindo EXATAMENTE esta arquitetura Content Engine 6.0 (é isso que garante qualidade de agência):
 
@@ -736,12 +742,17 @@ const handler = async (req, res) => {
       const limImg=Number((cli.limites||{}).imagens||0);
       const usImg=Number((cli.uso||{}).imagens||0);
       const rest=Math.max(0,limImg-usImg);
+      const limVid=Number((cli.limites||{}).videos||0);
+      const usVid=Number((cli.uso||{}).videos||0);
+      const restVid=Math.max(0,limVid-usVid);
       const perfil=((cli.preferencias||{}).perfil_video)||'';
       const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
                  medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
                  pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
       cotaTxt='\n\n═══ COTA E CAPACIDADE (OBRIGATÓRIO RESPEITAR) ═══'+
         (limImg?('\nARTES DO PLANO: '+limImg+' imagens/mês · já usadas '+usImg+' · RESTAM '+rest+'. NUNCA planeje mais artes (feed/carrossel/story) do que restam. Distribua ao longo do período — no máximo 1 post por dia, nunca amontoe vários no mesmo dia.'):'')+
+        ('\nVÍDEOS DO PLANO (edição por IA): '+(limVid>0?(limVid+' vídeos/mês · já usados '+usVid+' · RESTAM '+restVid+'. NUNCA planeje mais reels/vídeos editados do que restam NEM do que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA (0/mês). Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
+        '\nANÚNCIOS: não têm cota própria — cada criativo de anúncio (finalidade=anuncio) CONSOME a cota de imagens acima. Planeje anúncios só no plano Pro e desconte-os do total de artes que restam.'+
         (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
         '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).';
     }
@@ -774,7 +785,7 @@ const handler = async (req, res) => {
         if(Array.isArray(wk)&&wk.length){
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
-            '\nDETALHE AGORA, PROATIVAMENTE (não espere o cliente pedir): emita uma tag <detalhe> para CADA id acima, com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy). Assim que você detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
+            '\nDETALHE AGORA, PROATIVAMENTE (não espere o cliente pedir): emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Assim que você detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
         }
       }catch(e){}
     }
@@ -1214,7 +1225,7 @@ const handler = async (req, res) => {
       } catch (e) {}
     }
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
-    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
+    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','paleta_terciaria','estilo_fotografico','tipo_de_composicao','nivel_de_agressividade','elementos_obrigatorios','elementos_proibidos','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
     const memWrites=novas.slice(0,12).map(m=>{
       const ehGlobal=(agente==='identidade')||CHAVES_GLOBAIS.includes(String(m.chave));
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
@@ -1234,11 +1245,15 @@ const handler = async (req, res) => {
     const gastos=((data.usage&&(data.usage.input_tokens+data.usage.output_tokens))||800);
     const novoUso=Object.assign({},uso,{tokens:Number(uso.tokens||0)+gastos});
     // tokens registrados apenas para acompanhamento de custo (admin), sem bloqueio nem aviso
+    // 🔴 ORDEM CRONOLÓGICA: o par (pergunta+resposta) ia num único insert em array → os dois
+    // recebiam created_at=now() IGUAL → empate → o reverse do histórico embaralhava (a resposta
+    // aparecia ACIMA da pergunta ao reabrir o agente). Escalona 1s: pergunta antes, resposta depois.
+    const _tPar=Date.now();
     await Promise.all([
       ...memWrites,
       sbInsert('chat_mensagens',[
-        {user_id:targetId,agente,role:'user',conteudo:mensagem},
-        {user_id:targetId,agente,role:'assistant',conteudo:texto},
+        {user_id:targetId,agente,role:'user',conteudo:mensagem,created_at:new Date(_tPar).toISOString()},
+        {user_id:targetId,agente,role:'assistant',conteudo:texto,created_at:new Date(_tPar+1000).toISOString()},
       ]),
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
