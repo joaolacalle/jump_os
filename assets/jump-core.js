@@ -59,13 +59,52 @@ window.JUMP=(function(){
     }
     if(cliente.bloqueado){await sb.auth.signOut();location.href='login.html';throw new Error('blocked')}
 
-    // GATE DE CHECKOUT: autocadastro (usuário SEM supervisor) precisa assinar (cartão) antes de usar o app.
-    // Passa quem tem assinatura OU cortesia/trial. Sem loop: checkout.html não usa este guard.
+    // ═══ GATE DE ACESSO ═══════════════════════════════════════════════════════
+    // REGRA DE NEGÓCIO: o cartão é pedido DEPOIS do check-in, não na porta.
+    // O check-in (Identidade) é barato (só texto) e é onde a pessoa vê valor —
+    // o DNA da marca dela mapeado. Pedir o cartão ali converte muito melhor do que
+    // pedir para quem ainda não viu nada. Os outros agentes dependem do OS_DATA,
+    // então quem não fez o check-in não consegue produzir nada mesmo: o funil se
+    // limita sozinho, sem precisar de trava extra.
+    //
+    // 🔴 BUGS CORRIGIDOS AQUI:
+    //  (1) antes testava `!cliente.cortesia_ate` — só a EXISTÊNCIA do campo. Trial
+    //      vencido continuava entrando para sempre (o backend já comparava a data;
+    //      os dois discordavam).
+    //  (2) `status` NUNCA era consultado: quem cancelava mantinha o assinatura_id e
+    //      seguia usando o sistema de graça, indefinidamente. Receita vazando calada.
     const _q=new URLSearchParams(location.search);
     const _pagOk=_q.get('pagamento')==='sucesso';
-    if(role==='usuario' && !_q.get('ver') && !_pagOk && !cliente.supervisor_id && !cliente.assinatura_id && !cliente.cortesia_ate){
-      location.href='checkout.html?plano='+((cliente.plano)||'basico');
-      throw new Error('need-checkout');
+    if(role==='usuario' && !_q.get('ver') && !_pagOk && !cliente.supervisor_id){
+      const agora=Date.now();
+      const trialOk=!!(cliente.cortesia_ate && new Date(cliente.cortesia_ate).getTime()>agora);
+      const statusRuim=['cancelado','suspenso','inadimplente'].includes(String(cliente.status||'').toLowerCase());
+      const assinaturaOk=!!cliente.assinatura_id && !statusRuim;
+      const checkinFeito=!!((cliente.onboarding||{}).checkin);
+      // PERFORMANCE: só consulta o modo de acesso para quem SERIA barrado (minoria).
+      // Rodar em toda página, para todo usuário, seria uma ida à rede desnecessária.
+      let listaEspera=false;
+      const seriaBarrado = !assinaturaOk && !trialOk && checkinFeito;
+      if(seriaBarrado){
+        // Em LISTA DE ESPERA ninguém é cobrado nem expulso: não estamos vendendo, então
+        // seria injusto barrar quem entrou cedo. O acesso se estende sozinho.
+        try{
+          const cache=sessionStorage.getItem('jump_modo_acesso');
+          if(cache){ listaEspera=cache==='lista_espera'; }
+          else{
+            const st=await fetch('/api/admin-users',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({action:'status_acesso'})}).then(r=>r.json());
+            listaEspera=st&&st.modo==='lista_espera';
+            try{sessionStorage.setItem('jump_modo_acesso',listaEspera?'lista_espera':'aberto')}catch(e){}
+          }
+        }catch(e){}
+      }
+      window.JUMP._acesso={trialOk,assinaturaOk,checkinFeito,listaEspera,statusRuim};
+      if(seriaBarrado && !listaEspera){
+        const motivo=statusRuim?'assinatura':(cliente.cortesia_ate?'trial':'novo');
+        location.href='checkout.html?plano='+((cliente.plano)||'basico')+'&motivo='+motivo;
+        throw new Error('need-checkout');
+      }
     }
 
     // IMPERSONAÇÃO GLOBAL: supervisor/admin visualizando outra conta via ?ver=ID
