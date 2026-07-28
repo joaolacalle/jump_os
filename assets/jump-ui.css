@@ -3,7 +3,8 @@
 html{overflow-x:hidden}
 :root{
   --ch:#0E0E13;--ch2:#1C1A18;--ch3:#252220;--card:#191922;
-  --g:#A855F7;--g2:#B975F9;--g-rgb:168,85,247;--glow:rgba(var(--g-rgb),.18);
+  --g:#24E0A0;--g2:#4DE9B3;--g-rgb:36,224,160;--glow:rgba(var(--g-rgb),.22);
+  --violet:#8B5CF6;--violet-rgb:139,92,246;--grad:linear-gradient(120deg,#24E0A0 0%,#31C9C0 45%,#8B5CF6 100%);
   --a2:#B975F9;--a3:#FFFFFF;
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
@@ -22,7 +23,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 .sidebar{
   /* variáveis BLINDADAS — o tema do usuário não altera o menu lateral (evita fonte invisível) */
   --t1:#F5F2EC; --t2:rgba(245,242,236,.68); --t3:rgba(245,242,236,.45);
-  --g:#7dd35b; --g-rgb:125,211,91; --bd:rgba(245,242,236,.09); --red:#f87171;
+  --g:#24E0A0; --g-rgb:36,224,160; --bd:rgba(245,242,236,.09); --red:#f87171;
   background:#0F0E0D;border-right:1px solid rgba(245,242,236,.09);padding:22px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .sb-logo{padding:0 8px 20px;border-bottom:1px solid var(--bd);margin-bottom:16px}
 .sb-logo img{height:30px;object-fit:contain}
@@ -30,7 +31,8 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 .sb-link{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:9px;font-size:14px;font-weight:600;color:var(--t2);transition:.2s}
 .sb-link:hover{background:rgba(245,242,236,.04);color:var(--t1)}
 .sb-link.a{background:rgba(var(--g-rgb),.1);color:var(--g);border:1px solid rgba(var(--g-rgb),.2)}
-.sb-ico{font-size:15px;width:20px;text-align:center}
+.sb-ico{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-ico svg{width:19px;height:19px;stroke-width:2}
 .sb-foot{border-top:1px solid var(--bd);padding-top:14px;display:flex;flex-direction:column;gap:3px}
 .sb-user{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;background:rgba(0,0,0,.25)}
 .sb-avatar{width:30px;height:30px;border-radius:50%;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--g);flex-shrink:0}
@@ -74,7 +76,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 @keyframes dotp{0%,100%{opacity:1}50%{opacity:.4}}
 /* BOTÕES */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:9px;font-size:14px;font-weight:800;transition:.22s;letter-spacing:.2px}
-.btn-g{background:var(--g);color:#000}.btn-g:hover{background:var(--g2);transform:translateY(-1px);box-shadow:0 8px 24px var(--glow)}
+.btn-g{background:var(--grad,var(--g));color:#04120c}.btn-g:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 8px 24px var(--glow)}
 .btn-o{border:1px solid var(--bd);color:var(--t1)}.btn-o:hover{border-color:var(--g);color:var(--g)}
 .btn-r{background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.35);color:var(--red)}.btn-r:hover{background:rgba(255,107,107,.2)}
 .btn-sm{padding:7px 13px;font-size:12px;border-radius:7px}
@@ -185,7 +187,7 @@ td strong{color:var(--t1)}
    ficariam invisíveis sobre o menu branco do modo claro. */
 [data-theme="light"] .sidebar{
   --t1:#1A1916; --t2:rgba(26,25,22,.72); --t3:rgba(26,25,22,.45);
-  --g:#6B21A8; --g-rgb:107,33,168; --bd:rgba(20,25,22,.12); --red:#dc2626;
+  --g:#0E9E73; --g-rgb:14,158,115; --bd:rgba(20,25,22,.12); --red:#dc2626;
   border-right:1px solid rgba(20,25,22,.10)}
 [data-theme="light"] .sb-link:hover{background:rgba(20,25,22,.05)}
 [data-theme="light"] .fs-b{background:#F7F4EE}
