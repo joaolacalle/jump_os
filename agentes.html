@@ -955,6 +955,45 @@ async function executarLoteCriativos(uid,ordem){
     const lbl=document.createElement('div');lbl.className='msg a';
     lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — gerando...';
     w.appendChild(lbl);w.scrollTop=w.scrollHeight;
+    // ── CARROSSEL REAL: gera TODOS os slides (capa + demais em ordem), aplica a logo em cada um e
+    //    grava em meta.slides. A publicação (cron) monta o carrossel a partir daí. Foto real só na capa.
+    const _fmt=String(c.formato||'feed').toLowerCase();
+    const _ehCarr=(_fmt.indexOf('carrossel')>=0||_fmt.indexOf('carousel')>=0)&&Number(meta.total_slides||0)>1;
+    if(_ehCarr){
+      const _n=Math.min(10,Math.max(2,Number(meta.total_slides)||4));
+      const _slides=[]; let _cotaFim=false;
+      for(let s=1;s<=_n;s++){
+        if(PARAR){break}
+        lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — carrossel, slide '+s+'/'+_n+'...';
+        try{
+          const rr=await fetch('/api/gerar-imagem',{
+            method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+            body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'carrossel',pilar:meta.pilar||c.pilar||'',total:_n,
+              tamanho:'4:5',tipo:c.tipo_visual||'conceitual',slide:s,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:(s>1?true:_semFP)})
+          });
+          const rawc=await rr.text();let dd;try{dd=JSON.parse(rawc)}catch(_){dd=null}
+          if(dd&&dd.limite){lbl.innerHTML='🚦 '+(dd.error||'Limite de imagens atingido.')+' (carrossel parou no slide '+s+'/'+_n+').';_cotaFim=true;break}
+          if(!rr.ok||!dd||!dd.ok){break}
+          const ddL=await comporLogoNaArte(dd);
+          _slides.push({n:s,url:ddL.url});
+        }catch(e){break}
+      }
+      if(_slides.length){
+        feitos++;
+        if(_querPessoa&&!_semFP)usadasPessoa++;
+        // regrava meta.slides com as versões COM logo (capa = slide 1), preservando headline/oferta
+        try{
+          const{data:cA}=await JUMP.sb.from('conteudos').select('meta').eq('id',c.id).limit(1);
+          const mA=(cA&&cA[0]&&cA[0].meta)||{};
+          await JUMP.sb.from('conteudos').update({midia_url:_slides[0].url,meta:{...mA,slides:_slides,total_slides:_n}}).eq('id',c.id);
+        }catch(e){}
+        lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> · carrossel '+_slides.length+' slide(s)<br><img src="'+_slides[0].url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviado para aprovação · '+feitos+'/'+pend.length+'</div>';
+        w.scrollTop=w.scrollHeight;
+        if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
+      }
+      if(_cotaFim){if(stop.parentElement)stop.remove();return false}
+      continue;
+    }
     try{
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},

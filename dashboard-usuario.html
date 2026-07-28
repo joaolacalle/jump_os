@@ -469,6 +469,8 @@ async function aprovarConteudo(id,btn){
   try{
     const{error}=await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
     if(error)throw error;
+    // dispara a publicação do próprio usuário (na data → publica agora; futuro → espera o cron)
+    try{const _tk=window._ctx&&window._ctx.token;if(_tk)fetch('/api/cron?job=publicar_meu',{method:'POST',headers:{'Authorization':'Bearer '+_tk}}).catch(()=>{})}catch(e){}
     window._apr=(window._apr||[]).filter(x=>String(x.id)!==String(id));
     JUMP.toast('✓ Aprovado — vai pra publicação no horário agendado.');
     renderAprovacoes();

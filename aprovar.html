@@ -405,6 +405,8 @@ async function aprovar(id){
   const c=ITENS.find(i=>i.id===id);
   try{
     await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
+    // dispara a publicação do próprio usuário (se já estiver na data/hora, publica agora; futuro espera o cron)
+    try{fetch('/api/cron?job=publicar_meu',{method:'POST',headers:{'Authorization':'Bearer '+CTX.token}}).catch(()=>{})}catch(e){}
     // Designer aprende: este tipo/tema foi aprovado
     if(c)salvarGosto('referencia_aprovada',`${c.tema||'post'} (${c.tipo_visual||'conceitual'}, ${c.formato||'feed'}) — aprovado pelo cliente`);
     JUMP.toast('✓ Aprovado! Será publicado no horário ideal.');
