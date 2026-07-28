@@ -153,10 +153,11 @@ async function jobSeguranca() {
 
 
 // ═══ PUBLICAÇÃO AUTOMÁTICA NO INSTAGRAM (Plus/Pro pagantes; Básico = manual; trial = trava física) ═══
-async function jobPublicar() {
+async function jobPublicar(soUserId) {
   const agoraISO = new Date().toISOString();
+  const filtroUser = soUserId ? `&user_id=eq.${soUserId}` : '';
   const posts = await fetch(
-    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))&select=id,user_id,tema,formato,copy,midia_url,erro_publicacao,meta&order=data_agendada.asc&limit=25`,
+    `${SUPABASE_URL}/rest/v1/conteudos?status=eq.aprovado&midia_url=not.is.null&or=(data_agendada.lte.${agoraISO},and(data_agendada.is.null,data_sugerida.lte.${agoraISO}))${filtroUser}&select=id,user_id,tema,formato,copy,midia_url,erro_publicacao,meta&order=data_agendada.asc&limit=25`,
     { headers: SBH() }
   ).then(r => r.json()).catch(() => []);
   // ELO DO ADS: arte com finalidade 'anuncio' NUNCA é publicada organicamente — o cliente a
@@ -177,14 +178,27 @@ async function jobPublicar() {
       const igId = conta.meta.ig_id, tk = conta.token;
       const ehVideo = /reel|v[ií]deo|video/i.test(p.formato || '') || /\.(mp4|mov)(\?|$)/i.test(p.midia_url || '');
       const caption = String(p.copy || p.tema || '').slice(0, 2100);
-      // 1) cria o container de mídia
-      const body = ehVideo
-        ? { media_type: 'REELS', video_url: p.midia_url, caption }
-        : { image_url: p.midia_url, caption };
-      const c1 = await fetch(`https://graph.instagram.com/v19.0/me/media`, {
+      // CARROSSEL: os slides ficam em meta.slides (gravados pelo Designer); a capa é o midia_url.
+      const slidesArr = (p.meta && Array.isArray(p.meta.slides)) ? p.meta.slides.filter(s => s && s.url).slice().sort((a, b) => Number(a.n) - Number(b.n)) : [];
+      const ehCarrossel = !ehVideo && slidesArr.length > 1;
+      const criarContainer = (payload) => fetch(`https://graph.instagram.com/v19.0/me/media`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...body, access_token: tk }),
+        body: JSON.stringify({ ...payload, access_token: tk }),
       }).then(r => r.json());
+      // 1) cria o container de mídia (carrossel: filhos em ordem → pai CAROUSEL)
+      let c1;
+      if (ehCarrossel) {
+        const filhos = [];
+        for (const s of slidesArr.slice(0, 10)) { // Instagram: máx 10 itens por carrossel
+          const ch = await criarContainer({ image_url: s.url, is_carousel_item: true });
+          if (!ch.id) throw new Error((ch.error && ch.error.message) || 'slide do carrossel recusado');
+          filhos.push(ch.id);
+        }
+        c1 = await criarContainer({ media_type: 'CAROUSEL', children: filhos, caption });
+      } else {
+        const body = ehVideo ? { media_type: 'REELS', video_url: p.midia_url, caption } : { image_url: p.midia_url, caption };
+        c1 = await criarContainer(body);
+      }
       if (!c1.id) throw new Error((c1.error && c1.error.message) || 'container recusado');
       // 2) vídeo: aguarda o processamento da Meta (até ~50s)
       if (ehVideo) {
@@ -370,6 +384,22 @@ async function jobMetricas() {
 }
 
 module.exports = async (req, res) => {
+  const job0 = (req.query && req.query.job) || '';
+  // DISPARO PELO PRÓPRIO USUÁRIO (o navegador não tem o CRON_SECRET): publica SÓ os posts do
+  // cliente autenticado. Usado quando sai criativo novo — não espera o cron da rodada.
+  if (job0 === 'publicar_meu') {
+    try {
+      const tkUser = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (!tkUser) return res.status(401).json({ error: 'sem token' });
+      const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: KEY(), Authorization: `Bearer ${tkUser}` } }).then(r => r.json()).catch(() => null);
+      const uid = u && u.id;
+      if (!uid) return res.status(401).json({ error: 'token inválido' });
+      const r = await jobPublicar(uid);
+      return res.status(200).json({ ok: true, job: 'publicar_meu', ...r });
+    } catch (e) {
+      return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
+    }
+  }
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
   const qsec = (req.query && req.query.secret) || '';

@@ -184,7 +184,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","slides":4,"avulso":false}</conteudo>
+Para formato "carrossel", inclua "slides" com o NÚMERO de imagens do carrossel (4 a 7; capa + demais em ordem). ATENÇÃO À COTA: cada slide consome 1 imagem do plano — um carrossel de 5 gasta 5 do total de artes. Conte TODOS os slides ao respeitar o limite do bloco COTA E CAPACIDADE. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
 Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
 → "avulso":true (peça específica, vai direto para a arte, SEM aprovação de calendário) quando:
@@ -1002,7 +1003,7 @@ const handler = async (req, res) => {
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, ...(/carrossel|carousel/i.test(String(ct.formato||''))?{total_slides:Math.min(10,Math.max(2,Number(ct.slides)||4))}:{})}
           })
         }).catch(()=>null)));
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
