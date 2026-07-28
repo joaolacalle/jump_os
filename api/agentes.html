@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Meus agentes</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&family=Open+Sans:wght@700&family=Roboto:wght@700&family=Lato:wght@700&family=Poppins:wght@700&family=Raleway:wght@700&family=Work+Sans:wght@700&family=Nunito:wght@700&family=Anton&family=Archivo+Black&family=Permanent+Marker&family=Pacifico&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.chat-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 170px);min-height:480px}
+.ag-list{display:flex;flex-direction:column;gap:7px;overflow:auto;padding-right:3px}
+.ag-it{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:11px;background:var(--card);border:1px solid var(--bd);cursor:pointer;transition:.2s}
+.ag-it:hover:not(.locked){border-color:rgba(var(--ac,var(--g-rgb)),.45);transform:translateX(2px)}
+.ag-it.on{border-color:rgba(var(--ac,var(--g-rgb)),.75);background:rgba(var(--ac,var(--g-rgb)),.09);
+  box-shadow:0 3px 14px rgba(var(--ac,var(--g-rgb)),.12)}
+.ag-it-ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ag-it.locked{opacity:.42;cursor:default}
+.ag-it-ico{font-size:15px}
+.ag-it-n{font-size:13px;font-weight:800;color:var(--t1);line-height:1.15}
+.ag-it-r{font-family:var(--M);font-size:9px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase}
+.ag-lock{margin-left:auto;font-size:10px;font-family:var(--M);color:var(--t3)}
+/* CHAT */
+.chat-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.chat-top{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--bd)}
+.ag-dash{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end;align-items:center;max-width:62%}
+.ag-db{font-family:var(--B);font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid rgba(var(--ac,168,85,247),.35);background:rgba(var(--ac,168,85,247),.1);color:var(--t1);cursor:pointer;transition:.15s;white-space:nowrap}
+.ag-db:hover{background:rgba(var(--ac,168,85,247),.2);border-color:rgba(var(--ac,168,85,247),.6)}
+.ct-ico{border:1.5px solid rgba(168,85,247,.45);transition:.2s}
+@media(max-width:760px){.ag-dash{max-width:100%;margin-left:0;margin-top:8px;justify-content:flex-start}.chat-top{flex-wrap:wrap}}
+.vm-opt{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--t1);cursor:pointer;font-weight:600}
+.vm-opt input{width:17px;height:17px;accent-color:var(--g)}
+.vc-chip{font-family:var(--B);font-size:12.5px;font-weight:600;padding:8px 13px;border:1px solid var(--bd);border-radius:18px;background:transparent;color:var(--t2);cursor:pointer;transition:.15s}
+.vc-chip.on{border-color:var(--g);background:rgba(var(--g-rgb),.1);color:var(--t1)}
+.mem-grp{font-family:var(--M);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:10px 0 5px;font-weight:700}
+.mem-grp:first-child{margin-top:0}
+.ct-ico{width:36px;height:36px;border-radius:10px;background:rgba(var(--g-rgb),.12);border:1px solid rgba(var(--g-rgb),.3);display:flex;align-items:center;justify-content:center;font-size:17px}
+.ct-n{font-family:var(--D);font-size:17px;letter-spacing:.5px;text-transform:uppercase;color:var(--g);line-height:1}
+.ct-s{font-family:var(--M);font-size:9.5px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:2px;display:flex;align-items:center;gap:5px}
+.mem-btn{margin-left:auto;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:1px;padding:7px 12px;border-radius:18px;border:1px solid rgba(var(--g-rgb),.3);color:var(--g);cursor:pointer;transition:.2s}
+.mem-btn:hover{background:rgba(var(--g-rgb),.1)}
+.chat-msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:11px}
+.msg{max-width:78%;padding:11px 14px;border-radius:13px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
+.msg.u{align-self:flex-end;background:rgba(var(--ac,var(--g-rgb)),.16);border:1px solid rgba(var(--ac,var(--g-rgb)),.3);color:var(--t1);border-bottom-right-radius:5px;box-shadow:0 2px 10px rgba(var(--ac,var(--g-rgb)),.07)}
+.msg.a{align-self:flex-start;background:rgba(0,0,0,.22);border:1px solid var(--bd);color:var(--t1);border-bottom-left-radius:5px}
+/* linha do agente: avatar + bolha, para identificar de quem é a fala */
+.msg-row{display:flex;gap:9px;align-items:flex-end;max-width:82%;align-self:flex-start}
+.msg-av{width:27px;height:27px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(var(--ac,var(--g-rgb)),.15);border:1px solid rgba(var(--ac,var(--g-rgb)),.35);margin-bottom:2px}
+.msg-row .msg{max-width:100%}
+[data-theme="light"] .msg.a{background:rgba(0,0,0,.05)}
+.msg-meta{font-family:var(--M);font-size:8.5px;color:var(--t3);margin-top:6px;letter-spacing:1px;text-transform:uppercase}
+.msg-time{font-family:var(--M);font-size:8.5px;color:var(--t3);margin-top:5px;letter-spacing:.5px;opacity:.7}
+.msg.u .msg-time{text-align:right}
+.day-sep{align-self:center;display:flex;align-items:center;gap:10px;width:100%;max-width:360px;margin:5px 0 1px;color:var(--t3);font-family:var(--M);font-size:9px;letter-spacing:1.5px;text-transform:uppercase}
+.day-sep::before,.day-sep::after{content:"";flex:1;height:1px;background:var(--bd)}
+.img-card img{width:100%;border-radius:10px;display:block}
+.img-cota{font-family:var(--M);font-size:9px;color:var(--t3);margin-top:7px;letter-spacing:.5px}
+.img-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.typing{align-self:flex-start;display:flex;gap:5px;padding:13px 16px}
+.typing span{width:7px;height:7px;border-radius:50%;background:rgb(var(--ac,var(--g-rgb)));animation:ty 1.2s infinite}
+.fila-it{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.fila-it:last-of-type{border-bottom:0}
+.fila-b{width:26px;height:26px;border-radius:7px;flex-shrink:0;background:rgba(var(--ac,var(--g-rgb)),.13);border:1px solid rgba(var(--ac,var(--g-rgb)),.3);color:var(--t1);font-size:11px;transition:.15s}
+.fila-b:hover{background:rgba(var(--ac,var(--g-rgb)),.24)}
+.fila-x{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.3)}
+.fila-x:hover{background:rgba(248,113,113,.24)}
+.pulsa{animation:pulsaBtn 1.1s ease-in-out 5;box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.6)}
+@keyframes pulsaBtn{0%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),.55)}70%{box-shadow:0 0 0 11px rgba(var(--ac,var(--g-rgb)),0)}100%{box-shadow:0 0 0 0 rgba(var(--ac,var(--g-rgb)),0)}}
+.typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
+@keyframes ty{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+/* caixa de mensagem: um só campo em pill, com o botão integrado dentro */
+.chat-in{padding:12px 13px 14px;border-top:1px solid var(--bd)}
+.chat-in-wrap{display:flex;align-items:flex-end;gap:8px;padding:6px 6px 6px 15px;border-radius:22px;
+  background:rgba(0,0,0,.28);border:1.5px solid var(--bd);transition:border-color .2s,box-shadow .2s}
+[data-theme="light"] .chat-in-wrap{background:rgba(0,0,0,.035)}
+.chat-in-wrap:focus-within{border-color:rgba(var(--ac,var(--g-rgb)),.55);box-shadow:0 0 0 3px rgba(var(--ac,var(--g-rgb)),.1)}
+.chat-in textarea{flex:1;resize:none;padding:9px 0;border:0;background:transparent;font-size:14px;line-height:1.5;max-height:130px;min-height:20px}
+.chat-in textarea:focus{outline:none;box-shadow:none}
+.send-btn{width:38px;height:38px;border-radius:50%;background:rgb(var(--ac,var(--g-rgb)));color:#fff;font-size:15px;font-weight:900;
+  transition:.2s;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.send-btn:hover:not(:disabled){transform:scale(1.06);box-shadow:0 6px 18px rgba(var(--ac,var(--g-rgb)),.35)}
+.send-btn:disabled{opacity:.35;transform:none;cursor:not-allowed}
+.chat-in-hint{font-family:var(--M);font-size:8.5px;color:var(--t3);letter-spacing:.06em;text-align:center;margin-top:7px;opacity:.75}
+.empty-chat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:24px;text-align:center}
+.ec-ico{font-size:38px}
+.ec-t{font-family:var(--D);font-size:21px;letter-spacing:1px;text-transform:uppercase;color:var(--t1)}
+.ec-b{font-size:13px;color:var(--t3);max-width:380px;line-height:1.6}
+.sug-chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.chip{font-size:12px;font-weight:700;padding:8px 13px;border-radius:18px;border:1px solid rgba(var(--g-rgb),.3);color:var(--g);cursor:pointer;transition:.2s}
+.chip:hover{background:rgba(var(--g-rgb),.1)}
+/* Painel memórias */
+.mem-pane{display:none;border-bottom:1px solid var(--bd);padding:13px 16px;background:rgba(var(--g-rgb),.04);max-height:190px;overflow:auto}
+.mem-pane.show{display:block}
+.mem-it{font-size:12px;color:var(--t2);padding:5px 0;border-bottom:1px solid var(--bd);display:flex;gap:8px}
+.mem-it:last-child{border:none}
+.mem-k{font-family:var(--M);font-size:10px;color:var(--g);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;margin-top:1px}
+@media(max-width:920px){
+  .chat-layout{grid-template-columns:1fr;height:auto}
+  .ag-list{flex-direction:row;overflow-x:auto;padding-bottom:6px}
+  .ag-it{min-width:150px;flex-shrink:0}
+  .chat-card{height:calc(100vh - 290px);min-height:420px}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Acordando os agentes...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd" style="margin-bottom:16px">
+    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1>
+      <div id="trial-pill" style="display:none;margin-top:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(251,191,36,.14));border:1px solid rgba(168,85,247,.4);font-size:12px;font-family:var(--M);color:var(--t1);width:fit-content">✨ <span id="trial-pill-txt">Teste grátis</span></div>
+    </div>
+    <div style="min-width:170px">
+      <div class="bar"><div class="bar-f" id="tok-bar" style="width:0%"></div></div>
+      <div class="bar-l" id="tok-txt">uso do mês</div>
+    </div>
+  </div>
+  <div class="chat-layout">
+    <div class="ag-list" id="ag-list"></div>
+    <div class="chat-card">
+      <div class="chat-top" id="chat-top">
+        <div class="ct-ico" id="ct-ico">🤖</div>
+        <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
+        <div class="ag-dash" id="ag-dash"></div>
+      </div>
+      <div class="mem-pane" id="mem-pane"></div>
+      <div class="mem-pane" id="fila-pane"></div>
+      <div class="chat-msgs" id="msgs">
+        <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
+          <div style="text-align:center;margin-bottom:18px">
+            <div class="ec-t">Por onde você quer começar?</div>
+            <div class="ec-b" style="max-width:440px;margin:5px auto 0">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
+          </div>
+          <div id="onb-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;max-width:720px;margin:0 auto"></div>
+        </div>
+      </div>
+      <div class="chat-in">
+        <div class="chat-in-wrap">
+          <textarea id="inp" rows="1" placeholder="Escreva sua mensagem..." disabled></textarea>
+          <button class="send-btn" id="send" onclick="enviar()" disabled title="Enviar">➤</button>
+        </div>
+        <div class="chat-in-hint">Enter envia · Shift+Enter quebra linha</div>
+      </div>
+    </div>
+  </div>
+
+<!-- MODAL DE PROMOÇÃO/DM (só Publicação) -->
+<div id="promo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharPromo()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px;color:var(--g)">🎯 Nova Promoção / DM</div>
+      <button onclick="fecharPromo()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--t3);line-height:1.55;margin-bottom:16px">Quando alguém comentar a palavra-chave (em posts ou anúncios), o sistema envia automaticamente sua mensagem com o link/oferta no direct.</div>
+
+    <div class="f-group"><label class="f-label">Palavra-chave (gatilho)</label>
+      <input class="f-input" id="promo-kw" placeholder="Ex: EU QUERO" maxlength="40"></div>
+
+    <div class="f-group"><label class="f-label">Mensagem automática no direct</label>
+      <textarea class="f-input" id="promo-msg" rows="3" placeholder="Ex: Oi! Aqui está o link da promoção: ..." maxlength="900"></textarea></div>
+
+    <div class="f-group"><label class="f-label">Link / oferta (opcional)</label>
+      <input class="f-input" id="promo-link" placeholder="https://..."></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px"><label class="f-label">Objetivo</label>
+        <select class="f-input" id="promo-obj">
+          <option value="link">Enviar link</option>
+          <option value="cupom">Enviar cupom</option>
+          <option value="lead">Captar lead</option>
+          <option value="info">Dar informação</option>
+        </select></div>
+      <div style="flex:1;min-width:140px"><label class="f-label">Onde vale</label>
+        <select class="f-input" id="promo-origem">
+          <option value="ambos">Posts e anúncios</option>
+          <option value="organico">Só posts orgânicos</option>
+          <option value="anuncio">Só anúncios</option>
+        </select></div>
+    </div>
+
+    <div id="promo-result" style="font-size:12.5px;margin:10px 0"></div>
+    <div style="display:flex;gap:9px;margin-top:8px">
+      <button class="btn btn-g" id="promo-save" onclick="salvarPromo()" style="flex:1">Criar automação</button>
+      <button class="btn btn-o" onclick="fecharPromo()">Cancelar</button>
+    </div>
+    <div id="promo-list" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- MODAL ENVIAR CONTEÚDO (Publicação → OS p/ Estratégia gerar a copy) -->
+<div id="conteudo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharEnviarConteudo()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">📤 Enviar conteúdo</div>
+      <button onclick="fecharEnviarConteudo()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Suba seu criativo (imagem ou vídeo), defina a data e o tema. O Agente de Estratégia cria a legenda perfeita pra ele — sem você precisar digitar nada no chat.</p>
+
+    <div class="f-group" style="margin-bottom:12px">
+      <label class="f-label">Criativo (imagem ou vídeo)</label>
+      <div id="ct-drop" style="border:2px dashed var(--bd);border-radius:10px;padding:20px;text-align:center;cursor:pointer" onclick="document.getElementById('ct-file').click()">
+        <input type="file" id="ct-file" accept="image/*,video/*" style="display:none" onchange="ctSelecionou(this)">
+        <div id="ct-drop-empty"><div style="font-size:26px;margin-bottom:6px">📎</div><div style="font-size:13px;color:var(--t1)">Clique para enviar</div><div style="font-size:11px;color:var(--t3)">JPG, PNG, MP4 · até 100 MB</div></div>
+        <div id="ct-drop-has" style="display:none"><div style="font-size:22px">✅</div><div id="ct-nome" style="font-size:12.5px;color:var(--g);margin-top:4px"></div></div>
+      </div>
+    </div>
+
+    <div class="f-row" style="display:flex;gap:10px;margin-bottom:12px">
+      <div class="f-group" style="flex:1"><label class="f-label">Data de publicação</label><input class="f-input" id="ct-data" type="date"></div>
+      <div class="f-group" style="flex:1"><label class="f-label">Formato</label>
+        <select class="f-input" id="ct-formato"><option value="feed">Feed</option><option value="carrossel">Carrossel</option><option value="reels">Reels</option><option value="story">Story</option></select>
+      </div>
+    </div>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Tema / assunto do post</label>
+      <textarea class="f-input" id="ct-tema" rows="3" placeholder="Ex: lançamento da nova coleção de inverno, foco no conforto e no preço promocional" maxlength="400"></textarea>
+    </div>
+
+    <div id="ct-result" style="font-size:12.5px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-g" id="ct-save" onclick="enviarConteudo()" style="flex:1">Enviar para o Estrategista</button>
+      <button class="btn btn-o" onclick="fecharEnviarConteudo()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITOR DE VÍDEO (completo, no chat) -->
+<div id="video-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)vmFechar()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:520px;width:100%;padding:24px;max-height:92vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px">🎬 Editar vídeo</div>
+      <button onclick="vmFechar()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:16px">Suba seu vídeo e escolha o que fazer. Eu edito no estilo da sua marca e o resultado fica pronto em alguns minutos.</p>
+
+    <div class="f-group" style="margin-bottom:14px">
+      <label class="f-label">Seu vídeo</label>
+      <div style="border:2px dashed var(--bd);border-radius:10px;padding:18px;text-align:center;cursor:pointer" onclick="document.getElementById('vm-v-file').click()">
+        <input type="file" id="vm-v-file" accept="video/*" style="display:none" onchange="vmUpload(this,'video')">
+        <div style="font-size:24px;margin-bottom:5px">📹</div>
+        <div style="font-size:12.5px;color:var(--t1)">Clique para enviar (MP4, MOV · até 100 MB)</div>
+        <div id="vm-v-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+      </div>
+    </div>
+
+    <!-- PRÉVIA (frame do vídeo + filtro/legenda via CSS, sem gastar render) -->
+    <div id="vm-previa-wrap" style="display:none;margin-bottom:14px">
+      <label class="f-label">Prévia aproximada <span style="opacity:.6;font-weight:400">· como vai ficar (sem gastar créditos)</span></label>
+      <div style="position:relative;width:100%;max-width:220px;margin:6px auto 0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:9/16" id="vm-previa-box">
+        <canvas id="vm-previa-canvas" style="width:100%;height:100%;object-fit:cover;display:block"></canvas>
+        <div id="vm-previa-legenda" style="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;pointer-events:none">
+          <span id="vm-previa-texto" style="background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:13px;padding:3px 7px;border-radius:4px;line-height:1.5;box-decoration-break:clone;-webkit-box-decoration-break:clone">posição da legenda</span>
+        </div>
+      </div>
+      <video id="vm-previa-video" style="display:none" muted playsinline crossorigin="anonymous"></video>
+    </div>
+
+    <div style="font-size:11px;font-family:var(--M);text-transform:uppercase;letter-spacing:1px;color:var(--g);margin:6px 0 8px">O que fazer</div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-legenda" checked onchange="vmToggleSub('vm-sub-legenda',this);ajustarPreviaLegenda()"> 💬 Legendas automáticas</label>
+    <div id="vm-sub-legenda" style="margin:6px 0 12px 24px">
+      <div style="margin-bottom:8px">
+        <label class="f-label" style="font-size:11px">Fonte da legenda</label>
+        <select class="f-input" id="vm-fonte-leg" style="padding:8px;font-size:14px" onchange="ajustarPreviaLegenda()">
+          <option value="" style="font-family:'Montserrat';font-weight:800">Padrão (Montserrat forte)</option>
+          <option value="anton" style="font-family:'Anton'">Anton (impacto)</option>
+          <option value="bebas" style="font-family:'Bebas Neue'">Bebas Neue (condensada)</option>
+          <option value="archivo" style="font-family:'Archivo Black'">Archivo Black</option>
+          <option value="oswald" style="font-family:'Oswald';font-weight:700">Oswald</option>
+          <option value="poppins" style="font-family:'Poppins';font-weight:700">Poppins</option>
+          <option value="roboto" style="font-family:'Roboto';font-weight:700">Roboto</option>
+          <option value="lato" style="font-family:'Lato';font-weight:700">Lato</option>
+          <option value="opensans" style="font-family:'Open Sans';font-weight:700">Open Sans</option>
+          <option value="montserrat" style="font-family:'Montserrat';font-weight:600">Montserrat (média)</option>
+        </select>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;font-family:var(--M)">A prévia na miniatura mostra a fonte, a cor e a posição em tempo real.</div>
+
+      </div>
+      <label class="vm-opt" style="margin:8px 0 6px"><input type="checkbox" id="vm-fundo-on" checked onchange="ajustarPreviaLegenda()"> Fundo/destaque no texto</label>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do texto</label>
+          <input class="f-input" id="vm-cor" type="color" value="#FFFFFF" style="padding:4px;height:38px;width:100%" oninput="ajustarPreviaLegenda()"></div>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Cor do fundo</label>
+          <input class="f-input" id="vm-fundo-cor" type="color" value="#000000" style="padding:4px;height:38px;width:100%" oninput="ajustarPreviaLegenda()"></div>
+      </div>
+    </div>
+
+
+    <div style="margin:10px 0">
+      <div><label class="f-label" style="font-size:11px">Filtro</label>
+        <select class="f-input" id="vm-filtro" style="padding:8px" onchange="aplicarPreviaFiltro()">
+          <option value="">Nenhum</option>
+          <option value="boost">Vívido (boost)</option>
+          <option value="contrast">Mais contraste</option>
+          <option value="lighten">Clarear</option>
+          <option value="darken">Escurecer</option>
+          <option value="muted">Suave (muted)</option>
+          <option value="greyscale">Preto e branco</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-cortar-silencio"> ✂️ Cortar silêncios e pausas (deixa o vídeo dinâmico)</label>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-voz"> 🎙️ Melhorar áudio (reduz ruído de fundo)</label>
+
+    <label class="vm-opt" style="margin-bottom:10px"><input type="checkbox" id="vm-vsl" onchange="ajustarVsl(this)"> 🎯 É uma VSL (legenda mais ao centro)</label>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-trilha" onchange="vmToggleSub('vm-sub-trilha',this)"> 🎵 Trilha sonora</label>
+    <div id="vm-sub-trilha" style="display:none;margin:6px 0 12px 24px">
+      <label class="f-label" style="font-size:11px">Estilo da música (escolho uma variação pra você)</label>
+      <select class="f-input" id="vm-trilha-estilo" style="padding:8px">
+        <option value="animada">⚡ Animada / Energética</option>
+        <option value="calma">🌊 Calma / Suave</option>
+        <option value="reflexiva">🌙 Reflexiva / Emotiva</option>
+        <option value="corporativa">💼 Corporativa / Profissional</option>
+        <option value="inspiradora">✨ Inspiradora / Motivacional</option>
+      </select>
+      <div style="font-size:10.5px;color:var(--t3);margin-top:5px;font-family:var(--M)">A cada vídeo eu escolho uma faixa diferente do estilo, pra não repetir.</div>
+    </div>
+
+    <label class="vm-opt"><input type="checkbox" id="vm-logo" onchange="vmToggleSub('vm-sub-logo',this);ajustarPreviaLogo()"> 🖼️ Logo no canto</label>
+    <div id="vm-sub-logo" style="display:none;margin:6px 0 12px 24px">
+      <div style="font-size:10.5px;color:var(--t3);margin:0 0 8px;font-family:var(--M)">Usa a logo da sua empresa que está em Meus Arquivos → Logos (envie em <b>PNG com fundo transparente</b>). Deixe lá apenas a logo oficial.</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1.4"><label class="f-label" style="font-size:11px">Posição</label>
+          <select class="f-input" id="vm-logo-pos" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
+            <option value="top-right">Canto superior direito</option>
+            <option value="top-left">Canto superior esquerdo</option>
+            <option value="bottom-right">Canto inferior direito</option>
+            <option value="bottom-left">Canto inferior esquerdo</option>
+          </select></div>
+        <div style="flex:1"><label class="f-label" style="font-size:11px">Tamanho</label>
+          <select class="f-input" id="vm-logo-tam" style="padding:8px;font-size:13px" onchange="ajustarPreviaLogo()">
+            <option value="p">Pequena</option>
+            <option value="m" selected>Média</option>
+            <option value="g">Grande</option>
+          </select></div>
+      </div>
+      <div id="vm-l-status" style="font-size:11px;margin-top:5px;font-family:var(--M)"></div>
+    </div>
+
+    <div style="margin:8px 0 12px">
+      <label class="f-label" style="font-size:11px">Formato de saída</label>
+      <div style="display:flex;gap:8px">
+        <button id="vm-fmt-reels" class="vc-chip vc-fmt on" onclick="vmSetFmt('reels')" style="flex:1">📱 Reels (9:16)</button>
+        <button id="vm-fmt-wide" class="vc-chip vc-fmt" onclick="vmSetFmt('wide')" style="flex:1">🖥️ Paisagem (16:9)</button>
+      </div>
+    </div>
+
+    <label class="vm-opt" style="background:rgba(var(--g-rgb),.06);border-radius:8px;padding:9px 11px;margin-bottom:14px"><input type="checkbox" id="vm-guardar"> 💾 Guardar este estilo para os próximos vídeos</label>
+
+    <button class="btn btn-g" id="vm-editar" onclick="vmEditar()" style="width:100%" disabled>🎬 Editar vídeo</button>
+    <button id="vm-diag-btn" onclick="vmDiagnostico()" style="display:none;width:100%;margin-top:8px;background:none;border:1px solid var(--bd);color:var(--t3);font-family:var(--M);font-size:11px;padding:7px;border-radius:8px;cursor:pointer">🔍 Diagnosticar último vídeo (admin)</button>
+    <div id="vm-diag" style="font-family:var(--M);font-size:10.5px;color:var(--t2);margin-top:8px;white-space:pre-wrap;word-break:break-word"></div>
+
+    <div style="margin-top:16px;border-top:1px solid var(--bd);padding-top:12px;text-align:center">
+      <a href="ordens.html" style="font-size:12px;font-family:var(--M);color:var(--g);text-decoration:none">🎬 Ver seus vídeos em Tarefas de Serviço → Vídeos por IA →</a>
+    </div>
+  </div>
+</div>
+<!-- POPUP DE DIAGNÓSTICO DO VÍDEO -->
+<div id="diag-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharDiag()">
+  <div style="background:var(--ch);border:1px solid var(--bd);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:800;color:var(--t1)">🔍 Diagnóstico do vídeo</div>
+      <button onclick="fecharDiag()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Copie este diagnóstico e envie ao suporte para identificarmos o problema.</div>
+    <textarea id="diag-texto" readonly onclick="this.select()" style="width:100%;min-height:240px;font-family:var(--M);font-size:11px;color:var(--t1);background:var(--ch2);border:1px solid var(--bd);border-radius:8px;padding:12px;resize:vertical;line-height:1.5">Carregando...</textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="copiarDiag()" style="flex:1;font-size:13px;font-family:var(--M);background:var(--g);color:#0F0E0D;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700">📋 Copiar diagnóstico</button>
+      <button onclick="fecharDiag()" style="font-size:13px;font-family:var(--M);background:none;border:1px solid var(--bd);color:var(--t2);border-radius:8px;padding:10px 18px;cursor:pointer">Fechar</button>
+    </div>
+  </div>
+</div>
+</main>
+</div>
+<script src="assets/jump-core.js"></script>
+<script src="assets/jump-guia.js"></script>
+<script>
+let CTX=null,AG=null,BUSY=false;
+const LV={basico:1,plus:2,pro:3};
+const AGS=[
+  {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
+  {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
+  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
+  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
+  {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
+];
+(async()=>{
+  try{
+    JUMP.sidebar('agentes');
+    CTX=await JUMP.guard();
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    // pill do período de teste
+    try{
+      const _ct=CTX.viewCliente||CTX.cliente;
+      if(_ct.tipo_cortesia==='trial'&&_ct.cortesia_ate){
+        const dr=Math.ceil((new Date(_ct.cortesia_ate).getTime()-Date.now())/86400000);
+        if(dr>0){document.getElementById('trial-pill').style.display='inline-block';document.getElementById('trial-pill-txt').textContent='Teste grátis — '+dr+(dr===1?' dia restante':' dias restantes');}
+      }
+    }catch(e){}
+    renderList();
+    carregarEstados(); // em paralelo: não trava a abertura da página
+    atualizarUso(Number((CTX.cliente.uso||{}).tokens||0));
+    const verP=new URLSearchParams(location.search).get('ver');
+  if(verP){document.querySelectorAll('a[href$=".html"]').forEach(a=>{const h=a.getAttribute('href');if(h&&!h.includes('ver=')&&!h.includes('dashboard-supervisor')&&!h.includes('dashboard-admin')&&!h.includes('home')&&!h.includes('login')){a.setAttribute('href',h+(h.includes('?')?'&':'?')+'ver='+verP)}})}
+  const q=new URLSearchParams(location.search).get('agente');
+  const preQ=new URLSearchParams(location.search).get('q'); // pergunta pré-montada (dashboard → agente), já com os números reais
+    if(q){const m=AGS.find(a=>q.toLowerCase().includes(a.id)||a.n.toLowerCase()===q.toLowerCase());if(m){selecionar(m.id);
+      // pré-preenche o campo — NÃO envia sozinho (o usuário confere e aperta enter; nada de cota sem comando)
+      if(preQ)setTimeout(()=>{const i=document.getElementById('inp');if(i){i.value=preQ;i.focus();i.dispatchEvent(new Event('input'))}},340);
+    }}
+    document.getElementById('loading').classList.add('hide');
+    // ?exec=<id> — o botão "Executar agora" de ordens.html era um <a href> puro: SÓ NAVEGAVA.
+    // A própria página admitia ("abra o agente e toque a tarefa"): dizia EXECUTAR e fazia ABRIR.
+    // O usuário clicava, caía na conversa e nada acontecia. Agora o link executa a ordem citada.
+    const execId=new URLSearchParams(location.search).get('exec');
+    if(execId){
+      // limpa a URL: F5 não pode re-disparar nada
+      try{history.replaceState({},'',location.pathname+'?agente='+encodeURIComponent(q||'criativo'))}catch(e){}
+      // 🔴 ANTES executava SOZINHO (setTimeout → executarOrdens). O usuário abria o agente e a
+      // tarefa já rodava sem ele pedir — gastando cota sem consentimento. Agora o link LEVA
+      // até a ordem e DESTACA o botão; quem decide apertar é o usuário.
+      setTimeout(()=>destacarOrdem(execId),700);
+    }
+  }catch(e){}
+})();
+function nivel(){return LV[(CTX.viewCliente&&CTX.viewCliente.plano)||CTX.cliente.plano]||1}
+// ── ESTADO POR AGENTE: quanto ele já sabe de você e quando vocês falaram
+let ESTADO={};
+async function carregarEstados(){
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const[{data:mems},{data:msgs}]=await Promise.all([
+      JUMP.sb.from('memorias').select('agente').eq('user_id',uid),
+      JUMP.sb.from('chat_mensagens').select('agente,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(400)
+    ]);
+    const e={};
+    (mems||[]).forEach(m=>{const a=m.agente||'global';(e[a]=e[a]||{}).mem=((e[a].mem)||0)+1});
+    (msgs||[]).forEach(m=>{const a=m.agente;if(!a)return;e[a]=e[a]||{};if(!e[a].ult)e[a].ult=m.created_at});
+    // memórias globais valem para todos (o que a marca sabe de si)
+    const glob=(e.global&&e.global.mem)||0;
+    ESTADO={}; AGS.forEach(a=>{const x=e[a.id]||{};ESTADO[a.id]={mem:(x.mem||0)+glob,ult:x.ult||null}});
+    renderList();
+  }catch(err){ /* estado é enfeite: se falhar, a lista funciona igual */ }
+}
+function quando(iso){
+  if(!iso)return null;
+  const d=Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+  if(d<=0)return 'hoje'; if(d===1)return 'ontem';
+  if(d<7)return 'há '+d+' dias';
+  if(d<30)return 'há '+Math.floor(d/7)+' sem';
+  return 'há '+Math.floor(d/30)+' mes'+(Math.floor(d/30)>1?'es':'');
+}
+// ── ONBOARDING: em vez de uma tela vazia, mostra POR ONDE COMEÇAR
+function renderOnboarding(){
+  const w=document.getElementById('onb-grid'); if(!w)return;
+  const nv=nivel();
+  const libs=AGS.filter(a=>a.min<=nv).slice(0,6);
+  w.innerHTML=libs.map(a=>{
+    const st=ESTADO[a.id]||{}; const q=quando(st.ult);
+    const sug=(a.sug&&a.sug[0])||'';
+    return `<div style="background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:13px 15px;cursor:pointer;transition:.18s;border-left:2px solid rgba(${a.nc||'168,85,247'},.5)"
+      onclick="comecarCom('${a.id}',${JSON.stringify(sug).replace(/"/g,'&quot;')})"
+      onmouseover="this.style.borderColor='rgba(var(--g-rgb),.4)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.borderColor='var(--bd)';this.style.transform='none'">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(${a.nc||'168,85,247'},.15);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
+        <span style="font-size:13px;font-weight:800;color:var(--t1)">${a.n}</span>
+        ${q?`<span style="font-family:var(--M);font-size:8.5px;color:var(--t3);margin-left:auto">${q}</span>`:''}
+      </div>
+      <div style="font-size:11.5px;color:var(--t2);line-height:1.45">${sug?'“'+sug+'”':a.r}</div>
+    </div>`;
+  }).join('');
+}
+function comecarCom(id,txt){
+  selecionar(id);
+  if(txt)setTimeout(()=>{const i=document.getElementById('inp');if(i){i.value=txt;i.focus();i.dispatchEvent(new Event('input'))}},260);
+}
+function renderList(){
+  renderOnboarding();
+  document.getElementById('ag-list').innerHTML=AGS.map(a=>{
+    const ok=a.min<=nivel();
+    const st=ESTADO[a.id]||{}; const q=quando(st.ult);
+    const linha = !ok ? a.r
+      : (st.mem||q) ? [st.mem?st.mem+' memória'+(st.mem>1?'s':''):null, q].filter(Boolean).join(' · ')
+      : a.r;
+    return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" style="--ac:${a.nc||'168,85,247'};border-left:3px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.9':'.45'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
+      <span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
+      <div style="min-width:0"><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${linha}</div></div>
+      ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
+    </div>`;
+  }).join('');
+}
+async function selecionar(id){
+  AG=id;renderList();
+  const a=AGS.find(x=>x.id===id);
+  document.getElementById('ct-ico').textContent=a.ico;
+  document.getElementById('ct-n').textContent='Agente de '+a.n;
+  // cor fixa do agente (não muda com a customização do cliente)
+  const ct=document.getElementById('chat-top');
+  ct.style.setProperty('--ac', a.nc||'168,85,247');
+  // propaga a cor do agente para todo o card: bolhas, digitando, caixa e botão
+  const card=ct.closest('.chat-card'); if(card)card.style.setProperty('--ac', a.nc||'168,85,247');
+  document.getElementById('ct-ico').style.background='rgba('+(a.nc||'168,85,247')+',.14)';
+  document.getElementById('ct-ico').style.borderColor='rgba('+(a.nc||'168,85,247')+',.45)';
+  // mini-dashboard: botões específicos do agente + base (O que aprendi, Incluir tarefa)
+  const btns=(a.btns||[]).map(b=>`<button class="ag-db" id="btn-${b.fn}" onclick="${b.fn}()">${b.i} ${b.t}</button>`).join('');
+  document.getElementById('ag-dash').innerHTML=btns+
+    `<button class="ag-db" id="fila-btn" onclick="toggleFila()">📋 Fila</button>`+
+    `<button class="ag-db" id="mem-btn" onclick="toggleMem()">🧠 O que aprendi</button>`;
+  document.getElementById('mem-pane').classList.remove('show');
+  document.getElementById('fila-pane').classList.remove('show');
+  contarFila(); // mostra quantas tarefas esperam este agente
+  document.getElementById('inp').disabled=false;
+  document.getElementById('send').disabled=false;
+  const w=document.getElementById('msgs');
+  w.innerHTML='';_lastDay=null;
+  /* histórico */
+  try{
+    const{data}=await JUMP.sb.from('chat_mensagens').select('role,conteudo,created_at').eq('user_id',CTX.viewId||CTX.user.id).eq('agente',id).order('created_at',{ascending:false}).limit(60);
+    if(data&&data.length){
+      // vem do banco em ordem decrescente (60 mais RECENTES); exibe em ordem cronológica.
+      data.slice().reverse().forEach(m=>addMsg(m.role==='user'?'u':'a',m.conteudo,null,m.created_at));
+    }else{
+      w.innerHTML=`<div class="empty-chat">
+        <div class="ec-ico">${a.ico}</div>
+        <div class="ec-t">Agente de ${a.n}</div>
+        <div class="ec-b">${id==='identidade'?'Comece pelo check-in: eu conheço seu negócio uma vez e todos os agentes aprendem junto.':'Pronto para trabalhar no seu nicho. O que precisa?'}</div>
+        <div class="sug-chips">${a.sug.map(s=>`<span class="chip" onclick="usarChip(this)">${s}</span>`).join('')}</div>
+      </div>`;
+    }
+  }catch(e){}
+  w.scrollTop=w.scrollHeight;
+  document.getElementById('inp').focus();
+  // A3: retomada de progresso não concluído (conceito/preview de imagem)
+  try{
+    const p=loadPend(id);
+    if(p){
+      const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
+      if(p.tipo==='conceito'&&p.req)mostrarBotaoImagem(p.req,true);
+      else if(p.tipo==='preview'&&p.d)renderPreview(p.d,p.req);
+    }
+  }catch(e){}
+  // 🔴 ERA `if(id==='criativo'||id==='estrategia')`: os outros 5 agentes NUNCA mostravam
+  // suas ordens pendentes. O usuário criava tarefa para o Mercado, abria o Mercado e não
+  // via nada. Agora TODO agente mostra o que tem para fazer.
+  verificarOrdens(id);
+  if(id==='estrategia')atualizarBotaoEstrategia();
+  try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
+}
+function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
+
+async function logChat(role,texto,agente){
+  try{
+    const{error}=await JUMP.sb.from('chat_mensagens').insert({user_id:CTX.viewId||CTX.user.id,agente:agente||AG,role:role,conteudo:texto});
+    if(error)console.error('logChat falhou:',error.message);
+  }catch(e){console.error('logChat erro:',e)}
+}
+// ═══ PRIORIDADE DERIVADA — o schema já tinha a resposta ═══
+// `de_agente` é NOT NULL: existe em TODA ordem, desde sempre. Não criamos coluna
+// `prioridade` de propósito — coluna precisa ser preenchida em todo insert futuro e,
+// no dia em que alguém esquecer, entra o default e a fila quebra EM SILÊNCIO (foi
+// assim que a `conteudos` nos custou semanas). Valor derivado não dessincroniza.
+// Override opcional e sem migration: payload.prioridade (o payload já é jsonb).
+const PRIO_AGENTE={usuario:10,publicacao:6,criativo:5,trafego:5,estrategia:1};
+function prioOrdem(o){
+  const p=Number((o&&o.payload||{}).prioridade);
+  if(Number.isFinite(p))return p;
+  const v=PRIO_AGENTE[String((o&&o.de_agente)||'').toLowerCase()];
+  return (v===undefined)?3:v;
+}
+// GENTE ESPERANDO PASSA NA FRENTE DO ROBÔ. Só empate cai no created_at (FIFO antigo).
+function ordenarPorPrioridade(l){
+  return (l||[]).slice().sort((a,b)=>(prioOrdem(b)-prioOrdem(a))||(new Date(a.created_at||0)-new Date(b.created_at||0)));
+}
+async function verificarOrdens(alvo){
+  try{
+    const{data}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',alvo||'criativo').in('status',['pendente','processando']).order('created_at',{ascending:true});
+    if(!data||!data.length)return;
+    const w=document.getElementById('msgs');
+    const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
+    const box=document.createElement('div');box.className='msg a ordens-box';
+    // A Estratégia executa escrevendo (detalhar a semana); o Criativo executa gerando as artes.
+    const emAndamento=data.some(o=>o.status==='processando');
+    if(emAndamento){
+      const bx=document.createElement('div');bx.className='msg a ordens-box';
+      bx.innerHTML='⏳ <b>Ordem em andamento</b><div style="font-size:12.5px;color:var(--t2);margin-top:6px">'+data.map(o=>'• '+(o.detalhe||o.tarefa)+' — '+(o.progresso||0)+'/'+(o.total||'?')).join('<br>')+'</div><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:7px">Já estou trabalhando nisto. Acompanhe em Tarefas de serviço.</div>';
+      w.appendChild(bx);w.scrollTop=w.scrollHeight;return;
+    }
+    // A fila agora respeita PRIORIDADE, não ordem de chegada.
+    const ords=ordenarPorPrioridade(data);
+    let corpo,acao;
+    if(alvo==='estrategia'){
+      // 🔴 ERA: TODA ordem da Estratégia virava "escrever a copy da semana" — o pedido avulso
+      // do usuário aparecia na lista mas o único botão fazia OUTRA coisa (ficava preso).
+      // Agora: o fluxo semanal tem o botão dele; cada pedido avulso tem execução própria.
+      const semanais=ords.filter(ehFluxoSemanal), avulsas=ords.filter(o=>!ehFluxoSemanal(o));
+      corpo='<div style="margin:6px 0">';
+      if(semanais.length) corpo+='<div style="font-size:12.5px;color:var(--t2);padding:3px 0">'
+        +semanais.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
+      corpo+=avulsas.map(o=>{
+        const seu=prioOrdem(o)>=10;
+        const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
+        return '<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--t2);padding:3px 0">'+
+          '<span style="flex:1;min-width:0">'+tag+JUMP.esc(o.detalhe||o.tarefa)+'</span>'+
+          '<button class="btn btn-o btn-sm" title="Atender esta agora" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
+      }).join('')+'</div>';
+      acao=(semanais.length?'<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>':'')
+        +(avulsas.length?' <button class="btn btn-'+(semanais.length?'o':'g')+' btn-sm" onclick="executarOrdens(this)">⚡ Atender '+(avulsas.length>1?'os pedidos':'o pedido')+'</button>':'');
+    }else{
+      const consult=naturezaDe(alvo)==='consultoria';
+      // BOTÃO POR ORDEM: antes era tudo-ou-nada — um pedido seu ficava preso atrás do lote.
+      corpo='<div style="margin:6px 0">'+ords.map(o=>{
+        const seu=prioOrdem(o)>=10;
+        const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
+        return '<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--t2);padding:3px 0">'+
+          '<span style="flex:1;min-width:0">'+tag+JUMP.esc(o.detalhe||o.tarefa)+'</span>'+
+          '<button class="btn btn-o btn-sm" title="'+(consult?'Atender esta agora':'Executar só esta')+'" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
+      }).join('')+'</div>';
+      // consultoria ATENDE (responde na conversa); produção EXECUTA (gera artefato)
+      acao='<button class="btn btn-g btn-sm" onclick="executarOrdens(this)">'
+        +(consult?'💬 Atender '+(ords.length>1?'todas':'agora'):'⚡ Executar todas')+'</button>';
+    }
+    box.innerHTML='📨 <b>Você tem '+ords.length+' ordem(ns) pendente(s)</b>'+corpo+acao;
+    w.appendChild(box);w.scrollTop=w.scrollHeight;
+  }catch(e){}
+}
+// Estratégia: detalha a semana (copy/headline/roteiro) e, ao final, o backend cria o lote do Designer.
+async function detalharSemana(btn){
+  const box=btn.closest('.ordens-box');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Escrevendo...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('user_id',uid).eq('para_agente','estrategia').eq('tarefa','detalhar_semana').eq('status','pendente');
+    if(box)box.remove();
+    enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='✍️ Escrever a copy da semana';
+    JUMP.toast('Não consegui iniciar. Tente de novo.','err');
+  }
+}
+
+let EXECUTANDO=false, PARAR=false;
+// Freio de emergência do lote de imagens (evita queimar token à toa).
+function pararLote(btn){
+  PARAR=true;
+  try{localStorage.setItem('jump_parar_lote','1')}catch(e){} // vale para as outras telas também
+  if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando após a arte atual...'}
+  JUMP.toast('Vou parar assim que a arte atual terminar.');
+}
+// soId = executa SÓ aquela ordem (botão ▶ da linha). Sem soId = executa todas, por prioridade.
+// ── FILA DO AGENTE: ver, atender uma a uma, ou EXCLUIR o que foi pedido por engano ──
+// Antes a única saída era executar (gastando cota) ou ir até a página Tarefas. Agora o
+// controle está onde a decisão acontece: dentro da conversa com o agente.
+async function contarFila(){
+  try{
+    const b=document.getElementById('fila-btn'); if(!b||!AG)return;
+    const{count}=await JUMP.sb.from('ordens_servico').select('id',{count:'exact',head:true})
+      .eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',AG).in('status',['pendente','processando']);
+    b.innerHTML=count?`📋 Fila <b style="color:rgb(var(--ac,var(--g-rgb)))">${count}</b>`:'📋 Fila';
+  }catch(e){}
+}
+async function toggleFila(){
+  const p=document.getElementById('fila-pane');
+  if(p.classList.contains('show')){p.classList.remove('show');return}
+  document.getElementById('mem-pane').classList.remove('show');
+  p.classList.add('show');
+  p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Carregando a fila...</div>';
+  try{
+    const{data}=await JUMP.sb.from('ordens_servico').select('*')
+      .eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente',AG)
+      .in('status',['pendente','processando']).order('created_at',{ascending:true});
+    if(!data||!data.length){
+      p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Nada na fila deste agente. Tudo em dia.</div>';
+      return;
+    }
+    const consult=naturezaDe(AG)==='consultoria';
+    p.innerHTML='<div class="mem-grp">📋 Tarefas esperando este agente</div>'+data.map(o=>{
+      const seu=(o.de_agente==='usuario'||!o.de_agente);
+      const quem=seu?'Você pediu':'Do Agente de '+JUMP.esc(o.de_agente);
+      const quando=o.created_at?new Date(o.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'';
+      return `<div class="fila-it" id="fila-${o.id}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;color:var(--t1);line-height:1.45">${JUMP.esc(o.detalhe||o.tarefa||'tarefa')}</div>
+          <div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:3px">${quem} · ${quando}${o.status==='processando'?' · em andamento':''}</div>
+        </div>
+        <button class="fila-b" title="${consult?'Atender agora':'Executar agora'}" onclick="executarOrdens(this,'${o.id}')">▶</button>
+        <button class="fila-b fila-x" title="Excluir esta tarefa" onclick="excluirOrdem('${o.id}',this)">✕</button>
+      </div>`;
+    }).join('')
+    +'<div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:9px;line-height:1.5">Pediu por engano? Use o ✕ para remover antes de mandar executar — nada é gerado sem o seu comando.</div>';
+  }catch(e){
+    p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--red)">Não consegui ler a fila agora.</div>';
+  }
+}
+async function excluirOrdem(id,btn){
+  if(!confirm('Remover esta tarefa da fila? O agente não vai executá-la.'))return;
+  btn.disabled=true;btn.textContent='…';
+  try{
+    const{error}=await JUMP.sb.from('ordens_servico').delete().eq('id',id);
+    if(error)throw error;
+    const it=document.getElementById('fila-'+id);
+    if(it){it.style.opacity='.35';it.style.textDecoration='line-through';setTimeout(()=>it.remove(),350)}
+    JUMP.toast('Tarefa removida da fila.');
+    contarFila();
+    // some também o card de ordens do chat, se ficou vazio
+    const box=document.querySelector('.ordens-box');
+    if(box)setTimeout(()=>verificarOrdens(AG).catch(()=>{}),400);
+  }catch(e){
+    btn.disabled=false;btn.textContent='✕';
+    JUMP.toast('Não consegui remover: '+(e.message||'erro'),'err');
+  }
+}
+// Vindo de "Executar agora" (Tarefas): rola até a ordem e pulsa o botão. NÃO executa sozinho.
+function destacarOrdem(id){
+  try{
+    const box=document.querySelector('.ordens-box'); if(!box)return;
+    box.scrollIntoView({behavior:'smooth',block:'center'});
+    const alvo=box.querySelector('button[onclick*="'+id+'"]')||box.querySelector('button');
+    if(!alvo)return;
+    alvo.classList.add('pulsa');
+    const aviso=document.createElement('div');
+    aviso.style.cssText='font-size:11.5px;color:var(--t3);margin-top:7px;line-height:1.5';
+    aviso.textContent='Sua tarefa está aqui — toque no botão para eu atender.';
+    box.appendChild(aviso);
+    setTimeout(()=>alvo.classList.remove('pulsa'),6000);
+  }catch(e){}
+}
+// ── NATUREZA DE CADA AGENTE — decide COMO uma ordem é atendida ────────────────
+// PRODUÇÃO: a ordem vira um artefato (arte, vídeo). O front executa e entrega.
+// CONSULTORIA: a ordem é uma pergunta de trabalho. O agente ATENDE NA CONVERSA.
+// Antes tudo caía num else que GERAVA ARTE — uma tarefa "analise meus concorrentes"
+// mandada ao Mercado viraria uma imagem. Agora cada natureza tem seu caminho.
+const NATUREZA={criativo:'producao',video:'producao',
+  estrategia:'consultoria',mercado:'consultoria',diagnostico:'consultoria',
+  trafego:'consultoria',publicacao:'consultoria',identidade:'consultoria'};
+function naturezaDe(ag){return NATUREZA[ag]||'consultoria'}
+// Ordens do fluxo semanal da Estratégia (têm botão próprio: "Escrever a copy da semana")
+function ehFluxoSemanal(o){
+  const t=String(o.tarefa||'').toLowerCase();
+  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
+}
+async function executarOrdens(btn,soId){
+  if(EXECUTANDO)return; // trava: evita executar a mesma ordem duas vezes
+  EXECUTANDO=true;
+  PARAR=false;
+  const box=document.querySelector('.ordens-box');
+  const b=(btn&&btn.tagName==='BUTTON')?btn:(box?box.querySelector('button'):null);
+  const bHtml=b?b.innerHTML:'';
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Executando...'}
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    // 🔴 ERA `.eq('para_agente','criativo')` FIXO: o usuário pode criar tarefa para 7 agentes,
+    // mas o botão só procurava as do Criativo — as outras 6 nunca executavam (ficavam presas
+    // e o botão dizia "nenhuma ordem pendente"). Agora busca as do AGENTE ABERTO.
+    const alvoExec=AG||'criativo';
+    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente',alvoExec).eq('status','pendente');
+    ords=soId?(ords||[]).filter(o=>o.id===soId):ordenarPorPrioridade(ords);
+    if(!ords||!ords.length){if(box&&!soId)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
+    let executadas=0,travadas=0;
+    // ── CONSULTORIA: a ordem é uma pergunta de trabalho, não um pedido de arte.
+    // O agente atende NA CONVERSA (com todo o contexto dele) e a ordem é fechada.
+    if(naturezaDe(alvoExec)==='consultoria'){
+      const pend=ords.filter(o=>!ehFluxoSemanal(o)); // o fluxo semanal tem botão próprio
+      if(!pend.length){JUMP.toast('Nenhuma tarefa avulsa pendente para este agente.');return}
+      for(const o of pend){
+        const pedido=(o.detalhe||o.tarefa||'').trim();
+        if(!pedido){travadas++;continue}
+        const deQuem=o.de_agente&&o.de_agente!=='usuario'?` (pedido do Agente de ${o.de_agente})`:'';
+        // manda como mensagem: o agente responde com tudo que sabe do cliente
+        await enviarTexto(`[Tarefa de serviço${deQuem}] ${pedido}`);
+        const{error:eC}=await JUMP.sb.from('ordens_servico')
+          .update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
+        if(eC){travadas++;continue}
+        executadas++;
+      }
+      if(executadas){if(box)box.remove();JUMP.toast('✓ '+executadas+' tarefa(s) atendida(s) na conversa.')}
+      else JUMP.toast('Não consegui atender agora — a(s) tarefa(s) continua(m) pendente(s).','err');
+      if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
+      contarFila();
+      return;
+    }
+    // ── PRODUÇÃO (Criativo/Vídeo): a ordem vira um artefato
+    for(const o of ords){
+      const tarefa=String(o.tarefa||'').toLowerCase();
+      const itens=Array.isArray((o.payload||{}).itens)?o.payload.itens.filter(i=>i&&i.brief):[];
+      // ROTEAMENTO POR INTENÇÃO, NÃO POR REMETENTE.
+      // Era `doPlano=(o.de_agente==='estrategia')`: qualquer ordem vinda da Estratégia caía no
+      // LOTE. Mas a Estratégia também pede AVULSOS ("2 criativos avulsos: conceitual X e
+      // pessoa_conceito Y") — isso ia pro lote, procurava conteúdo planejado, não achava,
+      // devolvia 'vazio' e a ordem ficava pendente PARA SEMPRE. Era o loop do print do João.
+      // Agora: tem itens estruturados no payload → são avulsas, ponto. Sem adivinhação.
+      if(itens.length){
+        addMsg('a','🎨 '+itens.length+' arte(s) avulsa(s) nesta ordem. Vou gerar uma por uma.');
+        let feitas=0;
+        for(const it of itens){
+          if(PARAR){addMsg('a','⏸️ Geração interrompida. A ordem continua pendente.');break}
+          const brief=String(it.brief||'').trim(); if(!brief)continue;
+          try{
+            await gerarPorOrdem(brief,String(it.formato||'4:5'),String(it.tipo_visual||'conceitual'),brief,false,{
+              headline:it.headline||'', subheadline:it.subheadline||'', prova:it.prova||'',
+              cta_arte:it.cta_arte||'', oferta:it.oferta||'', copy:it.copy||'', pilar:it.pilar||'', total:1});
+            feitas++;
+            try{await JUMP.sb.from('ordens_servico').update({progresso:feitas,total:itens.length,payload:{...(o.payload||{}),batendo:new Date().toISOString()}}).eq('id',o.id)}catch(e){}
+          }catch(e){
+            // uma arte que falha não pode derrubar as outras nem a ordem inteira
+            addMsg('a','⚠️ Falhou uma arte desta ordem ('+JUMP.esc(e.message||'erro')+'). Sigo para a próxima.');
+          }
+        }
+        if(!feitas){travadas++;continue} // nada saiu: a ordem continua pendente
+      }else if(tarefa.indexOf('criar_avulso')>=0){
+        // 'criar_avulso' SEM itens = a Estratégia emitiu a tag errada (versão antiga do prompt).
+        // Cai no briefing cru em vez de virar ordem-zumbi no lote.
+        const brief=o.detalhe||o.tarefa||'post';
+        addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
+        await gerarPorOrdem(brief,'4:5','conceitual',brief);
+      }else if(o.de_agente==='estrategia'&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
+        const ok=await executarLoteCriativos(uid,o);
+        // FALHA ISOLADA: antes era `return` — UMA ordem travada abortava a fila INTEIRA e o
+        // seu pedido, que estava atrás, nunca rodava. Agora ela fica pendente e as outras seguem.
+        if(ok===false||ok==='vazio'){travadas++;continue}
+      }else if(tarefa.indexOf('ficha')>=0||tarefa.indexOf('identidade')>=0){
+        await gerarFichaTecnica(uid);
+      }else{
+        // ORDEM AVULSA: manda o briefing CRU como tema — o Diretor de Arte escreve a headline
+        // (máx 8 palavras) e a cena. Antes o briefing inteiro virava a headline.
+        const brief=o.detalhe||o.tarefa||'post';
+        addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
+        await gerarPorOrdem(brief,'4:5','conceitual',brief);
+      }
+      const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
+      if(eUpd)console.error('update ordem falhou:',eUpd.message);
+      executadas++;
+      // CADEIA: se a ordem faz parte de uma sequência (ex: Tráfego→Estratégia→Criativo→Tráfego), dispara a próxima etapa
+      try{
+        const pl=o.payload||{};const seq=pl.sequencia||[];const et=(pl.etapa!=null?pl.etapa:0)+1;
+        if(seq[et]){
+          await JUMP.sb.from('ordens_servico').insert({user_id:uid,de_agente:'criativo',para_agente:seq[et],tarefa:'substituir_criativo',detalhe:'Substituir o criativo da campanha pelo novo (aprovado): '+(pl.brief||o.detalhe||''),status:'pendente',ordem_pai:o.id,payload:{...pl,etapa:et}});
+          addMsg('a','➡️ Enviei a próxima etapa para o Agente de Tráfego: substituir o criativo da campanha.');
+        }
+      }catch(e){}
+    }
+    if(executadas&&!travadas){if(box)box.remove();JUMP.toast('✓ Ordem executada!')}
+    else if(executadas){JUMP.toast('✓ '+executadas+' executada(s) · '+travadas+' continua(m) pendente(s).')}
+    else JUMP.toast('Nada foi executado — a(s) ordem(ns) continua(m) pendente(s).','err');
+    if(executadas||travadas)await verificarOrdens(alvoExec).catch(()=>{});
+    contarFila();
+  }catch(e){
+    JUMP.toast(e.message||'Erro ao executar ordens','err');
+  }finally{
+    EXECUTANDO=false;
+    if(b&&b.parentElement){b.disabled=false;b.innerHTML=bHtml||'⚡ Executar todas'}
+  }
+}
+// O botão da pendência: não manda o usuário descobrir a frase mágica nem trocar de agente
+// na mão — abre o Estrategista com o pedido já escrito e enviado. Um clique, não uma instrução.
+async function pedirCopyDaSemana(btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo o Estrategista...'}
+  try{
+    await selecionar('estrategia');           // troca de agente e monta o chat
+    await new Promise(r=>setTimeout(r,350));  // deixa o AG assentar antes de disparar
+    await enviarTexto('Escrever a copy da semana'); // enviarTexto: não depende do campo de input
+  }catch(e){
+    JUMP.toast('Abra o Agente de Estratégia e peça "Escrever a copy da semana".','err');
+    if(btn){btn.disabled=false;btn.innerHTML='✍️ Escrever a copy agora'}
+  }
+}
+// LOTE DA SEMANA: lê os conteúdos planejados no calendário e gera a arte de CADA UM (com os dados reais).
+// Retorna false se parou por cota (a ordem continua pendente).
+async function executarLoteCriativos(uid,ordem){
+  const limData=new Date(Date.now()+7*864e5).toISOString();
+  let{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or('data_sugerida.lte.'+limData+',data_sugerida.is.null').order('data_sugerida',{ascending:true}).limit(10);
+  // O Designer só faz IMAGEM: reels/vídeo ficam com o cliente (upload) e não entram no lote.
+  pend=(pend||[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
+  // A ARTE VEM DEPOIS DA COPY: sem headline/copy a arte sai vazia (o tema inteiro viraria a headline).
+  const semCopy=pend.filter(c=>!(c.copy&&String(c.copy).trim())||!((c.meta&&c.meta.headline)||'').trim());
+  pend=pend.filter(c=>(c.copy&&String(c.copy).trim())&&((c.meta&&c.meta.headline)||'').trim());
+  if(semCopy.length){
+    // PENDÊNCIA VISÍVEL, NÃO RECADO. Antes isto era só um texto: "peça ao Estrategista" e a
+    // ordem sumia de cena, pendente em silêncio. Recado não resolve — botão resolve.
+    // O usuário não deve ter que traduzir um aviso em ação, nem saber a frase mágica.
+    const nomes=semCopy.slice(0,3).map(c=>'• '+JUMP.esc(String(c.tema||c.titulo||'post').slice(0,60))).join('<br>');
+    addMsg('a','<b>✋ '+semCopy.length+' post(s) sem copy</b><br><span style="color:var(--t2);font-size:13px">A arte nasce do texto: sem headline e copy, a arte sai vazia.</span><br><br>'
+      +'<span style="font-size:13px;color:var(--t2)">'+nomes+(semCopy.length>3?'<br>• +'+(semCopy.length-3)+' outro(s)':'')+'</span><br><br>'
+      +'<button class="btn btn-g btn-sm" onclick="pedirCopyDaSemana(this)">✍️ Escrever a copy agora</button>');
+    if(!pend.length)return 'vazio';
+  }
+  if(!pend||!pend.length){
+    // DIAGNÓSTICO: em vez de um "não encontrei" genérico, diz EXATAMENTE o que há no calendário.
+    let motivo='';
+    try{
+      const{data:tudo}=await JUMP.sb.from('conteudos').select('status,copy,meta,data_sugerida,formato,midia_url').eq('user_id',uid);
+      const t=tudo||[];
+      const prop=t.filter(c=>c.status==='proposto').length;
+      const rasc=t.filter(c=>c.status==='rascunho'&&!c.midia_url);
+      const semC=rasc.filter(c=>!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())).length;
+      const fora=rasc.filter(c=>c.data_sugerida&&new Date(c.data_sugerida).getTime()>Date.now()+7*864e5);
+      const prox=fora.map(c=>String(c.data_sugerida).slice(0,10)).sort()[0];
+      const jaTem=t.filter(c=>c.midia_url).length;
+      if(!t.length)motivo='O calendário está vazio — peça o plano ao Agente de Estratégia.';
+      else if(prop){
+        // SAÍDA DIRETA: se a tarefa de aprovação sumiu, os posts ficariam presos p/ sempre.
+        const w2=document.getElementById('msgs');
+        const d2=document.createElement('div');d2.className='msg a';
+        d2.innerHTML='⏸ <b>Ainda não posso gerar as artes.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">O Agente de Estratégia deixou <b>'+prop+' post(s)</b> esperando a sua aprovação. Assim que você aprovar, eles entram no calendário e eu libero as artes.</div><button class="btn btn-g btn-sm" onclick="aprovarPropostas(this)">✓ Aprovar a estratégia</button>';
+        w2.appendChild(d2);w2.scrollTop=w2.scrollHeight;
+        return 'vazio';
+      }
+      else if(fora.length)motivo=fora.length+' post(s) estão agendados para depois desta semana (o próximo em '+(prox||'—')+'). Eu gero por semana — na data do lote eles entram.';
+      else if(semC)motivo=semC+' post(s) ainda estão sem copy/headline. Peça ao Estrategista "Escrever a copy da semana" — a arte só sai depois do texto.';
+      else if(jaTem)motivo='Todas as artes desta semana já foram geradas ('+jaTem+'). Veja em Aprovações.';
+      else motivo='Não há posts de imagem pendentes para esta semana (reels ficam com você, por upload).';
+    }catch(e){motivo='Não encontrei conteúdos de imagem pendentes para esta semana.'}
+    addMsg('a','📋 '+motivo+' Deixei a ordem pendente.');
+    return 'vazio';
+  }
+  addMsg('a','📨 Encontrei '+pend.length+' conteúdo(s) planejado(s) para esta semana. Vou gerar as artes na sequência.');
+  addMsg('a','📎 Sobre as suas fotos: eu alterno entre as imagens da sua pasta (nunca repito a mesma no lote) e, nos criativos de produto, uso sempre as MAIS RECENTES de "Meus Arquivos". Se quiser trocar o que aparece nas artes, é só subir fotos novas — as últimas entram primeiro.',null);
+  PARAR=false;try{localStorage.removeItem('jump_parar_lote')}catch(e){}
+  const stop=document.createElement('div');stop.className='msg a';
+  stop.innerHTML='<button class="btn btn-o btn-sm" onclick="pararLote(this)">⏹ Parar geração</button><div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:5px">Interrompe após a arte atual. Nenhum token é gasto depois disso.</div>';
+  document.getElementById('msgs').appendChild(stop);
+  let feitos=0;
+  // TETO DE 40% de foto de pessoa no lote (Engine 6.0: "foto pessoa = 2 em 5"). Backstop do código
+  // caso o modelo fure a distribuição da Estratégia — além do teto, a peça vira conceitual.
+  const capPessoa=Math.max(1,Math.round(pend.length*0.4)); let usadasPessoa=0;
+  // HEARTBEAT em payload.batendo (jsonb, já existe — zero migration): marca a hora REAL do início.
+  // O cron usa isto para saber se a ordem morreu; created_at não serve (é a criação, não o início).
+  if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
+  for(const c of pend){
+    // FREIO: para na hora se o usuário mandou parar OU se a ordem foi REMOVIDA em Tarefas.
+    if(PARAR||(function(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}})()){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
+    if(ordem&&ordem.id){
+      try{
+        const{data:chk}=await JUMP.sb.from('ordens_servico').select('status').eq('id',ordem.id).limit(1);
+        if(!chk||!chk.length||chk[0].status==='concluida'){
+          addMsg('a','⏹ A ordem foi removida — parei as gerações aqui. '+feitos+' arte(s) foram criadas antes disso.');
+          if(stop.parentElement)stop.remove();return 'vazio';
+        }
+      }catch(e){}
+    }
+    const meta=c.meta||{};
+    const _tv=String(c.tipo_visual||'conceitual');
+    const _querPessoa=(_tv==='pessoal'||_tv==='pessoa_conceito');
+    const _semFP=_querPessoa&&usadasPessoa>=capPessoa; // teto atingido → esta arte sai conceitual
+    const w=document.getElementById('msgs');
+    const lbl=document.createElement('div');lbl.className='msg a';
+    lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — gerando...';
+    w.appendChild(lbl);w.scrollTop=w.scrollHeight;
+    // ── CARROSSEL REAL: gera TODOS os slides (capa + demais em ordem), aplica a logo em cada um e
+    //    grava em meta.slides. A publicação (cron) monta o carrossel a partir daí. Foto real só na capa.
+    const _fmt=String(c.formato||'feed').toLowerCase();
+    const _ehCarr=(_fmt.indexOf('carrossel')>=0||_fmt.indexOf('carousel')>=0)&&Number(meta.total_slides||0)>1;
+    if(_ehCarr){
+      const _n=Math.min(10,Math.max(2,Number(meta.total_slides)||4));
+      const _slides=[]; let _cotaFim=false;
+      for(let s=1;s<=_n;s++){
+        if(PARAR){break}
+        lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — carrossel, slide '+s+'/'+_n+'...';
+        try{
+          const rr=await fetch('/api/gerar-imagem',{
+            method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+            body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'carrossel',pilar:meta.pilar||c.pilar||'',total:_n,
+              tamanho:'4:5',tipo:c.tipo_visual||'conceitual',slide:s,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:(s>1?true:_semFP)})
+          });
+          const rawc=await rr.text();let dd;try{dd=JSON.parse(rawc)}catch(_){dd=null}
+          if(dd&&dd.limite){lbl.innerHTML='🚦 '+(dd.error||'Limite de imagens atingido.')+' (carrossel parou no slide '+s+'/'+_n+').';_cotaFim=true;break}
+          if(!rr.ok||!dd||!dd.ok){break}
+          const ddL=await comporLogoNaArte(dd);
+          _slides.push({n:s,url:ddL.url});
+        }catch(e){break}
+      }
+      if(_slides.length){
+        feitos++;
+        if(_querPessoa&&!_semFP)usadasPessoa++;
+        // regrava meta.slides com as versões COM logo (capa = slide 1), preservando headline/oferta
+        try{
+          const{data:cA}=await JUMP.sb.from('conteudos').select('meta').eq('id',c.id).limit(1);
+          const mA=(cA&&cA[0]&&cA[0].meta)||{};
+          await JUMP.sb.from('conteudos').update({midia_url:_slides[0].url,meta:{...mA,slides:_slides,total_slides:_n}}).eq('id',c.id);
+        }catch(e){}
+        lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> · carrossel '+_slides.length+' slide(s)<br><img src="'+_slides[0].url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviado para aprovação · '+feitos+'/'+pend.length+'</div>';
+        w.scrollTop=w.scrollHeight;
+        if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
+      }
+      if(_cotaFim){if(stop.parentElement)stop.remove();return false}
+      continue;
+    }
+    try{
+      const r=await fetch('/api/gerar-imagem',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
+        // a arte saía só com a headline, que a própria Engine classifica como falha.
+        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:meta.pilar||c.pilar||'',total:1,
+          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:_semFP})
+      });
+      const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
+      if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';if(stop.parentElement)stop.remove();return false}
+      if(!r.ok||!d||!d.ok){lbl.innerHTML='⚠️ Não consegui gerar "'+JUMP.esc(c.tema||'')+'"'+((d&&d.error)?(': '+d.error):'')+'.';continue}
+      feitos++;
+      if(_querPessoa&&!_semFP)usadasPessoa++;
+      // sobrepõe a logo real (o backend já gravou a arte crua no conteúdo; trocamos por a versão com logo)
+      const dL=await comporLogoNaArte(d);
+      if(dL.url!==d.url){try{await JUMP.sb.from('conteudos').update({midia_url:dL.url}).eq('id',c.id)}catch(e){}}
+      lbl.innerHTML='🎨 <b>'+JUMP.esc(c.tema||'Arte')+'</b><br><img src="'+dL.url+'" style="width:100%;border-radius:10px;margin-top:6px"><div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:5px">enviada para aprovação · '+feitos+'/'+pend.length+'</div>';
+      w.scrollTop=w.scrollHeight;
+      // progresso visível em Tarefas (ex: 3/5), em tempo real
+      // bate o heartbeat a cada arte: enquanto o navegador trabalha, o cron não encosta.
+      if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
+    }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
+  }
+  if(stop.parentElement)stop.remove();
+  addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
+  try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
+  return true;
+}
+// Promove as propostas → calendário e dispara a copy da semana. Funciona MESMO se a tarefa
+// de aprovação tiver sido removida (antes os posts ficavam presos em 'proposta' para sempre).
+async function aprovarPropostas(btn){
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aprovando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const{data:props}=await JUMP.sb.from('conteudos').select('id,formato,data_sugerida').eq('user_id',uid).eq('status','proposto');
+    if(!props||!props.length){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';return JUMP.toast('Nada para aprovar.','err')}
+    await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
+    // conclui a tarefa de aprovação, se existir
+    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('user_id',uid).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao');
+    // cria a ordem da copy (dedup)
+    const{data:ja}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','detalhar_semana').in('status',['pendente','processando']).limit(1);
+    if(!(ja&&ja.length)){
+      const h=new Date();
+      await JUMP.sb.from('ordens_servico').insert({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+props.length+' post(s))',status:'pendente',total:props.length,progresso:0,payload:{periodo:'Semana '+Math.ceil(h.getDate()/7)+' · '+h.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}});
+    }
+    btn.parentElement.innerHTML='✅ <b>Estratégia aprovada!</b><div style="font-size:12px;color:var(--t2);margin-top:6px">Os '+props.length+' post(s) estão no calendário. Agora abra o <b>Agente de Estratégia</b> e clique em <b>Escrever a copy da semana</b> — depois volte aqui para as artes.</div>';
+    JUMP.toast('✓ Estratégia aprovada!');
+  }catch(e){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';JUMP.toast('Não consegui aprovar. Tente de novo.','err')}
+}
+// FICHA TÉCNICA (só quando a ordem pede identidade visual)
+async function gerarFichaTecnica(uid){
+  const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid);
+  const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
+  const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+(M.paleta_terciaria?(', '+M.paleta_terciaria):'')+', cta '+(M.cor_cta||'');
+  const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
+  const estilo=M.estilo_visual||'EDITORIAL';
+  const estFoto=M.estilo_fotografico||'', comp=M.tipo_de_composicao||'', obrig=M.elementos_obrigatorios||'', proib=M.elementos_proibidos||'';
+  // 🔴 A ficha era GENÉRICA: fundo escuro fixo (mesmo para marca clara) e mockup de post sem
+  // relação com o negócio. Agora ela mostra a marca DELE aplicada no mundo DELE.
+  const nicho=M.nicho||'', marca=M.marca||'', publico=M.publico_alvo||'';
+  const claro=/claro|light|branco|off-?white|minimal/i.test(String(M.dna_visual||'')+String(M.paleta_primaria||''));
+  const promptFicha='Professional brand identity guide board (brand style sheet) for '
+    +(marca?('the brand "'+marca+'"'):'this brand')+(nicho?(', a business in: '+nicho):'')+'. '
+    +'Layout as an organized grid showing: (1) the color palette as labeled swatches ('+paleta+'); '
+    +'(2) typography samples ('+fontes+') with a headline sample and a body sample; '
+    +'(3) ONE realistic Instagram post mockup shown inside a phone frame — the mockup content must be about '
+    +(nicho||'this business')+(publico?(' speaking to '+publico):'')+', using EXACTLY the palette colors above, '
+    +'so the client sees how their brand looks applied to a real post of their own niche; '
+    +'(4) a small area reserved for the brand signature written as plain TEXT'+(marca?(' reading "'+marca+'"'):'')+'. '
+    +'Style: '+estilo+', premium, clean editorial presentation, '+(claro?'light neutral background':'dark neutral background')
+    +', generous spacing, sharp legible text with correct letter spacing. '
+    +(comp?('Compose the board using a '+comp+' layout. '):'')
+    +(estFoto?('The Instagram post mockup photography follows this style: '+estFoto+'. '):'')
+    +(obrig?('Always feature these brand elements: '+obrig+'. '):'')
+    +(proib?('Never include these elements: '+proib+'. '):'')
+    +'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
+    +'High quality realistic design presentation board.';
+  await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true); // ficha não é post: sem o Engine 6.0
+  await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
+  await logChat('assistant','Gerei sua ficha técnica visual a partir do seu DNA do Negócio. Veja acima.','criativo');
+  mostrarRetornoFicha();
+}
+
+function mostrarRetornoFicha(){
+  const w=document.getElementById('msgs');
+  const box=document.createElement('div');box.className='msg a retorno-ficha';
+  box.innerHTML='✅ <b>Ficha técnica concluída.</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">Quer aplicar estas cores da sua marca na sua dashboard (botões, gráficos, menu)? Você pode manter o visual atual se preferir.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g btn-sm" onclick="aplicarTemaOSData(this)">Aplicar na minha dashboard</button><button class="btn btn-o btn-sm" onclick="manterTema(this)">Manter atual</button></div>';
+  w.appendChild(box);w.scrollTop=w.scrollHeight;
+}
+function _hex(s){const m=(s||'').match(/#?[0-9a-fA-F]{6}/);return m?(m[0][0]==='#'?m[0]:'#'+m[0]):null}
+function _lum(h){h=h.replace('#','');const r=parseInt(h.slice(0,2),16)/255,g=parseInt(h.slice(2,4),16)/255,b=parseInt(h.slice(4,6),16)/255;return 0.2126*r+0.7152*g+0.0722*b}
+function _lighten(h,amt){h=h.replace('#','');let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);r=Math.min(255,Math.round(r+255*amt));g=Math.min(255,Math.round(g+255*amt));b=Math.min(255,Math.round(b+255*amt));return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function aplicarTemaOSData(btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aplicando...'}
+  try{
+    const{data:mems,error}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id);
+    if(error)throw error;
+    const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
+    const p1=(M.paleta_primaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
+    const p2=(M.paleta_secundaria||'').split(',').map(s=>_hex(s)).filter(Boolean);
+    const cta=_hex(M.cor_cta);
+    // Composição harmônica completa a partir do OS_DATA
+    const c1=cta||p1[0]||'#A855F7';                 // principal = cor de ação/CTA
+    const c2=p2[0]||p1[1]||'#B975F9';                // secundária = apoio
+    const c3=p1[1]||p2[1]||cta||'#A855F7';           // terciária = detalhes
+    // fundo: usa a cor mais escura da paleta; cards um tom acima
+    const escuras=[...p1,...p2].filter(h=>_lum(h)<0.35).sort((a,b)=>_lum(a)-_lum(b));
+    const c4=escuras[0]||'#141312';                  // fundo do conteúdo (mais escura)
+    const c5=_lighten(c4,0.06);                      // cards = fundo levemente clareado
+    const tema={c1,c2,c3,c4,c5,bg:'escuro'};
+    JUMP.applyTheme(tema);
+    if(CTX.viewId&&CTX.viewId!==CTX.user.id){
+      await JUMP.api('set_tema',{user_id:CTX.viewId,tema},CTX.token);
+    }else{
+      const{error:e2}=await JUMP.sb.from('clientes').update({tema}).eq('id',CTX.user.id);
+      if(e2)throw e2;
+    }
+    if(CTX.viewCliente)CTX.viewCliente.tema=tema; else CTX.cliente.tema=tema;
+    JUMP.toast('🎨 Dashboard personalizada! Cor principal: '+c1);
+    await logChat('user','[Escolhi: aplicar as cores da marca na dashboard]','criativo');
+    await logChat('assistant','Apliquei as cores da sua marca na dashboard (principal '+c1+'). Você pode reajustar em Configurações quando quiser.','criativo');
+  }catch(e){console.error('aplicar tema:',e);JUMP.toast('Erro ao aplicar: '+(e.message||'tente nas Configurações'),'err')}
+  finalizarRota1(btn);
+}
+async function manterTema(btn){JUMP.toast('Visual atual mantido.');await logChat('user','[Escolhi: manter o visual atual da dashboard]','criativo');await logChat('assistant','Perfeito, mantive o visual atual. Sua identidade está registrada e disponível para os próximos agentes.','criativo');finalizarRota1(btn);}
+async function finalizarRota1(btn){
+  const box=document.querySelector('.retorno-ficha');if(box)box.remove();
+  try{const ob=Object.assign({},CTX.cliente.onboarding||{},{identidade:true});await JUMP.sb.from('clientes').update({onboarding:ob}).eq('id',CTX.viewId||CTX.user.id);CTX.cliente.onboarding=ob;}catch(e){}
+  const w=document.getElementById('msgs');
+  const m=document.createElement('div');m.className='msg a';
+  m.innerHTML='🎯 <b>Identidade concluída!</b> Próximo passo: vá ao <b>Agente de Mercado</b> para analisarmos seus concorrentes e oportunidades do nicho.';
+  w.appendChild(m);w.scrollTop=w.scrollHeight;
+  await logChat('assistant','Identidade concluída! Próximo passo: vá ao Agente de Mercado para analisarmos seus concorrentes e oportunidades do nicho.','criativo');
+}
+async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
+  const w=document.getElementById('msgs');
+  const lbl=document.createElement('div');lbl.className='msg a';
+  lbl.innerHTML='🎨 <b>'+titulo+'</b> — gerando...';
+  w.appendChild(lbl);w.scrollTop=w.scrollHeight;
+  const r=await fetch('/api/gerar-imagem',{
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+    // 🔴 O bloco de texto (headline/subheadline/prova/cta_arte/oferta) PRECISA chegar à Engine:
+    // ela declara que "renderizar só a headline quando há subheadline/prova é uma FALHA".
+    // Antes só o `prompt` era enviado — a Estratégia preenchia tudo e o executor jogava fora.
+    body:JSON.stringify(Object.assign({prompt,tamanho,tipo,slide:1,reload:false,engine:semEngine?false:undefined,ver_id:CTX.viewId||null,origem:'expressa'},txt||{}))
+  });
+  const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Falha ao gerar '+titulo)}
+  if(!r.ok)throw new Error((d.error||'Erro')+(d.detalhe?(' — '+d.detalhe):''));
+  // LOGO real só em POSTS (não na ficha técnica: brand board, semEngine=true, tem assinatura tipográfica).
+  // O backend já registrou a arte crua na biblioteca; se aplicarmos a logo, apontamos esse registro pra ela.
+  let dOut=d;
+  if(semEngine!==true){
+    dOut=await comporLogoNaArte(d);
+    if(dOut.url!==d.url&&d.path){try{const uid=CTX.viewId||CTX.user.id;await JUMP.sb.from('uploads').update({url:dOut.url,path:dOut.path}).eq('user_id',uid).eq('path',d.path)}catch(e){}}
+  }
+  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+dOut.url+'" style="width:100%;border-radius:10px;margin-top:6px"><button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+dOut.url+'\',this)">⬇ Baixar</button>';
+  w.scrollTop=w.scrollHeight;
+}
+let _lastDay=null;
+function _fmtDia(dt){
+  const hoje=new Date(),ont=new Date(Date.now()-86400000);
+  const igual=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  if(igual(dt,hoje))return'Hoje';
+  if(igual(dt,ont))return'Ontem';
+  return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace(/\./g,'');
+}
+function _diaSep(dt){
+  const chave=dt.getFullYear()+'-'+dt.getMonth()+'-'+dt.getDate();
+  if(chave===_lastDay)return;
+  _lastDay=chave;
+  const w=document.getElementById('msgs');
+  const s=document.createElement('div');s.className='day-sep';s.textContent=_fmtDia(dt);
+  w.appendChild(s);
+}
+function addMsg(cls,txt,meta,ts){
+  const w=document.getElementById('msgs');
+  const e=document.getElementById('empty');if(e)e.remove();
+  const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
+  const dt=ts?new Date(ts):new Date();
+  _diaSep(dt);
+  const d=document.createElement('div');
+  d.className='msg '+cls;
+  d.textContent=txt;
+  if(meta){const m=document.createElement('div');m.className='msg-meta';m.textContent=meta;d.appendChild(m)}
+  const tm=document.createElement('div');tm.className='msg-time';tm.textContent=dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});d.appendChild(tm);
+  if(cls==='a'){
+    // fala do agente: avatar ao lado, para saber de quem é sem ler o rótulo
+    const ag=AGS.find(x=>x.id===AG);
+    const row=document.createElement('div');row.className='msg-row';
+    const av=document.createElement('div');av.className='msg-av';av.textContent=(ag&&ag.ico)||'🤖';
+    row.appendChild(av);row.appendChild(d);
+    w.appendChild(row);
+  } else w.appendChild(d);
+  w.scrollTop=w.scrollHeight;
+  return d;
+}
+// ── EDITOR DE VÍDEO no chat: subir vídeo + escolher o que fazer ──
+let videoChatUrl=null;
+// ── EDITOR DE VÍDEO (modal completo no chat) ──
+let vmVideoUrl=null, vmTrilhaUrl=null, vmLogoUrl=null, vmFormato='reels';
+function vmFechar(){
+  document.getElementById('video-overlay').style.display='none';
+  // limpa prévias (evita vídeo do template tocando de fundo e logo antigo ao reabrir)
+  try{const lg=document.getElementById('vm-previa-logo');if(lg)lg.style.display='none';}catch(e){}
+}
+// Mostra erro do vídeo numa caixa SELECIONÁVEL com botão copiar
+function mostrarErroVideo(msg, objErro){
+  const det = objErro ? (typeof objErro==='string'?objErro:JSON.stringify(objErro,null,2)) : '';
+  const full = msg + (det && det!=='{}' ? ('\n\nDetalhes técnicos:\n'+det) : '');
+  let box=document.getElementById('vm-erro-box');
+  if(!box){
+    box=document.createElement('div');box.id='vm-erro-box';
+    box.style.cssText='margin:10px 0;padding:12px;border:1px solid var(--red);border-radius:10px;background:rgba(248,113,113,.08)';
+    const ed=document.getElementById('vm-v-status');
+    if(ed&&ed.parentNode)ed.parentNode.parentNode.insertBefore(box,ed.parentNode.nextSibling);
+  }
+  box.innerHTML='<div style="font-size:12px;color:var(--red);font-weight:700;margin-bottom:6px">⚠️ Ocorreu um erro</div>'+
+    '<textarea readonly onclick="this.select()" style="width:100%;min-height:70px;font-family:var(--M);font-size:11px;color:var(--t1);background:var(--ch2);border:1px solid var(--bd);border-radius:6px;padding:8px;resize:vertical">'+JUMP.esc(full)+'</textarea>'+
+    '<button onclick="copiarErroVideo()" style="margin-top:6px;font-size:11px;font-family:var(--M);background:var(--g);color:#0F0E0D;border:none;border-radius:6px;padding:6px 12px;cursor:pointer">📋 Copiar erro</button>';
+  box.style.display='block';
+}
+function copiarErroVideo(){
+  const ta=document.querySelector('#vm-erro-box textarea');
+  if(!ta)return;
+  ta.select();
+  try{
+    navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Erro copiado!'),()=>{document.execCommand('copy');JUMP.toast('Erro copiado!');});
+  }catch(e){try{document.execCommand('copy');JUMP.toast('Erro copiado!');}catch(_){}}
+}
+// PRÉVIA: captura um frame do vídeo local e mostra com filtro/legenda (CSS, sem render)
+function duracaoVideo(file){
+  return new Promise((resolve,reject)=>{
+    try{
+      const v=document.createElement('video');v.preload='metadata';
+      v.onloadedmetadata=()=>{URL.revokeObjectURL(v.src);resolve(v.duration||0);};
+      v.onerror=()=>{URL.revokeObjectURL(v.src);reject(new Error('meta'));};
+      v.src=URL.createObjectURL(file);
+    }catch(e){reject(e);}
+  });
+}
+function gerarPreviaVideo(file){
+  const vid=document.getElementById('vm-previa-video');
+  const canvas=document.getElementById('vm-previa-canvas');
+  const wrap=document.getElementById('vm-previa-wrap');
+  try{
+    const url=URL.createObjectURL(file);
+    vid.src=url;
+    vid.onloadeddata=()=>{
+      // pega um frame ~1s (ou no início se o vídeo for curtíssimo)
+      try{vid.currentTime=Math.min(1,(vid.duration||2)/2);}catch(e){vid.currentTime=0;}
+    };
+    vid.onseeked=()=>{
+      const ctx=canvas.getContext('2d');
+      canvas.width=vid.videoWidth||720;canvas.height=vid.videoHeight||1280;
+      ctx.drawImage(vid,0,0,canvas.width,canvas.height);
+      wrap.style.display='block';
+      aplicarPreviaFiltro();
+      ajustarPreviaLegenda();
+      URL.revokeObjectURL(url);
+    };
+  }catch(e){/* prévia é opcional; se falhar, ignora */}
+}
+const FILTROS_CSS={
+  '':'none', boost:'saturate(1.5) contrast(1.1)', contrast:'contrast(1.4)',
+  lighten:'brightness(1.3)', darken:'brightness(0.7)', muted:'saturate(0.6)', greyscale:'grayscale(1)'
+};
+function aplicarPreviaFiltro(){
+  const canvas=document.getElementById('vm-previa-canvas');
+  if(!canvas)return;
+  const fEl=document.getElementById('vm-filtro');
+  const f=fEl?fEl.value:'';
+  canvas.style.filter=FILTROS_CSS[f]||'none';
+}
+function ajustarPreviaLegenda(){
+  const leg=document.getElementById('vm-previa-legenda');
+  const txtEl=document.getElementById('vm-previa-texto');
+  if(!leg||!txtEl)return;
+  const temLeg=document.getElementById('vm-legenda')&&document.getElementById('vm-legenda').checked;
+  leg.style.display=temLeg?'block':'none';
+  if(!temLeg)return;
+  // VSL = legenda mais ao centro; senão embaixo
+  const vsl=document.getElementById('vm-vsl')&&document.getElementById('vm-vsl').checked;
+  leg.style.bottom=vsl?'30%':'12%';
+  // fonte escolhida (simulação fiel: família, peso e caixa alta)
+  const FONTES_LEG={'':["'Montserrat',sans-serif",800],'montserrat':["'Montserrat',sans-serif",600],'anton':["'Anton',sans-serif",400],'bebas':["'Bebas Neue',sans-serif",400],'archivo':["'Archivo Black',sans-serif",400],'oswald':["'Oswald',sans-serif",700],'poppins':["'Poppins',sans-serif",700],'roboto':["'Roboto',sans-serif",700],'lato':["'Lato',sans-serif",700],'opensans':["'Open Sans',sans-serif",700]};
+  const fsel=document.getElementById('vm-fonte-leg');
+  const fdef=FONTES_LEG[(fsel&&fsel.value)||'']||FONTES_LEG[''];
+  txtEl.style.fontFamily=fdef[0];txtEl.style.fontWeight=fdef[1];txtEl.style.textTransform='uppercase';
+  txtEl.textContent='Seu vídeo com legenda';
+  // cor escolhida
+  const corEl=document.getElementById('vm-cor');
+  if(corEl)txtEl.style.color=corEl.value||'#fff';
+  // fundo da legenda
+  const fundoOn=document.getElementById('vm-fundo-on');
+  const fundoCor=document.getElementById('vm-fundo-cor');
+  if(fundoOn&&!fundoOn.checked){txtEl.style.background='transparent';txtEl.style.textShadow='0 1px 3px rgba(0,0,0,.9)';}
+  else{txtEl.style.background=(fundoCor?fundoCor.value:'#000')+'99';txtEl.style.textShadow='none';}
+}
+function ajustarVsl(cb){ajustarPreviaLegenda();}
+function vmToggleSub(id,cb){document.getElementById(id).style.display=cb.checked?'block':'none';}
+function vmSetFmt(f){vmFormato=f;document.getElementById('vm-fmt-reels').classList.toggle('on',f==='reels');document.getElementById('vm-fmt-wide').classList.toggle('on',f==='wide');}
+
+async function vmUpload(inp,tipo){
+  const f=inp.files[0];if(!f)return;
+  // LIMITE DE DURAÇÃO: vídeo no máximo 1 minuto (controla custo e evita erro)
+  if(tipo==='video'){
+    const dur=await duracaoVideo(f).catch(()=>null);
+    if(dur!==null&&dur>62){ // 62s = 60 + folga p/ arredondamento
+      JUMP.toast('Vídeo muito longo. O máximo é 1 minuto.','err');
+      inp.value='';
+      const st=document.getElementById('vm-v-status');
+      if(st){st.textContent='⚠️ Seu vídeo tem '+Math.round(dur)+'s. Corte para até 60s (no CapCut/galeria) e envie de novo.';st.style.color='var(--red)';}
+      return;
+    }
+  }
+  if(tipo==='video')gerarPreviaVideo(f); // prévia local (sem custo)
+  const lim=tipo==='video'?100:tipo==='trilha'?30:10;
+  if(f.size>lim*1024*1024){JUMP.toast('Arquivo muito grande (máx '+lim+' MB)','err');inp.value='';return;}
+  const statusEl=document.getElementById(tipo==='video'?'vm-v-status':tipo==='trilha'?'vm-t-status':'vm-l-status');
+  statusEl.textContent='Enviando...';statusEl.style.color='var(--t3)';
+  // valida sessão antes (causa comum de erro: token expirado)
+  if(!CTX||!CTX.user){statusEl.textContent='Erro: sessão expirada. Recarregue a página e entre de novo.';statusEl.style.color='var(--red)';return;}
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const bucket=tipo==='logo'?'user-uploads':'videos-crus';
+    const path=uid+'/'+tipo+'_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const upRes=await JUMP.sb.storage.from(bucket).upload(path,f,{upsert:true});
+    if(upRes.error){
+      const em=upRes.error.message||JSON.stringify(upRes.error);
+      mostrarErroVideo('Erro no upload: '+em, upRes.error);
+      statusEl.textContent='';
+      console.error('Storage upload error:',upRes.error);
+      return;
+    }
+    const url=JUMP.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    // registra na tabela uploads (não bloqueia se falhar)
+    try{await JUMP.sb.from('uploads').insert({user_id:uid,categoria:'videos',nome:f.name,url,path});}catch(ie){console.warn('insert uploads (ignorado):',ie);}
+    if(tipo==='video'){vmVideoUrl=url;document.getElementById('vm-editar').disabled=false;}
+    else if(tipo==='trilha')vmTrilhaUrl=url;
+    else vmLogoUrl=url;
+    statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--g)';
+  }catch(e){
+    const msg=(e&&e.message)||String(e)||'erro desconhecido';
+    mostrarErroVideo('Erro: '+msg, e);
+    statusEl.textContent='';
+    console.error('Upload erro completo:',e);
+  }
+}
+
+async function vmEditar(){
+  if(!vmVideoUrl){JUMP.toast('Suba o vídeo primeiro','err');return;}
+  const ops={formato:vmFormato};
+  if(document.getElementById('vm-legenda').checked){
+    ops.legenda=true;
+    ops.legenda_cor=document.getElementById('vm-cor').value;
+    ops.legenda_fundo=document.getElementById('vm-fundo-on').checked;
+    ops.legenda_fundo_cor=document.getElementById('vm-fundo-cor').value;
+  }
+  const flt=document.getElementById('vm-filtro').value;if(flt)ops.filtro=flt;
+  if(document.getElementById('vm-vsl').checked)ops.vsl=true;
+  if(document.getElementById('vm-voz').checked)ops.melhorar_voz=true;
+  if(document.getElementById('vm-cortar-silencio').checked)ops.cortar_silencio=true;
+  const PESO_LEG={'':800,'montserrat':600,'anton':900,'bebas':900,'archivo':900,'oswald':700,'poppins':700,'roboto':700,'lato':700,'opensans':700};
+  const fleg=document.getElementById('vm-fonte-leg');if(fleg&&ops.legenda)ops.legenda_peso=PESO_LEG[fleg.value]||800;
+
+  if(document.getElementById('vm-trilha').checked)ops.trilha_estilo=document.getElementById('vm-trilha-estilo').value;
+  if(document.getElementById('vm-logo').checked){
+    const logoUrl=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
+    if(logoUrl){ops.logo_url=logoUrl;ops.logo_posicao=document.getElementById('vm-logo-pos').value;ops.logo_tamanho=document.getElementById('vm-logo-tam').value;}
+    else{addMsg('a','⚠️ Você marcou <b>Logo no canto</b>, mas não encontrei sua logo. Suba um PNG com fundo transparente em <b>Meus Arquivos → Logos</b> e edite novamente — desta vez o vídeo segue sem a logo.');}
+  }
+  const guardar=document.getElementById('vm-guardar').checked;
+
+  const btn=document.getElementById('vm-editar');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  // fecha o popup IMEDIATAMENTE ao clicar (o acompanhamento aparece no chat/Ordens)
+  vmFechar();
+  addMsg('a','🎬 Recebi seu vídeo! Aguarde alguns minutos enquanto edito. Para acompanhar e baixar, vá em <b>Tarefas de Serviço → Vídeos por IA</b>.');
+  // renova o token (evita 'Não autenticado' por sessão expirada durante o teste)
+  let tk=CTX.token;
+  try{const{data}=await JUMP.sb.auth.getSession();if(data&&data.session&&data.session.access_token){tk=data.session.access_token;CTX.token=tk;}}catch(e){}
+  try{
+    const r=await fetch('/api/video-editar',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body:JSON.stringify({origem_url:vmVideoUrl,operacoes:ops,titulo:'Vídeo '+new Date().toLocaleDateString('pt-BR'),ver_id:CTX.viewId||null,guardar_estilo:guardar})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){
+      JUMP.toast('🎬 Vídeo em processamento');
+      if(d.aviso)addMsg('a','⚠️ '+d.aviso);
+      if(guardar)addMsg('a','✓ Guardei seu estilo de edição (fonte, cor e cortes) para os próximos vídeos ficarem com a sua cara.');
+      // reset
+      vmVideoUrl=null;vmTrilhaUrl=null;vmLogoUrl=null;
+      ['vm-v-status','vm-t-status','vm-l-status'].forEach(i=>document.getElementById(i).textContent='');
+      iniciarPollingVideo();
+    }else{
+      if(d&&d.error){
+        JUMP.toast('Erro ao editar','err');
+        addMsg('a','⚠️ '+d.error);
+        console.error('Editar vídeo - resposta:',d);
+      }else{
+        addMsg('a','⏳ Seu vídeo entrou na fila de edição. Acompanhe em <b>Tarefas de Serviço → Vídeos por IA</b>.');
+        iniciarPollingVideo();
+      }
+    }
+  }catch(e){
+    // a conexão oscilou, mas na maioria dos casos o servidor já recebeu e está processando
+    addMsg('a','⏳ Aguarde: seu vídeo está sendo processado. Acompanhe em <b>Tarefas de Serviço → Vídeos por IA</b>. Se ele não aparecer lá em ~2 minutos, envie novamente.');
+    iniciarPollingVideo();
+    console.error(e);
+  }
+  btn.disabled=false;btn.textContent='🎬 Editar vídeo';
+}
+
+async function baixarVideoJob(jobId,salvoUrl,shotUrl){
+  const url=salvoUrl||shotUrl;
+  if(!url){JUMP.toast('Vídeo indisponível','err');return;}
+  JUMP.toast('Baixando...');
+  await JUMP.baixarArquivo(url,'video_jump_'+jobId+'.mp4');
+  try{await JUMP.api('video_baixado',{job_id:jobId},CTX.token);}catch(e){}
+}
+async function vmDiagnostico(){
+  document.getElementById('diag-overlay').style.display='flex';
+  const ta=document.getElementById('diag-texto');
+  ta.value='Consultando o Shotstack...';
+  try{
+    const d=await JUMP.api('video_diagnostico',{},CTX.token);
+    const diag=d.diagnostico||d;
+    // monta um texto legível + o JSON completo
+    let txt='=== DIAGNÓSTICO DO VÍDEO ===\n\n';
+    if(diag.job){
+      txt+='Status: '+(diag.job.status||'?')+'\n';
+      txt+='Erro: '+(diag.job.erro||'nenhum')+'\n';
+      txt+='Criado: '+(diag.job.criado||'?')+'\n\n';
+    }
+    if(diag.source){
+      txt+='--- Transcrição (source) ---\n';
+      txt+='Status do vídeo: '+(diag.source.status||'?')+'\n';
+      if(diag.source.transcription)txt+='Transcrição: '+(diag.source.transcription.status||'?')+'\n';
+      txt+='\n';
+    }
+    if(diag.render){
+      txt+='--- Render ---\n';
+      txt+='Status: '+(diag.render.status||'?')+'\n';
+      if(diag.render.error)txt+='Erro do render: '+JSON.stringify(diag.render.error)+'\n';
+      txt+='\n';
+    }
+    txt+='--- JSON completo ---\n'+JSON.stringify(diag,null,2);
+    ta.value=txt;
+  }catch(e){ta.value='Erro ao consultar: '+(e.message||e);}
+}
+function fecharDiag(){document.getElementById('diag-overlay').style.display='none';}
+function copiarDiag(){
+  const ta=document.getElementById('diag-texto');ta.select();
+  try{
+    navigator.clipboard.writeText(ta.value).then(()=>JUMP.toast('Diagnóstico copiado!'),()=>{document.execCommand('copy');JUMP.toast('Copiado!');});
+  }catch(e){try{document.execCommand('copy');JUMP.toast('Copiado!');}catch(_){}}
+}
+let LOGOS_USER={principal:null};
+async function carregarLogosUser(){
+  try{
+    const uid=CTX.viewId||CTX.cliente&&CTX.cliente.id||CTX.user&&CTX.user.id;
+    const {data}=await JUMP.sb.from('uploads').select('*').eq('user_id',uid).in('categoria',['logo','logos']).order('created_at',{ascending:false});
+    const arr=data||[];
+    if(arr[0])LOGOS_USER.principal=arr[0].url; // logo mais recente da empresa
+  }catch(e){}
+}
+// ── LOGO POR CÓDIGO — o gerador NUNCA desenha a logo (o Engine 6.0 proíbe). Pegamos o PNG REAL
+// de Meus Arquivos e sobrepomos SEM alterar, no navegador (canvas). O projeto não tem package.json,
+// então zero dependência nova e zero risco na Vercel. Qualquer erro (sem logo, CORS/taint) devolve
+// a arte SEM logo — nunca trava a entrega.
+function _carregarImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
+async function comporLogoNaArte(d){
+  try{
+    if(!d||!d.url)return d;
+    if(!(LOGOS_USER&&LOGOS_USER.principal))await carregarLogosUser();
+    const logoUrl=LOGOS_USER&&LOGOS_USER.principal; if(!logoUrl)return d; // sem logo → arte como está
+    const [art,logo]=await Promise.all([_carregarImg(d.url),_carregarImg(logoUrl)]);
+    if(!art||!logo||!art.naturalWidth||!logo.naturalWidth)return d;
+    const cv=document.createElement('canvas');cv.width=art.naturalWidth;cv.height=art.naturalHeight;
+    const cx=cv.getContext('2d');cx.drawImage(art,0,0);
+    // canto inferior direito, ~15% da largura, proporção preservada, margem 4% (a Engine reserva esse canto)
+    const lw=Math.round(cv.width*0.15), lh=Math.round(lw*(logo.naturalHeight/logo.naturalWidth||1)), mg=Math.round(cv.width*0.04);
+    cx.drawImage(logo, cv.width-lw-mg, cv.height-lh-mg, lw, lh);
+    const blob=await new Promise(res=>{try{cv.toBlob(res,'image/png',0.92)}catch(e){res(null)}});
+    if(!blob)return d; // canvas \"tainted\" (bucket sem CORS) → devolve sem logo
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/gerados/arte-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.png';
+    const up=await JUMP.sb.storage.from('user-uploads').upload(path,blob,{upsert:true,contentType:'image/png'});
+    if(up.error)return d;
+    const url=JUMP.sb.storage.from('user-uploads').getPublicUrl(path).data.publicUrl;
+    return Object.assign({},d,{url,path});
+  }catch(e){return d;} // NUNCA trava a arte por causa da logo
+}
+function ajustarPreviaLogo(){
+  const box=document.getElementById('vm-previa-box');
+  if(!box)return;
+  let logoEl=document.getElementById('vm-previa-logo');
+  const on=document.getElementById('vm-logo')&&document.getElementById('vm-logo').checked;
+  if(!on){if(logoEl)logoEl.style.display='none';return;}
+  const url=(LOGOS_USER&&LOGOS_USER.principal)||vmLogoUrl;
+  if(!logoEl){
+    logoEl=document.createElement('img');logoEl.id='vm-previa-logo';
+    logoEl.style.cssText='position:absolute;width:22%;opacity:.95;z-index:3';
+    box.appendChild(logoEl);
+  }
+  if(url){logoEl.src=url;logoEl.style.display='block';}else{logoEl.style.display='none';return;}
+  const tamEl=document.getElementById('vm-logo-tam');
+  logoEl.style.width={p:'14%',m:'22%',g:'32%'}[(tamEl&&tamEl.value)||'m']||'22%';
+  const pos=document.getElementById('vm-logo-pos').value;
+  logoEl.style.top=pos.includes('top')?'6%':'auto';
+  logoEl.style.bottom=pos.includes('bottom')?'6%':'auto';
+  logoEl.style.left=pos.includes('left')?'6%':'auto';
+  logoEl.style.right=pos.includes('right')?'6%':'auto';
+}
+async function carregarMeusVideos(){
+  // o histórico agora fica em Tarefas de Serviço; aqui só mantém o polling
+  // do chat ativo se houver vídeo em andamento (a mensagem de pronto aparece no chat)
+  return;
+}
+let pollVid=null;
+function iniciarPollingVideo(){
+  if(pollVid)return;
+  let voltas=0;
+  const checar=async()=>{
+    voltas++;
+    try{
+      const d=await JUMP.apiSilencioso('video_meus_jobs',{},CTX.token);
+      const recente=(d.jobs||[])[0];
+      if(recente&&recente.status==='pronto'&&recente.resultado_url){
+        clearInterval(pollVid);pollVid=null;
+        // salva no nosso banco em background (não trava nada)
+        JUMP.api('video_salvar',{job_id:recente.id},CTX.token).catch(()=>{});
+        const box=document.createElement('div');box.className='msg a';
+        box.innerHTML='<div style="font-size:13.5px;margin-bottom:8px">✅ Seu vídeo está pronto!</div><button class="btn btn-g btn-sm" onclick="baixarVideoJob(\''+recente.id+'\',\''+(recente.salvo_url||'')+'\',\''+(recente.resultado_url||'')+'\')">⬇ Baixar vídeo</button>';
+        const w=document.getElementById('msgs');w.appendChild(box);w.scrollTop=w.scrollHeight;
+        JUMP.toast('✅ Seu vídeo ficou pronto!');
+      }else if(recente&&recente.status==='erro'){
+        clearInterval(pollVid);pollVid=null;
+        addMsg('a','⚠️ Houve um erro ao processar o vídeo: '+(recente.erro||'tente novamente.'));
+      }
+      // 'transcrevendo' e 'processando' continuam no loop
+    }catch(e){}
+    if(voltas>90){clearInterval(pollVid);pollVid=null;addMsg('a','⏳ O vídeo está demorando mais que o normal. Ele continua processando — confira em instantes recarregando, ou clique em "Subir vídeo" para ver o status.');} // para após ~12min
+  };
+  checar(); // checa imediatamente
+  pollVid=setInterval(checar,8000);
+}
+
+// ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
+async function subirVideoTrigger(){
+  document.getElementById('video-overlay').style.display='flex';
+  // botão de diagnóstico só p/ admin e supervisor
+  const role=(CTX.cliente&&CTX.cliente.role)||'usuario';
+  const db=document.getElementById('vm-diag-btn');
+  if(db)db.style.display=(role==='admin'||role==='supervisor')?'block':'none';
+  carregarLogosUser().then(()=>{try{ajustarPreviaLogo()}catch(e){}});
+  carregarMeusVideos();
+  // pré-seleciona fonte/cor da legenda conforme o OS_DATA da marca (se houver)
+  try{
+    const{data}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',CTX.viewId||CTX.user.id).in('chave',['video_fonte','video_cor_legenda','video_estilo_legenda','video_formato_padrao']);
+    (data||[]).forEach(m=>{
+      if(m.chave==='video_cor_legenda'&&/^#[0-9A-Fa-f]{6}$/.test(m.valor.trim()))document.getElementById('vm-cor').value=m.valor.trim();
+      if(m.chave==='video_formato_padrao'&&m.valor.includes('wide'))vmSetFmt('wide');
+    });
+  }catch(e){}
+}
+function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
+function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
+// Botão da Estratégia: nome FIXO "Estratégia da semana".
+// Só fica clicável quando NÃO há estratégia em execução (aguardando aprovação, copy pendente
+// ou Designer produzindo). Evita o usuário disparar um ciclo em cima de outro.
+let PODE_DETALHAR=false;
+function cmdCalendario(){
+  // Se a semana já está no calendário sem copy, o pedido é detalhar; senão, montar o plano.
+  if(PODE_DETALHAR)return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
+  enviarTexto('Gere a estratégia desta semana para o meu nicho: temas, formatos e datas, conferindo os dias no calendário real.');
+}
+async function atualizarBotaoEstrategia(){
+  const b=document.getElementById('btn-cmdCalendario');
+  if(!b)return;
+  b.innerHTML='📅 Estratégia da semana';
+  const trava=m=>{b.disabled=true;b.style.opacity='.45';b.style.cursor='not-allowed';b.title=m};
+  const libera=m=>{b.disabled=false;b.style.opacity='';b.style.cursor='';b.title=m};
+  const uid=CTX.viewId||CTX.user.id;
+  try{
+    const{data:ord}=await JUMP.sb.from('ordens_servico').select('tarefa,status').eq('user_id',uid)
+      .in('status',['aguardando_aprovacao','pendente','processando'])
+      .in('tarefa',['aprovar_estrategia','detalhar_semana','criar_post']);
+    const tem=t=>(ord||[]).some(o=>o.tarefa===t);
+    if(tem('aprovar_estrategia'))return trava('Você tem uma estratégia aguardando aprovação em Tarefas de serviço.');
+    if(tem('detalhar_semana'))return trava('Esta semana já está em andamento — use "Escrever a copy da semana" na caixa de ordens acima.');
+    if(tem('criar_post'))return trava('O Designer está produzindo os criativos desta semana. Aguarde concluir.');
+    // sem ciclo em execução: libera. Se houver posts sem copy, o clique detalha.
+    const lim=new Date(Date.now()+7*864e5).toISOString();
+    const{data:wk}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').or('copy.is.null,copy.eq.').lte('data_sugerida',lim).limit(1);
+    PODE_DETALHAR=!!(wk&&wk.length);
+    libera(PODE_DETALHAR?'Escreve a headline e a copy dos posts desta semana.':'Monta a estratégia desta semana no calendário.');
+  }catch(e){}
+}
+function cmdCriativosPend(){enviarTexto('Quais criativos estão pendentes para eu produzir? Liste as ordens de arte na fila e comece pela primeira.');}
+function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tráfego e o que precisa de ajuste agora.');}
+
+// ── INCLUIR ORDEM (usuário cria uma ordem que modela o negócio) ──
+
+// ── ENVIAR CONTEÚDO (Publicação → OS p/ Estratégia gerar a copy) ──
+let ctCriativoUrl=null, ctCriativoTipo=null;
+function abrirEnviarConteudo(){
+  document.getElementById('conteudo-overlay').style.display='flex';
+  document.getElementById('ct-result').innerHTML='';
+}
+function fecharEnviarConteudo(){document.getElementById('conteudo-overlay').style.display='none';}
+async function ctSelecionou(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>100*1024*1024){JUMP.toast('Arquivo muito grande (máx 100 MB)','err');inp.value='';return;}
+  document.getElementById('ct-drop-empty').style.display='none';
+  document.getElementById('ct-drop-has').style.display='block';
+  document.getElementById('ct-nome').textContent='Enviando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    ctCriativoTipo=f.type.startsWith('video')?'video':'imagem';
+    const bucket=ctCriativoTipo==='video'?'videos-crus':'user-uploads';
+    const path=uid+'/'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const{error}=await JUMP.sb.storage.from(bucket).upload(path,f);
+    if(error)throw error;
+    ctCriativoUrl=JUMP.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    // registra em uploads (categoria conforme tipo)
+    await JUMP.sb.from('uploads').insert({user_id:uid,categoria:ctCriativoTipo==='video'?'videos':'criativos',nome:f.name,url:ctCriativoUrl,path}).catch(()=>{});
+    document.getElementById('ct-nome').textContent='✓ '+f.name;
+  }catch(e){
+    document.getElementById('ct-nome').textContent='Erro ao enviar';
+    ctCriativoUrl=null;
+  }
+}
+async function enviarConteudo(){
+  const tema=document.getElementById('ct-tema').value.trim();
+  const data=document.getElementById('ct-data').value;
+  const formato=document.getElementById('ct-formato').value;
+  const res=document.getElementById('ct-result');
+  if(!ctCriativoUrl){res.innerHTML='<span style="color:var(--red)">Suba o criativo primeiro.</span>';return;}
+  if(tema.length<3){res.innerHTML='<span style="color:var(--red)">Descreva o tema do post.</span>';return;}
+  const btn=document.getElementById('ct-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Enviando...';
+  try{
+    // dispara a OS pro Estrategista via backend (sem gastar conversa)
+    await JUMP.api('criar_os_copy',{
+      criativo_url:ctCriativoUrl, criativo_tipo:ctCriativoTipo,
+      tema, data_sugerida:data||null, formato
+    },CTX.token);
+    res.innerHTML='<span style="color:var(--g)">✓ Enviado! O Estrategista vai criar a legenda e ela aparece em Aprovar.</span>';
+    JUMP.toast('📨 Conteúdo enviado ao Estrategista');
+    setTimeout(()=>{
+      fecharEnviarConteudo();
+      // reset
+      ctCriativoUrl=null;ctCriativoTipo=null;
+      document.getElementById('ct-drop-empty').style.display='block';
+      document.getElementById('ct-drop-has').style.display='none';
+      document.getElementById('ct-file').value='';
+      document.getElementById('ct-tema').value='';document.getElementById('ct-data').value='';
+    },1500);
+  }catch(e){
+    res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro ao enviar.')+'</span>';
+    btn.disabled=false;btn.textContent='Enviar para o Estrategista';
+  }
+}
+
+async function enviar(){
+  if(BUSY||!AG)return;
+  const inp=document.getElementById('inp');
+  const txt=inp.value.trim();
+  if(!txt)return;
+  inp.value='';inp.style.height='auto';
+  enviarTexto(txt);
+}
+async function enviarTexto(txt){
+  if(BUSY||!AG)return;
+  BUSY=true;
+  document.getElementById('send').disabled=true;
+  addMsg('u',txt);
+  const w=document.getElementById('msgs');
+  const ty=document.createElement('div');ty.className='typing';ty.innerHTML='<span></span><span></span><span></span>';
+  w.appendChild(ty);w.scrollTop=w.scrollHeight;
+  try{
+    const r=await fetch('/api/agente-chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({agente:AG,mensagem:txt,ver_id:CTX.viewId||null})
+    });
+    const raw=await r.text();
+    let d;
+    try{d=JSON.parse(raw)}catch(_){
+      throw new Error('A resposta demorou mais que o normal e foi interrompida. Envie novamente — geralmente funciona na segunda tentativa.');
+    }
+    ty.remove();
+    if(!r.ok){
+      if(d&&d.tipo_limite==='mensagens_trial'){addMsg('a','⏳ '+(d.error||'Você usou as mensagens do teste por agora.'))}
+      else if(d&&d.tipo_limite==='mensagens_mes'){addMsg('a','📅 '+(d.error||'Você usou as mensagens do seu plano este mês.'))}
+      else if(d&&d.limite){limiteMsg()}
+      else addMsg('a','⚠️ '+(d.error||'Erro no agente'));
+    }else{
+      addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
+      if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
+      // GUIA: dicas de primeira vez em cada processo
+      if(d.conteudos){
+        JUMP.toast('📅 '+d.conteudos+' post(s) planejados!');
+        try{JUMPGUIA.dica('estrategia_criada','A estratégia foi criada, mas ainda <b>não está no calendário</b>. Vá em <b>Tarefas de serviço</b> e clique em <b>Aprovar estratégia</b> — só então o Designer começa as artes.','Estratégia gerada')}catch(e){}
+      }
+      if(AG==='estrategia')atualizarBotaoEstrategia();
+      if(d.detalhados){
+        JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
+        try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta e a ordem já foi enviada ao <b>Designer</b>. Abra o Agente de Criativo e clique em <b>Executar ordem agora</b> para gerar as artes.','Semana detalhada')}catch(e){}
+      }
+      if(d.tokens!==undefined)atualizarUso(d.tokens);
+      if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
+      if(d.aplicar_tema){try{JUMP.applyTheme(Object.assign({bg:'escuro'},d.aplicar_tema));JUMP.toast('🎨 Dashboard personalizada com as cores da sua marca!')}catch(e){}}
+      // botões de escolha quando o Identidade oferece manter/sugerir
+      if(AG==='identidade' && /manter identidade|sugerir nova|dois caminhos|preservar.*marca|evoluir/i.test(d.resposta||'') && !document.querySelector('.id-choice')){
+        const w=document.getElementById('msgs');const box=document.createElement('div');box.className='msg a id-choice';
+        box.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn btn-g btn-sm" onclick="escolhaId(\'Quero MANTER minha identidade atual. Use as cores e fontes reais da minha logo.\',this)">✓ Manter minha identidade</button><button class="btn btn-o btn-sm" onclick="escolhaId(\'Quero que você SUGIRA uma nova identidade visual otimizada.\',this)">✨ Sugerir nova</button></div>';
+        w.appendChild(box);w.scrollTop=w.scrollHeight;
+      }
+      if(d.ordens)JUMP.toast('📨 Ordem enviada ao Agente Designer');
+      // Editor de Vídeo disparou uma edição automática
+      if(d.video_editando){
+        JUMP.toast('🎬 Vídeo em edição! Fica pronto em alguns minutos.');
+        const w=document.getElementById('msgs');const box=document.createElement('div');box.className='msg a';
+        box.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;padding:10px 12px;background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.25);border-radius:10px"><span style="font-size:13px">🎬 Seu vídeo está sendo editado. Acompanhe e baixe em:</span><a class="btn btn-g btn-sm" href="editor-video.html">Editor de Vídeo →</a></div>';
+        w.appendChild(box);w.scrollTop=w.scrollHeight;
+      }
+    }
+  }catch(e){
+    ty.remove();
+    addMsg('a','⚠️ '+e.message);
+  }
+  BUSY=false;document.getElementById('send').disabled=false;inp.focus();
+}
+// ── A3: persistência de progresso (conceito/preview) por usuário+agente ──
+function pendKey(ag){return 'jump_pend_'+((CTX&&(CTX.viewId||CTX.user.id))||'x')+'_'+(ag||AG)}
+function savePend(ag,obj){try{const k=pendKey(ag);if(obj)localStorage.setItem(k,JSON.stringify(obj));else localStorage.removeItem(k)}catch(e){}}
+function loadPend(ag){try{const s=localStorage.getItem(pendKey(ag));return s?JSON.parse(s):null}catch(e){return null}}
+
+async function mostrarBotaoImagem(req,skipSave){
+  if(!skipSave)savePend(AG,{tipo:'conceito',req});
+  const w=document.getElementById('msgs');
+  const d=document.createElement('div');d.className='msg a';
+  d.innerHTML='🎨 <b>Conceito pronto para gerar.</b><div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">A imagem será criada a partir do conceito.</div><button class="btn btn-g btn-sm" style="margin-top:6px">✨ Gerar imagem</button>';
+  const btn=d.querySelector('button');
+  btn.onclick=()=>gerarImagem(req,btn);
+  w.appendChild(d);w.scrollTop=w.scrollHeight;
+}
+// Gera em modo PREVIEW (registrar:false → não salva ainda). ehRecriar=true consome 1 reload.
+async function gerarImagem(req,btn,ehRecriar){
+  const host=btn?btn.parentElement:null;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> '+(ehRecriar?'Recriando':'Gerando sua arte')+' (15-40s)...';}
+  try{
+    const r=await fetch('/api/gerar-imagem',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
+    });
+    const raw=await r.text();let d;
+    try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
+    if(!r.ok){
+      if(d&&d.limite){if(host)host.innerHTML='🚦 '+(d.error||'Limite de imagens atingido. Fale com seu gestor.');else JUMP.toast(d.error||'Limite atingido','err');savePend(AG,null);return}
+      throw new Error((d.error||'Erro ao gerar')+(d.detalhe?(' — '+d.detalhe):''));
+    }
+    if(host)host.remove();
+    const d2=await comporLogoNaArte(d); // sobrepõe a logo real (sem alterar); sem logo/erro → mantém a arte
+    renderPreview(d2,req);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.innerHTML=ehRecriar?'🔄 Recriar':'✨ Gerar imagem';}
+    JUMP.toast(e.message,'err');
+  }
+}
+// Card de preview com Aceitar / Recriar / Recusar / Baixar + cota restante
+function renderPreview(d,req){
+  savePend(AG,{tipo:'preview',d,req});
+  const w=document.getElementById('msgs');
+  const restImg=(d.limite||0)-(d.usadas||0);
+  const restRel=(d.reloads_limite||0)-(d.reloads_usados||0);
+  const cotaImg=d.limite?('Imagens restantes: <b>'+Math.max(0,restImg)+'</b>'):('Imagens usadas: '+(d.usadas||0));
+  const cotaRel=d.reloads_limite?(' · Recriações restantes: <b>'+Math.max(0,restRel)+'</b>'):'';
+  const semRel=!!(d.reloads_limite&&restRel<=0);
+  const card=document.createElement('div');card.className='msg a img-card';
+  card.innerHTML='<img src="'+d.url+'" alt="criativo gerado">'
+    +'<div class="img-cota">'+cotaImg+cotaRel+'</div>'
+    +'<div class="img-acts">'
+    +'<button class="btn btn-g btn-sm b-aceitar">✓ Aceitar</button>'
+    +'<button class="btn btn-o btn-sm b-recriar"'+(semRel?' disabled title="Sem recriações disponíveis"':'')+'>🔄 Recriar</button>'
+    +'<button class="btn btn-o btn-sm b-recusar">✕ Recusar</button>'
+    +'<button class="btn btn-o btn-sm b-baixar">⬇ Baixar</button>'
+    +'</div>';
+  card.querySelector('.b-aceitar').onclick=()=>aceitarImg(d,req,card);
+  card.querySelector('.b-recusar').onclick=()=>recusarImg(card);
+  card.querySelector('.b-baixar').onclick=e=>baixarImg(d.url,e.currentTarget);
+  const br=card.querySelector('.b-recriar');
+  if(br&&!semRel)br.onclick=()=>{
+    const v=prompt('O quanto mudar? Digite 25 (leve), 50 (outra composição) ou 100 (conceito novo).\n\nDepois, se quiser, descreva o que mudar na próxima pergunta.','50');
+    if(v===null)return;
+    const aj=prompt('O que mudar? (opcional — ex.: mais escuro, sem foto, foco no produto)','')||'';
+    req._variacao=Number(v)||50; req._ajuste=aj;
+    savePend(AG,null);
+    const holder=document.createElement('div');holder.className='msg a';
+    holder.innerHTML='<button class="btn btn-o btn-sm" disabled><span class="spin-i"></span> Recriando (15-40s)...</button>';
+    card.replaceWith(holder);
+    gerarImagem(req,holder.querySelector('button'),true);
+  };
+  w.appendChild(card);w.scrollTop=w.scrollHeight;
+}
+async function aceitarImg(d,req,card){
+  const b=card.querySelector('.b-aceitar');if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Salvando...'}
+  try{
+    const r=await fetch('/api/gerar-imagem',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify({acao:'registrar',url:d.url,path:d.path||null,nome:'Arte IA',conteudo_id:(req&&req.conteudo_id)||null,ver_id:CTX.viewId||null})
+    });
+    const raw=await r.text();let j;try{j=JSON.parse(raw)}catch(_){j={}}
+    if(!r.ok||!j.ok)throw new Error(j.error||'Falha ao salvar');
+    savePend(AG,null);
+    const acts=card.querySelector('.img-acts');
+    if(acts){acts.innerHTML='';const ok=document.createElement('span');ok.style.cssText='font-family:var(--M);font-size:10px;color:var(--g)';ok.textContent='✓ Salvo em Meus Arquivos';const bd=document.createElement('button');bd.className='btn btn-o btn-sm';bd.textContent='⬇ Baixar';bd.onclick=e=>baixarImg(d.url,e.currentTarget);acts.appendChild(ok);acts.appendChild(bd);}
+    JUMP.toast('✓ Imagem salva em Meus Arquivos!');
+    await logChat('user','[Aceitei a imagem gerada]',AG);
+    await logChat('assistant','Imagem aceita e salva em Meus Arquivos. Você já pode usá-la nos seus conteúdos.',AG);
+  }catch(e){
+    if(b){b.disabled=false;b.innerHTML='✓ Aceitar'}
+    JUMP.toast(e.message||'Erro ao salvar','err');
+  }
+}
+async function recusarImg(card){
+  savePend(AG,null);
+  card.remove();
+  JUMP.toast('Imagem descartada.');
+  await logChat('user','[Recusei a imagem gerada]',AG);
+  await logChat('assistant','Sem problema — descartei essa arte. Me diga o que ajustar (cor, estilo, elemento) e eu gero outra.',AG);
+}
+function escolhaId(txt,btn){
+  document.querySelectorAll('.id-choice').forEach(e=>e.remove());
+  document.getElementById('inp').value=txt;enviar();
+}
+async function baixarImg(url,btn){
+  if(btn){btn.disabled=true;btn.innerHTML='<span class=\"spin-i\"></span> Baixando...'}
+  try{
+    const r=await fetch(url);const blob=await r.blob();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='jump-os-'+Date.now()+'.png';document.body.appendChild(a);a.click();
+    a.remove();URL.revokeObjectURL(a.href);
+    if(btn){btn.disabled=false;btn.innerHTML='✓ Baixado'}
+  }catch(e){if(btn){btn.disabled=false;btn.innerHTML='⬇ Baixar'}JUMP.toast('Erro ao baixar','err')}
+}
+function limiteMsg(){
+  const w=document.getElementById('msgs');
+  const d=document.createElement('div');d.className='msg a';
+  d.innerHTML='🚦 <b>Seu limite mensal de uso foi atingido.</b><br>Solicite um aumento ao seu gestor — ele recebe o pedido na hora, direto no painel dele.<br><button class="btn btn-g btn-sm" style="margin-top:9px" onclick="solicitarTokens(this)">Solicitar aumento →</button>';
+  w.appendChild(d);w.scrollTop=w.scrollHeight;
+}
+async function solicitarTokens(btn){
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    await JUMP.api('request_tokens',{},CTX.token);
+    btn.textContent='✓ Solicitação enviada';
+    JUMP.toast('Seu gestor foi avisado e pode liberar mais uso.');
+  }catch(e){btn.disabled=false;btn.textContent='Solicitar aumento →';JUMP.toast(e.message,'err')}
+}
+function atualizarUso(tk){
+  const lim=Number((CTX.cliente.limites||{}).tokens||1000000);
+  const pct=Math.min(100,Math.round((tk/lim)*100));
+  const bar=document.getElementById('tok-bar');
+  bar.style.width=pct+'%';
+  bar.className='bar-f'+(pct>=95?' full':pct>=75?' warn':'');
+  const rest=100-pct;
+  document.getElementById('tok-txt').textContent =
+    pct>=95 ? 'Seu limite de conversas do mês está no fim'
+    : pct>=75 ? 'Você já usou '+pct+'% das conversas deste mês'
+    : 'Você tem '+rest+'% das conversas do mês disponíveis';
+}
+async function toggleMem(){
+  const p=document.getElementById('mem-pane');
+  if(p.classList.contains('show')){p.classList.remove('show');return}
+  document.getElementById('fila-pane').classList.remove('show');
+  try{
+    const{data}=await JUMP.sb.from('memorias').select('chave,valor,agente').eq('user_id',CTX.viewId||CTX.user.id).or(`agente.eq.${AG},agente.eq.global`).order('updated_at',{ascending:false}).limit(40);
+    if(!data||!data.length){
+      p.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--t3)">Ainda não aprendi nada — me conta sobre seu negócio!</div>';
+    }else{
+      const geral=data.filter(m=>m.agente==='global');
+      const espec=data.filter(m=>m.agente!=='global');
+      let h='';
+      if(geral.length){
+        h+='<div class="mem-grp">📌 Sobre o seu negócio (todos os agentes sabem)</div>';
+        h+=geral.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('');
+      }
+      if(espec.length){
+        h+='<div class="mem-grp">🎯 Aprendizados deste agente</div>';
+        h+=espec.map(m=>`<div class="mem-it"><span class="mem-k">${JUMP.esc(m.chave)}</span><span>${JUMP.esc(m.valor)}</span></div>`).join('');
+      }
+      p.innerHTML=h;
+    }
+    p.classList.add('show');
+  }catch(e){}
+}
+/* textarea auto-grow + Enter envia */
+const inp=document.getElementById('inp');
+inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(120,inp.scrollHeight)+'px'});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}});
+
+/* ══ PROMOÇÃO / DM AUTOMÁTICA (Publicação) ══ */
+function abrirPromo(){
+  document.getElementById('promo-overlay').style.display='flex';
+  document.getElementById('promo-result').innerHTML='';
+  listarPromo();
+}
+function fecharPromo(){document.getElementById('promo-overlay').style.display='none';}
+
+async function salvarPromo(){
+  const kw=document.getElementById('promo-kw').value.trim();
+  const msgBase=document.getElementById('promo-msg').value.trim();
+  const link=document.getElementById('promo-link').value.trim();
+  const obj=document.getElementById('promo-obj').value;
+  const origem=document.getElementById('promo-origem').value;
+  const res=document.getElementById('promo-result');
+  if(kw.length<2){res.innerHTML='<span style="color:var(--red)">Digite uma palavra-chave.</span>';return;}
+  if(msgBase.length<5){res.innerHTML='<span style="color:var(--red)">Digite a mensagem do direct.</span>';return;}
+  // monta a mensagem final (anexa o link se houver)
+  const mensagem=link?(msgBase+'\n\n'+link):msgBase;
+  const btn=document.getElementById('promo-save');
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Criando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    // checar limite do plano via config
+    const plano=(CTX.viewCliente||CTX.cliente).plano||'basico';
+    let maxDm={basico:3,plus:5,pro:8}[plano]||3;
+    try{
+      const{data:pc}=await JUMP.sb.from('config').select('valor').eq('chave','planos').limit(1);
+      if(pc&&pc[0]&&pc[0].valor&&pc[0].valor[plano]&&pc[0].valor[plano].dm!=null)maxDm=Number(pc[0].valor[plano].dm);
+    }catch(e){}
+    const{data:atuais}=await JUMP.sb.from('automacoes_dm').select('id').eq('user_id',uid).eq('ativo',true);
+    if((atuais||[]).length>=maxDm){
+      res.innerHTML='<span style="color:var(--red)">Limite do plano atingido ('+maxDm+' automações). Desative uma ou faça upgrade.</span>';
+      btn.disabled=false;btn.innerHTML='Criar automação';return;
+    }
+    const{error}=await JUMP.sb.from('automacoes_dm').insert({
+      user_id:uid,palavra_chave:kw,mensagem,objetivo:obj,gatilho:'comentario',origem,ativo:true
+    });
+    if(error)throw error;
+    res.innerHTML='<span style="color:var(--g)">✓ Automação criada! Responde automaticamente quem comentar "'+kw+'".</span>';
+    document.getElementById('promo-kw').value='';
+    document.getElementById('promo-msg').value='';
+    document.getElementById('promo-link').value='';
+    listarPromo();
+  }catch(e){
+    res.innerHTML='<span style="color:var(--red)">Erro: '+(e.message||'tente novamente')+'</span>';
+  }
+  btn.disabled=false;btn.innerHTML='Criar automação';
+}
+
+async function listarPromo(){
+  const wrap=document.getElementById('promo-list');
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const{data}=await JUMP.sb.from('automacoes_dm').select('*').eq('user_id',uid).order('created_at',{ascending:false});
+    if(!data||!data.length){wrap.innerHTML='<div style="font-size:12px;color:var(--t3);font-family:var(--M);text-align:center;padding:8px">Nenhuma automação ativa ainda.</div>';return;}
+    wrap.innerHTML='<div class="f-label" style="margin-bottom:8px">Automações ativas</div>'+data.map(d=>
+      `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">"${JUMP.esc(d.palavra_chave)}" ${d.ativo?'':'<span style=\'color:var(--t3);font-size:10px\'>(inativa)</span>'}</div>
+          <div style="font-size:11px;color:var(--t3);font-family:var(--M)">${({link:'🔗 Link',cupom:'🎟 Cupom',lead:'📋 Lead',info:'ℹ️ Info'})[d.objetivo]||d.objetivo} · ${({ambos:'Posts e anúncios',organico:'Orgânico',anuncio:'Anúncios'})[d.origem]||d.origem} · ${d.disparos||0} envios</div>
+        </div>
+        <button class="btn btn-r btn-sm" onclick="excluirPromo('${d.id}')">Excluir</button>
+      </div>`
+    ).join('');
+  }catch(e){wrap.innerHTML='';}
+}
+
+async function excluirPromo(id){
+  if(!confirm('Excluir esta automação? Ela para de responder imediatamente.'))return;
+  try{await JUMP.sb.from('automacoes_dm').delete().eq('id',id);listarPromo();JUMP.toast('Automação excluída.');}
+  catch(e){JUMP.toast('Erro ao excluir','err');}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Aprovações</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ═══ CARD DE EDIÇÃO (modelo aprovado pelo João) ═══ */
+.ed-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:13px;padding-bottom:12px;border-bottom:1px solid var(--bd)}
+.ed-status{font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:8px;background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
+.ed-status.venc{background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.35)}
+.ed-tipo,.ed-data,.ed-ig{font-family:var(--M);font-size:10px;color:var(--t3);padding:5px 9px;border-radius:8px;border:1px solid var(--bd)}
+.ed-ig{margin-left:auto}
+.ed-alerta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--t2);line-height:1.5}
+.ed-alerta>div{flex:1;min-width:200px}
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:820px){.ed-grid{grid-template-columns:1fr}}
+.ed-col{display:flex;flex-direction:column;gap:12px}
+.ed-thumbs{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px}
+.ed-th{width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex-shrink:0;opacity:.55;transition:.15s}
+.ed-th:hover{opacity:.85}
+.ed-th.on{border-color:var(--g);opacity:1}
+.ed-acts-img{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.ed-bloco{background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
+.ed-lbl{font-family:var(--M);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.ed-mini-btn{margin-left:auto;font-family:var(--M);font-size:9px;letter-spacing:.05em;padding:4px 8px;border-radius:6px;background:rgba(var(--g-rgb),.12);color:var(--g);border:1px solid rgba(var(--g-rgb),.25);cursor:pointer}
+.ed-mini-btn:hover{background:rgba(var(--g-rgb),.2)}
+.ed-val{font-size:14.5px;font-weight:700;line-height:1.35;color:var(--t1)}
+.ed-val-sm{font-size:12.5px;color:var(--t2);line-height:1.5}
+.ed-mini{font-size:12px;color:var(--t2);line-height:1.5;padding:3px 0}
+.ed-tag{display:inline-block;font-family:var(--M);font-size:10.5px;color:var(--g);background:rgba(var(--g-rgb),.1);border-radius:6px;padding:3px 7px;margin:0 4px 4px 0}
+.ed-ads{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:11px;padding:11px 13px;font-size:12.5px;color:#fbbf24}
+.ed-ads div{color:var(--t2);margin-top:4px;font-size:12px;line-height:1.5}
+.ed-foot{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)}
+.ed-foot-r{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+@media(max-width:560px){.ed-foot-r{margin-left:0;width:100%}.ed-foot-r .btn{flex:1}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando aprovações...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd">
+    <div><div class="hd-hello">Aprovações</div><h1 class="hd-h">Revisar e <em>aprovar.</em></h1></div>
+    <span class="pill pill-y" id="pend-pill"><span class="dot" style="background:var(--yel);box-shadow:0 0 6px var(--yel)"></span><span id="pend-n">0 pendentes</span></span>
+  </div>
+  <div class="card" id="basico-note" style="display:none;border-color:rgba(185,117,249,.25);margin-bottom:16px">
+    <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 No plano <strong style="color:var(--cy)">Básico</strong>, você baixa o conteúdo pronto e publica você mesmo. Nos planos <strong>Plus e Pro</strong>, aprovar publica automaticamente no horário ideal.</div>
+  </div>
+  <div id="fila-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span>
+      <button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>
+    <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;line-height:1.5">Interrompe após a arte atual — nenhum token é gasto depois disso. Vale para todas as telas.</div>
+    <div style="font-size:11px;color:var(--t3);margin-top:6px">As artes do seu plano estão sendo criadas uma a uma. Você pode aguardar aqui.</div>
+  </div>
+  <div class="ap-grid" id="ap-grid"></div>
+  <div class="card" id="vazio" style="display:none"><div style="text-align:center;padding:24px;font-family:var(--M);font-size:13px;color:var(--t3)">✓ Nenhum conteúdo aguardando.<br><span style="font-size:11px">Quando os agentes gerarem conteúdo, ele aparece aqui para sua revisão.</span></div></div>
+</main>
+</div>
+<!-- MODAL EDIÇÃO (P6) -->
+<div class="modal-bg" id="modal-edit">
+  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="modal-t" style="margin:0">Editar conteúdo</div>
+      <button class="btn btn-o btn-sm" onclick="fecharEdicao()">✕</button>
+    </div>
+    <div id="edit-body"></div>
+  </div>
+</div>
+<!-- MODAL REJEITAR -->
+<div class="modal-bg" id="modal-rej">
+  <div class="modal">
+    <div class="modal-t">Rejeitar conteúdo</div>
+    <input type="hidden" id="mr-id">
+    <div class="f-group"><label class="f-label">O que precisa mudar? (vai para o agente refazer)</label><textarea class="f-textarea" id="mr-motivo" rows="3" placeholder="Ex: trocar a cor do fundo, legenda mais curta..."></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="document.getElementById('modal-rej').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-r" onclick="confirmarRej()">Rejeitar e pedir ajuste</button>
+    </div>
+  </div>
+</div>
+<script src="assets/jump-core.js"></script>
+<script>
+let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],PLANO='basico';
+(async()=>{
+  try{
+    JUMP.sidebar('aprovar');
+    CTX=await JUMP.guard();
+    JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    PLANO=(CTX.viewCliente||CTX.cliente).plano||'basico';
+    if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
+    try{
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao']).order('created_at',{ascending:false});
+      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao');
+      // A ARTE VEM DEPOIS DA COPY. Sem copy/headline a arte sai vazia e o card fica sem legenda.
+      RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
+        &&(c.copy&&String(c.copy).trim())&&(((c.meta||{}).headline||'').trim()));
+      SEM_COPY=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
+        &&(!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())));
+    }catch(e){}
+    render();
+    document.getElementById('loading').classList.add('hide');
+    // Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
+async function regerarSlide(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  // P6: a imagem vive no modal ('edit-img'), não mais no grid ('sl-img-<id>').
+  const im=document.getElementById('edit-img');
+  const i=im?Number(im.dataset.i||0):0, tot=JUMP.totalSlides(c);
+  const b=(typeof event!=='undefined'&&event)?event.target:null;
+  if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Recriando...'}
+  try{
+    const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
+    const d=await r.json();
+    if(!r.ok||!(d.ok||d.url||d.midia_url))throw new Error(d.error||'Falha ao gerar');
+    await recarregar();
+    abrirEdicao(id);          // reabre o modal com a imagem NOVA (senão "não acontece nada")
+    JUMP.toast('✓ Imagem recriada.');
+  }catch(e){JUMP.toast(e.message||'Erro ao recriar','err');if(b){b.disabled=false;b.innerHTML='🎨 Recriar imagem'}}
+}
+// Regerar o carrossel INTEIRO (gasta N imagens) — confirma antes: é dinheiro do cliente.
+async function regerarCarrossel(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const tot=JUMP.totalSlides(c);
+  if(!confirm('Regerar os '+tot+' slides? Isso gasta '+tot+' imagens da sua cota.'))return;
+  const b=(typeof event!=='undefined'&&event)?event.target:null; if(b){b.disabled=true}
+  liberarGeracao();
+  for(let n=1;n<=tot;n++){
+    if(deveParar()){JUMP.toast('Geração interrompida.');break}
+    if(b)b.innerHTML='<span class="spin-i"></span> '+n+'/'+tot+'...';
+    try{
+      const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:n,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
+      const d=await r.json();
+      if(d&&d.limite){JUMP.toast(d.error||'Cota esgotada. Os slides restantes ficam como estavam.','err');break}
+    }catch(e){JUMP.toast('Falhou o slide '+n+'. Sigo para o próximo.','err')}
+  }
+  await recarregar(); abrirEdicao(id); JUMP.toast('✓ Carrossel recriado.');
+}
+async function recarregar(){
+  const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
+  ITENS=data||[]; render();
+}
+// Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
+    if(SEM_COPY.length){
+      const b=document.getElementById('fila-bar');
+      if(b){b.style.display='block';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">✋</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+SEM_COPY.length+' post(s) ainda sem copy — a arte só é criada depois do texto.</span>'+
+        '<a href="agentes.html?agente=estrategia" class="btn btn-g btn-sm" style="margin-left:auto">Escrever a copy →</a></div>';}
+    }
+    // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
+    // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
+    if(RASCUNHOS.length){
+      const b=document.getElementById('fila-bar');
+      if(b){b.style.display='block';
+        // Aprovar é para REVISAR e APROVAR. Gerar arte é trabalho do Agente Criativo —
+        // acontece no chat dele ou pela Tarefa de Serviço, onde há briefing e controle de saldo.
+        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">🎨</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+RASCUNHOS.length+' post(s) com copy pronta, esperando a arte.</span>'+
+        '<a class="btn btn-o btn-sm" style="margin-left:auto" href="agentes.html?agente=criativo">Falar com o Criativo →</a></div>';}
+    }
+  }catch(e){}
+})();
+// C3: chegou do calendário com ?id= — abre no card certo em vez de largar o usuário na lista.
+function focarCard(){
+  const id=new URLSearchParams(location.search).get('id'); if(!id)return;
+  const el=document.getElementById('card-'+id);
+  if(!el){JUMP.toast('Esse conteúdo ainda não está aguardando aprovação.');return}
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
+  setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
+}
+function render(){
+  document.getElementById('pend-n').textContent=ITENS.length+' pendente'+(ITENS.length===1?'':'s');
+  const g=document.getElementById('ap-grid');
+  document.getElementById('vazio').style.display=ITENS.length?'none':'block';
+  // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
+  g.innerHTML=ITENS.map(c=>{
+    const tp=JUMP.tipoPeca(c);
+    const ico=tp.ico;
+    const sl=JUMP.slidesDe(c);
+    return `<div class="ap-card ap-card-mini" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
+      <div class="ap-img" style="position:relative">${sl.length?`<img src="${sl[0]}" alt="">`:ico}
+        <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
+        ${sl.length>1?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">▤ ${sl.length}</span>`:''}
+      </div>
+      <div class="ap-body" style="padding:10px 12px">
+        <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
+        ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
+        ${(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
+          return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
+        <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
+      </div></div>`;
+  }).join('');
+  focarCard();
+}
+
+// ── P6: CARD DE EDIÇÃO (modal) — aqui vivem TODOS os botões ────────────────────
+let EDIT_ID=null;
+function abrirEdicao(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  EDIT_ID=id;
+  const tp=JUMP.tipoPeca(c), sl=JUMP.slidesDe(c), tot=JUMP.totalSlides(c), multi=sl.length>1;
+  const prazo=c.data_sugerida?new Date(c.data_sugerida).toLocaleDateString('pt-BR'):null;
+  const m=c.meta||{};
+  const setas=multi?`
+    <button class="ap-seta" onclick="navSlideEdit(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:17px">‹</button>
+    <button class="ap-seta" onclick="navSlideEdit(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:17px">›</button>
+    <span id="edit-sl-n" style="position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:10px;padding:3px 8px;border-radius:6px">1/${sl.length}</span>`:'';
+  const regerar=multi
+    ? `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar este slide</button>
+       <button class="btn btn-o btn-sm" onclick="regerarCarrossel('${id}')" title="Gasta ${tot} imagens">🎨 Recriar carrossel (${tot})</button>`
+    : `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar imagem</button>`;
+  const aprovarBtn=PLANO==='basico'
+    ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
+    : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`;
+  // ── #1 POST VENCIDO: a data sugerida já passou e ninguém aprovou. Antes ficava mudo
+  // (o cliente aprovava algo que "publica dia 12" com o dia 12 no passado). Agora avisa e reagenda.
+  const dtSug=c.data_sugerida?new Date(c.data_sugerida):null;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const vencido=dtSug&&dtSug<hoje&&c.status!=='publicado';
+  const diasAtras=vencido?Math.round((hoje-dtSug)/86400000):0;
+  const hashtags=(String(c.copy||'').match(/#[\wÀ-ÿ]+/g)||[]);
+
+  document.getElementById('edit-body').innerHTML=`
+    <!-- CABEÇALHO: estado, data e canal -->
+    <div class="ed-head">
+      <span class="ed-status ${vencido?'venc':''}">${vencido?'⏰ Data vencida':(c.status==='aprovado'?'✓ Aprovado':'◷ Aguardando você')}</span>
+      <span class="ed-tipo">${tp.ico} ${JUMP.esc(tp.label)}</span>
+      <span class="ed-data">${prazo?('📅 '+prazo):'📅 sem data'}</span>
+      <span class="ed-ig">📸 Instagram</span>
+    </div>
+    ${vencido?`<div class="ed-alerta">
+      <div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Ele não foi aprovado a tempo, então não foi publicado.</div>
+      <button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button>
+    </div>`:''}
+
+    <div class="ed-grid">
+      <!-- COLUNA ESQUERDA: a peça -->
+      <div>
+        <div class="ap-img" style="position:relative;border-radius:12px;overflow:hidden">
+          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0" style="width:100%;display:block">`:`<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;font-size:38px;background:var(--bg)">${tp.ico}</div>`}
+          ${setas}
+        </div>
+        ${sl.length>1?`<div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>`:''}
+        <div class="ed-acts-img">${regerar}</div>
+      </div>
+
+      <!-- COLUNA DIREITA: o conteúdo editável -->
+      <div class="ed-col">
+        ${m.finalidade==='anuncio'?`<div class="ed-ads">🎯 <b>Criativo para ANÚNCIO</b><div>Ao aprovar, ele <b>não é publicado no seu feed</b>. Baixe a arte e suba no seu Gerenciador de Anúncios.</div></div>`:''}
+        ${m.headline?`<div class="ed-bloco"><div class="ed-lbl">Headline da arte</div><div class="ed-val">${JUMP.esc(m.headline)}</div></div>`:''}
+        ${m.subheadline||m.prova||m.cta_arte?`<div class="ed-bloco"><div class="ed-lbl">Textos da peça</div>
+          ${m.subheadline?`<div class="ed-mini">${JUMP.esc(m.subheadline)}</div>`:''}
+          ${m.prova?`<div class="ed-mini">📊 ${JUMP.esc(m.prova)}</div>`:''}
+          ${m.cta_arte?`<div class="ed-mini">→ ${JUMP.esc(m.cta_arte)}</div>`:''}</div>`:''}
+        <div class="ed-bloco">
+          <div class="ed-lbl">Texto do post <button class="ed-mini-btn" onclick="salvarCopy()">💾 Salvar</button></div>
+          <textarea class="f-textarea" id="edit-copy" rows="7">${JUMP.esc(c.copy||'')}</textarea>
+        </div>
+        <div class="ed-bloco">
+          <div class="ed-lbl">Formato</div><div class="ed-val-sm">${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div>
+        </div>
+        <div class="ed-bloco">
+          <div class="ed-lbl">Hashtags</div>
+          <div class="ed-val-sm">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span style="color:var(--t3)">Nenhuma — adicione no texto do post</span>'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AÇÕES: destrutivas à esquerda, decisão à direita -->
+    <div class="ed-foot">
+      <div class="ed-foot-l">
+        <button class="btn btn-r btn-sm" onclick="excluirPost('${id}')">🗑 Excluir</button>
+      </div>
+      <div class="ed-foot-r">
+        <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
+        ${aprovarBtn}
+      </div>
+    </div>`;
+  document.getElementById('modal-edit').classList.add('show');
+}
+// miniatura clicada: troca o slide grande
+function irSlide(i){
+  const c=ITENS.find(x=>x.id===EDIT_ID); if(!c)return;
+  const sl=JUMP.slidesDe(c); const im=document.getElementById('edit-img'); if(!im||!sl[i])return;
+  im.src=sl[i]; im.dataset.i=i;
+  document.querySelectorAll('.ed-th').forEach((t,k)=>t.classList.toggle('on',k===i));
+  const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+// #1 POST VENCIDO: reagenda em vez de deixar o cliente aprovar algo com data no passado
+async function reagendar(id){
+  const d=new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0);
+  try{
+    const{error}=await JUMP.sb.from('conteudos').update({data_sugerida:d.toISOString(),data_agendada:null}).eq('id',id);
+    if(error)throw error;
+    const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=d.toISOString();
+    JUMP.toast('Reagendado para '+d.toLocaleDateString('pt-BR')+'.');
+    abrirEdicao(id);
+  }catch(e){JUMP.toast('Não consegui reagendar: '+(e.message||'erro'),'err')}
+}
+function fecharEdicao(){document.getElementById('modal-edit').classList.remove('show');EDIT_ID=null;}
+function navSlideEdit(d){
+  const c=ITENS.find(x=>x.id===EDIT_ID); if(!c)return;
+  const sl=JUMP.slidesDe(c); const im=document.getElementById('edit-img'); if(!im||sl.length<2)return;
+  let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
+  im.src=sl[i]; im.dataset.i=i;
+  const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+async function salvarCopy(){
+  if(!EDIT_ID)return;
+  const nova=document.getElementById('edit-copy').value;
+  try{
+    await JUMP.sb.from('conteudos').update({copy:nova}).eq('id',EDIT_ID);
+    const c=ITENS.find(x=>x.id===EDIT_ID); if(c)c.copy=nova;
+    JUMP.toast('✓ Legenda salva.');
+  }catch(e){JUMP.toast('Erro ao salvar','err')}
+}
+// P4: EXCLUIR — apaga de vez, com confirmação. Diferente de "Pedir ajuste" (que devolve
+// ao agente e ensina o Designer). Excluir é para erro/lixo: nada volta, nada é aprendido.
+async function excluirPost(id){
+  if(!confirm('Excluir este post de vez? Esta ação não volta para o agente e não pode ser desfeita.'))return;
+  try{
+    await JUMP.sb.from('conteudos').update({status:'excluido'}).eq('id',id);
+    ITENS=ITENS.filter(i=>i.id!==id); fecharEdicao(); render();
+    JUMP.toast('Post excluído.');
+  }catch(e){JUMP.toast('Erro ao excluir','err')}
+}
+// Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
+// ⏹ FREIO COMPARTILHADO: vale para as filas da Aprovação, do Criativo e do painel.
+function pararGeracao(btn){
+  try{localStorage.setItem('jump_parar_lote','1')}catch(e){}
+  if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando...'}
+  JUMP.toast('Vou parar assim que a arte atual terminar.');
+}
+function deveParar(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}}
+function liberarGeracao(){try{localStorage.removeItem('jump_parar_lote')}catch(e){}}
+function retomarGeracao(btn){
+  liberarGeracao();
+  if(btn){btn.disabled=true;btn.innerHTML='Retomando...'}
+  const b=document.getElementById('fila-bar');
+  if(b)b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span><button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>';
+  gerarFila();
+}
+async function gerarFila(){
+  // Se a geração está pausada, mostra o aviso + botão de retomar (nunca fica preso).
+  if(deveParar()){
+    const b=document.getElementById('fila-bar');
+    if(b){
+      b.style.display='block';
+      b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">⏸</span>'+
+        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">Geração de artes pausada por você — '+RASCUNHOS.length+' post(s) aguardando.</span>'+
+        '<button class="btn btn-g btn-sm" style="margin-left:auto" onclick="retomarGeracao(this)">▶ Retomar geração</button></div>';
+    }
+    return;
+  }
+  const bar=document.getElementById('fila-bar');
+  if(bar)bar.style.display='block';
+  for(let i=0;i<RASCUNHOS.length;i++){
+    if(deveParar()){
+      const st0=document.getElementById('fila-status');
+      if(st0)st0.textContent='⏹ Geração interrompida. '+i+' arte(s) prontas — as demais seguem pendentes.';
+      const bp=document.getElementById('btn-parar');if(bp)bp.remove();
+      return;
+    }
+    const c=RASCUNHOS[i];
+    const st=document.getElementById('fila-status');
+    if(st)st.textContent=`Gerando arte ${i+1} de ${RASCUNHOS.length}…`;
+    try{
+      // CONTRATO ÚNICO. Antes esta página amassava headline+copy+oferta numa sopa de texto
+      // e mandava só como `prompt` — a headline REAL nunca chegava ao servidor e o Diretor
+      // era instruído a INVENTAR uma. Agora vai estruturado, igual ao calendário.
+      const r=await fetch('/api/gerar-imagem',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        body:JSON.stringify(JUMP.payloadDoConteudo(c,{origem:'lote',ver_id:CTX.viewId||null}))
+      });
+      const d=await r.json();
+      if(d&&d.ok){
+        // recarrega a lista para mostrar o item já pronto para aprovar
+        const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
+        ITENS=data||[]; render();
+      } else if(d&&d.limite){
+        // limite de imagens atingido — para a fila com aviso claro
+        if(bar)bar.style.display='none';
+        JUMP.toast('Limite de imagens do plano atingido. As artes restantes ficam pendentes.','err');
+        return;
+      }
+    }catch(e){console.error('fila:',e);}
+  }
+  if(bar)bar.style.display='none';
+  JUMP.toast('✓ Artes geradas! Revise e aprove.');
+}
+// Salva o gosto do cliente como memória global (Designer aprende)
+async function salvarGosto(chave,valor){
+  try{
+    await JUMP.sb.from('memorias').insert({user_id:CTX.viewId||CTX.user.id,agente:'global',chave,valor});
+  }catch(e){}
+}
+async function aprovar(id){
+  const c=ITENS.find(i=>i.id===id);
+  try{
+    await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
+    // dispara a publicação do próprio usuário (se já estiver na data/hora, publica agora; futuro espera o cron)
+    try{fetch('/api/cron?job=publicar_meu',{method:'POST',headers:{'Authorization':'Bearer '+CTX.token}}).catch(()=>{})}catch(e){}
+    // Designer aprende: este tipo/tema foi aprovado
+    if(c)salvarGosto('referencia_aprovada',`${c.tema||'post'} (${c.tipo_visual||'conceitual'}, ${c.formato||'feed'}) — aprovado pelo cliente`);
+    JUMP.toast('✓ Aprovado! Será publicado no horário ideal.');
+    ITENS=ITENS.filter(i=>i.id!==id);render();
+  }catch(e){JUMP.toast('Erro ao aprovar','err')}
+}
+async function baixar(id){
+  const c=ITENS.find(i=>i.id===id);if(!c)return;
+  if(c.midia_url){
+    try{const r=await fetch(c.midia_url);const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.tema||'conteudo')+'.png';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href)}
+    catch(e){const a=document.createElement('a');a.href=c.midia_url;a.download=c.tema||'conteudo';a.click()}
+  }
+  if(c.copy){
+    const blob=new Blob([(c.tema||'')+'\n\n'+(c.copy||'')],{type:'text/plain'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(c.tema||'legenda')+'.txt';a.click();
+  }
+  try{await JUMP.sb.from('conteudos').update({status:'baixado'}).eq('id',id)}catch(e){}
+  JUMP.toast('⬇ Baixado! Bom post.');
+  ITENS=ITENS.filter(i=>i.id!==id);render();
+}
+function abrirRej(id){
+  document.getElementById('mr-id').value=id;
+  document.getElementById('mr-motivo').value='';
+  document.getElementById('modal-rej').classList.add('show');
+}
+async function confirmarRej(){
+  const id=document.getElementById('mr-id').value;
+  const motivo=document.getElementById('mr-motivo').value.trim();
+  try{
+    await JUMP.sb.from('conteudos').update({status:'rejeitado',feedback:motivo}).eq('id',id);
+    // Designer aprende: o que o cliente NÃO quer
+    if(motivo)salvarGosto('evitar_visual',motivo);
+    JUMP.toast('Enviado ao agente para ajuste.');
+    document.getElementById('modal-rej').classList.remove('show');
+    ITENS=ITENS.filter(i=>i.id!==id);render();
+  }catch(e){JUMP.toast('Erro ao rejeitar','err')}
+}
+</script>
+</body>
+</html>

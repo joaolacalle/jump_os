@@ -1,0 +1,46 @@
+{
+  "functions": {
+    "api/gerar-imagem.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/agente-chat.js": {
+      "maxDuration": 60
+    },
+    "api/admin-users.js": {
+      "maxDuration": 30
+    },
+    "api/video-editar.js": {
+      "maxDuration": 60
+    },
+    "api/video-webhook.js": {
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron?job=estrategia",
+      "schedule": "0 9 25 * *"
+    },
+    {
+      "path": "/api/cron?job=publicar",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron?job=tokens",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron?job=seguranca",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron?job=ordens",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron?job=limpeza",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}
