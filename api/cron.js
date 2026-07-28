@@ -383,8 +383,116 @@ async function jobMetricas() {
   return { coletadas: ok, contas: contas.length, erros };
 }
 
+// ═══ WEBHOOK DO INSTAGRAM (comentários + DMs) → automação de DM por palavra-chave ═══
+// Fica DENTRO do cron (chamado como /api/cron?job=webhook) para não estourar o teto de 12
+// funções do Hobby. Contador de envios em clientes.uso.dm_envios (jsonb; reseta por mês).
+const LIMS_DM = { basico: 0, plus: 100, pro: 300 };
+const IG_MSG_V = 'v19.0';
+function wNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+async function wContaPorIg(igId) {
+  const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${encodeURIComponent(igId)}&select=user_id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  return (Array.isArray(arr) && arr[0]) ? arr[0] : null;
+}
+async function wRegras(uid) {
+  const arr = await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm?user_id=eq.${uid}&ativo=eq.true&select=palavra_chave,mensagem,gatilho,origem`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  return Array.isArray(arr) ? arr : [];
+}
+function wCasar(texto, regras, gatilho) {
+  const t = wNorm(texto);
+  return regras.find(r => {
+    const g = String(r.gatilho || 'ambos');
+    if (g !== 'ambos' && g !== gatilho) return false;
+    if (r.origem === 'anuncio') return false; // v1: atende organico|ambos
+    const kw = wNorm(r.palavra_chave);
+    return kw && t.includes(kw);
+  });
+}
+async function wCota(uid) {
+  const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${uid}&select=id,plano,limites,uso`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
+  if (!cli) return { ok: false };
+  const lim = Number((cli.limites && cli.limites.dm_envios) != null ? cli.limites.dm_envios : (LIMS_DM[cli.plano] || 0));
+  const usados = Number((cli.uso && cli.uso.dm_envios) || 0);
+  return { ok: usados < lim, cli };
+}
+async function wDebitar(cli) {
+  const uso = Object.assign({}, cli.uso || {}, { dm_envios: Number((cli.uso && cli.uso.dm_envios) || 0) + 1 });
+  await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${cli.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(() => {});
+}
+async function wEnviar(igId, token, recipient, texto) {
+  const r = await fetch(`https://graph.instagram.com/${IG_MSG_V}/${igId}/messages`, {
+    method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipient, message: { text: String(texto || '').slice(0, 900) } }),
+  });
+  return r.ok;
+}
+async function processarWebhook(body) {
+  const entries = Array.isArray(body.entry) ? body.entry : [];
+  for (const ent of entries) {
+    const igId = String(ent.id || '');
+    if (!igId) continue;
+    const conta = await wContaPorIg(igId);
+    if (!conta || !conta.token) continue;
+    const regras = await wRegras(conta.user_id);
+    if (!regras.length) continue;
+    // comentários → private reply (uma por comentário)
+    for (const ch of (Array.isArray(ent.changes) ? ent.changes : [])) {
+      if (ch.field !== 'comments') continue;
+      const v = ch.value || {}, texto = v.text || '', commentId = v.id;
+      if (v.from && String(v.from.id) === igId) continue;
+      const regra = wCasar(texto, regras, 'comentario');
+      if (!regra || !commentId) continue;
+      const cota = await wCota(conta.user_id);
+      if (!cota.ok) continue;
+      if (await wEnviar(igId, conta.token, { comment_id: commentId }, regra.mensagem)) await wDebitar(cota.cli);
+    }
+    // mensagens diretas → resposta na conversa (janela de 24h aberta pela msg do usuário)
+    for (const mg of (Array.isArray(ent.messaging) ? ent.messaging : [])) {
+      if (mg.message && mg.message.is_echo) continue;
+      const senderId = mg.sender && mg.sender.id, texto = (mg.message && mg.message.text) || '';
+      if (!senderId || !texto || String(senderId) === igId) continue;
+      const regra = wCasar(texto, regras, 'dm');
+      if (!regra) continue;
+      const cota = await wCota(conta.user_id);
+      if (!cota.ok) continue;
+      if (await wEnviar(igId, conta.token, { id: senderId }, regra.mensagem)) await wDebitar(cota.cli);
+    }
+  }
+}
+
 module.exports = async (req, res) => {
   const job0 = (req.query && req.query.job) || '';
+  // WEBHOOK do Instagram — a Meta chama /api/cron?job=webhook (sem CRON_SECRET).
+  if (job0 === 'webhook') {
+    if (req.method === 'GET') {
+      const q = req.query || {};
+      if (q['hub.mode'] === 'subscribe' && q['hub.verify_token'] && q['hub.verify_token'] === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+        res.setHeader('Content-Type', 'text/plain');
+        return res.status(200).send(String(q['hub.challenge'] == null ? '' : q['hub.challenge']));
+      }
+      return res.status(403).json({ error: 'verify_token inválido', env_definida: !!process.env.META_WEBHOOK_VERIFY_TOKEN });
+    }
+    if (req.method === 'POST') {
+      try {
+        let raw = '';
+        await new Promise((ok) => { req.on('data', d => raw += d); req.on('end', ok); });
+        try {
+          const sig = String(req.headers['x-hub-signature-256'] || '');
+          if (sig && process.env.META_APP_SECRET) {
+            const crypto = require('crypto');
+            const esp = 'sha256=' + crypto.createHmac('sha256', process.env.META_APP_SECRET).update(raw).digest('hex');
+            if (sig !== esp) return res.status(401).json({ error: 'assinatura inválida' });
+          }
+        } catch (e) {}
+        const body = raw ? JSON.parse(raw) : (req.body || {});
+        await processarWebhook(body);
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        console.error('webhook:', e.message);
+        return res.status(200).json({ ok: true }); // nunca falhar o handshake da Meta
+      }
+    }
+    return res.status(405).json({ error: 'método não suportado' });
+  }
   // DISPARO PELO PRÓPRIO USUÁRIO (o navegador não tem o CRON_SECRET): publica SÓ os posts do
   // cliente autenticado. Usado quando sai criativo novo — não espera o cron da rodada.
   if (job0 === 'publicar_meu') {
