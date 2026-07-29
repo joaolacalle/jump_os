@@ -16,6 +16,7 @@
 #fino summary span:first-child{display:inline-block;transition:transform .2s}
 #fino summary:hover{color:var(--t2)}
 </style>
+<style>/*polimento-jump*/.block,.cfg-card{border-radius:16px}.cor-grid,.cfg-grid{gap:16px}.conx{border-radius:14px}.hd-hello{color:var(--g)}</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -39,7 +40,7 @@
       <div style="font-family:var(--M);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:9px">2 · Ou use a cor da sua marca</div>
       <div style="padding:12px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;margin-bottom:18px">
         <div style="display:flex;align-items:center;gap:11px">
-          <label class="cp-sw"><input type="color" id="marca" value="#A855F7"></label>
+          <label class="cp-sw"><input type="color" id="marca" value="#8B5CF6"></label>
           <div style="flex:1"><div style="font-size:13px;font-weight:800">Cor da marca</div><div style="font-family:var(--M);font-size:10px;color:var(--t3)">O sistema monta a harmonia completa a partir dela</div></div>
           <button class="btn btn-g btn-sm" onclick="derivarDaMarca()" style="white-space:nowrap">Gerar →</button>
         </div>
@@ -62,9 +63,9 @@
             <div><div style="font-size:12.5px;font-weight:800">Fundo</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3)">Tom de fundo do painel</div></div></div>
           <div class="cp-row"><label class="cp-sw"><input type="color" id="c5" value="#191922" oninput="preview()"></label>
             <div><div style="font-size:12.5px;font-weight:800">Caixas</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3)">Fundo dos cards</div></div></div>
-          <div class="cp-row"><label class="cp-sw"><input type="color" id="c1" value="#A855F7" oninput="preview()"></label>
+          <div class="cp-row"><label class="cp-sw"><input type="color" id="c1" value="#8B5CF6" oninput="preview()"></label>
             <div><div style="font-size:12.5px;font-weight:800">Principal</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3)">Botões e destaques</div></div></div>
-          <div class="cp-row"><label class="cp-sw"><input type="color" id="c2" value="#B975F9" oninput="preview()"></label>
+          <div class="cp-row"><label class="cp-sw"><input type="color" id="c2" value="#A78BFA" oninput="preview()"></label>
             <div><div style="font-size:12.5px;font-weight:800">Secundária</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3)">Apoio</div></div></div>
           <div class="cp-row"><label class="cp-sw"><input type="color" id="t1" value="#F5F2EC" oninput="preview()"></label>
             <div><div style="font-size:12.5px;font-weight:800">Textos</div><div style="font-family:var(--M);font-size:9.5px;color:var(--t3)">Títulos e corpo</div></div></div>
@@ -200,10 +201,10 @@
 <script src="assets/jump-core.js"></script>
 <script>
 let CTX=null;
-const PADRAO={c1:'#A855F7',c2:'#B975F9',c3:'#FFFFFF',c4:'#0E0E13',c5:'#191922',bg:'escuro',t1:'#F5F2EC'};
+const PADRAO={c1:'#8B5CF6',c2:'#A78BFA',c3:'#FFFFFF',c4:'#0E0E13',c5:'#191922',bg:'escuro',t1:'#F5F2EC'};
 // ── PALETAS PRONTAS: harmonia e contraste já resolvidos (o usuário não precisa entender cor)
 const PALETAS=[
-  {n:'JUMP',    c1:'#A855F7',c2:'#B975F9',c3:'#C9C2D8',c4:'#0E0E13',c5:'#191922',t1:'#F5F2EC'},
+  {n:'JUMP',    c1:'#8B5CF6',c2:'#A78BFA',c3:'#C9C2D8',c4:'#0E0E13',c5:'#191922',t1:'#F5F2EC'},
   {n:'Natureza',c1:'#4ADE80',c2:'#86EFAC',c3:'#BBD9C4',c4:'#0C1210',c5:'#151E19',t1:'#F0F5F1'},
   {n:'Oceano',  c1:'#38BDF8',c2:'#7DD3FC',c3:'#B4CBDA',c4:'#0B1017',c5:'#141C26',t1:'#EEF4F8'},
   {n:'Dourado', c1:'#FBBF24',c2:'#FCD34D',c3:'#D8CBA8',c4:'#12100A',c5:'#1E1A11',t1:'#F7F3E8'},
