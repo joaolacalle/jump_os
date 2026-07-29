@@ -81,6 +81,12 @@
 .bento{gap:14px}
 .pill-p{color:#b79bf7;border:1px solid rgba(139,92,246,.4);background:rgba(139,92,246,.08)}
 .apr-c{border-radius:14px}
+.bt{border-radius:16px}
+.bt-hero{min-height:300px}
+.bt-num{color:var(--t1);letter-spacing:-.01em}
+.bt-up{color:var(--g)!important}
+.bt-lbl{font-family:var(--M);letter-spacing:.14em}
+.bt-act-btn{background:rgba(var(--g-rgb),.12);color:var(--g);border-color:rgba(var(--g-rgb),.28)}
 </style>
 </head>
 <body>
@@ -607,7 +613,7 @@ function renderBentoIG(m,IGON){
       <div class="bt-num">${IGON?JUMP.fmtNum(m.seguidores||0):'—'}</div>
       ${IGON?delta(t.seg||0):''}
     </div>
-    <div style="margin:14px 0 4px">${IGON?spark(raw.serie_seguidores,52):''}</div>
+    <div style="margin:16px 0 6px;flex:1;min-height:0">${IGON?spark(raw.serie_seguidores,190):''}</div>
     <div class="bt-veredito">${veredito(m,raw,IGON)}</div>
   </div>
   <!-- OS TRÊS QUE IMPORTAM -->
