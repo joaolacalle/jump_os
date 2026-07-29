@@ -87,6 +87,27 @@
 .bt-up{color:var(--g)!important}
 .bt-lbl{font-family:var(--M);letter-spacing:.14em}
 .bt-act-btn{background:rgba(var(--g-rgb),.12);color:var(--g);border-color:rgba(var(--g-rgb),.28)}
+.uso-mes{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 20px;margin-bottom:20px}
+.uso-mes:empty{display:none}
+.um-h{font-family:var(--M);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.um-h::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)}
+.um-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.um-i{display:flex;flex-direction:column;gap:8px}
+.um-top{display:flex;justify-content:space-between;align-items:center}
+.um-l{font-size:13px;font-weight:600;color:var(--t2)}
+.um-p{font-family:var(--M);font-size:13px;font-weight:700;color:var(--g)}.um-p.w{color:#f0b53f}
+.um-bar{height:8px;border-radius:99px;background:rgba(245,242,236,.07);overflow:hidden}
+.um-bar i{display:block;height:100%;border-radius:99px;background:var(--grad,var(--g))}
+.um-bar i.w{background:linear-gradient(90deg,#f0b53f,#e0559b)}
+@keyframes jFade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes jGrow{from{width:0}}
+@keyframes jDraw{to{stroke-dashoffset:0}}
+.uso-mes,.acts4>*,.bento>.bt,.ag-chips>*{animation:jFade .5s ease both}
+.bento>.bt:nth-child(2){animation-delay:.07s}.bento>.bt:nth-child(3){animation-delay:.14s}.bento>.bt:nth-child(4){animation-delay:.21s}.bento>.bt:nth-child(5){animation-delay:.28s}
+.acts4>*:nth-child(2){animation-delay:.06s}.acts4>*:nth-child(3){animation-delay:.12s}.acts4>*:nth-child(4){animation-delay:.18s}
+.um-bar i{animation:jGrow 1s cubic-bezier(.2,.8,.2,1) .35s both}
+.bt-hero svg path:last-of-type{stroke-dasharray:2200;stroke-dashoffset:2200;animation:jDraw 1.7s ease .35s forwards}
+@media(prefers-reduced-motion:reduce){.uso-mes,.acts4>*,.bento>.bt,.ag-chips>*,.um-bar i,.bt-hero svg path:last-of-type{animation:none!important}}
 </style>
 </head>
 <body>
@@ -149,6 +170,8 @@
   </div>
 
   <!-- AÇÕES -->
+  <div class="uso-mes" id="uso-mes"></div>
+
   <div class="sec-lbl">Ações rápidas</div>
   <div class="acts4">
     <a href="agentes.html" class="act"><span>💬</span><div class="act-t">Falar com agentes</div><div class="act-b">Check-in, roteiros e estratégia.</div><div class="act-go">Abrir →</div></a>
@@ -246,6 +269,13 @@ const LV={basico:1,plus:2,pro:3};
     const level=LV[plano]||1;
     document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
     document.getElementById('hd-status').textContent=(_conta.status==='ativo')?'operando.':'aguardando ativação.';
+    try{
+      var _uso=_conta.uso||{}, _lim=_conta.limites||{};
+      var _pct=function(u,l){l=Number(l)||0;u=Number(u)||0;return l>0?Math.min(100,Math.round(u/l*100)):0;};
+      var _bar=function(lbl,ic,p){var w=p>=80?' w':'';return '<div class="um-i"><div class="um-top"><span class="um-l">'+ic+' '+lbl+'</span><span class="um-p'+w+'">'+p+'%</span></div><div class="um-bar"><i class="'+(w?'w':'')+'" style="width:'+p+'%"></i></div></div>';};
+      var _um=document.getElementById('uso-mes');
+      if(_um)_um.innerHTML='<div class="um-h">Uso do mês · plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+'</div><div class="um-grid">'+_bar('Imagens','🖼',_pct(_uso.imagens,_lim.imagens))+_bar('Vídeos','🎬',_pct(_uso.videos,_lim.videos))+_bar('Conversas','💬',_pct(_uso.tokens,_lim.tokens))+'</div>';
+    }catch(e){}
     const uid=viewing?viewing.id:user.id;
 
     /* Banner do período de teste (7 dias) */
