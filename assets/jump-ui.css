@@ -383,3 +383,5 @@ a{transition:color .18s,opacity .18s}
 @media(min-width:981px) and (max-width:1240px){
   .bt-4{grid-column:span 6}.bt-3{grid-column:span 6}
 }
+.sec-lbl{display:flex;align-items:center;gap:12px;font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin:26px 0 14px}
+.sec-lbl::after{content:"";flex:1;height:1px;background:var(--bd)}
