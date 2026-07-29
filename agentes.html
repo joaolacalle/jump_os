@@ -1208,6 +1208,13 @@ function _diaSep(dt){
   const s=document.createElement('div');s.className='day-sep';s.textContent=_fmtDia(dt);
   w.appendChild(s);
 }
+function mdMsg(t){
+  t=String(t==null?'':t);
+  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  t=t.replace(/\*\*([^*]+?)\*\*/g,'<strong>$1</strong>');
+  t=t.replace(/`([^`]+?)`/g,'<code>$1</code>');
+  return t;
+}
 function addMsg(cls,txt,meta,ts){
   const w=document.getElementById('msgs');
   const e=document.getElementById('empty');if(e)e.remove();
@@ -1216,7 +1223,7 @@ function addMsg(cls,txt,meta,ts){
   _diaSep(dt);
   const d=document.createElement('div');
   d.className='msg '+cls;
-  d.textContent=txt;
+  d.innerHTML=mdMsg(txt);
   if(meta){const m=document.createElement('div');m.className='msg-meta';m.textContent=meta;d.appendChild(m)}
   const tm=document.createElement('div');tm.className='msg-time';tm.textContent=dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});d.appendChild(tm);
   if(cls==='a'){
