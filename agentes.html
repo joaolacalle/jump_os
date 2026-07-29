@@ -128,9 +128,11 @@
 @keyframes orbspin{to{transform:rotate(360deg)}}
 @media(max-width:900px){.chat-layout{grid-template-columns:1fr}}
 @media(max-width:520px){.ag-list{grid-template-columns:1fr}}
-.agcol-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
-.agcol-btn:hover{color:var(--g);border-color:rgba(var(--g-rgb),.4)}
+.chat-card{position:relative}
+.agcol-btn{position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:6;width:36px;height:36px;border-radius:50%;border:1px solid var(--bd);background:var(--card);color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.agcol-btn:hover{color:var(--g);border-color:rgba(var(--g-rgb),.5)}
 .agcol-btn svg{width:17px;height:17px}
+.ec-logo{width:min(62%,230px);height:auto;opacity:.7;margin:0 auto 16px;display:block;filter:drop-shadow(0 10px 34px rgba(var(--g-rgb),.18))}
 .main:has(#agcol:checked) .ag-list{display:none}
 .main:has(#agcol:checked) .chat-layout{grid-template-columns:1fr}
 @media(prefers-reduced-motion:reduce){.orb-glow,.orb-ring{animation:none}}
@@ -154,8 +156,8 @@
   <div class="chat-layout">
     <div class="ag-list" id="ag-list"></div>
     <div class="chat-card">
+      <label for="agcol" class="agcol-btn" title="Mostrar/ocultar agentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></label>
       <div class="chat-top" id="chat-top">
-        <label for="agcol" class="agcol-btn" title="Mostrar/ocultar agentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></label>
         <div class="ct-ico" id="ct-ico">🤖</div>
         <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
         <div class="ag-dash" id="ag-dash"></div>
@@ -165,7 +167,7 @@
       <div class="chat-msgs" id="msgs">
         <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
           <div style="text-align:center;margin-bottom:20px">
-            <div class="orb-wrap"><div class="orb-glow"></div><div class="orb-ring"></div><div class="orb-core"><div class="face"><span class="eye l"></span><span class="eye r"></span><span class="smile"></span></div></div></div>
+            <img src="assets/logo.png" alt="JUMP OS" class="ec-logo">
             <div class="ec-t">Seu sistema está <span style="color:var(--g)">pronto.</span></div>
             <div class="ec-b" style="max-width:440px;margin:6px auto 0">Escolha um agente e peça análises, conteúdos, campanhas e automações.</div>
           </div>
