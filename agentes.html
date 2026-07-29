@@ -105,14 +105,18 @@
 /* ── MEUS AGENTES · visual aprovado (só estilo + orbe; nenhum ID/função tocado) ── */
 .hd-hello{color:var(--g)}
 .hd-h em{background:linear-gradient(96deg,#8b5cf6,#e0559b 65%,#f0913f);-webkit-background-clip:text;background-clip:text;color:transparent}
-.chat-layout{grid-template-columns:1.5fr 1fr;gap:20px}
-.ag-list{display:grid!important;grid-template-columns:repeat(2,1fr);gap:12px;align-content:start;overflow:auto}
-.ag-it{flex-direction:column;align-items:flex-start;gap:7px;padding:11px 12px;border-radius:13px;min-height:86px;justify-content:space-between;position:relative;overflow:hidden}
-.ag-it::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 22% 12%,rgba(var(--ac,168,85,247),.14),transparent 60%);pointer-events:none}
-.ag-it:hover{transform:translateY(-4px);border-color:rgba(var(--ac,168,85,247),.5)}
-.ag-it-ico{width:34px;height:34px;border-radius:10px;font-size:16px;position:relative}
-.ag-it-n{font-size:13px;position:relative}
-.ag-it-r{font-family:var(--M);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-layout{grid-template-columns:66px 1fr;gap:14px}
+.ag-list{display:flex!important;flex-direction:column;gap:9px;overflow:visible;padding:2px}
+body:has(#agmenu:checked) .ag-list{display:none!important}
+body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
+.ag-it{position:relative;display:flex;align-items:center;justify-content:center;padding:0;gap:0;border-radius:13px!important;width:52px;height:52px;min-height:0;margin:0 auto;border:1px solid var(--bd)!important;overflow:visible}
+.ag-it::before{content:"";position:absolute;inset:0;border-radius:12px;background:rgba(var(--ac,168,85,247),.10);pointer-events:none}
+.ag-it:hover{border-color:rgba(var(--ac,168,85,247),.6)!important}
+.ag-it.on{border-color:rgba(var(--ac,168,85,247),.8)!important;box-shadow:0 0 0 2px rgba(var(--ac,168,85,247),.28)}
+.ag-it-ico{width:52px;height:52px;border-radius:12px;font-size:23px;position:relative;background:transparent!important;border:none!important}
+.ag-it-n{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--card2,#181925);border:1px solid var(--bd);padding:6px 11px;border-radius:9px;opacity:0;pointer-events:none;transition:.15s;z-index:40;font-size:12.5px;font-weight:700;box-shadow:0 6px 16px rgba(0,0,0,.45)}
+.ag-it:hover .ag-it-n{opacity:1}
+.ag-it-r{display:none}
 .chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
 .empty-chat{justify-content:center;gap:6px}
 .ec-t{font-size:30px}
@@ -126,15 +130,12 @@
 .eye.l{left:10px}.eye.r{right:10px}
 .smile{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:30px;height:15px;border:3px solid var(--g);border-top:none;border-radius:0 0 40px 40px}
 @keyframes orbspin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.chat-layout{grid-template-columns:1fr}}
+@media(max-width:900px){.chat-layout{grid-template-columns:1fr;gap:10px}.ag-list{flex-direction:row!important;overflow-x:auto;padding-bottom:4px}body:has(#agmenu:checked) .ag-list{display:flex!important}}
 @media(max-width:520px){.ag-list{grid-template-columns:1fr}}
-.chat-card{position:relative}
-.agcol-btn{position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:6;width:36px;height:36px;border-radius:50%;border:1px solid var(--bd);background:var(--card);color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;box-shadow:0 4px 14px rgba(0,0,0,.35)}
-.agcol-btn:hover{color:var(--g);border-color:rgba(var(--g-rgb),.5)}
-.agcol-btn svg{width:17px;height:17px}
+.agmenu-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--bd);background:var(--card2,#181925);color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
+.agmenu-btn:hover{color:var(--g);border-color:rgba(var(--g-rgb),.45)}
+.agmenu-btn svg{width:19px;height:19px}
 .ec-logo{width:min(62%,230px);height:auto;opacity:.7;margin:0 auto 16px;display:block;filter:drop-shadow(0 10px 34px rgba(var(--g-rgb),.18))}
-.main:has(#agcol:checked) .ag-list{display:none}
-.main:has(#agcol:checked) .chat-layout{grid-template-columns:1fr}
 @media(prefers-reduced-motion:reduce){.orb-glow,.orb-ring{animation:none}}
 </style>
 </head>
@@ -143,7 +144,7 @@
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Acordando os agentes...</div></div>
 <div class="app">
 <main class="main">
-  <input type="checkbox" id="agcol" hidden>
+  <input type="checkbox" id="agmenu" hidden>
   <div class="hd" style="margin-bottom:16px">
     <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Fale com o sistema que cuida do seu <em>Instagram.</em></h1>
       <div id="trial-pill" style="display:none;margin-top:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(251,191,36,.14));border:1px solid rgba(168,85,247,.4);font-size:12px;font-family:var(--M);color:var(--t1);width:fit-content">✨ <span id="trial-pill-txt">Teste grátis</span></div>
@@ -156,8 +157,8 @@
   <div class="chat-layout">
     <div class="ag-list" id="ag-list"></div>
     <div class="chat-card">
-      <label for="agcol" class="agcol-btn" title="Mostrar/ocultar agentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></label>
       <div class="chat-top" id="chat-top">
+        <label for="agmenu" class="agmenu-btn" title="Agentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></label>
         <div class="ct-ico" id="ct-ico">🤖</div>
         <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
         <div class="ag-dash" id="ag-dash"></div>
