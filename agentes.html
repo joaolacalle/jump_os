@@ -101,6 +101,35 @@
   .chat-card{height:calc(100vh - 290px);min-height:420px}
 }
 </style>
+<style>
+/* ── MEUS AGENTES · visual aprovado (só estilo + orbe; nenhum ID/função tocado) ── */
+.hd-hello{color:var(--g)}
+.hd-h em{background:linear-gradient(96deg,#8b5cf6,#e0559b 65%,#f0913f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chat-layout{grid-template-columns:1.5fr 1fr;gap:20px}
+.ag-list{display:grid!important;grid-template-columns:repeat(2,1fr);gap:12px;align-content:start;overflow:auto}
+.ag-it{flex-direction:column;align-items:flex-start;gap:10px;padding:16px 15px;border-radius:16px;min-height:116px;justify-content:space-between;position:relative;overflow:hidden}
+.ag-it::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 22% 12%,rgba(var(--ac,168,85,247),.14),transparent 60%);pointer-events:none}
+.ag-it:hover{transform:translateY(-4px);border-color:rgba(var(--ac,168,85,247),.5)}
+.ag-it-ico{width:44px;height:44px;border-radius:12px;font-size:20px;position:relative}
+.ag-it-n{font-size:15px;position:relative}
+.ag-it-r{font-family:var(--M);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
+.empty-chat{justify-content:center;gap:6px}
+.ec-t{font-size:30px}
+.orb-wrap{position:relative;width:168px;height:168px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
+.orb-glow{position:absolute;inset:-20px;border-radius:50%;background:conic-gradient(from 200deg,#24E0A0,#31C9C0,#8b5cf6,#e0559b,#24E0A0);filter:blur(30px);opacity:.5;animation:orbspin 14s linear infinite}
+.orb-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 210deg,#24E0A0,#31C9C0,#8b5cf6,#24E0A0);padding:4px;animation:orbspin 22s linear infinite reverse}
+.orb-ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--card)}
+.orb-core{position:relative;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#141824,#08090e 75%);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 32px rgba(36,224,160,.18)}
+.face{position:relative;width:66px;height:36px}
+.eye{position:absolute;top:5px;width:12px;height:17px;border-radius:99px;background:var(--g);box-shadow:0 0 12px rgba(var(--g-rgb),.8)}
+.eye.l{left:10px}.eye.r{right:10px}
+.smile{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:30px;height:15px;border:3px solid var(--g);border-top:none;border-radius:0 0 40px 40px}
+@keyframes orbspin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.chat-layout{grid-template-columns:1fr}}
+@media(max-width:520px){.ag-list{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.orb-glow,.orb-ring{animation:none}}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -108,7 +137,7 @@
 <div class="app">
 <main class="main">
   <div class="hd" style="margin-bottom:16px">
-    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1>
+    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Fale com o sistema que cuida do seu <em>Instagram.</em></h1>
       <div id="trial-pill" style="display:none;margin-top:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(251,191,36,.14));border:1px solid rgba(168,85,247,.4);font-size:12px;font-family:var(--M);color:var(--t1);width:fit-content">✨ <span id="trial-pill-txt">Teste grátis</span></div>
     </div>
     <div style="min-width:170px">
@@ -128,9 +157,10 @@
       <div class="mem-pane" id="fila-pane"></div>
       <div class="chat-msgs" id="msgs">
         <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
-          <div style="text-align:center;margin-bottom:18px">
-            <div class="ec-t">Por onde você quer começar?</div>
-            <div class="ec-b" style="max-width:440px;margin:5px auto 0">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
+          <div style="text-align:center;margin-bottom:20px">
+            <div class="orb-wrap"><div class="orb-glow"></div><div class="orb-ring"></div><div class="orb-core"><div class="face"><span class="eye l"></span><span class="eye r"></span><span class="smile"></span></div></div></div>
+            <div class="ec-t">Seu sistema está <span style="color:var(--g)">pronto.</span></div>
+            <div class="ec-b" style="max-width:440px;margin:6px auto 0">Escolha um agente e peça análises, conteúdos, campanhas e automações.</div>
           </div>
           <div id="onb-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;max-width:720px;margin:0 auto"></div>
         </div>
