@@ -16,7 +16,7 @@
 #fino summary span:first-child{display:inline-block;transition:transform .2s}
 #fino summary:hover{color:var(--t2)}
 </style>
-<style>/*polimento-jump*/.block,.cfg-card{border-radius:16px}.cor-grid,.cfg-grid{gap:16px}.conx{border-radius:14px}.hd-hello{color:var(--g)}/* fundo segue o tema (corrige a tarja preta ao trocar a cor do fundo) */body{background:var(--ch)!important}/* dissolve os wrappers de coluna: os cards fluem direto no grid de 2 colunas */.cfg-grid>div{display:contents!important}/* Aparência ocupa a linha toda → Conexões (col1) e Ciclo (col2) ficam lado a lado */.cfg-grid>div:first-child>.card:first-child{grid-column:1/-1!important}</style>
+<style>/*polimento-jump*/.block,.cfg-card{border-radius:16px}.cor-grid,.cfg-grid{gap:16px}.conx{border-radius:14px}.hd-hello{color:var(--g)}/* fundo segue o tema (corrige a tarja preta ao trocar a cor do fundo) */body{background:var(--ch)!important}/* Conexões e Ciclo lado a lado via 2 colunas independentes (sem buracos) */</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -25,10 +25,7 @@
 <main class="main">
   <div class="hd"><div><div class="hd-hello">Configurações</div><h1 class="hd-h">Sua conta, seu <em>estilo.</em></h1></div></div>
   <div class="cfg-grid">
-    <!-- COLUNA 1: personalização e sistema -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-    <!-- TEMA — onboarding em 3 níveis: paleta pronta → cor da marca → ajuste fino -->
-    <div class="card">
+    <div class="card" style="grid-column:1/-1">
       <div class="sec-lbl" style="margin-top:0">🎨 Aparência do painel</div>
       <div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:14px">Escolha um estilo pronto, use a cor da sua marca, ou ajuste cada detalhe. As mudanças aparecem na hora — só ficam salvas ao clicar em <b>Salvar tema</b>.</div>
 
@@ -91,6 +88,7 @@
         <button class="btn btn-g btn-sm" style="flex:1" onclick="salvarTema()">Salvar tema</button>
       </div>
     </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
     <div class="card">
         <div class="sec-lbl" style="margin-top:0">🔗 Conexões</div>
         <div id="conex-wrap" style="display:flex;flex-direction:column;gap:10px">
@@ -107,6 +105,20 @@
         </div>
         <div style="font-size:11.5px;color:var(--t3);margin-top:11px;line-height:1.55">O Instagram habilita a publicação automática, a análise da dashboard e as respostas de DM. O Meta Ads (Pro) permite ao Consultor de Tráfego ler seus números reais — nunca alteramos suas campanhas.</div>
       </div>
+      <div class="card">
+        <div class="sec-lbl" style="margin-top:0">👤 Dados da conta</div>
+        <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cfg-nome"></div>
+        <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="cfg-tel"></div>
+        <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="cfg-email" disabled style="opacity:.55"></div>
+        <button class="btn btn-g btn-sm" onclick="salvarDados()">Salvar dados</button>
+      </div>
+      <div class="card">
+        <div class="sec-lbl" style="margin-top:0">🔒 Senha</div>
+        <div class="f-group"><label class="f-label">Nova senha</label><input class="f-input" type="password" id="cfg-senha" placeholder="mín. 6 caracteres"></div>
+        <button class="btn btn-o btn-sm" onclick="trocarSenha()">Alterar senha</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
     <div class="card">
         <div class="sec-lbl" style="margin-top:0">🔄 Ciclo de produção</div>
         <div style="font-size:12.5px;color:var(--t2);line-height:1.55;margin-bottom:12px">A Estratégia planeja o mês inteiro no calendário, mas a produção acontece <b>por semana</b>. Escolha o dia em que o sistema abre o lote da semana (copy + artes).</div>
@@ -124,9 +136,6 @@
         </div>
         <button class="btn btn-g btn-sm" onclick="salvarCiclo()">Salvar ciclo</button>
       </div>
-    </div>
-    <!-- CONTA -->
-    <div style="display:flex;flex-direction:column;gap:14px">
       <div class="card" id="tok-box" style="display:none">
         <div class="sec-lbl" style="margin-top:0">⚡ Seus limites do mês</div>
         <div style="display:flex;flex-direction:column;gap:14px">
@@ -142,20 +151,6 @@
           </div>
           <button class="btn btn-o btn-sm" style="align-self:flex-start" onclick="solicitarMais(this)">Solicitar mais →</button>
         </div>
-      </div>
-      
-      <div class="card">
-        <div class="sec-lbl" style="margin-top:0">👤 Dados da conta</div>
-        <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="cfg-nome"></div>
-        <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="cfg-tel"></div>
-        <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="cfg-email" disabled style="opacity:.55"></div>
-        <button class="btn btn-g btn-sm" onclick="salvarDados()">Salvar dados</button>
-      </div>
-      
-      <div class="card">
-        <div class="sec-lbl" style="margin-top:0">🔒 Senha</div>
-        <div class="f-group"><label class="f-label">Nova senha</label><input class="f-input" type="password" id="cfg-senha" placeholder="mín. 6 caracteres"></div>
-        <button class="btn btn-o btn-sm" onclick="trocarSenha()">Alterar senha</button>
       </div>
       <div class="card">
         <div class="sec-lbl" style="margin-top:0">✦ Assinatura</div>
@@ -195,7 +190,7 @@
         <div style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.6">Para mudar de plano ou cancelar, acesse sua conta no PayPal ou fale com o suporte. Veja a <a href="reembolso.html" style="color:var(--g)">Política de Reembolso</a>.</div>
       </div>
     </div>
-  </div>
+    </div>
 </main>
 </div>
 <script src="assets/jump-core.js"></script>
