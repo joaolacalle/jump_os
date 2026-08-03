@@ -668,8 +668,17 @@ const handler = async (req, res) => {
                 const ct=r.headers.get('content-type')||'image/png';
                 if(/image\/(png|jpe?g|webp|gif)/.test(ct)){
                   const buf=Buffer.from(await r.arrayBuffer());
+                  // Detecta o tipo REAL pelos bytes (o cabeçalho às vezes mente: declara jpeg mas é png).
+                  const sniff=(b)=>{
+                    if(b.length>=8&&b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47)return 'image/png';
+                    if(b.length>=3&&b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF)return 'image/jpeg';
+                    if(b.length>=6&&b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return 'image/gif';
+                    if(b.length>=12&&b[0]===0x52&&b[1]===0x49&&b[2]===0x46&&b[3]===0x46&&b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return 'image/webp';
+                    return null;
+                  };
+                  const mt=sniff(buf)||ct.split(';')[0];
                   if(buf.length<4500000){ // <4.5MB
-                    blocks.push({type:'image',source:{type:'base64',media_type:ct.split(';')[0],data:buf.toString('base64')}});
+                    blocks.push({type:'image',source:{type:'base64',media_type:mt,data:buf.toString('base64')}});
                   }
                 }
               }
