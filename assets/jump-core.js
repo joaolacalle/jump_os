@@ -159,11 +159,28 @@ window.JUMP=(function(){
     clearTimeout(t._tm);t._tm=setTimeout(()=>t.className='toast',3600);
   }
 
+  /* Token sempre fresco: o SDK renova sozinho, então nunca reusar a "foto" velha do login. */
+  async function freshToken(){
+    try{ const{data}=await sb.auth.getSession(); if(data&&data.session&&data.session.access_token) return data.session.access_token; }catch(e){}
+    return null;
+  }
+  /* Fetch autenticado: pega o token atual e, em 401, renova a sessão e repete 1x — silencioso (o usuário não vê "sessão inválida"). */
+  async function authFetch(url,opts){
+    opts=opts||{};
+    let tk=await freshToken();
+    const call=(t)=>fetch(url,Object.assign({},opts,{headers:Object.assign({},opts.headers||{},t?{'Authorization':'Bearer '+t}:{})}));
+    let r=await call(tk);
+    if(r.status===401){
+      try{ const rr=await sb.auth.refreshSession(); if(rr&&rr.data&&rr.data.session&&rr.data.session.access_token) tk=rr.data.session.access_token; }catch(e){}
+      r=await call(tk);
+    }
+    return r;
+  }
   /* Chamada autenticada ao backend de gestão */
   async function api(action,payload,token){
-    const r=await fetch('/api/admin-users',{
+    const r=await authFetch('/api/admin-users',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action,...payload})
     });
     const d=await r.json();
@@ -190,9 +207,9 @@ window.JUMP=(function(){
   // versão que nunca lança erro (p/ polling em background, não assusta o usuário)
   async function apiSilencioso(action,payload,token){
     try{
-      const r=await fetch('/api/admin-users',{
+      const r=await authFetch('/api/admin-users',{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action,...payload})
       });
       if(!r.ok)return null;
@@ -332,5 +349,5 @@ window.JUMP=(function(){
     return { id:'feed', label:'Feed', ico:'▣' };
   }
 
-  return{sb,guard,logout,toast,api,apiSilencioso,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
+  return{sb,guard,logout,toast,api,apiSilencioso,freshToken,authFetch,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
 })();
