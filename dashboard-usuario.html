@@ -109,6 +109,18 @@
 .bt-hero svg path:last-of-type{stroke-dasharray:2200;stroke-dashoffset:2200;animation:jDraw 1.7s ease .35s forwards}
 @media(prefers-reduced-motion:reduce){.uso-mes,.acts4>*,.bento>.bt,.ag-chips>*,.um-bar i,.bt-hero svg path:last-of-type{animation:none!important}}
 </style>
+<style>
+/* PRÓXIMO PASSO — card que muda conforme o onboarding avança */
+.prox{display:flex;align-items:center;gap:16px;background:linear-gradient(120deg,rgba(var(--g-rgb),.10),rgba(139,92,246,.06));border:1px solid rgba(var(--g-rgb),.28);border-radius:16px;padding:16px 20px;margin:14px 0 6px}
+.prox:empty{display:none}
+.prox-ico{width:46px;height:46px;border-radius:12px;background:rgba(var(--g-rgb),.14);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.prox-txt{flex:1;min-width:0}
+.prox-lbl{font-family:var(--M);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--g)}
+.prox-t{font-weight:800;font-size:16px;margin-top:2px}
+.prox-b{font-size:13px;color:var(--t2);margin-top:3px;line-height:1.45}
+.prox-cta{flex-shrink:0;padding:11px 18px;border-radius:11px;background:var(--grad,var(--g));color:#04120c;font-weight:800;font-size:13px;text-decoration:none;white-space:nowrap}
+@media(max-width:640px){.prox{flex-direction:column;align-items:flex-start}.prox-cta{align-self:stretch;text-align:center}}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -144,6 +156,8 @@
     </div>
     <div class="pill pill-g" style="padding:10px 16px"><span class="dot"></span><span id="pp-plan">—</span></div>
   </div>
+
+  <div id="proximo-passo" class="prox"></div>
   <div id="trial-banner" style="display:none;margin:0 0 18px;padding:14px 18px;border-radius:12px;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(251,191,36,.12));border:1px solid rgba(168,85,247,.35)">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:22px">✨</div>
@@ -447,6 +461,15 @@ const LV={basico:1,plus:2,pro:3};
       const checkinFeito=!!(typeof ob!=='undefined'&&ob&&ob.checkin);
       if(!ver)JUMPGUIA.boasVindas(!checkinFeito);
       if((window._apr||[]).length)JUMPGUIA.dica('tem_criativos','Seus criativos estão prontos. Aprove aqui e o Agente de Publicação posta na data agendada — depois de aprovado, o post não pode mais ser editado.','Criativos prontos');
+      (function(){
+        var _ob=cliente.onboarding||{}, _tap=(window._apr||[]).length>0, e;
+        if(!_ob.checkin) e={ico:'👤',t:'Comece pelo check-in',b:'Conte sobre seu negócio uma vez com o Agente de Identidade — tudo parte daí.',cta:'Fazer check-in →',link:'agentes.html?agente=identidade'};
+        else if(_tap) e={ico:'✅',t:'Você tem criativos pra aprovar',b:'Revise e aprove — o Agente de Publicação posta na data agendada.',cta:'Aprovar agora →',link:'aprovar.html'};
+        else if(!igOn) e={ico:'📸',t:'Conecte seu Instagram',b:'Libera a publicação automática e o diagnóstico real do perfil.',cta:'Conectar Instagram →',link:'conectar-conta.html'};
+        else e={ico:'🚀',t:'Você está no ar!',b:'Peça um novo plano de conteúdo à Estratégia ou acompanhe seu desempenho abaixo.',cta:'Falar com a Estratégia →',link:'agentes.html?agente=estrategia'};
+        var _pp=document.getElementById('proximo-passo');
+        if(_pp)_pp.innerHTML='<div class="prox-ico">'+e.ico+'</div><div class="prox-txt"><div class="prox-lbl">Próximo passo</div><div class="prox-t">'+e.t+'</div><div class="prox-b">'+e.b+'</div></div><a href="'+(JUMP.verLink?JUMP.verLink(e.link):e.link)+'" class="prox-cta">'+e.cta+'</a>';
+      })();
     }catch(e){}
     // 4b: Criativo gera as artes planejadas da semana em segundo plano (respeita a cota do plano/trial)
     // ❌ REMOVIDO: autoGerarSemana(uid) — a dashboard GERAVA IMAGEM SOZINHA ao abrir.

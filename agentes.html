@@ -101,52 +101,14 @@
   .chat-card{height:calc(100vh - 290px);min-height:420px}
 }
 </style>
-<style>
-/* ── MEUS AGENTES · visual aprovado (só estilo + orbe; nenhum ID/função tocado) ── */
-.hd-hello{color:var(--g)}
-.hd-h em{background:linear-gradient(96deg,#8b5cf6,#e0559b 65%,#f0913f);-webkit-background-clip:text;background-clip:text;color:transparent}
-.chat-layout{grid-template-columns:66px 1fr;gap:14px}
-.ag-list{display:flex!important;flex-direction:column;gap:9px;overflow:visible;padding:2px}
-body:has(#agmenu:checked) .ag-list{display:none!important}
-body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
-.ag-it{position:relative;display:flex;align-items:center;justify-content:center;padding:0;gap:0;border-radius:13px!important;width:52px;height:52px;min-height:0;margin:0 auto;border:1px solid var(--bd)!important;overflow:visible}
-.ag-it::before{content:"";position:absolute;inset:0;border-radius:12px;background:rgba(var(--ac,168,85,247),.10);pointer-events:none}
-.ag-it:hover{border-color:rgba(var(--ac,168,85,247),.6)!important}
-.ag-it.on{border-color:rgba(var(--ac,168,85,247),.8)!important;box-shadow:0 0 0 2px rgba(var(--ac,168,85,247),.28)}
-.ag-it-ico{width:52px;height:52px;border-radius:12px;font-size:23px;position:relative;background:transparent!important;border:none!important}
-.ag-it-n{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--card2,#181925);border:1px solid var(--bd);padding:6px 11px;border-radius:9px;opacity:0;pointer-events:none;transition:.15s;z-index:40;font-size:12.5px;font-weight:700;box-shadow:0 6px 16px rgba(0,0,0,.45)}
-.ag-it:hover .ag-it-n{opacity:1}
-.ag-it-r{display:none}
-.chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
-.empty-chat{justify-content:center;gap:6px}
-.ec-t{font-size:30px}
-.orb-wrap{position:relative;width:168px;height:168px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
-.orb-glow{position:absolute;inset:-20px;border-radius:50%;background:conic-gradient(from 200deg,#24E0A0,#31C9C0,#8b5cf6,#e0559b,#24E0A0);filter:blur(30px);opacity:.5;animation:orbspin 14s linear infinite}
-.orb-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 210deg,#24E0A0,#31C9C0,#8b5cf6,#24E0A0);padding:4px;animation:orbspin 22s linear infinite reverse}
-.orb-ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--card)}
-.orb-core{position:relative;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#141824,#08090e 75%);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 32px rgba(36,224,160,.18)}
-.face{position:relative;width:66px;height:36px}
-.eye{position:absolute;top:5px;width:12px;height:17px;border-radius:99px;background:var(--g);box-shadow:0 0 12px rgba(var(--g-rgb),.8)}
-.eye.l{left:10px}.eye.r{right:10px}
-.smile{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:30px;height:15px;border:3px solid var(--g);border-top:none;border-radius:0 0 40px 40px}
-@keyframes orbspin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.chat-layout{grid-template-columns:1fr;gap:10px}.ag-list{flex-direction:row!important;overflow-x:auto;padding-bottom:4px}body:has(#agmenu:checked) .ag-list{display:flex!important}}
-@media(max-width:520px){.ag-list{grid-template-columns:1fr}}
-.agmenu-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--bd);background:var(--card2,#181925);color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
-.agmenu-btn:hover{color:var(--g);border-color:rgba(var(--g-rgb),.45)}
-.agmenu-btn svg{width:19px;height:19px}
-.ec-logo{width:min(62%,230px);height:auto;opacity:.7;margin:0 auto 16px;display:block;filter:drop-shadow(0 10px 34px rgba(var(--g-rgb),.18))}
-@media(prefers-reduced-motion:reduce){.orb-glow,.orb-ring{animation:none}}
-</style>
 </head>
 <body>
 <div class="grain"></div>
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Acordando os agentes...</div></div>
 <div class="app">
 <main class="main">
-  <input type="checkbox" id="agmenu" hidden>
   <div class="hd" style="margin-bottom:16px">
-    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Fale com o sistema que cuida do seu <em>Instagram.</em></h1>
+    <div><div class="hd-hello">Meus agentes</div><h1 class="hd-h">Converse com o <em>sistema.</em></h1>
       <div id="trial-pill" style="display:none;margin-top:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(251,191,36,.14));border:1px solid rgba(168,85,247,.4);font-size:12px;font-family:var(--M);color:var(--t1);width:fit-content">✨ <span id="trial-pill-txt">Teste grátis</span></div>
     </div>
     <div style="min-width:170px">
@@ -158,7 +120,6 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
     <div class="ag-list" id="ag-list"></div>
     <div class="chat-card">
       <div class="chat-top" id="chat-top">
-        <label for="agmenu" class="agmenu-btn" title="Agentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></label>
         <div class="ct-ico" id="ct-ico">🤖</div>
         <div style="min-width:0"><div class="ct-n" id="ct-n">Escolha um agente</div><div class="ct-s" id="ct-s"><span class="dot" style="width:6px;height:6px"></span> online</div></div>
         <div class="ag-dash" id="ag-dash"></div>
@@ -167,10 +128,9 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
       <div class="mem-pane" id="fila-pane"></div>
       <div class="chat-msgs" id="msgs">
         <div class="empty-chat" id="empty" style="display:block;text-align:left;padding:18px">
-          <div style="text-align:center;margin-bottom:20px">
-            <img src="assets/logo.png" alt="JUMP OS" class="ec-logo">
-            <div class="ec-t">Seu sistema está <span style="color:var(--g)">pronto.</span></div>
-            <div class="ec-b" style="max-width:440px;margin:6px auto 0">Escolha um agente e peça análises, conteúdos, campanhas e automações.</div>
+          <div style="text-align:center;margin-bottom:18px">
+            <div class="ec-t">Por onde você quer começar?</div>
+            <div class="ec-b" style="max-width:440px;margin:5px auto 0">Cada agente é especialista em uma etapa do seu marketing — e aprende sobre o seu negócio a cada conversa.</div>
           </div>
           <div id="onb-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;max-width:720px;margin:0 auto"></div>
         </div>
@@ -1007,7 +967,7 @@ async function executarLoteCriativos(uid,ordem){
         lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — carrossel, slide '+s+'/'+_n+'...';
         try{
           const rr=await fetch('/api/gerar-imagem',{
-            method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+            method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
             body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'carrossel',pilar:meta.pilar||c.pilar||'',total:_n,
               tamanho:'4:5',tipo:c.tipo_visual||'conceitual',slide:s,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:(s>1?true:_semFP)})
           });
@@ -1036,7 +996,7 @@ async function executarLoteCriativos(uid,ordem){
     }
     try{
       const r=await fetch('/api/gerar-imagem',{
-        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
         // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
         // a arte saía só com a headline, que a própria Engine classifica como falha.
         body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:meta.pilar||c.pilar||'',total:1,
@@ -1174,7 +1134,7 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
   lbl.innerHTML='🎨 <b>'+titulo+'</b> — gerando...';
   w.appendChild(lbl);w.scrollTop=w.scrollHeight;
   const r=await fetch('/api/gerar-imagem',{
-    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
     // 🔴 O bloco de texto (headline/subheadline/prova/cta_arte/oferta) PRECISA chegar à Engine:
     // ela declara que "renderizar só a headline quando há subheadline/prova é uma FALHA".
     // Antes só o `prompt` era enviado — a Estratégia preenchia tudo e o executor jogava fora.
@@ -1208,13 +1168,6 @@ function _diaSep(dt){
   const s=document.createElement('div');s.className='day-sep';s.textContent=_fmtDia(dt);
   w.appendChild(s);
 }
-function mdMsg(t){
-  t=String(t==null?'':t);
-  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  t=t.replace(/\*\*([^*]+?)\*\*/g,'<strong>$1</strong>');
-  t=t.replace(/`([^`]+?)`/g,'<code>$1</code>');
-  return t;
-}
 function addMsg(cls,txt,meta,ts){
   const w=document.getElementById('msgs');
   const e=document.getElementById('empty');if(e)e.remove();
@@ -1223,7 +1176,7 @@ function addMsg(cls,txt,meta,ts){
   _diaSep(dt);
   const d=document.createElement('div');
   d.className='msg '+cls;
-  d.innerHTML=mdMsg(txt);
+  d.textContent=txt;
   if(meta){const m=document.createElement('div');m.className='msg-meta';m.textContent=meta;d.appendChild(m)}
   const tm=document.createElement('div');tm.className='msg-time';tm.textContent=dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});d.appendChild(tm);
   if(cls==='a'){
@@ -1726,7 +1679,7 @@ async function enviarTexto(txt){
   try{
     const r=await fetch('/api/agente-chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({agente:AG,mensagem:txt,ver_id:CTX.viewId||null})
     });
     const raw=await r.text();
@@ -1798,7 +1751,7 @@ async function gerarImagem(req,btn,ehRecriar){
   try{
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
     });
     const raw=await r.text();let d;
@@ -1854,7 +1807,7 @@ async function aceitarImg(d,req,card){
   const b=card.querySelector('.b-aceitar');if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Salvando...'}
   try{
     const r=await fetch('/api/gerar-imagem',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({acao:'registrar',url:d.url,path:d.path||null,nome:'Arte IA',conteudo_id:(req&&req.conteudo_id)||null,ver_id:CTX.viewId||null})
     });
     const raw=await r.text();let j;try{j=JSON.parse(raw)}catch(_){j={}}

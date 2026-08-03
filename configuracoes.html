@@ -488,7 +488,7 @@ async function salvarCiclo(){
 async function carregarAssinatura(plano){
   try{
     const r=await fetch('/api/paypal?action=subscription',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({user_id:CTX.viewId||CTX.user.id})
     });
     if(!r.ok)return;
@@ -509,7 +509,7 @@ async function ativarAssinatura(){
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Ativando...';
   try{
     const r=await fetch('/api/paypal?action=activate',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({user_id:CTX.user.id})
     });
     const d=await r.json();

@@ -5,30 +5,6 @@
 <title>JUMP OS — Histórico</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/jump-ui.css">
-<style>
-/* ── VISUAL APROVADO aplicado aos elementos REAIS (só estilo; nenhum JS/ID tocado) ── */
-.main{padding:24px clamp(16px,3vw,34px) 46px}
-.hd{align-items:flex-end;margin-bottom:24px}
-.hd-hello{color:var(--g)}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.stat{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 18px}
-.st-n{font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(26px,3vw,34px);line-height:1;color:var(--g)}
-.st-l{font-family:var(--M);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-top:6px}
-.f-select{background:var(--card);border:1px solid var(--line2,rgba(245,242,236,.13));border-radius:11px;padding:10px 14px;color:var(--t1);font-family:var(--B);font-size:13px;font-weight:600;cursor:pointer}
-.tbl-wrap{background:var(--card);border:1px solid var(--bd);border-radius:16px;overflow:hidden}
-table{width:100%;border-collapse:collapse}
-thead th{font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);text-align:left;padding:14px 18px;background:rgba(245,242,236,.02);border-bottom:1px solid var(--bd);font-weight:700}
-tbody td{padding:14px 18px;border-top:1px solid var(--bd);font-size:13.5px;color:var(--t2)}
-tbody tr:first-child td{border-top:none}
-tbody td strong{color:var(--t1);font-weight:700}
-.pill{display:inline-flex;align-items:center;padding:4px 11px;border-radius:99px;font-family:var(--M);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.pill-g{background:rgba(var(--g-rgb),.14);color:var(--g)}
-.pill-c{background:rgba(49,201,192,.14);color:#31C9C0}
-.pill-y{background:rgba(240,181,63,.14);color:#f0b53f}
-.pill-r{background:rgba(248,113,113,.14);color:#f87171}
-@media (max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.tbl-wrap{overflow-x:auto}}
-</style>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>

@@ -167,7 +167,7 @@ async function conectarToken(){
   try{
     const r=await fetch('/api/meta-token',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({token})
     });
     const d=await r.json();

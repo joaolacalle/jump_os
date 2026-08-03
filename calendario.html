@@ -196,7 +196,7 @@ async function regerarImg(btn,variacao){
   const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="ld-spin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></span> Gerando (15-40s)…';
   try{
     const r=await fetch('/api/gerar-imagem',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({prompt:EDIT.tema||'',headline:(EDIT.meta&&EDIT.meta.headline)||EDIT.tema||'',copy:EDIT.copy||'',oferta:(EDIT.meta&&EDIT.meta.oferta)||'',formato:EDIT.formato||'feed',pilar:EDIT.pilar||'',total:1,variacao:variacao||0,ajuste:aj,
         tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
     });
@@ -218,7 +218,7 @@ async function aceitarCal(){
   if(!PREVIEW||!EDIT)return;
   try{
     const r=await fetch('/api/gerar-imagem',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CTX.token},
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
       body:JSON.stringify({acao:'registrar',url:PREVIEW.url,path:PREVIEW.path||null,nome:EDIT.tema||'Arte IA',conteudo_id:EDIT.id,ver_id:CTX.viewId||null})
     });
     const j=await r.json();
