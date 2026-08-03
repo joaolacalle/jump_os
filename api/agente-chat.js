@@ -1249,6 +1249,20 @@ const handler = async (req, res) => {
       checkin=true;
       const ob=Object.assign({},cli.onboarding||{},{checkin:true});
       await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
+      // GARANTIA DETERMINÍSTICA: ao concluir o check-in, o trabalho final do Identidade
+      // (a ficha de identidade, gerada pelo Criativo) DEVE virar tarefa — sem depender do
+      // modelo lembrar de emitir <ordem_servico>. Dedup: só cria se ainda não existir.
+      if(agente==='identidade'){
+        try{
+          const jaTem=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&status=in.(pendente,processando)&select=id&limit=1`);
+          if(!(Array.isArray(jaTem)&&jaTem.length)){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
+              user_id:targetId, de_agente:'identidade', para_agente:'criativo', tarefa:'ficha_tecnica',
+              detalhe:'gerar ficha técnica visual da marca: paleta, fontes e 1 exemplo de post', status:'pendente'
+            })}).catch(()=>{});
+          }
+        }catch(e){}
+      }
     }
     texto=texto.trim();
 
