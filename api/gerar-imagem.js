@@ -318,7 +318,7 @@ module.exports = async (req, res) => {
       engine_6_ativo: true,
       logo_enviada_ao_gerador: false,
       input_fidelity: 'high',
-      quality: 'medium (decisão de custo do João; a preservação vem do CONTRATO-MOLDURA + input_fidelity, não da qualidade)',
+      quality: 'high (arte premium; a preservação da foto/logo vem do CONTRATO-MOLDURA + input_fidelity)',
       contrato_preservacao: 'moldura (abre e fecha) + duas colunas TRAVADO/LIBERADO + lista enumerada',
     });
   }
@@ -556,7 +556,7 @@ module.exports = async (req, res) => {
       const instr = cabecalho + (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
       form.append('prompt', instr);
       form.append('size', size);
-      form.append('quality', 'medium');
+      form.append('quality', 'high');
       // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
       // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
       form.append('input_fidelity', 'high');
@@ -586,7 +586,7 @@ module.exports = async (req, res) => {
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'medium' }),
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'high' }),
       });
     }
     const result = await r.json();
