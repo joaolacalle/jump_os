@@ -147,13 +147,8 @@ async function recarregar(){
   ITENS=data||[]; render();
 }
 // Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
-    if(SEM_COPY.length){
-      const b=document.getElementById('fila-bar');
-      if(b){b.style.display='block';
-        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">✋</span>'+
-        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+SEM_COPY.length+' post(s) ainda sem copy — a arte só é criada depois do texto.</span>'+
-        '<a href="agentes.html?agente=estrategia" class="btn btn-g btn-sm" style="margin-left:auto">Escrever a copy →</a></div>';}
-    }
+    // Pendências (posts sem copy/arte) saíram do Aprovar — vivem em Tarefas de Serviço.
+    { const b=document.getElementById('fila-bar'); if(b)b.style.display='none'; }
     // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
     // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
     // Pendências (posts esperando arte) saíram do Aprovar — elas vivem em Tarefas de Serviço,
