@@ -29,6 +29,7 @@
 .ed-mini-btn:hover{background:rgba(var(--g-rgb),.2)}
 .ed-val{font-size:14.5px;font-weight:700;line-height:1.35;color:var(--t1)}
 .ed-val-sm{font-size:12.5px;color:var(--t2);line-height:1.5}
+.ed-data-input{font-family:var(--M);font-size:12px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--t1);cursor:pointer}
 .ed-mini{font-size:12px;color:var(--t2);line-height:1.5;padding:3px 0}
 .ed-tag{display:inline-block;font-family:var(--M);font-size:10.5px;color:var(--g);background:rgba(var(--g-rgb),.1);border-radius:6px;padding:3px 7px;margin:0 4px 4px 0}
 .ed-ads{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:11px;padding:11px 13px;font-size:12.5px;color:#fbbf24}
@@ -155,15 +156,8 @@ async function recarregar(){
     }
     // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
     // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
-    if(RASCUNHOS.length){
-      const b=document.getElementById('fila-bar');
-      if(b){b.style.display='block';
-        // Aprovar é para REVISAR e APROVAR. Gerar arte é trabalho do Agente Criativo —
-        // acontece no chat dele ou pela Tarefa de Serviço, onde há briefing e controle de saldo.
-        b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">🎨</span>'+
-        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">'+RASCUNHOS.length+' post(s) com copy pronta, esperando a arte.</span>'+
-        '<a class="btn btn-o btn-sm" style="margin-left:auto" href="agentes.html?agente=criativo">Falar com o Criativo →</a></div>';}
-    }
+    // Pendências (posts esperando arte) saíram do Aprovar — elas vivem em Tarefas de Serviço,
+    // onde o processo é acompanhado. O Aprovar mostra só o que já está PRONTO para aprovar.
   }catch(e){}
 })();
 // C3: chegou do calendário com ?id= — abre no card certo em vez de largar o usuário na lista.
@@ -232,7 +226,7 @@ function abrirEdicao(id){
     <div class="ed-head">
       <span class="ed-status ${vencido?'venc':''}">${vencido?'⏰ Data vencida':(c.status==='aprovado'?'✓ Aprovado':'◷ Aguardando você')}</span>
       <span class="ed-tipo">${tp.ico} ${JUMP.esc(tp.label)}</span>
-      <span class="ed-data">${prazo?('📅 '+prazo):'📅 sem data'}</span>
+      <input type="date" class="ed-data-input" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)" title="Alterar a data agendada do post">
       <span class="ed-ig">📸 Instagram</span>
     </div>
     ${vencido?`<div class="ed-alerta">
@@ -311,6 +305,14 @@ function navSlideEdit(d){
   let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
   im.src=sl[i]; im.dataset.i=i;
   const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
+}
+async function salvarData(id,val){
+  if(!val)return;
+  try{
+    await JUMP.sb.from('conteudos').update({data_sugerida:val}).eq('id',id);
+    const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=val;
+    JUMP.toast('✓ Data alterada.');
+  }catch(e){JUMP.toast('Erro ao salvar data','err')}
 }
 async function salvarCopy(){
   if(!EDIT_ID)return;
