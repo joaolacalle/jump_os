@@ -748,6 +748,17 @@ const handler = async (req, res) => {
       }
       dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
     }
+    if(agente==='publicacao'){
+      try{
+        const agd=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(aprovado,agendado)&order=data_agendada.asc&limit=30&select=formato,status,data_agendada,meta`);
+        if(Array.isArray(agd)&&agd.length){
+          const linhas=agd.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+c.status+' \u00b7 '+t;}).join('\n');
+          dataTxt+='\n\nPOSTS APROVADOS/AGENDADOS NO CALENDÁRIO (você JÁ tem tudo aqui \u2014 NUNCA peça "link do calendário", ele não existe; estes publicam sozinhos nas datas):\n'+linhas;
+        }else{
+          dataTxt+='\n\nAinda não há posts aprovados/agendados. Quando o cliente aprovar conteúdos na página Aprovar, eles aparecem aqui e publicam sozinhos \u2014 você NUNCA precisa de link do calendário.';
+        }
+      }catch(e){}
+    }
 
     // COTA DO PLANO: a Estratégia PRECISA saber quantas artes cabem, senão amontoa posts.
     let cotaTxt='';
@@ -1240,7 +1251,7 @@ const handler = async (req, res) => {
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
     const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','paleta_terciaria','estilo_fotografico','tipo_de_composicao','nivel_de_agressividade','elementos_obrigatorios','elementos_proibidos','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
     const memWrites=novas.slice(0,12).map(m=>{
-      const ehGlobal=(agente==='identidade')||CHAVES_GLOBAIS.includes(String(m.chave));
+      const ehGlobal=true; // DNA VIVO: todo aprendizado durável de qualquer agente entra no DNA compartilhado que todos leem
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
     });
 
@@ -1249,7 +1260,7 @@ const handler = async (req, res) => {
     if(texto.includes('<checkin_completo/>')){
       texto=texto.replace(/<checkin_completo\/>/g,'').trim();
       checkin=true;
-      const ob=Object.assign({},cli.onboarding||{},{checkin:true});
+      const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});
       await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
     }
     // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
@@ -1257,6 +1268,11 @@ const handler = async (req, res) => {
     // quanto para quem JÁ fez o check-in ANTES deste fix (a ordem que "sumiu"). Roda em qualquer
     // interação com o Identidade quando o check-in já está feito. Dedup por QUALQUER status
     // (se já houve ficha alguma vez, não recria).
+    // Se o usuário entrou no agente marcado como "próximo" (o ponto piscando), limpa a marcação.
+    if(cli.onboarding && cli.onboarding.proximo===agente){
+      const _ob=Object.assign({},cli.onboarding); delete _ob.proximo;
+      await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:_ob});
+    }
     if(agente==='identidade' && (checkin || (cli.onboarding&&cli.onboarding.checkin))){
       try{
         const temFicha=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&select=id&limit=1`);

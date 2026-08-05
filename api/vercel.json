@@ -1,11 +1,11 @@
 {
   "functions": {
     "api/gerar-imagem.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "memory": 1024
     },
     "api/agente-chat.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/admin-users.js": {
       "maxDuration": 30

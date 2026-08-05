@@ -157,7 +157,7 @@ function engine6(M, o) {
     o.subheadline ? ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"') : '',
     o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + String(o.prova).slice(0, 90) + '"') : '',
     o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
-    'CTA (max 2 words): "' + (o.cta_arte || o.cta || (o.total > 1 ? 'SWIPE →' : 'SAIBA MAIS')) + '"',
+    (o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : ''),
     o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
     '',
     'QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?',
@@ -261,7 +261,7 @@ async function diretorDeArte(M, o, ctx) {
     'Check every line before writing it: (a) NUMBERS are digits, never letters — "8 agentes" never "B agentes"; (b) accents correct — automatizando (not "sutamatizando"), você, só, não, já, negócios; (c) no invented, doubled or dropped letters. Spell each word letter by letter in your head.',
     'Then append this sentence verbatim: "Render every line character-for-character exactly as written in the Text-to-render list. Do NOT re-spell, translate, add, remove, double or invent any letter, digit or accent mark. Numbers stay as digits. Words without an accent stay without an accent. Do not add any other text anywhere in the image."',
     '',
-    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. 240-400 words: one dense paragraph, then the "Text to render:" list.',
+    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 600-1000 words — one dense concrete paragraph, then the "Text to render:" list. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, label prominence, eye-flow, the deduced set, the light, the camera).',
   ].filter(Boolean).join('\n');
 
   const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
@@ -269,7 +269,7 @@ async function diretorDeArte(M, o, ctx) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 1400, system: sys, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: user }] }),
     });
     if (!r.ok) { console.error('diretor:', (await r.text()).slice(0, 160)); return null; }
     const d = await r.json();
