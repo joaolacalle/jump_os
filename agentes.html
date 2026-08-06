@@ -117,6 +117,9 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 .ag-it-n{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--card2,#181925);border:1px solid var(--bd);padding:6px 11px;border-radius:9px;opacity:0;pointer-events:none;transition:.15s;z-index:40;font-size:12.5px;font-weight:700;box-shadow:0 6px 16px rgba(0,0,0,.45)}
 .ag-it:hover .ag-it-n{opacity:1}
 .ag-it-r{display:none}
+.ag-dot{position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:#f0b53f;border:2px solid var(--card);z-index:6;animation:agpulse 1.4s ease-in-out infinite}
+@keyframes agpulse{0%,100%{box-shadow:0 0 0 0 rgba(240,181,63,.55)}50%{box-shadow:0 0 0 7px rgba(240,181,63,0)}}
+@media(prefers-reduced-motion:reduce){.ag-dot{animation:none}}
 .chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
 .empty-chat{justify-content:center;gap:6px}
 .ec-t{font-size:30px}
@@ -526,6 +529,7 @@ function comecarCom(id,txt){
 }
 function renderList(){
   renderOnboarding();
+  const prox=((CTX&&(CTX.viewCliente||CTX.cliente)||{}).onboarding||{}).proximo;
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
     const st=ESTADO[a.id]||{}; const q=quando(st.ult);
@@ -533,13 +537,14 @@ function renderList(){
       : (st.mem||q) ? [st.mem?st.mem+' memória'+(st.mem>1?'s':''):null, q].filter(Boolean).join(' · ')
       : a.r;
     return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" style="--ac:${a.nc||'168,85,247'};border-left:3px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.9':'.45'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
-      <span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
+      ${(ok&&a.id===prox&&a.id!==AG)?'<span class="ag-dot"></span>':''}<span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
       <div style="min-width:0"><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${linha}</div></div>
       ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
   }).join('');
 }
 async function selecionar(id){
+  try{var _c=(CTX&&(CTX.viewCliente||CTX.cliente));if(_c&&_c.onboarding&&_c.onboarding.proximo===id){_c.onboarding.proximo=null;}}catch(e){}
   AG=id;renderList();
   const a=AGS.find(x=>x.id===id);
   document.getElementById('ct-ico').textContent=a.ico;

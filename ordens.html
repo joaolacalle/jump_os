@@ -194,13 +194,20 @@ async function aprovarOrdem(id,btn){
       const periodo='Semana '+Math.ceil(_h.getDate()/7)+' · '+_h.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
       const novas=[];
       if(daSemana.length)novas.push({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0,payload:{periodo}});
-      // dedup: nunca criar duas ordens de publicação (o print do João mostrou 5/5 e 6/6 duplicadas)
-      const{data:jaPub}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','publicar_calendario').in('status',['pendente','processando']).limit(1);
-      if(lista.length&&!(jaPub&&jaPub.length))novas.push({user_id:uid,de_agente:'estrategia',para_agente:'publicacao',tarefa:'publicar_calendario',detalhe:'Publicar o calendário nas datas agendadas ('+lista.length+' post(s))',status:'pendente',total:lista.length,progresso:0,payload:{periodo}});
+      // UNIFICADO: a publicação é AUTOMÁTICA (cron jobPublicar publica nas datas). NÃO criamos
+      // mais a tarefa manual "publicar_calendario" — ela era prematura e confusa (a arte nem existe).
       if(novas.length)await JUMP.sb.from('ordens_servico').insert(novas);
+      // AUTO-PRODUÇÃO: aprovou a estratégia → a Estratégia escreve a copy da semana e dispara as
+      // artes SOZINHA (em background). A tarefa "detalhar_semana" fica visível como fallback manual
+      // caso o disparo falhe, e o cron gera as artes do criar_post → elas caem nos cards do Aprovar.
+      try{
+        const tkAuto=(JUMP.freshToken?await JUMP.freshToken():null)||null;
+        if(tkAuto)fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkAuto},
+          body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer. Faça direto, sem perguntar nada.'})}).catch(()=>{});
+      }catch(e){}
       await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
       JUMP.toast('✓ Estratégia aprovada! Está no calendário.');
-      try{JUMPGUIA.dica('estrategia_aprovada','Pronto! O mês está no calendário. Agora abra o <b>Agente de Estratégia</b> e clique em <b>Escrever a copy da semana</b> — em seguida o Designer gera as artes automaticamente.','Estratégia aprovada')}catch(e){}
+      try{JUMPGUIA.dica('estrategia_aprovada','Pronto! O mês está no calendário. Estou escrevendo a copy da semana e gerando as artes automaticamente — em instantes elas aparecem no <b>Aprovar</b> para você aprovar.','Estratégia aprovada')}catch(e){}
       await carregar();
       return;
     }
@@ -357,7 +364,15 @@ async function cancelar(id){
       if(!confirm('Esta tarefa tem '+n+' post(s) em proposta.\n\nOK = remover a tarefa E descartar os '+n+' post(s).\nCancelar = manter tudo como está.'))return;
       await JUMP.sb.from('conteudos').delete().eq('user_id',uid).eq('status','proposto');
     }else if(!confirm('Remover esta ordem?'))return;
-  }else if(!confirm('Remover esta ordem?'))return;
+  }else{
+    // GESTÃO DE TAREFA: aviso de risco claro, especialmente pras que gastam créditos de imagem.
+    const img=o&&/criar_post|ficha_tecnica|substituir_criativo/.test(o.tarefa||'');
+    const rodando=o&&o.status==='processando';
+    let msg='Remover esta tarefa?';
+    if(img)msg='\u26a0\ufe0f Esta tarefa gera IMAGENS (consome seus créditos de imagem).\n\nCancelar interrompe a produção: as artes que faltam NÃO serão criadas'+(rodando?' e a que está rodando agora é interrompida':'')+'. As já geradas ficam salvas.\n\nPara refazer depois, volte ao agente e peça de novo. Cancelar mesmo assim?';
+    else if(rodando)msg='Esta tarefa está em execução agora. Cancelar vai interrompê-la. Continuar?';
+    if(!confirm(msg))return;
+  }
   try{
     await JUMP.api('cancelar_ordem',{ordem_id:id},CTX.token);
     JUMP.toast('Ordem removida');
