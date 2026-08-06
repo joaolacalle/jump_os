@@ -202,8 +202,8 @@ async function aprovarOrdem(id,btn){
       // caso o disparo falhe, e o cron gera as artes do criar_post → elas caem nos cards do Aprovar.
       try{
         const tkAuto=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-        if(tkAuto)fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkAuto},
-          body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer. Faça direto, sem perguntar nada.'})}).catch(()=>{});
+        if(tkAuto)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkAuto},
+          body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer (crie a ordem criar_post). Faça direto, sem perguntar nada.'})});
       }catch(e){}
       await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
       JUMP.toast('✓ Estratégia aprovada! Está no calendário.');

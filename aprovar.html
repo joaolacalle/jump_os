@@ -103,7 +103,7 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
       SEM_COPY=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
         &&(!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())));
       // ESTRATÉGIAS aguardando sua aprovação → viram card no topo do Aprovar
-      const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('tarefa','aprovar_estrategia').in('status',['pendente','processando']).order('created_at',{ascending:false});
+      const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
       ESTRATEGIAS=estr||[];
     }catch(e){}
     render();
@@ -180,11 +180,11 @@ async function aprovarEstrategiaCard(id){
     }
     // 3) marca a estratégia como aprovada
     await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
-    // 4) dispara a produção automática (copy + artes) em background
+    JUMP.toast('✓ Estratégia aprovada! Gerando a copy e as artes da semana — aguarde...');
+    // 4) dispara a produção (copy + ordem do Criativo) e ESPERA terminar (senão o reload cancela a chamada)
     try{const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-      if(tk)fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer. Faça direto, sem perguntar nada.'})}).catch(()=>{});
+      if(tk)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer (crie a ordem criar_post). Faça direto, sem perguntar nada.'})});
     }catch(e){}
-    JUMP.toast('✓ Estratégia aprovada! Os posts entraram no calendário e a produção começou.');
     location.reload();
   }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');}
 }
