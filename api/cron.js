@@ -519,6 +519,19 @@ module.exports = async (req, res) => {
     });
   }
 async function jobOrdens() {
+  // WATCHDOG: ordens presas em 'processando' (navegador fechou no meio da geração) voltam para
+  // 'pendente' — assim podem ser retomadas, em vez de ficarem travadas para sempre. A geração
+  // marca payload.batendo com um timestamp; sem sinal de vida há +8min, destravamos.
+  try {
+    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload&limit=100`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    const agora = Date.now();
+    for (const o of (Array.isArray(travadas) ? travadas : [])) {
+      const batendo = (o.payload && o.payload.batendo) ? new Date(o.payload.batendo).getTime() : 0;
+      if (!batendo || (agora - batendo) > 8*60*1000) {
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method:'PATCH', headers: SBH(), body: JSON.stringify({ status:'pendente' }) }).catch(()=>{});
+      }
+    }
+  } catch (e) {}
   // Lembrete barato (sem IA): avisa usuários com ordens pendentes + ativa recorrentes do dia
   const hoje = new Date().toISOString().slice(0, 10);
   const diaDoMes = new Date().getDate();

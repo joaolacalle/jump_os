@@ -444,7 +444,12 @@ module.exports = async (req, res) => {
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
     // gpt-image-1 só aceita: 1024x1024 (1:1), 1024x1536 (retrato 2:3), 1536x1024 (paisagem 3:2).
     // '9:16' NÃO existe aqui — antes caía no else e virava QUADRADO (reels saía cortado).
-    const t = String(tamanho || '4:5');
+    // Proporção derivada do FORMATO (fonte da verdade), nunca cai em quadrado por engano:
+    // feed/carrossel = 4:5 ; story/reels/vídeo = 9:16. O gpt-image-1 só entrega retrato 2:3
+    // (o mais próximo dos dois), landscape 3:2 ou 1:1 — então 4:5 e 9:16 vão para o RETRATO.
+    const _fmt = String(formato || '').toLowerCase();
+    const _vertical = /reel|story|stories|v[ií]deo/.test(_fmt);
+    const t = String(tamanho || (_vertical ? '9:16' : '4:5'));
     const size = (t === '16:9') ? '1536x1024' : (t === '1:1') ? '1024x1024' : '1024x1536';
     // O Diretor precisa saber a TELA REAL, senão compõe para um formato que não existe.
     const canvas = size === '1024x1536' ? '1024x1536 portrait (2:3)' : size === '1536x1024' ? '1536x1024 landscape (3:2)' : '1024x1024 square (1:1)';

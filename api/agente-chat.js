@@ -1322,4 +1322,4 @@ const handler = async (req, res) => {
 };
 
 module.exports = handler;
-module.exports.config = { maxDuration: 60 };
+module.exports.config = { maxDuration: 300 }; // Pro: era 60 (anulava o vercel.json)
