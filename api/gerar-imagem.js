@@ -252,7 +252,13 @@ async function diretorDeArte(M, o, ctx) {
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
     '3b. USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
     o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
-    ctx.variacao ? ('THIS IS A RECREATION — the client rejected the previous version. CHANGE ' + ctx.variacao + '% of the artwork: ' + ({
+    ctx.variacao ? ('CONTROLLED REVISION OF THE SAME ARTWORK (not a new piece). Freedom level: ' + ctx.variacao + '%.\n'
+      + ({10:'10% = pointwise: keep composition, copy, style, palette and layout practically identical — touch ONLY what the client asked.',
+          30:'30% = light: keep the structure, style and copy; adjust the requested element and what is strictly needed around it.',
+          50:'50% = medium: you may rework the copy wording and some visual elements, but the style, brand identity and main structure of the image MUST remain.',
+          100:'100% = full: you may recompose image, copy, layout and elements — but you MUST still obey the client request and every rule of the brand DNA.'}[Number(ctx.variacao)] || 'Change only what is needed for the request.')
+      + '\n⛔ BRAND DNA IS INVIOLABLE AT ANY LEVEL: the percentage says HOW MUCH may change, never permission to leave the brand. Palette, typography system, tone, visual identity and every rule above apply 100% at 10%, 50% and 100%. Never invent colors or styles outside the DNA.\n'
+      + 'Legacy hint: ' + ({
       25: 'keep the concept and layout; change the light, textures, secondary elements, crop and colour accents. Same idea, fresh execution.',
       50: 'keep the brand system and the headline, but rebuild the composition: different structure, different visual metaphor, different placement and photographic treatment.',
       100: 'start over. New set, new concept, new metaphor, new composition, new light. Only the palette, the typography rules and the text stay. It must not resemble the previous version.',

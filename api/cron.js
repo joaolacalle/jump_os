@@ -857,6 +857,9 @@ async function jobLimpeza() {
       return res.status(200).json({ ok: true, job, ...r });
     }
     if (job === 'produzir') {
+      // aceita disparo do próprio usuário (autenticado) além do cron — a produção começa na hora
+      // em vez de esperar a próxima janela de 5 minutos.
+
       const r = await jobProduzir();
       return res.status(200).json({ ok: true, job, ...r });
     }
