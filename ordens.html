@@ -44,7 +44,8 @@
   <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Acompanhe aqui o que os agentes estão executando, em tempo real. Esta página é de <b>gerenciamento</b>: você vê o andamento e pode cancelar um processo. As <b>aprovações</b> acontecem na página <a href="aprovar.html" style="color:var(--g)">Aprovar</a>.</p>
 
   <div class="ord-filtros">
-    <button class="ord-f on" data-f="ativa" onclick="filtrar('ativa',this)">Ativas</button>
+    <button class="ord-f on" data-f="fila" onclick="filtrar('fila',this)">📋 Fila</button>
+    <button class="ord-f" data-f="ativa" onclick="filtrar('ativa',this)">Ativas</button>
     <button class="ord-f" data-f="" onclick="filtrar('',this)">Todas</button>
     <button class="ord-f" data-f="concluida" onclick="filtrar('concluida',this)">Concluídas</button>
     <button class="ord-f" data-f="recorrente" onclick="filtrar('recorrente',this)">Recorrentes</button>
@@ -125,7 +126,7 @@
 <script src="assets/jump-core.js"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
-let CTX={}, TODAS=[], FILTRO='ativa';
+let CTX={}, TODAS=[], FILTRO=(new URLSearchParams(location.search).get('f')||'fila');
 const AGINFO={
   identidade:{ico:'🎨',n:'Identidade',nc:'34,211,238'},
   mercado:{ico:'🔍',n:'Mercado',nc:'79,124,255'},
@@ -229,8 +230,10 @@ function render(){
   agendarRefresh(); // tempo real: mantém o board atualizado enquanto houver tarefa ativa
   const wrap=document.getElementById('ord-lista');
   let lista=TODAS;
-  if(FILTRO==='ativa')lista=TODAS.filter(o=>o.status!=='concluida');
-  else if(FILTRO==='concluida')lista=TODAS.filter(o=>o.status==='concluida');
+  // FILA = o que precisa ser executado (pendente + falhou). Não mistura com execução nem histórico.
+  if(FILTRO==='fila')lista=TODAS.filter(o=>['pendente','erro'].includes(o.status));
+  else if(FILTRO==='ativa')lista=TODAS.filter(o=>['pendente','processando','erro','aguardando_aprovacao'].includes(o.status));
+  else if(FILTRO==='concluida')lista=TODAS.filter(o=>['concluida','cancelada','expirada'].includes(o.status));
   else if(FILTRO==='recorrente')lista=TODAS.filter(o=>o.recorrencia);
 
   if(!lista.length){
@@ -259,7 +262,9 @@ function render(){
     const detErro=_errs.length?`<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.28);font-size:12px;color:var(--t2)"><b style="color:#f87171">⚠️ ${_errs.length} item(ns) com erro</b><br>${_errs.slice(0,3).map(e=>`• ${JUMP.esc(e.tema||'item')}: ${JUMP.esc(e.motivo||'falha')}`).join('<br>')}</div>`:'';
     const etapa=(o.status==='processando')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--g)">⚙ Em execução${tot>1?` — gerando ${Math.min(pg+1,tot)} de ${tot}`:''}…</div>`
       :(o.status==='pendente')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--t3)">⏳ Aguardando execução automática</div>`
-      :(o.status==='erro')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:#f87171">✖ Interrompida — veja o motivo abaixo</div>`:'';
+      :(o.status==='erro')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:#f87171">✖ Falhou após ${Number((o.payload||{}).tentativas||1)} tentativa(s) — veja o motivo abaixo</div>`
+      :(o.status==='expirada')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--t3)">⌛ Expirada — ${JUMP.esc((o.payload||{}).motivo_expiracao||'ficou pendente tempo demais')}</div>`
+      :(o.status==='cancelada')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--t3)">🚫 Cancelada por você</div>`:'';
     const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
     let rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
@@ -311,6 +316,7 @@ function render(){
       </div>
       <div class="ord-acts">
         ${precisaAprovar?`<a class="btn btn-g btn-sm" href="aprovar.html">Ver no Aprovar →</a>`:''}
+        ${o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:''}
         <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
       </div>
     </div>`;
@@ -364,6 +370,17 @@ function agendarRefresh(){
 }
 // ao voltar para a aba, atualiza na hora
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&CTX&&CTX.token)carregar();});
+async function repetirOrdem(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Reenfileirando...';}
+  try{
+    const o=TODAS.find(x=>x.id===id)||{};
+    const pl=Object.assign({},o.payload||{}); delete pl.erros; pl.tentativas=0;
+    const{error}=await JUMP.sb.from('ordens_servico').update({status:'pendente',payload:pl}).eq('id',id);
+    if(error)throw error;
+    JUMP.toast('✓ De volta à fila — os agentes executam em até 5 minutos.');
+    carregar();
+  }catch(e){JUMP.toast(e.message||'Não consegui reenfileirar','err');if(btn){btn.disabled=false;btn.textContent='↻ Tentar de novo';}}
+}
 async function cancelar(id){
   const o=TODAS.find(x=>String(x.id)===String(id));
   // CASCATA: remover a aprovação sem limpar as propostas deixava os posts PRESOS em 'proposta'

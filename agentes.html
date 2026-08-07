@@ -1699,7 +1699,12 @@ async function atualizarBotaoEstrategia(){
     libera(PODE_DETALHAR?'Escreve a headline e a copy dos posts desta semana.':'Monta a estratégia desta semana no calendário.');
   }catch(e){}
 }
-function cmdCriativosPend(){enviarTexto('Quais criativos estão pendentes para eu produzir? Liste as ordens de arte na fila e comece pela primeira.');}
+function cmdCriativosPend(){
+  // AÇÃO REAL (não mensagem de chat): leva à Fila — a fonte única do que precisa ser executado,
+  // onde o usuário vê estado, motivo de falha e pode repetir/cancelar de verdade.
+  try{JUMP.toast('Abrindo a fila de produção…')}catch(e){}
+  location.href='ordens.html?f=fila';
+}
 function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tráfego e o que precisa de ajuste agora.');}
 
 // ── INCLUIR ORDEM (usuário cria uma ordem que modela o negócio) ──
