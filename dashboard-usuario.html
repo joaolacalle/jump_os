@@ -349,11 +349,12 @@ const LV={basico:1,plus:2,pro:3};
           <a href="${t.link}" class="btn btn-g btn-sm">${t.btn}</a>
         </div>`).join('');
     } else if(boxT){ boxT.style.display='none'; }
-    // Onboarding completo → aprovação inline dos conteúdos prontos (últimos 5 dias)
-    if(!(TASKS.length&&feitas<TASKS.length)){
+    // Criativos aguardando aprovação são PRIORIDADE: aparecem sempre que existirem,
+    // mesmo com o onboarding em andamento (antes ficavam escondidos e o usuário não via).
+    {
       try{
         const cinco=new Date(Date.now()-5*864e5).toISOString();
-        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').gte('created_at',cinco).order('created_at',{ascending:false}).limit(12);
+        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').order('created_at',{ascending:false}).limit(12);
         window._apr=apr||[];
         renderAprovacoes();
       }catch(e){}
@@ -500,7 +501,7 @@ async function autoGerarSemana(uid){
         const d=await r.json();
         if(d&&d.limite)break; // cota do plano/trial esgotada
         const cinco=new Date(Date.now()-5*864e5).toISOString();
-        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').gte('created_at',cinco).order('created_at',{ascending:false}).limit(12);
+        const{data:apr}=await JUMP.sb.from('conteudos').select('id,tema,copy,tipo_visual,formato,midia_url,status,created_at').eq('user_id',uid).eq('status','aguardando_aprovacao').order('created_at',{ascending:false}).limit(12);
         window._apr=apr||[]; renderAprovacoes();
       }catch(e){}
     }
