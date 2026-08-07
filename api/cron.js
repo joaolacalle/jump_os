@@ -609,6 +609,8 @@ async function jobProduzir() {
             tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
             headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
             cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
+            // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
+            ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: 30, reload: true } : {}),
           }),
         });
         const d = await r.json().catch(() => null);
