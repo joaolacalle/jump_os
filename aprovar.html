@@ -39,6 +39,14 @@
 @media(max-width:560px){.ed-foot-r{margin-left:0;width:100%}.ed-foot-r .btn{flex:1}}
 </style>
 <style>/*polimento-jump*/.ap-card,.apr-card,.ap-item{border-radius:16px;transition:.18s}.ap-card:hover,.apr-card:hover,.ap-item:hover{transform:translateY(-3px);border-color:rgba(var(--g-rgb),.4)}.hd-hello{color:var(--g)}</style>
+<style>
+/* CAMPOS EDITÁVEIS: visualmente distintos do resto do card (plug & play — o usuário
+   identifica de relance o que pode ajustar, sem precisar caçar). */
+.edt{width:100%;padding:9px 11px;border-radius:10px;border:1px solid rgba(var(--g-rgb),.40);background:rgba(var(--g-rgb),.05);color:var(--t1);font-size:13px;margin-bottom:10px;font-family:var(--B);transition:.15s}
+.edt:hover{border-color:rgba(var(--g-rgb),.65)}
+.edt:focus{outline:none;border-color:var(--g);background:rgba(var(--g-rgb),.09);box-shadow:0 0 0 3px rgba(var(--g-rgb),.14)}
+textarea.edt{resize:vertical;line-height:1.5}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -113,7 +121,13 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
       for(const _p of ESTRATEGIAS){
         const _ids=(_p.payload&&_p.payload.ids)||[];
         if(_ids.length){const{data:_ps}=await JUMP.sb.from('conteudos').select('*').in('id',_ids).order('data_sugerida',{ascending:true});_p._posts=_ps||[];}
-        else if(_p.tarefa==='aprovar_estrategia'){const{data:_ps}=await JUMP.sb.from('conteudos').select('*').eq('user_id',_uid).eq('status','proposto').order('data_sugerida',{ascending:true});_p._posts=_ps||[];}
+        else if(_p.tarefa==='aprovar_estrategia'){
+          // o plano do mês pode estar como 'proposto' (novo) OU já 'rascunho' (promovido antes) —
+          // em ambos os casos o card precisa mostrar os posts EDITÁVEIS, senão vem vazio.
+          let{data:_ps}=await JUMP.sb.from('conteudos').select('*').eq('user_id',_uid).eq('status','proposto').order('data_sugerida',{ascending:true});
+          if(!_ps||!_ps.length){const r2=await JUMP.sb.from('conteudos').select('*').eq('user_id',_uid).eq('status','rascunho').is('midia_url',null).order('data_sugerida',{ascending:true});_ps=r2.data;}
+          _p._posts=_ps||[];
+        }
       }
     }catch(e){}
     render();
@@ -232,8 +246,8 @@ function render(){
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=_tot?'none':'block';
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
-  const _inp=(cid,k,label,val,tipo)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:3px">${label}</label><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);color:var(--t1);font-size:13px;margin-bottom:9px">`;
-  const _txt=(cid,k,label,val)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:3px">${label}</label><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="3" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);color:var(--t1);font-size:13px;margin-bottom:9px;resize:vertical">${JUMP.esc(val==null?'':String(val))}</textarea>`;
+  const _inp=(cid,k,label,val,tipo)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--g);text-transform:uppercase;margin-bottom:3px">✎ ${label}</label><input class="pv-f edt" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}">`;
+  const _txt=(cid,k,label,val)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--g);text-transform:uppercase;margin-bottom:3px">✎ ${label}</label><textarea class="pv-f edt" data-cid="${cid}" data-k="${k}" rows="3">${JUMP.esc(val==null?'':String(val))}</textarea>`;
   const cardsEstr=ESTRATEGIAS.map(o=>{
     const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
     const linhas=posts.map(c=>{
