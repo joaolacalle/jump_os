@@ -530,7 +530,7 @@ async function jobProduzir() {
   if (!base || !process.env.CRON_SECRET) return { erro: 'sem VERCEL_URL/CRON_SECRET' };
   let ordensFeitas = 0, artes = 0;
 
-  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=eq.criar_post&status=eq.pendente&select=id,user_id,payload,total&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso)&status=eq.pendente&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
 
   for (const o of (Array.isArray(pend) ? pend : [])) {
     // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
@@ -545,10 +545,31 @@ async function jobProduzir() {
     const q = ids && ids.length
       ? `conteudos?id=in.(${ids.join(',')})&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta`
       : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
-    let posts = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
+    //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
+    const brief = (o.payload && o.payload.brief) || o.detalhe || '';
+    const ehBrief = !ids && brief && (o.payload && (o.payload.recorrente || o.payload.itens));
+    let posts;
+    if (ehBrief) {
+      const itens = (o.payload.itens && o.payload.itens.length) ? o.payload.itens : [{ tema: brief, formato: 'feed', tipo_visual: 'conceitual' }];
+      const amanha = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+      const criados = await fetch(`${SUPABASE_URL}/rest/v1/conteudos`, {
+        method: 'POST', headers: { ...SBH(), 'Prefer': 'return=representation' },
+        body: JSON.stringify(itens.map(it => ({
+          user_id: o.user_id, tema: it.tema || brief, copy: it.copy || '',
+          formato: it.formato || 'feed', tipo_visual: it.tipo_visual || 'conceitual',
+          data_sugerida: amanha, data_agendada: amanha + 'T09:00:00',
+          status: 'rascunho', origem_agente: 'criativo',
+          meta: { headline: it.headline || it.tema || brief, subheadline: it.subheadline || '', cta_arte: it.cta_arte || '', pilar: it.pilar || '', avulso: true, ordem_id: o.id },
+        }))),
+      }).then(r => r.json()).catch(() => []);
+      posts = Array.isArray(criados) ? criados : [];
+    } else {
+      posts = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    }
     posts = (Array.isArray(posts) ? posts : []).filter(c => {
       const f = String(c.formato || 'feed').toLowerCase();
-      const temCopy = c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim();
+      const temCopy = ehBrief ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
       return temCopy && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
     });
 
@@ -619,14 +640,34 @@ async function jobOrdens() {
   // 1) Ordens recorrentes: gera a ordem do ciclo (1x por período) com anti-duplicata
   const recorrentes = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?recorrencia=not.is.null&select=*`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
   for (const o of (Array.isArray(recorrentes) ? recorrentes : [])) {
-    // mensal: dispara no dia 1; semanal: dispara na segunda (diaSemana 1)
-    const deveDisparar = (o.recorrencia === 'mensal' && diaDoMes === 1) || (o.recorrencia === 'semanal' && diaSemana === 1);
+    // REGRAS DE RECORRÊNCIA (o dia é calculado, não adivinhado):
+    //  mensal        → dia 1
+    //  primeira_seg  → 1ª segunda-feira do mês (diaDoMes 1..7 numa segunda)
+    //  semanal       → toda segunda
+    //  quinzenal     → dias 1 e 15
+    //  dia_mes:N     → todo dia N
+    const rec = String(o.recorrencia || '');
+    let deveDisparar = false;
+    if (rec === 'mensal') deveDisparar = (diaDoMes === 1);
+    else if (rec === 'primeira_seg') deveDisparar = (diaSemana === 1 && diaDoMes <= 7);
+    else if (rec === 'semanal') deveDisparar = (diaSemana === 1);
+    else if (rec === 'quinzenal') deveDisparar = (diaDoMes === 1 || diaDoMes === 15);
+    else if (rec.indexOf('dia_mes:') === 0) deveDisparar = (diaDoMes === Number(rec.split(':')[1] || 0));
     if (!deveDisparar) continue;
     if (o.ultimo_lembrete === hoje) continue; // já disparou hoje
-    // cria a ordem do ciclo (pendente, avulsa, derivada da recorrente)
+
+    // A ordem do ciclo nasce PRONTA PARA PRODUÇÃO AUTOMÁTICA quando é peça de arte:
+    // vira 'criar_avulso' com o briefing → o worker gera → a arte cai no Aprovar.
+    // (Ordens que não são arte seguem como tarefa do usuário, com lembrete.)
+    const ehArte = (o.para_agente === 'criativo');
+    const nova = ehArte
+      ? { user_id: o.user_id, de_agente: 'usuario', para_agente: 'criativo', tarefa: 'criar_avulso',
+          detalhe: o.detalhe, status: 'pendente', total: 1, progresso: 0, ordem_pai: o.id,
+          payload: { brief: o.detalhe, recorrente: true, itens: [{ tema: o.detalhe, formato: 'feed', tipo_visual: 'conceitual' }] } }
+      : { user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario',
+          detalhe: o.detalhe, status: 'pendente', ordem_pai: o.id };
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
-      method: 'POST', headers: SBH(),
-      body: JSON.stringify({ user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario', detalhe: o.detalhe, status: 'pendente' }),
+      method: 'POST', headers: SBH(), body: JSON.stringify(nova),
     }).catch(()=>{});
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ ultimo_lembrete: hoje }) }).catch(()=>{});
     recCriadas++;
