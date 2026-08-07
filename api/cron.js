@@ -530,7 +530,7 @@ async function jobProduzir() {
   if (!base || !process.env.CRON_SECRET) return { erro: 'sem VERCEL_URL/CRON_SECRET' };
   let ordensFeitas = 0, artes = 0;
 
-  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso)&status=eq.pendente&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
 
   for (const o of (Array.isArray(pend) ? pend : [])) {
     // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
@@ -548,8 +548,31 @@ async function jobProduzir() {
     // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
     //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
     const brief = (o.payload && o.payload.brief) || o.detalhe || '';
-    const ehBrief = !ids && brief && (o.payload && (o.payload.recorrente || o.payload.itens));
+    const tf = String(o.tarefa || '');
+    // ficha técnica e criativos de anúncio geram ARQUIVO (biblioteca), não post no calendário
+    const soArquivo = (tf === 'ficha_tecnica' || tf === 'criar_criativo_ads' || tf === 'substituir_criativo');
+    const ehBrief = !ids && brief && (soArquivo || (o.payload && (o.payload.recorrente || o.payload.itens)));
     let posts;
+    if (soArquivo) {
+      // gera a peça e registra na biblioteca; não cria conteúdo nem card de aprovação
+      try {
+        const r = await fetch(`${base}/api/gerar-imagem`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+          body: JSON.stringify({ user_id: o.user_id, registrar: true, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
+            tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined }),
+        });
+        const d = await r.json().catch(() => null);
+        const ok = r.ok && d && d.url;
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({ status: ok ? 'concluida' : 'erro', progresso: ok ? 1 : 0, total: 1,
+            payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: (d && d.error) || 'falha' }] }) },
+            ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
+        }).catch(() => {});
+        if (ok) artes++;
+      } catch (e) {}
+      ordensFeitas++; continue;
+    }
     if (ehBrief) {
       const itens = (o.payload.itens && o.payload.itens.length) ? o.payload.itens : [{ tema: brief, formato: 'feed', tipo_visual: 'conceitual' }];
       const amanha = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
