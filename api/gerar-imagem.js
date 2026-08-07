@@ -326,9 +326,16 @@ module.exports = async (req, res) => {
 
   try {
     // Auth
+    // ── VIA INTERNA (worker do cron): produção server-side roda sem navegador aberto.
+    //    Autenticada por segredo de servidor — nunca exposto ao cliente.
+    const _int = req.headers['x-internal-secret'];
+    const _intOk = _int && process.env.CRON_SECRET && _int === process.env.CRON_SECRET;
+    let _intUser = null;
+    if (_intOk && req.body && req.body.user_id) _intUser = String(req.body.user_id);
+
     const jwt = (req.headers.authorization || '').replace('Bearer ', '');
-    if (!jwt) return res.status(401).json({ error: 'Não autenticado' });
-    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { 'apikey': KEY(), 'Authorization': `Bearer ${jwt}` } });
+    if (!jwt && !_intUser) return res.status(401).json({ error: 'Não autenticado' });
+    const uRes = _intUser ? { ok: true, json: async () => ({ id: _intUser }) } : await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { 'apikey': KEY(), 'Authorization': `Bearer ${jwt}` } });
     const user = await uRes.json();
     if (!uRes.ok || !user.id) return res.status(401).json({ error: 'Sessão inválida' });
 

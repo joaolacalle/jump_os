@@ -518,6 +518,84 @@ module.exports = async (req, res) => {
       diagnostico: { secret_definida: !!s, tamanho: s.length, comeca_com: s.slice(0, 2), recebido_tamanho: String(qsec || '').length },
     });
   }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKER DE PRODUÇÃO (server-side): gera as artes SEM depender do navegador.
+// O usuário aprova e pode fechar tudo — os agentes seguem trabalhando aqui.
+// Trava de concorrência: a ordem só é pega se ainda estiver 'pendente' (PATCH
+// condicional), então duas execuções nunca produzem a mesma arte duas vezes.
+// ═══════════════════════════════════════════════════════════════════════════════
+async function jobProduzir() {
+  const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : (process.env.SITE_URL || '');
+  if (!base || !process.env.CRON_SECRET) return { erro: 'sem VERCEL_URL/CRON_SECRET' };
+  let ordensFeitas = 0, artes = 0;
+
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=eq.criar_post&status=eq.pendente&select=id,user_id,payload,total&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+
+  for (const o of (Array.isArray(pend) ? pend : [])) {
+    // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
+    const lock = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}&status=eq.pendente`, {
+      method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ status: 'processando', payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
+    }).then(r => r.json()).catch(() => []);
+    if (!Array.isArray(lock) || !lock.length) continue; // outro processo pegou antes
+
+    // posts-alvo: os ids aprovados na semana, ou os rascunhos com copy pronta
+    const ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : null;
+    const q = ids && ids.length
+      ? `conteudos?id=in.(${ids.join(',')})&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta`
+      : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
+    let posts = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    posts = (Array.isArray(posts) ? posts : []).filter(c => {
+      const f = String(c.formato || 'feed').toLowerCase();
+      const temCopy = c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim();
+      return temCopy && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
+    });
+
+    let feitos = 0; const erros = [];
+    for (const c of posts) {
+      const m = c.meta || {};
+      try {
+        const r = await fetch(`${base}/api/gerar-imagem`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+          body: JSON.stringify({
+            user_id: o.user_id, conteudo_id: c.id, registrar: true,
+            prompt: c.tema || m.headline || 'post', tamanho: '4:5',
+            tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
+            headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
+            cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
+          }),
+        });
+        const d = await r.json().catch(() => null);
+        if (!r.ok || !d || !d.url) { erros.push({ tema: c.tema || 'post', motivo: (d && d.error) || 'falha na geração' }); continue; }
+        await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({ midia_url: d.url, status: 'aguardando_aprovacao' }),
+        }).catch(() => {});
+        feitos++; artes++;
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
+        }).catch(() => {});
+      } catch (e) { erros.push({ tema: c.tema || 'post', motivo: e.message || 'erro' }); }
+    }
+
+    const pl = { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true };
+    if (erros.length) pl.erros = erros;
+    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+      method: 'PATCH', headers: SBH(),
+      body: JSON.stringify({
+        status: feitos > 0 ? 'concluida' : (posts.length ? 'erro' : 'concluida'),
+        progresso: feitos, total: posts.length, payload: pl,
+        ...(feitos > 0 ? { concluida_em: new Date().toISOString() } : {}),
+      }),
+    }).catch(() => {});
+    ordensFeitas++;
+  }
+  return { ordens: ordensFeitas, artes };
+}
+
 async function jobOrdens() {
   // WATCHDOG: ordens presas em 'processando' (navegador fechou no meio da geração) voltam para
   // 'pendente' — assim podem ser retomadas, em vez de ficarem travadas para sempre. A geração
@@ -690,6 +768,10 @@ async function jobLimpeza() {
       const r = await jobSeguranca();
       return res.status(200).json({ ok: true, job, ...r });
     }
+    if (job === 'produzir') {
+      const r = await jobProduzir();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
     if (job === 'ordens') {
       const r = await jobOrdens();
       return res.status(200).json({ ok: true, job, ...r });
@@ -702,7 +784,7 @@ async function jobLimpeza() {
       const r = await jobLimpeza();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, tokens, seguranca, ordens, publicar ou limpeza)' });
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, publicar ou limpeza)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
