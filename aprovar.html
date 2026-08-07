@@ -135,6 +135,49 @@ textarea.edt{resize:vertical;line-height:1.5}
 }
 @media(prefers-reduced-motion:reduce){#modal-edit *{transition:none!important}}
 </style>
+<style>
+/* card de ESTRATÉGIA: mesmo formato/proporção do card de conteúdo (consistência no Aprovar) */
+.ap-card-estr .ap-estr-cap{aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--g) 20%,transparent),color-mix(in srgb,var(--a2,var(--g)) 16%,transparent));
+  border-bottom:1px solid color-mix(in srgb,var(--t1) 8%,transparent)}
+.ap-card-estr .ap-estr-cap span{font-size:34px;line-height:1}
+.ap-card-estr .ap-estr-cap b{font-family:var(--M);font-size:10px;letter-spacing:.16em;color:var(--g)}
+.ap-card-estr .ap-badge{font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#f0b53f;background:rgba(240,181,63,.12);border:1px solid rgba(240,181,63,.34);border-radius:99px;padding:3px 9px}
+/* modal da estratégia: mesma linguagem do card de conteúdo */
+#modal-estr .modal{max-width:920px!important;width:96vw;padding:0!important;border-radius:22px;
+  background:color-mix(in srgb, var(--ch) 88%, #000 12%);max-height:94vh;overflow:auto}
+#modal-estr .ec-hd{display:flex;align-items:flex-start;gap:20px;padding:30px 34px 0}
+#modal-estr .ec-hd h2{margin:0;font-family:var(--D,var(--B));font-size:28px;letter-spacing:.5px;color:var(--t1);line-height:1}
+#modal-estr .ec-hd p{margin:9px 0 0;font-size:14px;color:var(--t2);max-width:62ch}
+#modal-estr .ec-x{margin-left:auto;width:46px;height:46px;flex-shrink:0;border-radius:13px;font-size:17px;cursor:pointer;
+  background:color-mix(in srgb,var(--t1) 7%,transparent);border:1px solid color-mix(in srgb,var(--t1) 12%,transparent);color:var(--t1)}
+#modal-estr .ec-bar{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:24px 34px 0}
+#modal-estr .ec-status{display:flex;align-items:center;gap:12px;padding:16px 22px;border-radius:14px;font-family:var(--M);font-size:12.5px;
+  letter-spacing:.1em;color:var(--g);background:color-mix(in srgb,var(--g) 9%,transparent);border:1px solid color-mix(in srgb,var(--g) 30%,transparent)}
+#modal-estr .ec-status i{width:9px;height:9px;border-radius:50%;background:var(--g);box-shadow:0 0 10px var(--g)}
+#modal-estr .ec-date{display:flex;align-items:center;gap:12px;padding:16px 22px;border-radius:14px;
+  background:color-mix(in srgb,var(--t1) 5%,transparent);border:1px solid color-mix(in srgb,var(--t1) 12%,transparent)}
+#modal-estr .ec-estr-body{padding:22px 34px 8px;display:flex;flex-direction:column;gap:14px}
+#modal-estr .ec-post{background:color-mix(in srgb,var(--ch) 96%,var(--t1) 4%);border:1px solid color-mix(in srgb,var(--t1) 9%,transparent);
+  border-radius:16px;padding:18px}
+#modal-estr .ec-post-h{font-family:var(--M);font-size:10.5px;letter-spacing:.12em;color:var(--g);margin-bottom:12px}
+#modal-estr .ec-fld{display:block;border-radius:13px;padding:11px 14px;margin-bottom:10px;
+  background:color-mix(in srgb,var(--ch) 70%,#000 30%);border:1px solid color-mix(in srgb,var(--g) 28%,transparent);transition:.16s}
+#modal-estr .ec-fld:focus-within{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 15%,transparent)}
+#modal-estr .ec-lab{display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--g);margin-bottom:6px}
+#modal-estr .ec-fld input,#modal-estr .ec-fld textarea{width:100%;background:transparent;border:0;outline:none;color:var(--t1);
+  font-family:var(--B);font-size:14px;line-height:1.6;resize:vertical}
+#modal-estr .ec-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#modal-estr .ec-foot{position:sticky;bottom:0;display:flex;padding:18px 34px 26px;
+  background:color-mix(in srgb,var(--ch) 92%,#000 8%);border-top:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
+#modal-estr .ec-foot-r{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+#modal-estr .ec-btn{padding:15px 24px;border-radius:13px;cursor:pointer;font-family:var(--M);font-size:12.5px;letter-spacing:.07em;
+  color:var(--t1);background:color-mix(in srgb,var(--t1) 6%,transparent);border:1px solid color-mix(in srgb,var(--t1) 14%,transparent)}
+#modal-estr .ec-muted{font-size:13px;color:var(--t3)}
+@media(max-width:820px){#modal-estr .ec-bar,#modal-estr .ec-two{grid-template-columns:1fr}
+  #modal-estr .ec-hd,#modal-estr .ec-bar,#modal-estr .ec-estr-body,#modal-estr .ec-foot{padding-left:18px;padding-right:18px}}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -159,6 +202,9 @@ textarea.edt{resize:vertical;line-height:1.5}
 </main>
 </div>
 <!-- MODAL EDIÇÃO (P6) -->
+<div class="modal-bg" id="modal-estr">
+  <div class="modal"><div id="estr-body"></div></div>
+</div>
 <div class="modal-bg" id="modal-edit">
   <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -279,6 +325,38 @@ function focarCard(){
   el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
   setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
 }
+function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
+function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
+function abrirEstrategia(id){
+  const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;
+  const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
+  const linhas=posts.map(c=>{
+    const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
+    return `<div class="ec-post">
+      <div class="ec-post-h">${JUMP.esc((c.formato||'feed').toUpperCase())}${m.pilar?(' · '+JUMP.esc(m.pilar)):''}</div>
+      ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema do post',c.tema||'')}
+      ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
+      ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
+      <div class="ec-two">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('estr-body').innerHTML=`
+    <header class="ec-hd">
+      <div><h2>${semanal?'ESTRATÉGIA SEMANAL':'ESTRATÉGIA MENSAL'}</h2>
+      <p>${semanal?'Sua 1ª aprovação — ao aprovar, os agentes produzem as artes desta semana.':'Mapa do mês. Ao aprovar, o plano entra no calendário e a Semana 1 é liberada.'}</p></div>
+      <button class="ec-x" onclick="document.getElementById('modal-estr').classList.remove('show')" aria-label="Fechar">✕</button>
+    </header>
+    <div class="ec-bar"><div class="ec-status"><i></i>AGUARDANDO APROVAÇÃO</div>
+      <div class="ec-date"><span>📋</span><span style="color:var(--t1);font-size:15px">${posts.length} post(s)</span></div></div>
+    <div class="ec-estr-body">${linhas||'<div class="ec-muted">Sem posts vinculados a esta proposta.</div>'}</div>
+    <footer class="ec-foot">
+      <div class="ec-foot-r" style="margin-left:0;width:100%">
+        <button class="ec-btn ec-save" onclick="document.getElementById('modal-estr').classList.remove('show')">FECHAR</button>
+        <button class="btn btn-g" style="margin-left:auto" onclick="aprovarProposta('${o.id}','${o.tarefa}',this)">✓ ${semanal?'APROVAR E PRODUZIR':'APROVAR PLANEJAMENTO'}</button>
+      </div>
+    </footer>`;
+  document.getElementById('modal-estr').classList.add('show');
+}
 async function salvarEdicoesProposta(){
   // Salva os campos editáveis (data, horário, headline, copy, CTA, tema) — nunca a estrutura.
   const porPost={};
@@ -334,29 +412,15 @@ function render(){
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=_tot?'none':'block';
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
-  const _inp=(cid,k,label,val,tipo)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--g);text-transform:uppercase;margin-bottom:3px">✎ ${label}</label><input class="pv-f edt" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}">`;
-  const _txt=(cid,k,label,val)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--g);text-transform:uppercase;margin-bottom:3px">✎ ${label}</label><textarea class="pv-f edt" data-cid="${cid}" data-k="${k}" rows="3">${JUMP.esc(val==null?'':String(val))}</textarea>`;
   const cardsEstr=ESTRATEGIAS.map(o=>{
-    const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
-    const linhas=posts.map(c=>{
-      const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
-      const cab=`<div style="font-family:var(--M);font-size:10px;color:var(--g);margin-bottom:7px">${JUMP.esc((c.formato||'feed').toUpperCase())} · ${JUMP.esc(m.pilar||'')}</div>`;
-      const est=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>`;
-      return `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px 13px;margin-top:10px;background:var(--bg)">${cab}
-        ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema',c.tema||'')}
-        ${semanal?_txt(c.id,'copy','Legenda (copy)',c.copy||''):''}
-        ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
-        ${est}</div>`;
-    }).join('');
-    const titulo=semanal?'ESTRATÉGIA SEMANAL · SUA 1ª APROVAÇÃO':'ESTRATÉGIA MENSAL · PLANEJAMENTO DO MÊS';
-    const nota=semanal?'Revise e ajuste o que quiser. <b>Ao aprovar, os agentes começam a produzir as artes desta semana</b> — depois você aprova cada conteúdo aqui mesmo.':'Este é o mapa do mês (referência). Ao aprovar, o plano entra no calendário e a <b>Semana 1</b> é liberada para detalhamento. Nenhuma arte é gerada agora.';
-    return `<div class="ap-card" style="grid-column:1/-1;border:1px solid rgba(var(--g-rgb),.42);background:linear-gradient(120deg,rgba(var(--g-rgb),.09),rgba(139,92,246,.06))"><div class="ap-body" style="padding:16px 18px">
-      <div style="font-family:var(--M);font-size:10px;letter-spacing:.14em;color:var(--g)">📋 ${titulo}</div>
-      <div class="ap-t" style="font-size:15px;margin-top:5px">${JUMP.esc(o.detalhe||'Estratégia')}</div>
-      <div style="font-size:12.5px;color:var(--t2);margin-top:7px;line-height:1.5">${nota}</div>
-      ${linhas?`<div style="margin-top:12px">${linhas}</div>`:''}
-      <div style="margin-top:14px"><button class="btn btn-g" onclick="aprovarProposta('${o.id}','${o.tarefa}',this)">✓ ${semanal?'Aprovar semana e produzir':'Aprovar planejamento'}</button></div>
-    </div></div>`;
+    const semanal=(o.tarefa==='aprovar_semana'), n=(o._posts||[]).length;
+    return `<div class="ap-card ap-card-mini ap-card-estr" onclick="abrirEstrategia('${o.id}')" style="cursor:pointer">
+      <div class="ap-img ap-estr-cap"><span>${semanal?'🗓':'📋'}</span><b>${semanal?'SEMANAL':'MENSAL'}</b></div>
+      <div class="ap-body" style="padding:10px 12px">
+        <div class="ap-t" style="font-size:13px">${JUMP.esc(semanal?('Semana · '+n+' post(s)'):('Plano do mês · '+n+' post(s)'))}</div>
+        <div class="ap-meta"><span class="ap-badge">Aguardando aprovação</span></div>
+      </div>
+    </div>`;
   }).join('');
   g.innerHTML=cardsEstr+ITENS.map(c=>{
     const tp=JUMP.tipoPeca(c);
