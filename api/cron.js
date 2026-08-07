@@ -542,8 +542,11 @@ async function jobProduzir() {
 
     // posts-alvo: os ids aprovados na semana, ou os rascunhos com copy pronta
     const ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : null;
+    // RECRIAÇÃO: o conteúdo JÁ tem imagem — não filtrar por midia_url nula, senão a ordem de
+    // ajuste não encontra nada. O resultado sobrescreve o MESMO registro (sem card novo).
+    const ehRecriacao = !!(o.payload && (o.payload.ajuste || o.payload.recriacao));
     const q = ids && ids.length
-      ? `conteudos?id=in.(${ids.join(',')})&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta`
+      ? `conteudos?id=in.(${ids.join(',')})${ehRecriacao ? '' : '&midia_url=is.null'}&select=id,tema,copy,formato,tipo_visual,meta`
       : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
     // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
     //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
@@ -592,7 +595,7 @@ async function jobProduzir() {
     }
     posts = (Array.isArray(posts) ? posts : []).filter(c => {
       const f = String(c.formato || 'feed').toLowerCase();
-      const temCopy = ehBrief ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
+      const temCopy = (ehBrief || ehRecriacao) ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
       return temCopy && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
     });
 
@@ -617,7 +620,7 @@ async function jobProduzir() {
         if (!r.ok || !d || !d.url) { erros.push({ tema: c.tema || 'post', motivo: (d && d.error) || 'falha na geração' }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
-          body: JSON.stringify({ midia_url: d.url, status: 'aguardando_aprovacao' }),
+          body: JSON.stringify(ehRecriacao ? { midia_url: d.url } : { midia_url: d.url, status: 'aguardando_aprovacao' }),
         }).catch(() => {});
         feitos++; artes++;
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {

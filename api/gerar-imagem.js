@@ -257,7 +257,9 @@ async function diretorDeArte(M, o, ctx) {
       50: 'keep the brand system and the headline, but rebuild the composition: different structure, different visual metaphor, different placement and photographic treatment.',
       100: 'start over. New set, new concept, new metaphor, new composition, new light. Only the palette, the typography rules and the text stay. It must not resemble the previous version.',
     }[ctx.variacao] || 'change the composition meaningfully.')) : '',
-    ctx.ajuste ? ('THE CLIENT ASKED SPECIFICALLY: "' + String(ctx.ajuste).slice(0, 300) + '". This instruction OVERRIDES your own preferences (but never the design system).') : '',
+    ctx.ajuste ? ('CLIENT EDIT REQUEST (this is an INSTRUCTION TO YOU, never text to render): "' + String(ctx.ajuste).slice(0, 300) + '".\n'
+      + 'CRITICAL: this sentence is a DIRECTION for how to change the artwork — it must NEVER become the headline, subheadline, label, CTA or any text drawn on the image. The rendered text stays EXACTLY as specified in the content block below.\n'
+      + 'Classify it and change ONLY that dimension: background/scene · composition · position of subject · photo or element swap · color · typography treatment · layout. Everything else (identity, palette, strategy, hierarchy, safe zones, crop rules, typography system, the rendered copy) stays IDENTICAL to the original piece. This is a controlled revision of the SAME artwork, not a new one.') : '',
     '',
     '=== TEXT TO RENDER (accent bug — the model invents accents) ===',
     'End the prompt with a list titled "Text to render:", ONE line per text string that appears in the art (headline lines, subheadline, proof, CTA, label), each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear. This list is the single source of truth for every glyph — the model must copy from it, not re-spell.',
