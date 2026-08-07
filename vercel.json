@@ -41,6 +41,10 @@
     {
       "path": "/api/cron?job=limpeza",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron?job=produzir",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
