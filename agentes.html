@@ -922,7 +922,17 @@ async function pedirCopyDaSemana(btn){
 // Retorna false se parou por cota (a ordem continua pendente).
 async function executarLoteCriativos(uid,ordem){
   const limData=new Date(Date.now()+(ordem?45:7)*864e5).toISOString(); // ordem explícita = janela ampla (gera a semana aprovada mesmo além de 7 dias); auto = só a semana
-  let{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or('data_sugerida.lte.'+limData+',data_sugerida.is.null').order('data_sugerida',{ascending:true}).limit(10);
+  // Se a ordem veio de uma SEMANA APROVADA, ela traz os ids exatos — produzimos ESSES posts
+  // (a aprovação é a fonte da verdade). Sem ids, cai na janela por data (fluxo antigo/avulso).
+  const _idsOrdem=(ordem&&ordem.payload&&Array.isArray(ordem.payload.ids))?ordem.payload.ids:null;
+  let pend;
+  if(_idsOrdem&&_idsOrdem.length){
+    const r=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').in('id',_idsOrdem).is('midia_url',null).order('data_sugerida',{ascending:true});
+    pend=r.data;
+  }else{
+    const r=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or('data_sugerida.lte.'+limData+',data_sugerida.is.null').order('data_sugerida',{ascending:true}).limit(10);
+    pend=r.data;
+  }
   // O Designer só faz IMAGEM: reels/vídeo ficam com o cliente (upload) e não entram no lote.
   pend=(pend||[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
   // A ARTE VEM DEPOIS DA COPY: sem headline/copy a arte sai vazia (o tema inteiro viraria a headline).

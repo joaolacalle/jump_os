@@ -103,8 +103,18 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
       SEM_COPY=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
         &&(!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())));
       // ESTRATÉGIAS aguardando sua aprovação → viram card no topo do Aprovar
-      const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
+      // MOTOR GENÉRICO DE PROPOSTAS: qualquer agente que precise de aprovação cria uma ordem
+      // 'aprovar_*' com status 'aguardando_aprovacao'. O Aprovar renderiza pelo contrato, sem
+      // conhecer o agente (hoje Estratégia; amanhã Tráfego, Vídeo, etc.).
+      const _uid=CTX.viewId||CTX.user.id;
+      const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',_uid).like('tarefa','aprovar_%').eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
       ESTRATEGIAS=estr||[];
+      // carrega os posts vinculados a cada proposta (para os campos editáveis)
+      for(const _p of ESTRATEGIAS){
+        const _ids=(_p.payload&&_p.payload.ids)||[];
+        if(_ids.length){const{data:_ps}=await JUMP.sb.from('conteudos').select('*').in('id',_ids).order('data_sugerida',{ascending:true});_p._posts=_ps||[];}
+        else if(_p.tarefa==='aprovar_estrategia'){const{data:_ps}=await JUMP.sb.from('conteudos').select('*').eq('user_id',_uid).eq('status','proposto').order('data_sugerida',{ascending:true});_p._posts=_ps||[];}
+      }
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
@@ -167,33 +177,85 @@ function focarCard(){
   el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
   setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
 }
-async function aprovarEstrategiaCard(id){
-  if(!confirm('Aprovar esta estratégia?\n\nOs posts entram no calendário e a produção (copy + artes) começa automaticamente. Você aprova cada arte depois, aqui no Aprovar.'))return;
-  const uid=CTX.viewId||CTX.user.id;
-  try{
-    // 1) promove o plano: proposto → rascunho (entra no calendário)
-    await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
-    // 2) cria a tarefa de detalhar a semana (copy) — visível em Tarefas
-    const{data:daSemana}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').is('midia_url',null);
-    if(daSemana&&daSemana.length){
-      await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+daSemana.length+' post(s))',status:'pendente',total:daSemana.length,progresso:0}]);
+async function salvarEdicoesProposta(){
+  // Salva os campos editáveis (data, horário, headline, copy, CTA, tema) — nunca a estrutura.
+  const porPost={};
+  document.querySelectorAll('.pv-f').forEach(el=>{const id=el.dataset.cid;(porPost[id]=porPost[id]||{})[el.dataset.k]=el.value;});
+  for(const id in porPost){
+    const f=porPost[id], patch={}, meta={};
+    if(f.tema!=null)patch.tema=f.tema;
+    if(f.copy!=null)patch.copy=f.copy;
+    if(f.headline!=null)meta.headline=f.headline;
+    if(f.cta!=null)meta.cta_arte=f.cta;
+    if(f.dia){patch.data_sugerida=f.dia;patch.data_agendada=f.dia+'T'+((f.hora||'09:00'))+':00';}
+    if(Object.keys(meta).length){
+      const{data:atual}=await JUMP.sb.from('conteudos').select('meta').eq('id',id).single();
+      patch.meta=Object.assign({},(atual&&atual.meta)||{},meta);
     }
-    // 3) marca a estratégia como aprovada
-    await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
-    JUMP.toast('✓ Estratégia aprovada! Gerando a copy e as artes da semana — aguarde...');
-    // 4) dispara a produção (copy + ordem do Criativo) e ESPERA terminar (senão o reload cancela a chamada)
-    try{const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-      if(tk)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer (crie a ordem criar_post). Faça direto, sem perguntar nada.'})});
-    }catch(e){}
+    if(Object.keys(patch).length)await JUMP.sb.from('conteudos').update(patch).eq('id',id);
+  }
+}
+// DESPACHANTE GENÉRICO: cada tipo de proposta tem sua ação. Novos agentes (Tráfego, Vídeo...)
+// só precisam registrar o seu 'aprovar_<tipo>' aqui — o card e a edição já funcionam sozinhos.
+async function aprovarProposta(id,tarefa,btn){
+  const semanal=(tarefa==='aprovar_semana');
+  if(!confirm(semanal?'Aprovar esta semana?\n\nOs agentes vão produzir as artes destes posts. Depois você aprova cada conteúdo aqui no Aprovar.':'Aprovar o planejamento do mês?\n\nO plano entra no calendário e a Semana 1 é liberada. Nenhuma arte é gerada agora.'))return;
+  const uid=CTX.viewId||CTX.user.id;
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  try{
+    await salvarEdicoesProposta();
+    if(semanal){
+      const ids=(ESTRATEGIAS.find(o=>o.id===id)||{}).payload?.ids||[];
+      if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
+      await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      JUMP.toast('✓ Semana aprovada! As artes estão sendo produzidas — acompanhe em Tarefas.');
+    }else{
+      // MENSAL = mapa macro: entra no calendário e libera a Semana 1 (não produz nada ainda)
+      await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
+      await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      if(btn)btn.textContent='Preparando a Semana 1...';
+      try{const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
+        if(tk)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da SEMANA 1 do calendário. Não gere artes ainda. Faça direto, sem perguntar nada.'})});
+      }catch(e){}
+      // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
+      const lim=new Date(Date.now()+8*864e5).toISOString().slice(0,10);
+      const{data:sem1}=await JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).lte('data_sugerida',lim).order('data_sugerida',{ascending:true});
+      const ids=(sem1||[]).filter(c=>c.copy&&String(c.copy).trim()).map(c=>c.id);
+      if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'usuario',tarefa:'aprovar_semana',detalhe:'Aprovar a Semana 1 ('+ids.length+' post(s))',status:'aguardando_aprovacao',total:ids.length,progresso:0,payload:{ids}}]);
+      JUMP.toast(ids.length?'✓ Planejamento aprovado! A Semana 1 está pronta para sua aprovação.':'✓ Planejamento aprovado! A Semana 1 será liberada em instantes.');
+    }
     location.reload();
-  }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');}
+  }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}}
 }
 function render(){
   const _tot=ITENS.length+ESTRATEGIAS.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=_tot?'none':'block';
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
-  const cardsEstr=ESTRATEGIAS.map(o=>`<div class="ap-card" style="grid-column:1/-1;border:1px solid rgba(var(--g-rgb),.42);background:linear-gradient(120deg,rgba(var(--g-rgb),.09),rgba(139,92,246,.06))"><div class="ap-body" style="padding:16px 18px"><div style="font-family:var(--M);font-size:10px;letter-spacing:.14em;color:var(--g)">\ud83d\udccb ESTRAT\u00c9GIA \u00b7 AGUARDANDO SUA APROVA\u00c7\u00c3O</div><div class="ap-t" style="font-size:15px;margin-top:5px">${JUMP.esc(o.detalhe||'Estrat\u00e9gia do m\u00eas')}</div><div style="font-size:12.5px;color:var(--t2);margin-top:7px;line-height:1.5">Ao aprovar: os posts entram no calend\u00e1rio e a produ\u00e7\u00e3o (copy + artes) come\u00e7a automaticamente. Depois voc\u00ea aprova cada arte aqui mesmo.</div><div style="margin-top:14px"><button class="btn btn-g" onclick="aprovarEstrategiaCard('${o.id}')">\u2713 Aprovar estrat\u00e9gia</button></div></div></div>`).join('');
+  const _inp=(cid,k,label,val,tipo)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:3px">${label}</label><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);color:var(--t1);font-size:13px;margin-bottom:9px">`;
+  const _txt=(cid,k,label,val)=>`<label style="display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:3px">${label}</label><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="3" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);color:var(--t1);font-size:13px;margin-bottom:9px;resize:vertical">${JUMP.esc(val==null?'':String(val))}</textarea>`;
+  const cardsEstr=ESTRATEGIAS.map(o=>{
+    const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
+    const linhas=posts.map(c=>{
+      const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
+      const cab=`<div style="font-family:var(--M);font-size:10px;color:var(--g);margin-bottom:7px">${JUMP.esc((c.formato||'feed').toUpperCase())} · ${JUMP.esc(m.pilar||'')}</div>`;
+      const est=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>`;
+      return `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px 13px;margin-top:10px;background:var(--bg)">${cab}
+        ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema',c.tema||'')}
+        ${semanal?_txt(c.id,'copy','Legenda (copy)',c.copy||''):''}
+        ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
+        ${est}</div>`;
+    }).join('');
+    const titulo=semanal?'ESTRATÉGIA SEMANAL · SUA 1ª APROVAÇÃO':'ESTRATÉGIA MENSAL · PLANEJAMENTO DO MÊS';
+    const nota=semanal?'Revise e ajuste o que quiser. <b>Ao aprovar, os agentes começam a produzir as artes desta semana</b> — depois você aprova cada conteúdo aqui mesmo.':'Este é o mapa do mês (referência). Ao aprovar, o plano entra no calendário e a <b>Semana 1</b> é liberada para detalhamento. Nenhuma arte é gerada agora.';
+    return `<div class="ap-card" style="grid-column:1/-1;border:1px solid rgba(var(--g-rgb),.42);background:linear-gradient(120deg,rgba(var(--g-rgb),.09),rgba(139,92,246,.06))"><div class="ap-body" style="padding:16px 18px">
+      <div style="font-family:var(--M);font-size:10px;letter-spacing:.14em;color:var(--g)">📋 ${titulo}</div>
+      <div class="ap-t" style="font-size:15px;margin-top:5px">${JUMP.esc(o.detalhe||'Estratégia')}</div>
+      <div style="font-size:12.5px;color:var(--t2);margin-top:7px;line-height:1.5">${nota}</div>
+      ${linhas?`<div style="margin-top:12px">${linhas}</div>`:''}
+      <div style="margin-top:14px"><button class="btn btn-g" onclick="aprovarProposta('${o.id}','${o.tarefa}',this)">✓ ${semanal?'Aprovar semana e produzir':'Aprovar planejamento'}</button></div>
+    </div></div>`;
+  }).join('');
   g.innerHTML=cardsEstr+ITENS.map(c=>{
     const tp=JUMP.tipoPeca(c);
     const ico=tp.ico;
