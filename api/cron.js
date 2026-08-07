@@ -625,12 +625,17 @@ async function jobProduzir() {
       } catch (e) { erros.push({ tema: c.tema || 'post', motivo: e.message || 'erro' }); }
     }
 
-    const pl = { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true };
+    const tent = Number((o.payload || {}).tentativas || 0) + (feitos > 0 ? 0 : 1);
+    const pl = { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, tentativas: tent };
     if (erros.length) pl.erros = erros;
+    // RETRY COM LIMITE: falhou e ainda há tentativa? volta para a fila. Esgotou (3)? vira 'erro'
+    // com o motivo visível — nunca fica preso em 'processando' nem some silenciosamente.
+    const estadoFinal = feitos > 0 ? 'concluida'
+      : (!posts.length ? 'concluida' : (tent < 3 ? 'pendente' : 'erro'));
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
       method: 'PATCH', headers: SBH(),
       body: JSON.stringify({
-        status: feitos > 0 ? 'concluida' : (posts.length ? 'erro' : 'concluida'),
+        status: estadoFinal,
         progresso: feitos, total: posts.length, payload: pl,
         ...(feitos > 0 ? { concluida_em: new Date().toISOString() } : {}),
       }),
@@ -641,6 +646,20 @@ async function jobProduzir() {
 }
 
 async function jobOrdens() {
+  // EXPIRAÇÃO: ordem pendente há mais de 7 dias não é mais "atual" (sobra de testes/onboardings
+  // antigos). Sai da fila viva e vai para o histórico como 'expirada', com o motivo registrado —
+  // o dado é preservado, não apagado nem escondido no frontend.
+  try {
+    const corte = new Date(Date.now() - 7 * 864e5).toISOString();
+    const velhas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=in.(pendente,aguardando_aprovacao)&created_at=lt.${corte}&select=id,payload,tarefa&limit=200`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const v of (Array.isArray(velhas) ? velhas : [])) {
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${v.id}`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ status: 'expirada', payload: { ...(v.payload || {}), motivo_expiracao: 'Sem execução por mais de 7 dias' } }),
+      }).catch(() => {});
+    }
+  } catch (e) {}
+
   // WATCHDOG: ordens presas em 'processando' (navegador fechou no meio da geração) voltam para
   // 'pendente' — assim podem ser retomadas, em vez de ficarem travadas para sempre. A geração
   // marca payload.batendo com um timestamp; sem sinal de vida há +8min, destravamos.
