@@ -854,7 +854,11 @@ async function executarOrdens(btn,soId){
           try{
             await gerarPorOrdem(brief,String(it.formato||'4:5'),String(it.tipo_visual||'conceitual'),brief,false,{
               headline:it.headline||'', subheadline:it.subheadline||'', prova:it.prova||'',
-              cta_arte:it.cta_arte||'', oferta:it.oferta||'', copy:it.copy||'', pilar:it.pilar||'', total:1});
+              cta_arte:it.cta_arte||'', oferta:it.oferta||'', copy:it.copy||'', pilar:it.pilar||'', total:1},{
+              tema:it.tema||brief, copy:it.copy||'', formato:String(it.formato||'feed'),
+              tipo_visual:String(it.tipo_visual||'conceitual'), headline:it.headline||'',
+              subheadline:it.subheadline||'', cta_arte:it.cta_arte||'', oferta:it.oferta||'',
+              pilar:it.pilar||'', ordem_id:o.id});
             feitas++;
             try{await JUMP.sb.from('ordens_servico').update({progresso:feitas,total:itens.length,payload:{...(o.payload||{}),batendo:new Date().toISOString()}}).eq('id',o.id)}catch(e){}
           }catch(e){
@@ -868,7 +872,7 @@ async function executarOrdens(btn,soId){
         // Cai no briefing cru em vez de virar ordem-zumbi no lote.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
-        await gerarPorOrdem(brief,'4:5','conceitual',brief);
+        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
       }else if(o.de_agente==='estrategia'&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
         // FALHA ISOLADA: antes era `return` — UMA ordem travada abortava a fila INTEIRA e o
@@ -881,7 +885,7 @@ async function executarOrdens(btn,soId){
         // (máx 8 palavras) e a cena. Antes o briefing inteiro virava a headline.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
-        await gerarPorOrdem(brief,'4:5','conceitual',brief);
+        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
       }
       const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
       if(eUpd)console.error('update ordem falhou:',eUpd.message);
@@ -1143,7 +1147,7 @@ async function gerarFichaTecnica(uid){
     +(proib?('Never include these elements: '+proib+'. '):'')
     +'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
     +'High quality realistic design presentation board.';
-  await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true); // ficha não é post: sem o Engine 6.0
+  await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true,'',{criarConteudo:false}); // ficha não é post: sem o Engine 6.0
   await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
   await logChat('assistant','Gerei sua ficha técnica visual a partir do seu DNA do Negócio. Veja acima.','criativo');
   mostrarRetornoFicha();
@@ -1200,7 +1204,7 @@ async function finalizarRota1(btn){
   w.appendChild(m);w.scrollTop=w.scrollHeight;
   await logChat('assistant','Identidade concluída! Próximo passo: vá ao Agente de Mercado para analisarmos seus concorrentes e oportunidades do nicho.','criativo');
 }
-async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
+async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt,vinc){
   const w=document.getElementById('msgs');
   const lbl=document.createElement('div');lbl.className='msg a';
   lbl.innerHTML='🎨 <b>'+titulo+'</b> — gerando...';
@@ -1221,7 +1225,29 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt){
     dOut=await comporLogoNaArte(d);
     if(dOut.url!==d.url&&d.path){try{const uid=CTX.viewId||CTX.user.id;await JUMP.sb.from('uploads').update({url:dOut.url,path:dOut.path}).eq('user_id',uid).eq('path',d.path)}catch(e){}}
   }
-  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+dOut.url+'" style="width:100%;border-radius:10px;margin-top:6px"><button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+dOut.url+'\',this)">⬇ Baixar</button>';
+  // ── VÍNCULO COM O FLUXO: a arte avulsa NÃO pode ficar solta na biblioteca. Vira CONTEÚDO
+  //    (card no Aprovar + entrada no calendário), igual ao fluxo da Estratégia Mensal.
+  let _cid=null;
+  if(vinc&&vinc.criarConteudo!==false){
+    try{
+      const uid=CTX.viewId||CTX.user.id;
+      const dt=new Date(); dt.setDate(dt.getDate()+1);
+      const dia=dt.toISOString().slice(0,10);
+      const{data:novo}=await JUMP.sb.from('conteudos').insert({
+        user_id:uid, tema:(vinc.tema||titulo||'Conteúdo avulso'),
+        copy:(vinc.copy||txt||''), formato:(vinc.formato||'feed'),
+        tipo_visual:(vinc.tipo_visual||'conceitual'),
+        data_sugerida:dia, data_agendada:dia+'T09:00:00',
+        status:'aguardando_aprovacao', origem_agente:'criativo', midia_url:dOut.url,
+        meta:{headline:vinc.headline||'', subheadline:vinc.subheadline||'', cta_arte:vinc.cta_arte||'',
+              oferta:vinc.oferta||'', pilar:vinc.pilar||'', avulso:true, ordem_id:vinc.ordem_id||null}
+      }).select('id').single();
+      _cid=novo&&novo.id;
+    }catch(e){}
+  }
+  lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+dOut.url+'" style="width:100%;border-radius:10px;margin-top:6px">'
+    +(_cid?'<div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:7px">✓ enviado para Aprovações e agendado no calendário</div>':'')
+    +'<button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+dOut.url+'\',this)">⬇ Baixar</button>';
   w.scrollTop=w.scrollHeight;
 }
 let _lastDay=null;
