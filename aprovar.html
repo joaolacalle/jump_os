@@ -198,6 +198,15 @@ textarea.edt{resize:vertical;line-height:1.5}
 .ec-load .spin-i{width:26px;height:26px;border-width:3px}
 #modal-edit button:disabled{opacity:.5;cursor:not-allowed}
 </style>
+<style>
+.pct-row{display:flex;flex-direction:column;gap:8px}
+.pct-b{display:flex;align-items:baseline;gap:12px;text-align:left;padding:12px 14px;border-radius:12px;cursor:pointer;transition:.15s;
+  background:color-mix(in srgb,var(--ch) 70%,#000 30%);border:1px solid color-mix(in srgb,var(--t1) 12%,transparent);color:var(--t1)}
+.pct-b:hover{border-color:color-mix(in srgb,var(--g) 50%,transparent)}
+.pct-b.on{border-color:var(--g);background:color-mix(in srgb,var(--g) 10%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 12%,transparent)}
+.pct-b b{font-family:var(--M);font-size:14px;color:var(--g);flex-shrink:0;min-width:42px}
+.pct-b span{font-size:12.5px;color:var(--t2);line-height:1.45}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -237,12 +246,20 @@ textarea.edt{resize:vertical;line-height:1.5}
 <!-- MODAL REJEITAR -->
 <div class="modal-bg" id="modal-rej">
   <div class="modal">
-    <div class="modal-t">Rejeitar conteúdo</div>
+    <div class="modal-t">Pedir ajustes na arte</div>
+    <p style="font-size:13px;color:var(--t2);margin:-4px 0 16px;line-height:1.55">O Designer refaz <b>a mesma arte</b> (slide atual), mantendo o DNA da marca. Você escolhe o quanto ele pode mexer.</p>
     <input type="hidden" id="mr-id">
-    <div class="f-group"><label class="f-label">O que precisa mudar? (vai para o agente refazer)</label><textarea class="f-textarea" id="mr-motivo" rows="3" placeholder="Ex: trocar a cor do fundo, legenda mais curta..."></textarea></div>
+    <div class="f-group"><label class="f-label">Nível de alteração</label>
+      <div class="pct-row">
+        <button class="pct-b on" onclick="setPct(10,this)"><b>10%</b><span>Pontual — preserva composição, copy e estilo</span></button>
+        <button class="pct-b" onclick="setPct(50,this)"><b>50%</b><span>Média — pode mudar copy e elementos, mantém estrutura</span></button>
+        <button class="pct-b" onclick="setPct(100,this)"><b>100%</b><span>Completa — recompõe tudo, sempre no DNA da marca</span></button>
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">O que você quer mudar?</label><textarea class="f-textarea" id="mr-motivo" rows="3" placeholder="Ex.: troque o fundo, mova a pessoa para a direita, versão mais minimalista..."></textarea></div>
     <div class="modal-acts">
       <button class="btn btn-o" onclick="document.getElementById('modal-rej').classList.remove('show')">Cancelar</button>
-      <button class="btn btn-r" onclick="confirmarRej()">Rejeitar e pedir ajuste</button>
+      <button class="btn btn-g" onclick="confirmarRej()">↻ Refazer esta imagem</button>
     </div>
   </div>
 </div>
@@ -449,6 +466,9 @@ async function aprovarProposta(id,tarefa,btn){
     if(semanal){
       const ids=(ESTRATEGIAS.find(o=>o.id===id)||{}).payload?.ids||[];
       if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
+      // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
+      // precisa abrir nada — se a página cair, o cron retoma a mesma ordem.
+      try{await JUMP.authFetch('/api/cron?job=produzir',{method:'POST'})}catch(e){}
       await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
       JUMP.toast('✓ Semana aprovada! As artes estão sendo produzidas — acompanhe em Tarefas.');
     }else{
@@ -771,7 +791,14 @@ async function baixar(id){
   JUMP.toast('⬇ Baixado! Bom post.');
   ITENS=ITENS.filter(i=>i.id!==id);render();
 }
+let PCT_AJUSTE=10;
+function setPct(v,el){PCT_AJUSTE=v;document.querySelectorAll('.pct-b').forEach(b=>b.classList.toggle('on',b===el));}
 function abrirRej(id){
+  try{const im=document.getElementById('edit-img');const c=ITENS.find(x=>x.id===id);
+    if(im&&c){const sl=JUMP.slidesDe(c),i=Number(im.dataset.i||0);
+      const t=document.querySelector('#modal-rej .modal-t');
+      if(t)t.textContent=sl.length>1?('Pedir ajustes · imagem '+(i+1)+'/'+sl.length):'Pedir ajustes na arte';}
+  }catch(e){}
   document.getElementById('mr-id').value=id;
   document.getElementById('mr-motivo').value='';
   document.getElementById('modal-rej').classList.add('show');
@@ -792,10 +819,12 @@ async function confirmarRej(){
     document.getElementById('modal-rej').classList.remove('show');
     loadingArte(true,'Refazendo a arte com o seu ajuste...');
     try{
-      const c=ITENS.find(x=>x.id===id)||{id};
+      let c=ITENS.find(x=>x.id===id)||RASCUNHOS.find(x=>x.id===id);
+      if(!c||!c.tema){const{data:cc}=await JUMP.sb.from('conteudos').select('*').eq('id',id).single(); if(cc)c=cc;}
+      if(!c||!(c.tema||(c.meta||{}).headline))throw new Error('Não consegui recuperar os dados originais desta arte.');
       const im=document.getElementById('edit-img'); const i=im?Number(im.dataset.i||0):0;
       const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-        body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:JUMP.totalSlides(c),ver_id:CTX.viewId||null,origem:'expressa',reload:true,variacao:30,ajuste:motivo}))});
+        body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:JUMP.totalSlides(c),ver_id:CTX.viewId||null,origem:'expressa',reload:true,variacao:PCT_AJUSTE,ajuste:motivo}))});
       const d=await r.json();
       if(!r.ok||!(d.ok||d.url||d.midia_url))throw new Error(d.error||'Falha ao refazer');
       if(ord)await JUMP.sb.from('ordens_servico').update({status:'concluida',progresso:1,concluida_em:new Date().toISOString()}).eq('id',ord.id);
