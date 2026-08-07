@@ -318,8 +318,11 @@ function loadingArte(on,txt){
   document.querySelectorAll('#modal-edit .ec-imgacts button,#modal-edit .ec-foot button').forEach(b=>b.disabled=!!on);
 }
 async function regerarSlide(id){
-  const c=ITENS.find(x=>x.id===id);
-  if(!c){JUMP.toast('Não encontrei este conteúdo. Recarregue a página.','err');return;}
+  let c=ITENS.find(x=>x.id===id)||RASCUNHOS.find(x=>x.id===id);
+  if(!c){ // fallback: busca direto no banco (nunca sair em silêncio)
+    try{const{data}=await JUMP.sb.from('conteudos').select('*').eq('id',id).single(); c=data;}catch(e){}
+  }
+  if(!c){JUMP.toast('Não encontrei este conteúdo. Recarregue a página (Ctrl+Shift+R).','err');return;}
   if(GERANDO){JUMP.toast('Já existe uma geração em andamento.','err');return;}
   // Confirmação PRÓPRIA (o prompt() nativo é bloqueado por vários navegadores e a ação
   // morria em silêncio — causa real do "não acontece nada").
@@ -588,7 +591,7 @@ function abrirEdicao(id){
     <footer class="ec-foot">
       <button class="ec-btn ec-del" onclick="excluirPost('${id}')">🗑 EXCLUIR CONTEÚDO</button>
       <div class="ec-foot-r">
-        <button class="ec-btn ec-save" onclick="salvarCopy()">SALVAR RASCUNHO</button>
+        <button class="ec-btn ec-save" onclick="salvarCopy()">SALVAR RASCUNHO</button><span style="font-family:var(--M);font-size:9px;color:var(--t3);align-self:center">v4</span>
         ${aprovarBtn}
       </div>
     </footer>`;
