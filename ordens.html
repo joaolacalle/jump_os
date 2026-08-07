@@ -41,7 +41,7 @@
 <div class="app">
 <main class="main">
   <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div><button class="btn btn-g btn-sm" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
-  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Tudo que os agentes têm para fazer fica aqui — as ordens que você criou e as que um agente passou para outro. Clique em "Executar agora": o agente abre com a tarefa em destaque, pronta para você confirmar.</p>
+  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Acompanhe aqui o que os agentes estão executando, em tempo real. Esta página é de <b>gerenciamento</b>: você vê o andamento e pode cancelar um processo. As <b>aprovações</b> acontecem na página <a href="aprovar.html" style="color:var(--g)">Aprovar</a>.</p>
 
   <div class="ord-filtros">
     <button class="ord-f on" data-f="ativa" onclick="filtrar('ativa',this)">Ativas</button>
@@ -282,7 +282,6 @@ function render(){
             ${o.status==='pausada'
               ?`<button class="btn btn-g btn-sm" onclick="pausarOrdem('${o.id}',false)">▶ Retomar</button>`
               :`<button class="btn btn-o btn-sm" onclick="pausarOrdem('${o.id}',true)">⏸ Pausar</button>`}
-            <a class="btn btn-g btn-sm" href="agentes.html?agente=criativo&exec=${o.id}">⚡ Executar</a>
             <button class="btn btn-r btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
           </div>
           <div style="font-family:var(--M);font-size:9px;color:var(--t3);margin-top:6px">prioridade atual: ${(o.payload||{}).prioridade!=null?o.payload.prioridade:'automática ('+({usuario:10,publicacao:6,criativo:5,trafego:5,estrategia:1}[o.de_agente]||3)+')'}</div>
@@ -297,9 +296,8 @@ function render(){
         <div class="ord-info" id="det-${o.id}" style="display:none">${detalhes}</div>
       </div>
       <div class="ord-acts">
-        ${precisaAprovar?`<button class="btn btn-g btn-sm" onclick="aprovarOrdem('${o.id}',this)">✓ ${o.tarefa==='aprovar_estrategia'?'Aprovar estratégia':'Aprovar sugestão'}</button>`:''}
-        ${podeExec?`<a class="btn btn-g btn-sm" href="agentes.html?agente=${o.para_agente}&exec=${o.id}">${o.status==='erro'?'Tentar de novo →':'Executar agora →'}</a>`:''}
-        <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">Remover</button>
+        ${precisaAprovar?`<a class="btn btn-g btn-sm" href="aprovar.html">Ver no Aprovar →</a>`:''}
+        <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
       </div>
     </div>`;
   }).join('');
@@ -368,7 +366,7 @@ async function cancelar(id){
     // GESTÃO DE TAREFA: aviso de risco claro, especialmente pras que gastam créditos de imagem.
     const img=o&&/criar_post|ficha_tecnica|substituir_criativo/.test(o.tarefa||'');
     const rodando=o&&o.status==='processando';
-    let msg='Remover esta tarefa?';
+    let msg='Cancelar esta tarefa?\n\n\u26a0\ufe0f Todo o fluxo em andamento será DESCARTADO e precisará ser iniciado do zero (peça de novo ao agente).';
     if(img)msg='\u26a0\ufe0f Esta tarefa gera IMAGENS (consome seus créditos de imagem).\n\nCancelar interrompe a produção: as artes que faltam NÃO serão criadas'+(rodando?' e a que está rodando agora é interrompida':'')+'. As já geradas ficam salvas.\n\nPara refazer depois, volte ao agente e peça de novo. Cancelar mesmo assim?';
     else if(rodando)msg='Esta tarefa está em execução agora. Cancelar vai interrompê-la. Continuar?';
     if(!confirm(msg))return;
