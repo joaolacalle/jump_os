@@ -388,6 +388,7 @@ Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNC
 
 ═══ FRONTEIRA DE ESCOPO (REGRA ABSOLUTA — vale para TODOS os agentes) ═══
 Cada agente executa SOMENTE a sua função. Se o cliente pedir algo que é de OUTRO agente, você NÃO faz — explique em 1 linha, de forma gentil, e indique o agente certo. NUNCA improvise a função de outro agente.
+PEDIDO AVULSO — CONFIRME ANTES DE DISPARAR: quando o cliente pede UMA peça específica ("quero um post sobre X"), primeiro APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. Só emita a tag <conteudo> (que dispara a produção) DEPOIS do "sim" dele. Nunca dispare a produção na mesma resposta em que apresenta a ideia. E um pedido avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
 NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
 Mapa de funções (quem faz o quê):
 - IDENTIDADE: consultoria de marca, OS_DATA (cores, fontes, posicionamento).
@@ -1072,19 +1073,23 @@ const handler = async (req, res) => {
     // PORTÃO DE APROVAÇÃO (Fase workflow): a Estratégia NÃO dispara mais as ordens direto.
     // Ela cria UMA tarefa "Aprovar a estratégia do mês". Ao aprovar, o plano entra no calendário
     // e as ordens do Designer (só imagens) e da Publicação são disparadas.
-    if(agente==='estrategia' && conteudos.length>0){
+    // ⚠️ SÓ PLANO DO MÊS gera card de estratégia. Um pedido AVULSO ("quero um post sobre X")
+    // nunca é um plano mensal — antes qualquer conteúdo criado pela Estratégia abria um card
+    // "Aprovar a estratégia do mês" que o usuário não pediu (bug relatado).
+    const _doPlano=conteudos.filter(ct=>ct && ct.avulso!==true && String(ct.avulso)!=='true');
+    if(agente==='estrategia' && _doPlano.length>0){
       try{
         const IMG=['feed','carrossel','story','carousel'];
         const ehImagem=ct=>{const f=String(ct.formato||'feed').toLowerCase();return IMG.some(x=>f.indexOf(x)>=0)&&f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0};
-        const imagens=conteudos.filter(ehImagem).length;
+        const imagens=_doPlano.filter(ehImagem).length;
         const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
         if(!(Array.isArray(ex)&&ex.length)){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
             method:'POST',headers:H(),
             body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'estrategia',tarefa:'aprovar_estrategia',
-              detalhe:'Aprovar a estratégia do mês ('+conteudos.length+' post(s) planejados · '+imagens+' arte(s) para o Designer)',
-              status:'aguardando_aprovacao',total:conteudos.length,progresso:0,
-              payload:{posts:conteudos.length,imagens:imagens}})
+              detalhe:'Aprovar a estratégia do mês ('+_doPlano.length+' post(s) planejados · '+imagens+' arte(s) para o Designer)',
+              status:'aguardando_aprovacao',total:_doPlano.length,progresso:0,
+              payload:{posts:_doPlano.length,imagens:imagens}})
           }).catch(()=>{});
         }
         // MARCO DO CICLO: o aviso da próxima estratégia sai 5 dias antes de fechar 30 dias DESTA data.
