@@ -998,6 +998,15 @@ const handler = async (req, res) => {
           const lim=new Date(Date.now()+7*864e5).toISOString();
           const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
           const imgs=(Array.isArray(wk)?wk:[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
+          // RASTRO DA CADEIA: registra o passo que o agente acabou de concluir, para o painel
+          // de Tarefas mostrar o fluxo inteiro (Você → Estratégia → Criativo → Aprovação).
+          try{
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
+              user_id:targetId, de_agente:'usuario', para_agente:agente, tarefa:'pedido_usuario',
+              detalhe:'Pedido atendido pelo '+agente+': '+String(conteudos[0]&&conteudos[0].tema||'conteúdo').slice(0,70),
+              status:'concluida', concluida_em:new Date().toISOString(), total:conteudos.length, progresso:conteudos.length
+            })}).catch(()=>{});
+          }catch(e){}
           const ja=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=in.(pendente,processando)&select=id&limit=1`);
           if(imgs.length&&!(Array.isArray(ja)&&ja.length)){
             await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
