@@ -807,7 +807,9 @@ async function executarOrdens(btn,soId){
     // mas o botão só procurava as do Criativo — as outras 6 nunca executavam (ficavam presas
     // e o botão dizia "nenhuma ordem pendente"). Agora busca as do AGENTE ABERTO.
     const alvoExec=AG||'criativo';
-    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente',alvoExec).eq('status','pendente');
+    // A fila exibe 'pendente' E 'processando'. Se buscássemos só 'pendente', uma ordem travada
+    // aparecia na fila mas o ▶ dizia "nenhuma ordem" (bug relatado). Agora ela pode ser retomada.
+    let{data:ords}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',uid).eq('para_agente',alvoExec).in('status',['pendente','processando']);
     ords=soId?(ords||[]).filter(o=>o.id===soId):ordenarPorPrioridade(ords);
     if(!ords||!ords.length){if(box&&!soId)box.remove();JUMP.toast('Nenhuma ordem pendente.');return}
     let executadas=0,travadas=0;
@@ -990,6 +992,7 @@ async function executarLoteCriativos(uid,ordem){
   // HEARTBEAT em payload.batendo (jsonb, já existe — zero migration): marca a hora REAL do início.
   // O cron usa isto para saber se a ordem morreu; created_at não serve (é a criação, não o início).
   if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({total:pend.length,progresso:0,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
+  let _erros=[];
   for(const c of pend){
     // FREIO: para na hora se o usuário mandou parar OU se a ordem foi REMOVIDA em Tarefas.
     if(PARAR||(function(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}})()){addMsg('a','⏹ Parei as gerações. '+feitos+' arte(s) prontas. A ordem continua pendente — é só executar de novo quando quiser.');if(stop.parentElement)stop.remove();return 'vazio'}
@@ -1070,10 +1073,24 @@ async function executarLoteCriativos(uid,ordem){
       // progresso visível em Tarefas (ex: 3/5), em tempo real
       // bate o heartbeat a cada arte: enquanto o navegador trabalha, o cron não encosta.
       if(ordem&&ordem.id){try{await JUMP.sb.from('ordens_servico').update({progresso:feitos,total:pend.length,status:'processando',payload:{...(ordem.payload||{}),batendo:new Date().toISOString()}}).eq('id',ordem.id)}catch(e){}}
-    }catch(e){lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'".'}
+    }catch(e){_erros.push({tema:c.tema||'post',motivo:(e&&e.message)||'falha na geração'});lbl.innerHTML='⚠️ Falha ao gerar "'+JUMP.esc(c.tema||'')+'": '+JUMP.esc((e&&e.message)||'erro')+'. O lote continua.'}
   }
   if(stop.parentElement)stop.remove();
-  addMsg('a','✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
+  // FECHAMENTO DA ORDEM (faltava): sem isto a tarefa ficava "processando" para sempre mesmo
+  // com o lote terminado. Agora grava o resultado real — concluída, ou erro com o motivo.
+  if(ordem&&ordem.id){
+    try{
+      const pl={...(ordem.payload||{}),batendo:new Date().toISOString()};
+      if(_erros.length)pl.erros=_erros;
+      const st=(feitos>0)?'concluida':'erro';
+      const up={status:st,progresso:feitos,total:pend.length,payload:pl};
+      if(st==='concluida')up.concluida_em=new Date().toISOString();
+      await JUMP.sb.from('ordens_servico').update(up).eq('id',ordem.id);
+    }catch(e){}
+  }
+  addMsg('a',_erros.length
+    ? '✓ '+feitos+' arte(s) geradas · ⚠️ '+_erros.length+' falharam ('+JUMP.esc(_erros.map(x=>x.tema).join(', '))+'). As prontas estão em Aprovações.'
+    : '✓ Artes geradas. Elas estão em Aprovações (e no seu painel) para você aprovar antes de publicar.');
   try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
   return true;
 }

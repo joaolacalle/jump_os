@@ -245,7 +245,14 @@ function render(){
     // Progresso (N/T): qualquer ordem com total>1 mostra barra. Antes só 3 tarefas eram lote,
     // então os 5 infográficos de um 'criar_avulso' rodavam SEM barra de progresso visível.
     const tot=Number(o.total||0),pg=Number(o.progresso||0);
-    const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot}</span>`:'';
+    // PAINEL DE ACOMPANHAMENTO: quantos no lote, quantos prontos, quantos faltam, e o que houve.
+    const falta=Math.max(0,tot-pg);
+    const prog=(tot>1&&o.status!=='concluida')?`<span class="ord-prog">${pg}/${tot} prontos${falta?` · faltam ${falta}`:''}</span>`:'';
+    const _errs=((o.payload||{}).erros)||[];
+    const detErro=_errs.length?`<div style="margin-top:7px;padding:8px 10px;border-radius:9px;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.28);font-size:12px;color:var(--t2)"><b style="color:#f87171">⚠️ ${_errs.length} item(ns) com erro</b><br>${_errs.slice(0,3).map(e=>`• ${JUMP.esc(e.tema||'item')}: ${JUMP.esc(e.motivo||'falha')}`).join('<br>')}</div>`:'';
+    const etapa=(o.status==='processando')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--g)">⚙ Em execução${tot>1?` — gerando ${Math.min(pg+1,tot)} de ${tot}`:''}…</div>`
+      :(o.status==='pendente')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:var(--t3)">⏳ Aguardando execução automática</div>`
+      :(o.status==='erro')?`<div style="margin-top:6px;font-family:var(--M);font-size:10.5px;color:#f87171">✖ Interrompida — veja o motivo abaixo</div>`:'';
     const barra=(tot>1&&o.status!=='concluida')?`<div class="ord-bar"><i style="width:${Math.round((pg/tot)*100)}%"></i></div>`:'';
     // registro de execução próprio (de==para): mostra "X executou" em vez de "X → X"
     let rota=(o.de_agente===o.para_agente)?(ag.n+' executou'):((de.n||'—')+' → '+ag.n);
@@ -292,7 +299,7 @@ function render(){
       <div class="ord-body">
         <div class="ord-rota">${rota}</div>
         <div class="ord-tarefa" style="cursor:pointer" onclick="toggleOrd('${o.id}')">${JUMP.esc(o.detalhe||o.tarefa||'')} <span id="ch-${o.id}" style="color:var(--t3);font-size:11px">▾</span></div>
-        <div class="ord-meta">${badge}${rec}${prog}${per}${itens.length?`<span class="ord-tempo">▤ ${itens.length} arte(s)</span>`:''}<span class="ord-tempo">${tempo}</span></div>${barra}
+        <div class="ord-meta">${badge}${rec}${prog}${per}${itens.length?`<span class="ord-tempo">▤ ${itens.length} arte(s)</span>`:''}<span class="ord-tempo">${tempo}</span></div>${barra}${etapa}${detErro}
         <div class="ord-info" id="det-${o.id}" style="display:none">${detalhes}</div>
       </div>
       <div class="ord-acts">
