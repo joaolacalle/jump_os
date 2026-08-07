@@ -143,6 +143,9 @@ function engine6(M, o) {
     reels ? 'REELS safe zones, in PERCENT of the canvas (the Instagram UI covers these): top 13%, sides 8%, bottom 17%. NEVER place important text there.'
           : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.',
     '',
+    '=== VALIDATION BEFORE RENDERING (run this checklist, fix silently, then render) ===',
+    'Headline <=8 words? Support copy <=6? CTA <=2? Total <=18? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? Headline dominant at 50-60% of attention? Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.',
+    '',
     '=== 13. PARAMETERS ===',
     'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
     '',
@@ -318,7 +321,7 @@ module.exports = async (req, res) => {
       engine_6_ativo: true,
       logo_enviada_ao_gerador: false,
       input_fidelity: 'high',
-      quality: 'high (arte premium; a preservação da foto/logo vem do CONTRATO-MOLDURA + input_fidelity)',
+      quality: 'medium (estratégia de custo/desempenho; a fidelidade vem do rulebook ENGINE 6.0 completo, não da qualidade)',
       contrato_preservacao: 'moldura (abre e fecha) + duas colunas TRAVADO/LIBERADO + lista enumerada',
     });
   }
@@ -565,10 +568,13 @@ module.exports = async (req, res) => {
       const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
-      const instr = cabecalho + (engine === false ? prompt : (dirTxt || engine6(M6, oArte))) + preserva;
+      const instr = cabecalho + (engine === false ? prompt
+        : (engine6(M6, oArte)
+           + (dirTxt ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt : '')))
+        + preserva;
       form.append('prompt', instr);
       form.append('size', size);
-      form.append('quality', 'high');
+      form.append('quality', 'medium');
       // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
       // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
       form.append('input_fidelity', 'high');
@@ -594,11 +600,14 @@ module.exports = async (req, res) => {
       }
       const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
-      const promptSemLogo = (engine === false ? prompt : (dirTxt2 || engine6(M6, oArte2))) + extra;
+      const promptSemLogo = (engine === false ? prompt
+        : (engine6(M6, oArte2)
+           + (dirTxt2 ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt2 : '')))
+        + extra;
       r = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'high' }),
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'medium' }),
       });
     }
     const result = await r.json();
