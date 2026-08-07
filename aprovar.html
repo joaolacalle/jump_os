@@ -48,85 +48,89 @@
 textarea.edt{resize:vertical;line-height:1.5}
 </style>
 
+
 <style>
-/* ═══ CARD "EDITAR CONTEÚDO" ═══════════════════════════════════════════════
-   Superfícies em 3 níveis, TODAS derivadas do tema (color-mix) — quando o
-   usuário troca a cor da marca ou do fundo, o card acompanha automaticamente.
-   Nível 1 = casca · Nível 2 = painéis · Nível 3 = campos EDITÁVEIS (mais claros
-   + trilho na cor da marca). Somente-leitura fica plano e sem trilho.        */
-#modal-edit .modal-box{
-  background:color-mix(in srgb, var(--ch) 86%, #000 14%);
-  border:1px solid color-mix(in srgb, var(--t1) 10%, transparent);
-  border-radius:20px;max-width:1120px;width:96vw;padding:0;overflow:hidden}
-#modal-edit .ec-top{display:flex;align-items:flex-start;gap:16px;padding:22px 26px 16px;
-  border-bottom:1px solid color-mix(in srgb, var(--t1) 9%, transparent)}
-#modal-edit .ec-ttl h2{font-family:var(--D,var(--B));font-size:25px;letter-spacing:.4px;margin:0;color:var(--t1);text-transform:uppercase}
-#modal-edit .ec-ttl p{margin:3px 0 0;font-size:13px;color:var(--t2)}
-#modal-edit .ec-pill{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;
-  font-family:var(--M);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-  padding:10px 16px;border-radius:99px;color:var(--g);
-  background:color-mix(in srgb, var(--g) 12%, transparent);
-  border:1px solid color-mix(in srgb, var(--g) 38%, transparent)}
-#modal-edit .ec-pill i{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 22%,transparent)}
-#modal-edit .ec-pill.venc{color:#f0b53f;background:rgba(240,181,63,.12);border-color:rgba(240,181,63,.4)}
-#modal-edit .ec-pill.venc i{background:#f0b53f;box-shadow:none}
-#modal-edit .ec-alert{margin:16px 26px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
-  padding:13px 16px;border-radius:13px;background:rgba(240,181,63,.09);border:1px solid rgba(240,181,63,.3);font-size:13px;color:var(--t2)}
-/* corpo em 2 colunas — prévia fixa, edição rolável */
-#modal-edit .ec-grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1fr);gap:18px;padding:20px 26px}
-#modal-edit .ec-pane{background:var(--card);border:1px solid color-mix(in srgb, var(--t1) 8%, transparent);border-radius:16px;padding:16px}
-#modal-edit .ec-editor{display:flex;flex-direction:column;gap:2px;max-height:64vh;overflow:auto}
-#modal-edit .ec-eyebrow{font-family:var(--M);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--t3);display:flex;align-items:center;gap:10px;margin:16px 0 8px}
-#modal-edit .ec-eyebrow:first-child{margin-top:0}
-#modal-edit .ec-count{margin-left:auto;font-family:var(--M);font-size:10px;color:var(--t3);letter-spacing:.06em;font-weight:400}
-#modal-edit .ec-shot{position:relative;border-radius:13px;overflow:hidden;background:color-mix(in srgb,var(--ch) 70%,#000 30%)}
+/* ═══ EDITAR CONTEÚDO — implementação do mockup. Superfícies via color-mix a partir das
+   variáveis do tema, então trocar a cor da marca/fundo repinta o card inteiro. ═══ */
+#modal-edit .modal{max-width:1150px!important;width:96vw;padding:0!important;border-radius:22px;
+  background:color-mix(in srgb, var(--ch) 88%, #000 12%);max-height:94vh}
+#modal-edit>.modal>div:first-child{display:none!important}         /* header antigo: o do mockup vive dentro */
+#modal-edit .ec-hd{display:flex;align-items:flex-start;gap:20px;padding:30px 34px 0}
+#modal-edit .ec-hd h2{margin:0;font-family:var(--D,var(--B));font-size:30px;letter-spacing:.5px;color:var(--t1);line-height:1}
+#modal-edit .ec-hd p{margin:9px 0 0;font-size:14px;color:var(--t2)}
+#modal-edit .ec-x{margin-left:auto;width:46px;height:46px;flex-shrink:0;border-radius:13px;font-size:17px;cursor:pointer;
+  background:color-mix(in srgb, var(--t1) 7%, transparent);border:1px solid color-mix(in srgb,var(--t1) 12%,transparent);color:var(--t1);transition:.15s}
+#modal-edit .ec-x:hover{background:color-mix(in srgb, var(--t1) 13%, transparent)}
+/* barra: status | data */
+#modal-edit .ec-bar{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:26px 34px 0}
+#modal-edit .ec-status{display:flex;align-items:center;gap:12px;padding:17px 22px;border-radius:14px;
+  font-family:var(--M);font-size:13px;letter-spacing:.1em;color:var(--g);
+  background:color-mix(in srgb, var(--g) 9%, transparent);border:1px solid color-mix(in srgb, var(--g) 30%, transparent)}
+#modal-edit .ec-status i{width:9px;height:9px;border-radius:50%;background:var(--g);box-shadow:0 0 10px var(--g)}
+#modal-edit .ec-status.venc{color:#f0b53f;background:rgba(240,181,63,.1);border-color:rgba(240,181,63,.36)}
+#modal-edit .ec-status.venc i{background:#f0b53f;box-shadow:none}
+#modal-edit .ec-date{display:flex;align-items:center;gap:12px;padding:15px 22px;border-radius:14px;cursor:pointer;
+  background:color-mix(in srgb, var(--t1) 5%, transparent);border:1px solid color-mix(in srgb,var(--t1) 12%,transparent)}
+#modal-edit .ec-date input{flex:1;background:transparent;border:0;outline:none;color:var(--t1);font-family:var(--B);font-size:15px;cursor:pointer}
+#modal-edit .ec-alert{margin:18px 34px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-radius:13px;
+  background:rgba(240,181,63,.09);border:1px solid rgba(240,181,63,.3);font-size:13px;color:var(--t2)}
+/* grid principal — proporção do mockup */
+#modal-edit .ec-grid{display:grid;grid-template-columns:minmax(0,47fr) minmax(0,53fr);gap:20px;padding:22px 34px 26px}
+#modal-edit .ec-pane{background:color-mix(in srgb, var(--ch) 96%, var(--t1) 4%);
+  border:1px solid color-mix(in srgb, var(--t1) 9%, transparent);border-radius:18px;padding:22px}
+#modal-edit .ec-cap{font-family:var(--M);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:26px 0 12px}
+#modal-edit .ec-cap:first-child{margin-top:0}
+#modal-edit .ec-cap-row{display:flex;align-items:center}
+#modal-edit .ec-cap-row b{margin-left:auto;font-weight:400;color:var(--t3);letter-spacing:.04em}
+#modal-edit .ec-sub{font-size:14px;color:var(--t2);margin-bottom:10px}
+/* preview protagonista */
+#modal-edit .ec-shot{position:relative;border-radius:16px;overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--t1) 10%,transparent);background:color-mix(in srgb,var(--ch) 60%,#000 40%)}
 #modal-edit .ec-shot img{width:100%;display:block}
-#modal-edit .ec-empty{aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:34px;color:var(--t3)}
-#modal-edit .ec-empty span{font-size:12px;font-family:var(--M)}
-/* ── CAMPO EDITÁVEL: mais claro que o painel + trilho na cor da marca ── */
-#modal-edit .ec-fld{display:block;border-radius:13px;padding:11px 13px;margin-bottom:10px}
-#modal-edit .ec-edit{background:color-mix(in srgb, var(--card) 82%, var(--t1) 8%);
-  border:1px solid color-mix(in srgb, var(--g) 34%, transparent);
-  border-left:3px solid var(--g);transition:.16s}
-#modal-edit .ec-edit:hover{border-color:color-mix(in srgb, var(--g) 60%, transparent);border-left-color:var(--g)}
-#modal-edit .ec-edit:focus-within{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb, var(--g) 16%, transparent)}
-#modal-edit .ec-lab{display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--g);margin-bottom:6px}
-#modal-edit .ec-edit textarea,#modal-edit .ec-edit input{width:100%;background:transparent!important;border:0!important;
-  color:var(--t1)!important;font-family:var(--B);font-size:14px;line-height:1.6;padding:0!important;resize:vertical;outline:none!important;box-shadow:none!important}
-/* ── SOMENTE LEITURA: plano, sem trilho — o olho entende que não se mexe ── */
-#modal-edit .ec-ro{background:color-mix(in srgb, var(--ch) 55%, transparent);border:1px solid color-mix(in srgb, var(--t1) 8%, transparent)}
-#modal-edit .ec-ro .ec-lab{color:var(--t3)}
-#modal-edit .ec-ro-v{font-size:13.5px;color:var(--t1)}
-#modal-edit .ec-art-h{font-size:15px;font-weight:800;color:var(--t1);line-height:1.35}
-#modal-edit .ec-art-s{font-size:13px;color:var(--t2);margin-top:5px}
-#modal-edit .ec-art-c{display:inline-block;margin-top:9px;font-family:var(--M);font-size:11px;color:var(--g);
-  border:1px solid color-mix(in srgb,var(--g) 35%,transparent);border-radius:99px;padding:5px 12px}
-#modal-edit .ec-hint{margin-top:9px;font-size:11.5px;color:var(--t3);line-height:1.5}
-#modal-edit .ec-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#modal-edit .ec-row{display:flex;justify-content:flex-end;margin:-2px 0 4px}
-#modal-edit .ec-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
-#modal-edit .ed-tag{background:color-mix(in srgb, var(--a2,var(--g)) 16%, transparent);
-  border:1px solid color-mix(in srgb, var(--a2,var(--g)) 38%, transparent);
-  color:var(--t1);border-radius:9px;padding:6px 10px;font-size:12.5px}
-#modal-edit .ec-muted{font-size:12.5px;color:var(--t3)}
-#modal-edit .ec-ads{background:color-mix(in srgb,var(--a2,var(--g)) 10%,transparent);
-  border:1px solid color-mix(in srgb,var(--a2,var(--g)) 32%,transparent);border-radius:13px;padding:12px 14px;margin-bottom:6px;font-size:13px;color:var(--t1)}
-#modal-edit .ec-ads span{display:block;color:var(--t2);font-size:12.5px;margin-top:4px}
-#modal-edit .ed-thumbs{display:flex;gap:8px;overflow:auto;padding:2px}
-#modal-edit .ed-th{width:62px;height:78px;object-fit:cover;border-radius:10px;opacity:.5;cursor:pointer;transition:.16s;flex-shrink:0}
-#modal-edit .ed-th:hover{opacity:.85}
+#modal-edit .ec-empty{aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--t3)}
+#modal-edit .ec-carr{display:flex;align-items:center;gap:12px}
+#modal-edit .ec-nav{width:40px;height:54px;flex-shrink:0;border-radius:12px;cursor:pointer;font-size:20px;line-height:1;
+  background:color-mix(in srgb,var(--t1) 8%,transparent);border:1px solid color-mix(in srgb,var(--t1) 13%,transparent);color:var(--t1);transition:.15s}
+#modal-edit .ec-nav:hover{background:color-mix(in srgb,var(--t1) 15%,transparent)}
+#modal-edit .ed-thumbs{display:flex;gap:10px;overflow:auto;flex:1;padding:2px}
+#modal-edit .ed-th{width:74px;height:92px;object-fit:cover;border-radius:11px;opacity:.45;cursor:pointer;transition:.16s;flex-shrink:0}
+#modal-edit .ed-th:hover{opacity:.8}
 #modal-edit .ed-th.on{opacity:1;outline:2px solid var(--g);outline-offset:2px}
-#modal-edit .ec-imgacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-/* rodapé fixo: a decisão está sempre ao alcance */
-#modal-edit .ec-foot{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-  padding:16px 26px;background:color-mix(in srgb, var(--ch) 92%, #000 8%);
-  border-top:1px solid color-mix(in srgb, var(--t1) 9%, transparent)}
-#modal-edit .ec-foot-r{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
-@media(max-width:900px){
-  #modal-edit .ec-grid{grid-template-columns:1fr;padding:16px}
-  #modal-edit .ec-editor{max-height:none}
-  #modal-edit .ec-two{grid-template-columns:1fr}
+/* caixas de edição: maiores e poucas (Notion/Linear) */
+#modal-edit .ec-box{border-radius:14px;padding:16px 18px;
+  background:color-mix(in srgb, var(--ch) 70%, #000 30%);border:1px solid color-mix(in srgb,var(--t1) 10%,transparent)}
+#modal-edit .ec-edit{border-color:color-mix(in srgb, var(--g) 30%, transparent);transition:.16s}
+#modal-edit .ec-edit:hover{border-color:color-mix(in srgb, var(--g) 55%, transparent)}
+#modal-edit .ec-edit:focus-within{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 15%,transparent)}
+#modal-edit .ec-box textarea{width:100%;background:transparent;border:0;outline:none;resize:vertical;
+  color:var(--t1);font-family:var(--B);font-size:15px;line-height:1.65;min-height:190px}
+#modal-edit .ec-chips{display:flex;flex-wrap:wrap;gap:9px;min-height:60px;align-items:flex-start}
+#modal-edit .ed-tag{background:color-mix(in srgb, var(--a2,var(--g)) 15%, transparent);
+  border:1px solid color-mix(in srgb, var(--a2,var(--g)) 36%, transparent);color:var(--t1);border-radius:9px;padding:7px 12px;font-size:13px}
+#modal-edit .ec-muted{font-size:13px;color:var(--t3)}
+#modal-edit .ec-set{display:flex;flex-direction:column;gap:2px}
+#modal-edit .ec-set-r{display:flex;align-items:center;gap:14px;padding:13px 2px;
+  border-bottom:1px solid color-mix(in srgb,var(--t1) 7%,transparent)}
+#modal-edit .ec-set-r:last-child{border-bottom:0}
+#modal-edit .ec-set-r>span{font-size:14px;color:var(--t2)}
+#modal-edit .ec-ro-v{margin-left:auto;font-size:14px;color:var(--t1)}
+#modal-edit .ec-inline{margin-left:auto;padding:9px 14px;border-radius:11px;
+  background:color-mix(in srgb,var(--ch) 70%,#000 30%);border:1px solid color-mix(in srgb,var(--g) 30%,transparent)}
+#modal-edit .ec-inline input{background:transparent;border:0;outline:none;color:var(--t1);font-family:var(--B);font-size:14px}
+#modal-edit .ec-imgacts{display:flex;gap:10px;flex-wrap:wrap}
+/* rodapé do mockup */
+#modal-edit .ec-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:20px 34px 28px;
+  border-top:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
+#modal-edit .ec-foot-r{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap}
+#modal-edit .ec-btn{padding:16px 26px;border-radius:13px;cursor:pointer;font-family:var(--M);font-size:13px;letter-spacing:.07em;transition:.15s}
+#modal-edit .ec-del{color:#f87171;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.35)}
+#modal-edit .ec-del:hover{background:rgba(239,68,68,.15)}
+#modal-edit .ec-save{color:var(--t1);background:color-mix(in srgb,var(--t1) 6%,transparent);border:1px solid color-mix(in srgb,var(--t1) 14%,transparent)}
+#modal-edit .ec-save:hover{background:color-mix(in srgb,var(--t1) 12%,transparent)}
+#modal-edit .ec-foot .btn-g{padding:16px 30px;border-radius:13px;font-size:13.5px;letter-spacing:.05em}
+@media(max-width:920px){
+  #modal-edit .ec-grid,#modal-edit .ec-bar{grid-template-columns:1fr}
+  #modal-edit .ec-hd,#modal-edit .ec-bar,#modal-edit .ec-grid,#modal-edit .ec-foot{padding-left:18px;padding-right:18px}
   #modal-edit .ec-foot-r{width:100%;margin-left:0}
 }
 @media(prefers-reduced-motion:reduce){#modal-edit *{transition:none!important}}
@@ -402,69 +406,66 @@ function abrirEdicao(id){
   const hashtags=(String(c.copy||'').match(/#[\wÀ-ÿ]+/g)||[]);
 
   document.getElementById('edit-body').innerHTML=`
-    <header class="ec-top">
-      <div class="ec-ttl">
-        <h2>Editar conteúdo</h2>
-        <p>Revise, ajuste o que quiser e aprove antes de publicar.</p>
+    <header class="ec-hd">
+      <div>
+        <h2>EDITAR CONTEÚDO</h2>
+        <p>Revise, edite e aprove seu conteúdo antes de publicar</p>
       </div>
-      <span class="ec-pill ${vencido?'venc':(c.status==='aprovado'?'ok':'')}">
-        <i></i>${vencido?'Data vencida':(c.status==='aprovado'?'Aprovado':'Aguardando aprovação')}
-      </span>
+      <button class="ec-x" onclick="fecharEdicao()" aria-label="Fechar">✕</button>
     </header>
-    ${vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo, então não foi publicado.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:''}
+
+    <div class="ec-bar">
+      <div class="ec-status ${vencido?'venc':''}"><i></i>${vencido?'DATA VENCIDA':(c.status==='aprovado'?'APROVADO':'AGUARDANDO APROVAÇÃO')}</div>
+      <label class="ec-date">
+        <span>🗓</span>
+        <input type="date" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)">
+      </label>
+    </div>
+    ${vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:''}
 
     <div class="ec-grid">
       <section class="ec-pane">
-        <div class="ec-eyebrow">Prévia do post</div>
+        <div class="ec-cap">PRÉVIA DO POST</div>
         <div class="ec-shot">
-          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0">`:`<div class="ec-empty">${tp.ico}<span>A arte aparece aqui quando ficar pronta</span></div>`}
+          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0">`:`<div class="ec-empty">${tp.ico}</div>`}
           ${setas}
         </div>
-        ${sl.length>1?`<div class="ec-eyebrow" style="margin-top:14px">Navegar carrossel <b class="ec-count">${sl.length} imagens</b></div>
-        <div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>`:''}
-        <div class="ec-imgacts">${regerar}</div>
+        ${sl.length>1?`<div class="ec-cap" style="margin-top:22px">NAVEGAR CARROSSEL</div>
+        <div class="ec-carr">
+          <button class="ec-nav" onclick="navSlideEdit(-1)" aria-label="Anterior">‹</button>
+          <div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>
+          <button class="ec-nav" onclick="navSlideEdit(1)" aria-label="Próximo">›</button>
+        </div>`:''}
       </section>
 
-      <section class="ec-pane ec-editor">
-        ${m.finalidade==='anuncio'?`<div class="ec-ads">🎯 <b>Criativo para anúncio</b><span>Ao aprovar, ele não vai para o feed. Baixe a arte e suba no Gerenciador de Anúncios.</span></div>`:''}
-
-        <div class="ec-eyebrow">Editar texto do post <b class="ec-count" id="ec-cnt">0/2200</b></div>
-        <label class="ec-fld ec-edit">
-          <span class="ec-lab">✎ Legenda</span>
-          <textarea class="f-textarea" id="edit-copy" rows="8" oninput="contarCopy()" placeholder="Escreva a legenda do post…">${JUMP.esc(c.copy||'')}</textarea>
-        </label>
-        <div class="ec-row"><button class="btn btn-o btn-sm" onclick="salvarCopy()">Salvar legenda</button></div>
-
-        <div class="ec-eyebrow">Hashtags</div>
-        <div class="ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Nenhuma ainda — escreva #assim na legenda</span>'}</div>
-
-        <div class="ec-eyebrow">Agendamento</div>
-        <div class="ec-two">
-          <label class="ec-fld ec-edit"><span class="ec-lab">✎ Data</span>
-            <input type="date" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)"></label>
-          <label class="ec-fld ec-edit"><span class="ec-lab">✎ Horário</span>
-            <input type="time" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)"></label>
-        </div>
-        <div class="ec-two">
-          <div class="ec-fld ec-ro"><span class="ec-lab">Formato</span><div class="ec-ro-v">${tp.ico} ${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div></div>
-          <div class="ec-fld ec-ro"><span class="ec-lab">Publicar em</span><div class="ec-ro-v">📸 Instagram</div></div>
+      <section class="ec-pane">
+        <div class="ec-cap ec-cap-row">EDITAR TEXTO DO POST <b id="ec-cnt">0/2200</b></div>
+        <div class="ec-sub">Legenda</div>
+        <div class="ec-box ec-edit">
+          <textarea id="edit-copy" rows="9" oninput="contarCopy()" placeholder="Escreva a legenda do post…">${JUMP.esc(c.copy||'')}</textarea>
         </div>
 
-        ${(m.headline||m.subheadline||m.prova||m.cta_arte)?`<div class="ec-eyebrow">Textos da arte <b class="ec-count">somente leitura</b></div>
-        <div class="ec-fld ec-ro">
-          ${m.headline?`<div class="ec-art-h">${JUMP.esc(m.headline)}</div>`:''}
-          ${m.subheadline?`<div class="ec-art-s">${JUMP.esc(m.subheadline)}</div>`:''}
-          ${m.prova?`<div class="ec-art-s">📊 ${JUMP.esc(m.prova)}</div>`:''}
-          ${m.cta_arte?`<div class="ec-art-c">${JUMP.esc(m.cta_arte)} →</div>`:''}
-          <div class="ec-hint">Estes textos vivem dentro da imagem. Para mudá-los, use “Recriar imagem”.</div>
-        </div>`:''}
+        <div class="ec-cap">HASHTAGS</div>
+        <div class="ec-box ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Escreva #assim na legenda para adicionar</span>'}</div>
+
+        <div class="ec-cap">CONFIGURAÇÕES</div>
+        <div class="ec-set">
+          <div class="ec-set-r"><span>Formato</span><div class="ec-ro-v">${tp.ico} ${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length):''}</div></div>
+          <div class="ec-set-r"><span>Publicar em</span><div class="ec-ro-v">📸 Instagram</div></div>
+          <div class="ec-set-r"><span>Data e hora</span>
+            <label class="ec-inline ec-edit"><input type="time" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)"></label>
+          </div>
+        </div>
+
+        <div class="ec-cap">EDITAR IMAGEM</div>
+        <div class="ec-imgacts">${regerar}</div>
       </section>
     </div>
 
     <footer class="ec-foot">
-      <button class="btn btn-r btn-sm" onclick="excluirPost('${id}')">🗑 Excluir conteúdo</button>
+      <button class="ec-btn ec-del" onclick="excluirPost('${id}')">🗑 EXCLUIR CONTEÚDO</button>
       <div class="ec-foot-r">
-        <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
+        <button class="ec-btn ec-save" onclick="salvarCopy()">SALVAR RASCUNHO</button>
         ${aprovarBtn}
       </div>
     </footer>`;
