@@ -268,7 +268,12 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
     document.getElementById('loading').classList.add('hide');
     // Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
 async function regerarSlide(id){
-  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const c=ITENS.find(x=>x.id===id);
+  if(!c){JUMP.toast('Não encontrei este conteúdo. Recarregue a página.','err');return;}
+  // REGENERAÇÃO CONTROLADA: não é uma arte nova do zero. O Engine 6.0 roda de novo com a MESMA
+  // estratégia, copy, identidade e composição — muda só o que o cliente pedir.
+  const ajuste=prompt('O que você quer ajustar nesta arte?\n\n(Ex.: "mais respiro no topo", "headline maior", "trocar a foto")\n\nDeixe em branco para gerar outra variação mantendo tudo.','');
+  if(ajuste===null)return; // cancelou
   // P6: a imagem vive no modal ('edit-img'), não mais no grid ('sl-img-<id>').
   const im=document.getElementById('edit-img');
   const i=im?Number(im.dataset.i||0):0, tot=JUMP.totalSlides(c);
@@ -276,7 +281,7 @@ async function regerarSlide(id){
   if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Recriando...'}
   try{
     const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-      body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:tot,ver_id:CTX.viewId||null,origem:'expressa'}))});
+      body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:tot,ver_id:CTX.viewId||null,origem:'expressa',reload:true,variacao:(ajuste?30:50),ajuste:ajuste||''}))});
     const d=await r.json();
     if(!r.ok||!(d.ok||d.url||d.midia_url))throw new Error(d.error||'Falha ao gerar');
     await recarregar();
@@ -561,6 +566,9 @@ function navSlideEdit(d){
   const sl=JUMP.slidesDe(c); const im=document.getElementById('edit-img'); if(!im||sl.length<2)return;
   let i=(Number(im.dataset.i||0)+d+sl.length)%sl.length;
   im.src=sl[i]; im.dataset.i=i;
+  // mantém as miniaturas sincronizadas com a prévia (antes só o irSlide marcava)
+  document.querySelectorAll('.ed-th').forEach((t,k)=>t.classList.toggle('on',k===i));
+  const th=document.querySelectorAll('.ed-th')[i]; if(th&&th.scrollIntoView)th.scrollIntoView({block:'nearest',inline:'nearest'});
   const n=document.getElementById('edit-sl-n'); if(n)n.textContent=(i+1)+'/'+sl.length;
 }
 async function salvarData(id,val){
