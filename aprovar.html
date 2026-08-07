@@ -584,7 +584,9 @@ function abrirEdicao(id){
         </div>
 
         <div class="ec-cap">EDITAR IMAGEM</div>
-        <div class="ec-imgacts">${regerar}</div>
+        <div class="ec-imgacts">${regerar}
+          <button class="btn btn-o btn-sm" onclick="abrirRej('${id}')" title="Descreve o que não ficou bom — o Designer aprende e refaz">↻ Pedir ajuste ao Designer</button>
+        </div>
       </section>
     </div>
 
@@ -778,10 +780,16 @@ async function confirmarRej(){
   const id=document.getElementById('mr-id').value;
   const motivo=document.getElementById('mr-motivo').value.trim();
   try{
-    await JUMP.sb.from('conteudos').update({status:'rejeitado',feedback:motivo}).eq('id',id);
+    // Mantém o VÍNCULO: o conteúdo não é descartado — guarda o feedback e volta para a fila do
+    // Designer, que recria usando os dados originais + esta instrução (regeneração controlada).
+    await JUMP.sb.from('conteudos').update({feedback:motivo}).eq('id',id);
+    const uid=CTX.viewId||CTX.user.id;
+    await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'usuario',para_agente:'criativo',
+      tarefa:'criar_post',detalhe:'Refazer a arte com o ajuste pedido: '+motivo.slice(0,80),
+      status:'pendente',total:1,progresso:0,payload:{ids:[id],ajuste:motivo,recriacao:true}}]);
     // Designer aprende: o que o cliente NÃO quer
     if(motivo)salvarGosto('evitar_visual',motivo);
-    JUMP.toast('Enviado ao agente para ajuste.');
+    JUMP.toast('✓ Enviado ao Designer. Ele refaz com o seu ajuste e devolve aqui.');
     document.getElementById('modal-rej').classList.remove('show');
     ITENS=ITENS.filter(i=>i.id!==id);render();
   }catch(e){JUMP.toast('Erro ao rejeitar','err')}
