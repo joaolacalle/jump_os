@@ -610,11 +610,20 @@ module.exports = async (req, res) => {
     // gpt-image-1 retorna base64 diretamente
     const b64 = result.data && result.data[0] && result.data[0].b64_json;
     if (!b64) return res.status(500).json({ error: 'Resposta sem imagem' });
-    const bytes = Buffer.from(b64, 'base64');
+    let bytes = Buffer.from(b64, 'base64');
+    // INSTAGRAM: feed aceita 4:5 a 1.91:1; reels/story = 9:16. O gpt-image-1 entrega 2:3 (fora do
+    // range do feed → a Meta REJEITA). Cortamos para a proporção certa aqui (fit cover = corta o
+    // excesso mantendo a região mais relevante), e salvamos em JPG (sRGB, leve, <8MB).
+    try {
+      const sharp = require('sharp');
+      const _vert = (typeof _vertical !== 'undefined') ? _vertical : false;
+      const alvo = _vert ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
+      bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+    } catch (e) { console.error('crop/resize:', e.message); }
 
     // ECONOMIA DE TEMPO (Hobby 60s): subir no storage e registrar AGORA, mas com timeout curto.
     // Se o storage demorar, devolvemos base64 (a imagem nunca se perde).
-    const fileName = `${targetId}/gerados/${Date.now()}.png`;
+    const fileName = `${targetId}/gerados/${Date.now()}.jpg`;
     if (ehReload) { uso.reloads = Number(uso.reloads || 0) + 1; } else { uso.imagens = Number(uso.imagens || 0) + 1; }
 
     let publicUrl = null;
@@ -623,7 +632,7 @@ module.exports = async (req, res) => {
       const tmo = setTimeout(() => ctrl.abort(), 12000); // máx 12s para o storage
       const up = await fetch(`${SUPABASE_URL}/storage/v1/object/user-uploads/${fileName}`, {
         method: 'POST',
-        headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/png' },
+        headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'image/jpeg' },
         body: bytes, signal: ctrl.signal,
       });
       clearTimeout(tmo);

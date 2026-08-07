@@ -566,11 +566,15 @@ async function jobOrdens() {
     if (diaSemana !== dl) continue;
     const daSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniISO}&data_sugerida=lt.${fimISO}&select=id&limit=50`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
     if (!Array.isArray(daSemana) || !daSemana.length) continue;
-    const ja = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-    if (Array.isArray(ja) && ja.length) continue; // já tem lote pendente
+    // REGRA DE NEGÓCIO: a ESTRATÉGIA SEMANAL é o gatilho — nunca produzimos direto. No dia do
+    // ciclo (dia_lote) criamos o CARD DE APROVAÇÃO da semana; a produção só começa quando o
+    // usuário aprovar no Aprovar (1ª aprovação). Dedup: nada de card/lote duplicado.
+    const ja = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&or=(and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao))&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (Array.isArray(ja) && ja.length) continue; // já tem semana aguardando aprovação ou lote rodando
+    const ids = daSemana.map(x => x.id);
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
       method: 'POST', headers: SBH(),
-      body: JSON.stringify({ user_id: c.id, de_agente: 'estrategia', para_agente: 'criativo', tarefa: 'criar_post', detalhe: 'Criar as artes da semana (' + daSemana.length + ' post(s))', status: 'pendente' }),
+      body: JSON.stringify({ user_id: c.id, de_agente: 'estrategia', para_agente: 'usuario', tarefa: 'aprovar_semana', detalhe: 'Aprovar a semana (' + ids.length + ' post(s))', status: 'aguardando_aprovacao', total: ids.length, progresso: 0, payload: { ids, precisa_detalhar: true } }),
     }).catch(()=>{});
     lotesSemana++;
   }
