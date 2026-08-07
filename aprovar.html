@@ -47,25 +47,89 @@
 .edt:focus{outline:none;border-color:var(--g);background:rgba(var(--g-rgb),.09);box-shadow:0 0 0 3px rgba(var(--g-rgb),.14)}
 textarea.edt{resize:vertical;line-height:1.5}
 </style>
+
 <style>
-/* ── CARD "EDITAR CONTEÚDO": card em tom escuro, CAIXAS EDITÁVEIS em tom claro contrastante,
-   para o usuário identificar de relance o que pode alterar (plug & play). ── */
-#modal-edit .modal-box{background:#0d0d10}
-#modal-edit .ed-col,#modal-edit .ed-side{background:#141419;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px}
-#modal-edit .ed-lbl{font-family:var(--M);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);display:flex;align-items:center;gap:8px;margin-bottom:7px}
-/* caixas editáveis: fundo mais claro + borda menta = "aqui você pode mexer" */
-#modal-edit textarea.f-textarea,#modal-edit input.ed-data-input,#modal-edit input.ed-hora,#modal-edit .ed-editavel{
-  background:#1e1e26!important;border:1px solid rgba(var(--g-rgb),.42)!important;border-radius:11px!important;color:var(--t1)!important;
-  padding:11px 12px!important;font-size:13.5px!important;line-height:1.55;transition:.15s}
-#modal-edit textarea.f-textarea:hover,#modal-edit input.ed-data-input:hover,#modal-edit input.ed-hora:hover{border-color:rgba(var(--g-rgb),.7)!important}
-#modal-edit textarea.f-textarea:focus,#modal-edit input.ed-data-input:focus,#modal-edit input.ed-hora:focus{
-  outline:none;border-color:var(--g)!important;box-shadow:0 0 0 3px rgba(var(--g-rgb),.16)}
-#modal-edit .ed-tag{display:inline-block;background:rgba(99,102,241,.16);border:1px solid rgba(99,102,241,.4);color:#c7d2fe;
-  border-radius:8px;padding:5px 9px;font-size:12px;margin:0 5px 5px 0}
-#modal-edit .ed-cont{margin-left:auto;font-family:var(--M);font-size:10px;color:var(--t3);text-transform:none;letter-spacing:0}
-#modal-edit .ed-th{border-radius:9px;opacity:.55;transition:.15s;cursor:pointer}
+/* ═══ CARD "EDITAR CONTEÚDO" ═══════════════════════════════════════════════
+   Superfícies em 3 níveis, TODAS derivadas do tema (color-mix) — quando o
+   usuário troca a cor da marca ou do fundo, o card acompanha automaticamente.
+   Nível 1 = casca · Nível 2 = painéis · Nível 3 = campos EDITÁVEIS (mais claros
+   + trilho na cor da marca). Somente-leitura fica plano e sem trilho.        */
+#modal-edit .modal-box{
+  background:color-mix(in srgb, var(--ch) 86%, #000 14%);
+  border:1px solid color-mix(in srgb, var(--t1) 10%, transparent);
+  border-radius:20px;max-width:1120px;width:96vw;padding:0;overflow:hidden}
+#modal-edit .ec-top{display:flex;align-items:flex-start;gap:16px;padding:22px 26px 16px;
+  border-bottom:1px solid color-mix(in srgb, var(--t1) 9%, transparent)}
+#modal-edit .ec-ttl h2{font-family:var(--D,var(--B));font-size:25px;letter-spacing:.4px;margin:0;color:var(--t1);text-transform:uppercase}
+#modal-edit .ec-ttl p{margin:3px 0 0;font-size:13px;color:var(--t2)}
+#modal-edit .ec-pill{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;
+  font-family:var(--M);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  padding:10px 16px;border-radius:99px;color:var(--g);
+  background:color-mix(in srgb, var(--g) 12%, transparent);
+  border:1px solid color-mix(in srgb, var(--g) 38%, transparent)}
+#modal-edit .ec-pill i{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 22%,transparent)}
+#modal-edit .ec-pill.venc{color:#f0b53f;background:rgba(240,181,63,.12);border-color:rgba(240,181,63,.4)}
+#modal-edit .ec-pill.venc i{background:#f0b53f;box-shadow:none}
+#modal-edit .ec-alert{margin:16px 26px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  padding:13px 16px;border-radius:13px;background:rgba(240,181,63,.09);border:1px solid rgba(240,181,63,.3);font-size:13px;color:var(--t2)}
+/* corpo em 2 colunas — prévia fixa, edição rolável */
+#modal-edit .ec-grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1fr);gap:18px;padding:20px 26px}
+#modal-edit .ec-pane{background:var(--card);border:1px solid color-mix(in srgb, var(--t1) 8%, transparent);border-radius:16px;padding:16px}
+#modal-edit .ec-editor{display:flex;flex-direction:column;gap:2px;max-height:64vh;overflow:auto}
+#modal-edit .ec-eyebrow{font-family:var(--M);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--t3);display:flex;align-items:center;gap:10px;margin:16px 0 8px}
+#modal-edit .ec-eyebrow:first-child{margin-top:0}
+#modal-edit .ec-count{margin-left:auto;font-family:var(--M);font-size:10px;color:var(--t3);letter-spacing:.06em;font-weight:400}
+#modal-edit .ec-shot{position:relative;border-radius:13px;overflow:hidden;background:color-mix(in srgb,var(--ch) 70%,#000 30%)}
+#modal-edit .ec-shot img{width:100%;display:block}
+#modal-edit .ec-empty{aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:34px;color:var(--t3)}
+#modal-edit .ec-empty span{font-size:12px;font-family:var(--M)}
+/* ── CAMPO EDITÁVEL: mais claro que o painel + trilho na cor da marca ── */
+#modal-edit .ec-fld{display:block;border-radius:13px;padding:11px 13px;margin-bottom:10px}
+#modal-edit .ec-edit{background:color-mix(in srgb, var(--card) 82%, var(--t1) 8%);
+  border:1px solid color-mix(in srgb, var(--g) 34%, transparent);
+  border-left:3px solid var(--g);transition:.16s}
+#modal-edit .ec-edit:hover{border-color:color-mix(in srgb, var(--g) 60%, transparent);border-left-color:var(--g)}
+#modal-edit .ec-edit:focus-within{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb, var(--g) 16%, transparent)}
+#modal-edit .ec-lab{display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--g);margin-bottom:6px}
+#modal-edit .ec-edit textarea,#modal-edit .ec-edit input{width:100%;background:transparent!important;border:0!important;
+  color:var(--t1)!important;font-family:var(--B);font-size:14px;line-height:1.6;padding:0!important;resize:vertical;outline:none!important;box-shadow:none!important}
+/* ── SOMENTE LEITURA: plano, sem trilho — o olho entende que não se mexe ── */
+#modal-edit .ec-ro{background:color-mix(in srgb, var(--ch) 55%, transparent);border:1px solid color-mix(in srgb, var(--t1) 8%, transparent)}
+#modal-edit .ec-ro .ec-lab{color:var(--t3)}
+#modal-edit .ec-ro-v{font-size:13.5px;color:var(--t1)}
+#modal-edit .ec-art-h{font-size:15px;font-weight:800;color:var(--t1);line-height:1.35}
+#modal-edit .ec-art-s{font-size:13px;color:var(--t2);margin-top:5px}
+#modal-edit .ec-art-c{display:inline-block;margin-top:9px;font-family:var(--M);font-size:11px;color:var(--g);
+  border:1px solid color-mix(in srgb,var(--g) 35%,transparent);border-radius:99px;padding:5px 12px}
+#modal-edit .ec-hint{margin-top:9px;font-size:11.5px;color:var(--t3);line-height:1.5}
+#modal-edit .ec-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#modal-edit .ec-row{display:flex;justify-content:flex-end;margin:-2px 0 4px}
+#modal-edit .ec-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+#modal-edit .ed-tag{background:color-mix(in srgb, var(--a2,var(--g)) 16%, transparent);
+  border:1px solid color-mix(in srgb, var(--a2,var(--g)) 38%, transparent);
+  color:var(--t1);border-radius:9px;padding:6px 10px;font-size:12.5px}
+#modal-edit .ec-muted{font-size:12.5px;color:var(--t3)}
+#modal-edit .ec-ads{background:color-mix(in srgb,var(--a2,var(--g)) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--a2,var(--g)) 32%,transparent);border-radius:13px;padding:12px 14px;margin-bottom:6px;font-size:13px;color:var(--t1)}
+#modal-edit .ec-ads span{display:block;color:var(--t2);font-size:12.5px;margin-top:4px}
+#modal-edit .ed-thumbs{display:flex;gap:8px;overflow:auto;padding:2px}
+#modal-edit .ed-th{width:62px;height:78px;object-fit:cover;border-radius:10px;opacity:.5;cursor:pointer;transition:.16s;flex-shrink:0}
 #modal-edit .ed-th:hover{opacity:.85}
-#modal-edit .ed-th.on{opacity:1;outline:2px solid var(--g);outline-offset:1px}
+#modal-edit .ed-th.on{opacity:1;outline:2px solid var(--g);outline-offset:2px}
+#modal-edit .ec-imgacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+/* rodapé fixo: a decisão está sempre ao alcance */
+#modal-edit .ec-foot{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 26px;background:color-mix(in srgb, var(--ch) 92%, #000 8%);
+  border-top:1px solid color-mix(in srgb, var(--t1) 9%, transparent)}
+#modal-edit .ec-foot-r{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:900px){
+  #modal-edit .ec-grid{grid-template-columns:1fr;padding:16px}
+  #modal-edit .ec-editor{max-height:none}
+  #modal-edit .ec-two{grid-template-columns:1fr}
+  #modal-edit .ec-foot-r{width:100%;margin-left:0}
+}
+@media(prefers-reduced-motion:reduce){#modal-edit *{transition:none!important}}
 </style>
 </head>
 <body>
@@ -338,62 +402,72 @@ function abrirEdicao(id){
   const hashtags=(String(c.copy||'').match(/#[\wÀ-ÿ]+/g)||[]);
 
   document.getElementById('edit-body').innerHTML=`
-    <!-- CABEÇALHO: estado, data e canal -->
-    <div class="ed-head">
-      <span class="ed-status ${vencido?'venc':''}">${vencido?'⏰ Data vencida':(c.status==='aprovado'?'✓ Aprovado':'◷ Aguardando você')}</span>
-      <span class="ed-tipo">${tp.ico} ${JUMP.esc(tp.label)}</span>
-      <input type="date" class="ed-data-input" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)" title="Alterar a data agendada do post">
-      <input type="time" class="ed-hora" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)" title="Horário da publicação">
-      <span class="ed-ig">📸 Instagram</span>
-    </div>
-    ${vencido?`<div class="ed-alerta">
-      <div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Ele não foi aprovado a tempo, então não foi publicado.</div>
-      <button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button>
-    </div>`:''}
+    <header class="ec-top">
+      <div class="ec-ttl">
+        <h2>Editar conteúdo</h2>
+        <p>Revise, ajuste o que quiser e aprove antes de publicar.</p>
+      </div>
+      <span class="ec-pill ${vencido?'venc':(c.status==='aprovado'?'ok':'')}">
+        <i></i>${vencido?'Data vencida':(c.status==='aprovado'?'Aprovado':'Aguardando aprovação')}
+      </span>
+    </header>
+    ${vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo, então não foi publicado.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:''}
 
-    <div class="ed-grid">
-      <!-- COLUNA ESQUERDA: a peça -->
-      <div>
-        <div class="ap-img" style="position:relative;border-radius:12px;overflow:hidden">
-          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0" style="width:100%;display:block">`:`<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;font-size:38px;background:var(--bg)">${tp.ico}</div>`}
+    <div class="ec-grid">
+      <section class="ec-pane">
+        <div class="ec-eyebrow">Prévia do post</div>
+        <div class="ec-shot">
+          ${sl.length?`<img id="edit-img" src="${sl[0]}" alt="" data-i="0">`:`<div class="ec-empty">${tp.ico}<span>A arte aparece aqui quando ficar pronta</span></div>`}
           ${setas}
         </div>
-        ${sl.length>1?`<div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>`:''}
-        <div class="ed-acts-img">${regerar}</div>
-      </div>
+        ${sl.length>1?`<div class="ec-eyebrow" style="margin-top:14px">Navegar carrossel <b class="ec-count">${sl.length} imagens</b></div>
+        <div class="ed-thumbs">${sl.map((u,i)=>`<img src="${u}" class="ed-th${i===0?' on':''}" onclick="irSlide(${i})" alt="">`).join('')}</div>`:''}
+        <div class="ec-imgacts">${regerar}</div>
+      </section>
 
-      <!-- COLUNA DIREITA: o conteúdo editável -->
-      <div class="ed-col">
-        ${m.finalidade==='anuncio'?`<div class="ed-ads">🎯 <b>Criativo para ANÚNCIO</b><div>Ao aprovar, ele <b>não é publicado no seu feed</b>. Baixe a arte e suba no seu Gerenciador de Anúncios.</div></div>`:''}
-        ${m.headline?`<div class="ed-bloco"><div class="ed-lbl">Headline da arte</div><div class="ed-val">${JUMP.esc(m.headline)}</div></div>`:''}
-        ${m.subheadline||m.prova||m.cta_arte?`<div class="ed-bloco"><div class="ed-lbl">Textos da peça</div>
-          ${m.subheadline?`<div class="ed-mini">${JUMP.esc(m.subheadline)}</div>`:''}
-          ${m.prova?`<div class="ed-mini">📊 ${JUMP.esc(m.prova)}</div>`:''}
-          ${m.cta_arte?`<div class="ed-mini">→ ${JUMP.esc(m.cta_arte)}</div>`:''}</div>`:''}
-        <div class="ed-bloco">
-          <div class="ed-lbl">✎ Legenda do post <button class="ed-mini-btn" onclick="salvarCopy()">💾 Salvar</button><span class="ed-cont">Total: <b id="ed-cont-n">0</b>/2200</span></div>
-          <textarea class="f-textarea" id="edit-copy" rows="7" oninput="contarCopy()">${JUMP.esc(c.copy||'')}</textarea>
+      <section class="ec-pane ec-editor">
+        ${m.finalidade==='anuncio'?`<div class="ec-ads">🎯 <b>Criativo para anúncio</b><span>Ao aprovar, ele não vai para o feed. Baixe a arte e suba no Gerenciador de Anúncios.</span></div>`:''}
+
+        <div class="ec-eyebrow">Editar texto do post <b class="ec-count" id="ec-cnt">0/2200</b></div>
+        <label class="ec-fld ec-edit">
+          <span class="ec-lab">✎ Legenda</span>
+          <textarea class="f-textarea" id="edit-copy" rows="8" oninput="contarCopy()" placeholder="Escreva a legenda do post…">${JUMP.esc(c.copy||'')}</textarea>
+        </label>
+        <div class="ec-row"><button class="btn btn-o btn-sm" onclick="salvarCopy()">Salvar legenda</button></div>
+
+        <div class="ec-eyebrow">Hashtags</div>
+        <div class="ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Nenhuma ainda — escreva #assim na legenda</span>'}</div>
+
+        <div class="ec-eyebrow">Agendamento</div>
+        <div class="ec-two">
+          <label class="ec-fld ec-edit"><span class="ec-lab">✎ Data</span>
+            <input type="date" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)"></label>
+          <label class="ec-fld ec-edit"><span class="ec-lab">✎ Horário</span>
+            <input type="time" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)"></label>
         </div>
-        <div class="ed-bloco">
-          <div class="ed-lbl">Formato</div><div class="ed-val-sm">${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div>
+        <div class="ec-two">
+          <div class="ec-fld ec-ro"><span class="ec-lab">Formato</span><div class="ec-ro-v">${tp.ico} ${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div></div>
+          <div class="ec-fld ec-ro"><span class="ec-lab">Publicar em</span><div class="ec-ro-v">📸 Instagram</div></div>
         </div>
-        <div class="ed-bloco">
-          <div class="ed-lbl">Hashtags</div>
-          <div class="ed-val-sm">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span style="color:var(--t3)">Nenhuma — adicione no texto do post</span>'}</div>
-        </div>
-      </div>
+
+        ${(m.headline||m.subheadline||m.prova||m.cta_arte)?`<div class="ec-eyebrow">Textos da arte <b class="ec-count">somente leitura</b></div>
+        <div class="ec-fld ec-ro">
+          ${m.headline?`<div class="ec-art-h">${JUMP.esc(m.headline)}</div>`:''}
+          ${m.subheadline?`<div class="ec-art-s">${JUMP.esc(m.subheadline)}</div>`:''}
+          ${m.prova?`<div class="ec-art-s">📊 ${JUMP.esc(m.prova)}</div>`:''}
+          ${m.cta_arte?`<div class="ec-art-c">${JUMP.esc(m.cta_arte)} →</div>`:''}
+          <div class="ec-hint">Estes textos vivem dentro da imagem. Para mudá-los, use “Recriar imagem”.</div>
+        </div>`:''}
+      </section>
     </div>
 
-    <!-- AÇÕES: destrutivas à esquerda, decisão à direita -->
-    <div class="ed-foot">
-      <div class="ed-foot-l">
-        <button class="btn btn-r btn-sm" onclick="excluirPost('${id}')">🗑 Excluir</button>
-      </div>
-      <div class="ed-foot-r">
+    <footer class="ec-foot">
+      <button class="btn btn-r btn-sm" onclick="excluirPost('${id}')">🗑 Excluir conteúdo</button>
+      <div class="ec-foot-r">
         <button class="btn btn-o" onclick="abrirRej('${id}')">↻ Pedir ajuste</button>
         ${aprovarBtn}
       </div>
-    </div>`;
+    </footer>`;
   document.getElementById('modal-edit').classList.add('show');
   try{contarCopy()}catch(e){}
 }
@@ -434,7 +508,7 @@ async function salvarData(id,val){
 }
 function contarCopy(){
   const t=document.getElementById('edit-copy'),n=document.getElementById('ed-cont-n');
-  if(t&&n){n.textContent=t.value.length;n.style.color=t.value.length>2200?'#f87171':'';}
+  if(t&&n){n.textContent=t.value.length+'/2200';n.style.color=t.value.length>2200?'#f87171':'';}
 }
 async function salvarHora(id,hora){
   // o publicador compara data_agendada (data+hora) — então o horário editado vale de verdade
