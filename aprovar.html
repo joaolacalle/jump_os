@@ -47,6 +47,26 @@
 .edt:focus{outline:none;border-color:var(--g);background:rgba(var(--g-rgb),.09);box-shadow:0 0 0 3px rgba(var(--g-rgb),.14)}
 textarea.edt{resize:vertical;line-height:1.5}
 </style>
+<style>
+/* ── CARD "EDITAR CONTEÚDO": card em tom escuro, CAIXAS EDITÁVEIS em tom claro contrastante,
+   para o usuário identificar de relance o que pode alterar (plug & play). ── */
+#modal-edit .modal-box{background:#0d0d10}
+#modal-edit .ed-col,#modal-edit .ed-side{background:#141419;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px}
+#modal-edit .ed-lbl{font-family:var(--M);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);display:flex;align-items:center;gap:8px;margin-bottom:7px}
+/* caixas editáveis: fundo mais claro + borda menta = "aqui você pode mexer" */
+#modal-edit textarea.f-textarea,#modal-edit input.ed-data-input,#modal-edit input.ed-hora,#modal-edit .ed-editavel{
+  background:#1e1e26!important;border:1px solid rgba(var(--g-rgb),.42)!important;border-radius:11px!important;color:var(--t1)!important;
+  padding:11px 12px!important;font-size:13.5px!important;line-height:1.55;transition:.15s}
+#modal-edit textarea.f-textarea:hover,#modal-edit input.ed-data-input:hover,#modal-edit input.ed-hora:hover{border-color:rgba(var(--g-rgb),.7)!important}
+#modal-edit textarea.f-textarea:focus,#modal-edit input.ed-data-input:focus,#modal-edit input.ed-hora:focus{
+  outline:none;border-color:var(--g)!important;box-shadow:0 0 0 3px rgba(var(--g-rgb),.16)}
+#modal-edit .ed-tag{display:inline-block;background:rgba(99,102,241,.16);border:1px solid rgba(99,102,241,.4);color:#c7d2fe;
+  border-radius:8px;padding:5px 9px;font-size:12px;margin:0 5px 5px 0}
+#modal-edit .ed-cont{margin-left:auto;font-family:var(--M);font-size:10px;color:var(--t3);text-transform:none;letter-spacing:0}
+#modal-edit .ed-th{border-radius:9px;opacity:.55;transition:.15s;cursor:pointer}
+#modal-edit .ed-th:hover{opacity:.85}
+#modal-edit .ed-th.on{opacity:1;outline:2px solid var(--g);outline-offset:1px}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -322,7 +342,8 @@ function abrirEdicao(id){
     <div class="ed-head">
       <span class="ed-status ${vencido?'venc':''}">${vencido?'⏰ Data vencida':(c.status==='aprovado'?'✓ Aprovado':'◷ Aguardando você')}</span>
       <span class="ed-tipo">${tp.ico} ${JUMP.esc(tp.label)}</span>
-      <input type="date" class="ed-data-input" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)" title="Alterar a data agendada do post">
+      <input type="date" class="ed-data-input" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)" title="Alterar a data agendada do post">
+      <input type="time" class="ed-hora" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)" title="Horário da publicação">
       <span class="ed-ig">📸 Instagram</span>
     </div>
     ${vencido?`<div class="ed-alerta">
@@ -350,8 +371,8 @@ function abrirEdicao(id){
           ${m.prova?`<div class="ed-mini">📊 ${JUMP.esc(m.prova)}</div>`:''}
           ${m.cta_arte?`<div class="ed-mini">→ ${JUMP.esc(m.cta_arte)}</div>`:''}</div>`:''}
         <div class="ed-bloco">
-          <div class="ed-lbl">Texto do post <button class="ed-mini-btn" onclick="salvarCopy()">💾 Salvar</button></div>
-          <textarea class="f-textarea" id="edit-copy" rows="7">${JUMP.esc(c.copy||'')}</textarea>
+          <div class="ed-lbl">✎ Legenda do post <button class="ed-mini-btn" onclick="salvarCopy()">💾 Salvar</button><span class="ed-cont">Total: <b id="ed-cont-n">0</b>/2200</span></div>
+          <textarea class="f-textarea" id="edit-copy" rows="7" oninput="contarCopy()">${JUMP.esc(c.copy||'')}</textarea>
         </div>
         <div class="ed-bloco">
           <div class="ed-lbl">Formato</div><div class="ed-val-sm">${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length+' imagens'):''}</div>
@@ -374,6 +395,7 @@ function abrirEdicao(id){
       </div>
     </div>`;
   document.getElementById('modal-edit').classList.add('show');
+  try{contarCopy()}catch(e){}
 }
 // miniatura clicada: troca o slide grande
 function irSlide(i){
@@ -409,6 +431,19 @@ async function salvarData(id,val){
     const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=val;
     JUMP.toast('✓ Data alterada.');
   }catch(e){JUMP.toast('Erro ao salvar data','err')}
+}
+function contarCopy(){
+  const t=document.getElementById('edit-copy'),n=document.getElementById('ed-cont-n');
+  if(t&&n){n.textContent=t.value.length;n.style.color=t.value.length>2200?'#f87171':'';}
+}
+async function salvarHora(id,hora){
+  // o publicador compara data_agendada (data+hora) — então o horário editado vale de verdade
+  try{
+    const d=(document.getElementById('ed-data')||{}).value||'';
+    if(!d)return JUMP.toast('Defina a data primeiro.','err');
+    await JUMP.sb.from('conteudos').update({data_agendada:d+'T'+(hora||'09:00')+':00'}).eq('id',id);
+    JUMP.toast('✓ Horário salvo: '+hora);
+  }catch(e){JUMP.toast('Erro ao salvar horário','err')}
 }
 async function salvarCopy(){
   if(!EDIT_ID)return;
