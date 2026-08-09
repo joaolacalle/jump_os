@@ -377,7 +377,8 @@ async function repetirOrdem(id,btn){
     const pl=Object.assign({},o.payload||{}); delete pl.erros; pl.tentativas=0;
     const{error}=await JUMP.sb.from('ordens_servico').update({status:'pendente',payload:pl}).eq('id',id);
     if(error)throw error;
-    JUMP.toast('✓ De volta à fila — os agentes executam em até 5 minutos.');
+    try{await JUMP.dispararFila()}catch(e){}
+    JUMP.toast('✓ De volta à fila — começando a execução agora.');
     carregar();
   }catch(e){JUMP.toast(e.message||'Não consegui reenfileirar','err');if(btn){btn.disabled=false;btn.textContent='↻ Tentar de novo';}}
 }
