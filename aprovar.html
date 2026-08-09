@@ -468,7 +468,7 @@ async function aprovarProposta(id,tarefa,btn){
       if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
       // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
       // precisa abrir nada — se a página cair, o cron retoma a mesma ordem.
-      try{await JUMP.authFetch('/api/cron?job=produzir',{method:'POST'})}catch(e){}
+      try{await JUMP.dispararFila()}catch(e){}
       await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
       JUMP.toast('✓ Semana aprovada! As artes estão sendo produzidas — acompanhe em Tarefas.');
     }else{
