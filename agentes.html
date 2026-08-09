@@ -794,6 +794,22 @@ function ehFluxoSemanal(o){
   return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
 }
 async function executarOrdens(btn,soId){
+  // ── UNIFICADO: o PLAY não executa mais no navegador. Ele apenas ACIONA o mesmo worker do
+  //    servidor usado pela automação (dispatcher único). Continua sendo o gatilho manual.
+  if(btn){btn.disabled=true;btn.dataset.o=btn.innerHTML;btn.innerHTML='<span class="spin-i"></span>';}
+  try{
+    if(soId){ // garante que a ordem escolhida está na fila para o worker assumir
+      try{await JUMP.sb.from('ordens_servico').update({status:'pendente'}).eq('id',soId).in('status',['erro','pendente']);}catch(e){}
+    }
+    const r=await JUMP.dispararFila();
+    addMsg('a', (r&&r.artes)? ('✓ '+r.artes+' arte(s) geradas. Já estão em Aprovações.')
+      : '⏳ Enviei para a fila do servidor. Pode fechar a página — acompanhe em Tarefas de serviço.');
+    try{await verificarOrdens()}catch(e){}
+  }catch(e){ addMsg('a','⚠️ Não consegui acionar a fila agora: '+JUMP.esc(e.message||'erro')+'. O sistema tenta de novo automaticamente.'); }
+  if(btn){btn.disabled=false;if(btn.dataset.o)btn.innerHTML=btn.dataset.o;}
+  return;
+}
+async function _executarOrdensLegado(btn,soId){
   if(EXECUTANDO)return; // trava: evita executar a mesma ordem duas vezes
   EXECUTANDO=true;
   PARAR=false;

@@ -813,34 +813,22 @@ async function confirmarRej(){
     const uid=CTX.viewId||CTX.user.id;
     // A ordem existe para o usuário ACOMPANHAR (Fila) — mas a execução começa AGORA, não depende
     // de ninguém clicar em nada. Se a página cair no meio, o worker do cron retoma.
-    const{data:ord}=await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'usuario',para_agente:'criativo',
-      tarefa:'criar_post',detalhe:'Ajuste da arte: '+motivo.slice(0,70),
-      status:'processando',total:1,progresso:0,payload:{ids:[id],ajuste:motivo,recriacao:true,batendo:new Date().toISOString()}}]).select('id').single();
+    // ── FLUXO ÚNICO: o navegador NÃO gera imagem. Ele registra o pedido, cria a ordem com todo
+    //    o contexto e chama o dispatcher. Quem executa é sempre o worker do servidor.
+    const im=document.getElementById('edit-img');
+    const slideIdx=im?(Number(im.dataset.i||0)+1):1;
+    await JUMP.sb.from('ordens_servico').insert([{
+      user_id:uid, de_agente:'usuario', para_agente:'criativo', tarefa:'criar_post',
+      detalhe:'Ajuste da arte: '+motivo.slice(0,70), status:'pendente', total:1, progresso:0,
+      payload:{ ids:[id], conteudo_id:id, ajuste:motivo, variacao:PCT_AJUSTE,
+                slide:slideIdx, recriacao:true, origem:'pedir_ajuste' }
+    }]);
     document.getElementById('modal-rej').classList.remove('show');
-    loadingArte(true,'Refazendo a arte com o seu ajuste...');
-    try{
-      let c=ITENS.find(x=>x.id===id)||RASCUNHOS.find(x=>x.id===id);
-      if(!c||!c.tema){const{data:cc}=await JUMP.sb.from('conteudos').select('*').eq('id',id).single(); if(cc)c=cc;}
-      if(!c||!(c.tema||(c.meta||{}).headline))throw new Error('Não consegui recuperar os dados originais desta arte.');
-      const im=document.getElementById('edit-img'); const i=im?Number(im.dataset.i||0):0;
-      const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-        body:JSON.stringify(JUMP.payloadDoConteudo(c,{slide:i+1,total:JUMP.totalSlides(c),ver_id:CTX.viewId||null,origem:'expressa',reload:true,variacao:PCT_AJUSTE,ajuste:motivo}))});
-      const d=await r.json();
-      if(!r.ok||!(d.ok||d.url||d.midia_url))throw new Error(d.error||'Falha ao refazer');
-      if(ord)await JUMP.sb.from('ordens_servico').update({status:'concluida',progresso:1,concluida_em:new Date().toISOString()}).eq('id',ord.id);
-      loadingArte(false);
-      await recarregar(); abrirEdicao(id);
-      JUMP.toast('✓ Nova versão pronta — mesmo conteúdo, com o seu ajuste.');
-      return;
-    }catch(e){
-      loadingArte(false);
-      if(ord)await JUMP.sb.from('ordens_servico').update({status:'pendente'}).eq('id',ord.id);
-      JUMP.toast('Não consegui refazer agora ('+(e.message||'erro')+'). A tarefa ficou na Fila e o sistema tenta de novo.','err');
-      return;
-    }
-    // Designer aprende: o que o cliente NÃO quer
-    if(motivo)salvarGosto('evitar_visual',motivo);
-
+    // dispara a execução no servidor (único caminho). Se falhar, o cron pega na próxima rodada.
+    try{ await JUMP.dispararFila(); }catch(e){}
+    JUMP.toast('✓ Pedido enviado ao Designer. Pode fechar a página — acompanhe em Tarefas.');
+    await recarregar();
+    return;
   }catch(e){JUMP.toast('Erro ao rejeitar','err')}
 }
 </script>
