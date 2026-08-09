@@ -933,7 +933,10 @@ async function executarLoteCriativos(uid,ordem){
   const _idsOrdem=(ordem&&ordem.payload&&Array.isArray(ordem.payload.ids))?ordem.payload.ids:null;
   let pend;
   if(_idsOrdem&&_idsOrdem.length){
-    const r=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').in('id',_idsOrdem).is('midia_url',null).order('data_sugerida',{ascending:true});
+    const _recri=!!(ordem&&ordem.payload&&(ordem.payload.ajuste||ordem.payload.recriacao));
+    let _q=JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').in('id',_idsOrdem);
+    if(!_recri)_q=_q.is('midia_url',null);   // recriação: a arte JÁ existe, é para substituir
+    const r=await _q.order('data_sugerida',{ascending:true});
     pend=r.data;
   }else{
     const r=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).or('data_sugerida.lte.'+limData+',data_sugerida.is.null').order('data_sugerida',{ascending:true}).limit(10);
