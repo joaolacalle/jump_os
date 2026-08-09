@@ -550,18 +550,20 @@ async function jobProduzir() {
       : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
     // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
     //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
-    const brief = (o.payload && o.payload.brief) || o.detalhe || '';
+    // NUNCA usar o.detalhe como conteúdo da arte: ele é o rótulo da tarefa ("Ajuste da arte: ...")
+    // e acabava renderizado como headline. Só o briefing explícito do payload vale como tema.
+    const brief = (o.payload && o.payload.brief) || '';
     const tf = String(o.tarefa || '');
     // ficha técnica e criativos de anúncio geram ARQUIVO (biblioteca), não post no calendário
     const soArquivo = (tf === 'ficha_tecnica' || tf === 'criar_criativo_ads' || tf === 'substituir_criativo');
-    const ehBrief = !ids && brief && (soArquivo || (o.payload && (o.payload.recorrente || o.payload.itens)));
+    const ehBrief = !ids && !!brief && (soArquivo || (o.payload && (o.payload.recorrente || o.payload.itens)));
     let posts;
     if (soArquivo) {
       // gera a peça e registra na biblioteca; não cria conteúdo nem card de aprovação
       try {
         const r = await fetch(`${base}/api/gerar-imagem`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
-          body: JSON.stringify({ user_id: o.user_id, registrar: true, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
+          body: JSON.stringify({ user_id: o.user_id, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
             tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined }),
         });
         const d = await r.json().catch(() => null);
@@ -569,7 +571,7 @@ async function jobProduzir() {
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
           body: JSON.stringify({ status: ok ? 'concluida' : 'erro', progresso: ok ? 1 : 0, total: 1,
-            payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: (d && d.error) || 'falha' }] }) },
+            payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: String((d && (d.error && (d.error.message||d.error))) || ('HTTP '+r.status)).slice(0,160) }] }) },
             ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
         }).catch(() => {});
         if (ok) artes++;
@@ -607,7 +609,7 @@ async function jobProduzir() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
           body: JSON.stringify({
-            user_id: o.user_id, conteudo_id: c.id, registrar: true,
+            user_id: o.user_id, conteudo_id: c.id,
             prompt: c.tema || m.headline || 'post', tamanho: '4:5',
             tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
             headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
@@ -617,17 +619,17 @@ async function jobProduzir() {
           }),
         });
         const d = await r.json().catch(() => null);
-        if (!r.ok || !d || !d.url) { erros.push({ tema: c.tema || 'post', motivo: (d && d.error) || 'falha na geração' }); continue; }
+        if (!r.ok || !d || !(d.url || d.midia_url)) { erros.push({ tema: c.tema || 'post', motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
-          body: JSON.stringify(ehRecriacao ? { midia_url: d.url } : { midia_url: d.url, status: 'aguardando_aprovacao' }),
+          body: JSON.stringify(ehRecriacao ? { midia_url: (d.url||d.midia_url) } : { midia_url: (d.url||d.midia_url), status: 'aguardando_aprovacao' }),
         }).catch(() => {});
         feitos++; artes++;
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
           body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
         }).catch(() => {});
-      } catch (e) { erros.push({ tema: c.tema || 'post', motivo: e.message || 'erro' }); }
+      } catch (e) { erros.push({ tema: c.tema || 'post', motivo: String(e && e.message || e).slice(0,160) }); }
     }
 
     const tent = Number((o.payload || {}).tentativas || 0) + (feitos > 0 ? 0 : 1);
@@ -710,7 +712,7 @@ async function jobOrdens() {
     const nova = ehArte
       ? { user_id: o.user_id, de_agente: 'usuario', para_agente: 'criativo', tarefa: 'criar_avulso',
           detalhe: o.detalhe, status: 'pendente', total: 1, progresso: 0, ordem_pai: o.id,
-          payload: { brief: o.detalhe, recorrente: true, itens: [{ tema: o.detalhe, formato: 'feed', tipo_visual: 'conceitual' }] } }
+          payload: { brief: o.detalhe, recorrente: true, itens: [{ tema: o.detalhe, formato: 'feed', tipo_visual: 'conceitual' }] } } // recorrente: o texto da tarefa É o briefing definido pelo usuário
       : { user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario',
           detalhe: o.detalhe, status: 'pendente', ordem_pai: o.id };
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
