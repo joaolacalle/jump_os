@@ -940,6 +940,10 @@ const handler = async (req, res) => {
           if(ehCadeia)body.payload={...(body.payload||{}),sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
           return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
         }));
+        // AUTO-DISPATCH pós-criação: a ordem nasce e a execução começa — sem depender de PLAY.
+        try{ const _b=process.env.VERCEL_URL?`https://${process.env.VERCEL_URL}`:''; 
+          if(_b&&process.env.CRON_SECRET) fetch(`${_b}/api/cron?job=produzir&secret=${process.env.CRON_SECRET}`,{method:'POST'}).catch(()=>{});
+        }catch(e){}
       }catch(e){}
     }
 

@@ -508,6 +508,21 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
     }
   }
+  // DISPARO PELO PRÓPRIO USUÁRIO: produz as ordens DELE agora, sem esperar a rodada do cron.
+  // Reusa o mesmo padrão do 'publicar_meu' (autenticado por JWT) — é o AUTO-DISPATCH da fila.
+  if (job0 === 'produzir_meu') {
+    try {
+      const tkUser = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (!tkUser) return res.status(401).json({ error: 'sem token' });
+      const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: KEY(), Authorization: `Bearer ${tkUser}` } }).then(r => r.json()).catch(() => null);
+      const uid = u && u.id;
+      if (!uid) return res.status(401).json({ error: 'token inválido' });
+      const r = await jobProduzir(uid);
+      return res.status(200).json({ ok: true, job: 'produzir_meu', ...r });
+    } catch (e) {
+      return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
+    }
+  }
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
   const qsec = (req.query && req.query.secret) || '';
@@ -525,12 +540,12 @@ module.exports = async (req, res) => {
 // Trava de concorrência: a ordem só é pega se ainda estiver 'pendente' (PATCH
 // condicional), então duas execuções nunca produzem a mesma arte duas vezes.
 // ═══════════════════════════════════════════════════════════════════════════════
-async function jobProduzir() {
+async function jobProduzir(soUid) {
   const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : (process.env.SITE_URL || '');
   if (!base || !process.env.CRON_SECRET) return { erro: 'sem VERCEL_URL/CRON_SECRET' };
   let ordensFeitas = 0, artes = 0;
 
-  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
 
   for (const o of (Array.isArray(pend) ? pend : [])) {
     // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
