@@ -1064,18 +1064,31 @@ const handler = async (req, res) => {
       try{
         const IMGF=c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0&&f.indexOf('story')<0};
         // pega conteúdos recentes deste usuário, prontos p/ virar arte e ainda sem imagem
-        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,criativo_url`);
-        const pend=(Array.isArray(prontos)?prontos:[]).filter(c=>IMGF(c)&&!c.criativo_url&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
+        // CORREÇÃO 1: 'criativo_url' NÃO é coluna de conteudos — é campo do JSON da IA, gravado em
+        // 'midia_url' (ver INSERT acima) com a flag em meta.criativo_proprio. Pedi-lo no select fazia
+        // o PostgREST devolver 400; o retorno não era array e o backstop morria em silêncio, deixando
+        // o conteúdo eternamente em "aguardando produção". Agora usamos o campo real.
+        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,midia_url`);
+        const pend=(Array.isArray(prontos)?prontos:[]).filter(c=>IMGF(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
         if(pend.length){
-          const ja=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id&limit=1`);
-          if(!(Array.isArray(ja)&&ja.length)){
+          // CORREÇÃO 2: duplicidade POR CONTEÚDO. Antes, QUALQUER ordem pendente do Criativo
+          // bloqueava a criação de ordens para todos os outros conteúdos.
+          const idsPend=pend.map(c=>c.id);
+          const abertas=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id,payload`);
+          const jaNaFila=new Set();
+          (Array.isArray(abertas)?abertas:[]).forEach(o=>{
+            const ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[];
+            ids.forEach(x=>jaNaFila.add(String(x)));
+          });
+          const novos=idsPend.filter(x=>!jaNaFila.has(String(x)));
+          if(novos.length){
             await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
               method:'POST',headers:H(),
               body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:'criativo',tarefa:'criar_post',
-                detalhe:'Criar '+pend.length+' arte(s) pendente(s)',status:'pendente',total:pend.length,progresso:0,
-                payload:{origem:'backstop'}})
+                detalhe:'Criar '+novos.length+' arte(s) pendente(s)',status:'pendente',total:novos.length,progresso:0,
+                payload:{origem:'backstop',ids:novos}})
             }).catch(()=>{});
-            notaBackstop='🎨 '+pend.length+' arte(s) enviada(s) ao Designer automaticamente.';
+            notaBackstop='🎨 '+novos.length+' arte(s) enviada(s) ao Designer automaticamente.';
           }
         }
       }catch(e){console.error('backstop ordem designer:',e.message);}
