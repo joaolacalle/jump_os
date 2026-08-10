@@ -806,31 +806,40 @@ function abrirRej(id){
 async function confirmarRej(){
   const id=document.getElementById('mr-id').value;
   const motivo=document.getElementById('mr-motivo').value.trim();
+  const uid=CTX.viewId||CTX.user.id;
+  // TRATAMENTO POR ETAPA: cada operação tem o seu próprio erro. Um catch genérico dizia
+  // "Erro ao rejeitar" mesmo quando o feedback E a ordem já tinham sido gravados com sucesso.
+  // ── ETAPA 1: salvar o feedback (não bloqueante — é aprendizado, não o pedido em si)
+  try{ await JUMP.sb.from('conteudos').update({feedback:motivo}).eq('id',id); }
+  catch(e){ console.warn('[ajuste] feedback não salvo:',e&&e.message); }
+  // ── ETAPA 2: criar a ordem (ESSENCIAL — se falhar, o pedido não existe)
+  const im=document.getElementById('edit-img');
+  const slideIdx=im?(Number(im.dataset.i||0)+1):1;
   try{
-    // Mantém o VÍNCULO: o conteúdo não é descartado — guarda o feedback e volta para a fila do
-    // Designer, que recria usando os dados originais + esta instrução (regeneração controlada).
-    await JUMP.sb.from('conteudos').update({feedback:motivo}).eq('id',id);
-    const uid=CTX.viewId||CTX.user.id;
-    // A ordem existe para o usuário ACOMPANHAR (Fila) — mas a execução começa AGORA, não depende
-    // de ninguém clicar em nada. Se a página cair no meio, o worker do cron retoma.
-    // ── FLUXO ÚNICO: o navegador NÃO gera imagem. Ele registra o pedido, cria a ordem com todo
-    //    o contexto e chama o dispatcher. Quem executa é sempre o worker do servidor.
-    const im=document.getElementById('edit-img');
-    const slideIdx=im?(Number(im.dataset.i||0)+1):1;
-    await JUMP.sb.from('ordens_servico').insert([{
+    const{error}=await JUMP.sb.from('ordens_servico').insert([{
       user_id:uid, de_agente:'usuario', para_agente:'criativo', tarefa:'criar_post',
       detalhe:'Ajuste da arte: '+motivo.slice(0,70), status:'pendente', total:1, progresso:0,
       payload:{ ids:[id], conteudo_id:id, ajuste:motivo, variacao:PCT_AJUSTE,
                 slide:slideIdx, recriacao:true, origem:'pedir_ajuste' }
     }]);
-    document.getElementById('modal-rej').classList.remove('show');
-    // dispara a execução no servidor (único caminho). Se falhar, o cron pega na próxima rodada.
-    try{ await JUMP.dispararFila(); }catch(e){}
-    JUMP.toast('✓ Pedido enviado ao Designer. Pode fechar a página — acompanhe em Tarefas.');
-    await recarregar();
+    if(error)throw error;
+  }catch(e){
+    JUMP.toast('Não consegui registrar o pedido: '+((e&&e.message)||'erro')+'. Tente novamente.','err');
     return;
-  }catch(e){JUMP.toast('Erro ao rejeitar','err')}
+  }
+  try{ document.getElementById('modal-rej').classList.remove('show'); }catch(e){}
+  // ── ETAPA 3: disparar a fila (falha aqui NÃO invalida o pedido — o cron recupera)
+  let disparou=false;
+  try{ const r=await JUMP.dispararFila(); disparou=!!r; }
+  catch(e){ console.warn('[ajuste] dispatcher indisponível:',e&&e.message); }
+  JUMP.toast(disparou
+    ? '✓ Pedido enviado ao Designer. Pode fechar a página — acompanhe em Tarefas.'
+    : '✓ Pedido registrado na Fila. A execução começa automaticamente em instantes.');
+  // ── ETAPA 4: atualizar a interface (falha aqui é só visual)
+  try{ await recarregar(); }
+  catch(e){ console.warn('[ajuste] refresh da lista falhou:',e&&e.message); }
 }
+
 </script>
 </body>
 </html>
