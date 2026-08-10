@@ -1,4 +1,7 @@
 /* JUMP OS — Core compartilhado das dashboards */
+/* VERSAO: bump obrigatório a cada alteração deste arquivo. O mesmo número vai no ?v= das páginas,
+   então o navegador é forçado a baixar o build novo (fim do "código certo, runtime antigo"). */
+window.JUMP_VERSAO='5';
 window.JUMP=(function(){
   /* ══ TEMA ══ */
   function hexRgb(h){h=h.replace('#','');return parseInt(h.substr(0,2),16)+','+parseInt(h.substr(2,2),16)+','+parseInt(h.substr(4,2),16)}
@@ -157,6 +160,14 @@ window.JUMP=(function(){
     if(!t){t=document.createElement('div');t.id='jump-toast';t.className='toast';document.body.appendChild(t)}
     t.textContent=msg;t.className='toast show'+(type==='err'?' err':'');
     clearTimeout(t._tm);t._tm=setTimeout(()=>t.className='toast',3600);
+  }
+
+  /* AUTO-DISPATCH: criar tarefa e disparar execução são o MESMO ato. Qualquer tela que insere
+     uma ordem chama isto — o worker do servidor produz na hora, sem PLAY e sem página aberta.
+     Se falhar, o cron pega a mesma ordem na próxima rodada (fallback, nunca perda). */
+  async function dispararFila(){
+    try{ const r=await authFetch('/api/cron?job=produzir_meu',{method:'POST'}); return await r.json().catch(()=>null); }
+    catch(e){ return null; }
   }
 
   /* Token sempre fresco: o SDK renova sozinho, então nunca reusar a "foto" velha do login. */
@@ -349,5 +360,6 @@ window.JUMP=(function(){
     return { id:'feed', label:'Feed', ico:'▣' };
   }
 
-  return{sb,guard,logout,toast,api,apiSilencioso,freshToken,authFetch,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
+  function diag(){const d={versao:window.JUMP_VERSAO,dispararFila:typeof dispararFila,authFetch:typeof authFetch,chaves:Object.keys(window.JUMP||{}).length};console.log('[JUMP] diagnóstico',d);return d;}
+  return{VERSAO:window.JUMP_VERSAO,diag,sb,guard,logout,toast,api,apiSilencioso,freshToken,authFetch,dispararFila,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
 })();
