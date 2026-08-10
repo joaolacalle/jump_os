@@ -941,7 +941,7 @@ const handler = async (req, res) => {
           return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
         }));
         // AUTO-DISPATCH pós-criação: a ordem nasce e a execução começa — sem depender de PLAY.
-        try{ const _b=process.env.VERCEL_URL?`https://${process.env.VERCEL_URL}`:''; 
+        try{ const _b=String(process.env.SITE_URL||(process.env.VERCEL_URL?`https://${process.env.VERCEL_URL}`:'')).replace(/\/+$/,''); // URL pública: VERCEL_URL é protegida
           if(_b&&process.env.CRON_SECRET) fetch(`${_b}/api/cron?job=produzir&secret=${process.env.CRON_SECRET}`,{method:'POST'}).catch(()=>{});
         }catch(e){}
       }catch(e){}

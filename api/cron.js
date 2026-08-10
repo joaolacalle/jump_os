@@ -541,8 +541,12 @@ module.exports = async (req, res) => {
 // condicional), então duas execuções nunca produzem a mesma arte duas vezes.
 // ═══════════════════════════════════════════════════════════════════════════════
 async function jobProduzir(soUid) {
-  const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : (process.env.SITE_URL || '');
-  if (!base || !process.env.CRON_SECRET) return { erro: 'sem VERCEL_URL/CRON_SECRET' };
+  // URL PÚBLICA E ESTÁVEL primeiro. VERCEL_URL aponta para o deployment específico, que fica sob
+  // Deployment Protection → a chamada server-to-server voltava 401 "Protected deployment" e a
+  // ordem morria em retry. SITE_URL já é a variável padrão do projeto (_email-lib, _video-lib).
+  const base = String(process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')).replace(/\/+$/, '');
+  if (!base || !process.env.CRON_SECRET) return { erro: 'sem SITE_URL/CRON_SECRET' };
+  const LOG = (o) => { try { console.log('[worker]', JSON.stringify(o)); } catch (e) {} }; // sem secrets
   let ordensFeitas = 0, artes = 0;
 
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
@@ -554,6 +558,7 @@ async function jobProduzir(soUid) {
       body: JSON.stringify({ status: 'processando', payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
     }).then(r => r.json()).catch(() => []);
     if (!Array.isArray(lock) || !lock.length) continue; // outro processo pegou antes
+    LOG({ etapa: 'lock', orderId: o.id, userId: o.user_id, tarefa: o.tarefa });
 
     // posts-alvo: os ids aprovados na semana, ou os rascunhos com copy pronta
     const ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : null;
@@ -630,10 +635,13 @@ async function jobProduzir(soUid) {
             headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
             cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
             // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
-            ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: 30, reload: true } : {}),
+            // preserva slide do carrossel e a intensidade escolhida (o dispatcher não pode perdê-los)
+            ...((o.payload && o.payload.slide) ? { slide: Number(o.payload.slide), total: Number((c.meta||{}).total_slides || (o.payload.total_slides||1)) } : {}),
+            ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: Number(o.payload.variacao || 30), reload: true } : {}),
           }),
         });
         const d = await r.json().catch(() => null);
+        LOG({ etapa: 'gerar-imagem', orderId: o.id, conteudoId: c.id, endpoint: '/api/gerar-imagem', status: r.status, ok: !!(d && (d.url || d.midia_url)) });
         if (!r.ok || !d || !(d.url || d.midia_url)) { erros.push({ tema: c.tema || 'post', motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
@@ -657,7 +665,7 @@ async function jobProduzir(soUid) {
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
       method: 'PATCH', headers: SBH(),
       body: JSON.stringify({
-        status: estadoFinal,
+        status: (LOG({ etapa: 'fim', orderId: o.id, tentativa: tent, feitos, total: posts.length, resultado: estadoFinal }), estadoFinal),
         progresso: feitos, total: posts.length, payload: pl,
         ...(feitos > 0 ? { concluida_em: new Date().toISOString() } : {}),
       }),
