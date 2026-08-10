@@ -547,6 +547,19 @@ async function jobProduzir(soUid) {
   const base = String(process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')).replace(/\/+$/, '');
   if (!base || !process.env.CRON_SECRET) return { erro: 'sem SITE_URL/CRON_SECRET' };
   const LOG = (o) => { try { console.log('[worker]', JSON.stringify(o)); } catch (e) {} }; // sem secrets
+  // ESTADO ATIVO ≠ HISTÓRICO. 'erros' é o erro ATIVO da ordem; ao iniciar uma nova tentativa ou
+  // ao concluir com sucesso, o erro da tentativa anterior sai do estado ativo e é ARQUIVADO em
+  // 'historico' (auditoria preservada). Sem isso, uma ordem concluída exibia erro fóssil.
+  const limparErroAtivo = (pl0) => {
+    const pl = { ...(pl0 || {}) };
+    if (Array.isArray(pl.erros) && pl.erros.length) {
+      const hist = Array.isArray(pl.historico) ? pl.historico.slice(-9) : [];
+      hist.push({ em: new Date().toISOString(), tentativa: Number(pl.tentativas || 0), erros: pl.erros });
+      pl.historico = hist;
+    }
+    delete pl.erros;
+    return pl;
+  };
   let ordensFeitas = 0, artes = 0;
 
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
@@ -555,7 +568,7 @@ async function jobProduzir(soUid) {
     // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
     const lock = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}&status=eq.pendente`, {
       method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ status: 'processando', payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
+      body: JSON.stringify({ status: 'processando', payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true } }),
     }).then(r => r.json()).catch(() => []);
     if (!Array.isArray(lock) || !lock.length) continue; // outro processo pegou antes
     LOG({ etapa: 'lock', orderId: o.id, userId: o.user_id, tarefa: o.tarefa });
@@ -591,7 +604,7 @@ async function jobProduzir(soUid) {
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
           body: JSON.stringify({ status: ok ? 'concluida' : 'erro', progresso: ok ? 1 : 0, total: 1,
-            payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: String((d && (d.error && (d.error.message||d.error))) || ('HTTP '+r.status)).slice(0,160) }] }) },
+            payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: String((d && (d.error && (d.error.message||d.error))) || ('HTTP '+r.status)).slice(0,160) }] }) },
             ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
         }).catch(() => {});
         if (ok) artes++;
@@ -650,14 +663,14 @@ async function jobProduzir(soUid) {
         feitos++; artes++;
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
-          body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true } }),
+          body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true } }),
         }).catch(() => {});
       } catch (e) { erros.push({ tema: c.tema || 'post', motivo: String(e && e.message || e).slice(0,160) }); }
     }
 
     const tent = Number((o.payload || {}).tentativas || 0) + (feitos > 0 ? 0 : 1);
-    const pl = { ...(o.payload || {}), batendo: new Date().toISOString(), worker: true, tentativas: tent };
-    if (erros.length) pl.erros = erros;
+    const pl = { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, tentativas: tent };
+    if (erros.length) pl.erros = erros;   // erro ATIVO só se ESTA tentativa falhou
     // RETRY COM LIMITE: falhou e ainda há tentativa? volta para a fila. Esgotou (3)? vira 'erro'
     // com o motivo visível — nunca fica preso em 'processando' nem some silenciosamente.
     const estadoFinal = feitos > 0 ? 'concluida'
@@ -789,7 +802,18 @@ async function jobOrdens() {
       if (!marca || (Date.now() - new Date(marca).getTime()) < LIMITE_MS) continue; // ainda viva: não encosta
       await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
         method: 'PATCH', headers: SBH(),
-        body: JSON.stringify({ status: 'pendente', payload: { ...(o.payload || {}), batendo: null, resgatada_em: new Date().toISOString() } }),
+        // mesma regra: ao devolver para a fila, o erro da tentativa anterior sai do estado ATIVO
+        // e é arquivado em 'historico' (auditoria preservada).
+        body: JSON.stringify({ status: 'pendente', payload: (() => {
+          const pl = { ...(o.payload || {}) };
+          if (Array.isArray(pl.erros) && pl.erros.length) {
+            const h = Array.isArray(pl.historico) ? pl.historico.slice(-9) : [];
+            h.push({ em: new Date().toISOString(), tentativa: Number(pl.tentativas || 0), erros: pl.erros });
+            pl.historico = h;
+          }
+          delete pl.erros;
+          return { ...pl, batendo: null, resgatada_em: new Date().toISOString() };
+        })() }),
       }).catch(() => {});
       orfas++;
     }

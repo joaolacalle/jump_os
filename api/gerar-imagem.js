@@ -685,6 +685,11 @@ module.exports = async (req, res) => {
       ok: true,
       url: publicUrl || ('data:image/png;base64,' + b64),
       path: publicUrl ? fileName : null,
+      // METADADOS DE AUDITORIA: tornam o resultado auto-descritivo ("gerei ESTA imagem para ESTE
+      // conteúdo e ESTE slide, com ESTA engine"). orderId não existe neste escopo — o worker já o tem.
+      conteudo_id: conteudo_id || null,
+      slide: (slide != null ? Number(slide) : null),
+      engine: '6.0',
       usadas: uso.imagens, limite: lim.imagens || 0, reloads_usados: uso.reloads||0, reloads_limite: lim.reloads||0,
       aviso: publicUrl ? undefined : 'base64'
     });
