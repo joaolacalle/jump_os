@@ -659,7 +659,7 @@ async function verificarOrdens(alvo){
           '<button class="btn btn-o btn-sm" title="Atender esta agora" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
       }).join('')+'</div>';
       acao=(semanais.length?'<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>':'')
-        +(avulsas.length?' <button class="btn btn-'+(semanais.length?'o':'g')+' btn-sm" onclick="executarOrdens(this)">⚡ Atender '+(avulsas.length>1?'os pedidos':'o pedido')+'</button>':'');
+        +(avulsas.length?' <span style="font-family:var(--M);font-size:10.5px;color:var(--t3)">⏳ execução automática em andamento</span>':'');
     }else{
       const consult=naturezaDe(alvo)==='consultoria';
       // BOTÃO POR ORDEM: antes era tudo-ou-nada — um pedido seu ficava preso atrás do lote.
@@ -671,7 +671,9 @@ async function verificarOrdens(alvo){
           '<button class="btn btn-o btn-sm" title="'+(consult?'Atender esta agora':'Executar só esta')+'" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
       }).join('')+'</div>';
       // consultoria ATENDE (responde na conversa); produção EXECUTA (gera artefato)
-      acao='<button class="btn btn-g btn-sm" onclick="executarOrdens(this)">'
+      // EXECUÇÃO AUTOMÁTICA: o dispatcher já executa sozinho. O botão manual foi retirado da
+      // interface para não sugerir que o usuário precisa agir (a função segue disponível).
+      acao='<button class="btn btn-g btn-sm" style="display:none" onclick="executarOrdens(this)">'
         +(consult?'💬 Atender '+(ords.length>1?'todas':'agora'):'⚡ Executar todas')+'</button>';
     }
     box.innerHTML='📨 <b>Você tem '+ords.length+' ordem(ns) pendente(s)</b>'+corpo+acao;
