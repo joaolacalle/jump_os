@@ -550,6 +550,19 @@ async function jobProduzir(soUid) {
   // ESTADO ATIVO ≠ HISTÓRICO. 'erros' é o erro ATIVO da ordem; ao iniciar uma nova tentativa ou
   // ao concluir com sucesso, o erro da tentativa anterior sai do estado ativo e é ARQUIVADO em
   // 'historico' (auditoria preservada). Sem isso, uma ordem concluída exibia erro fóssil.
+  // SLIDES PENDENTES (retomada): um carrossel é 1 conteúdo com N slides em meta.slides[].
+  // Retorna só os que ainda NÃO foram persistidos — assim o retry nunca regera o que já existe.
+  const slidesFaltantes = (c, slidePedido) => {
+    const meta = c.meta || {};
+    const tot = Math.max(1, Number(meta.total_slides || 1));
+    if (slidePedido) return { tot, faltam: [Number(slidePedido)] };      // AJUSTE: só aquele slide
+    if (tot <= 1) return { tot: 1, faltam: c.midia_url ? [] : [1] };     // imagem única: como hoje
+    const feitosN = new Set((Array.isArray(meta.slides) ? meta.slides : []).map(x => Number(x && x.n)));
+    if (c.midia_url) feitosN.add(1);                                      // capa vive em midia_url
+    const faltam = [];
+    for (let n = 1; n <= tot; n++) if (!feitosN.has(n)) faltam.push(n);
+    return { tot, faltam };
+  };
   const limparErroAtivo = (pl0) => {
     const pl = { ...(pl0 || {}) };
     if (Array.isArray(pl.erros) && pl.erros.length) {
@@ -579,7 +592,7 @@ async function jobProduzir(soUid) {
     // ajuste não encontra nada. O resultado sobrescreve o MESMO registro (sem card novo).
     const ehRecriacao = !!(o.payload && (o.payload.ajuste || o.payload.recriacao));
     const q = ids && ids.length
-      ? `conteudos?id=in.(${ids.join(',')})${ehRecriacao ? '' : '&midia_url=is.null'}&select=id,tema,copy,formato,tipo_visual,meta`
+      ? `conteudos?id=in.(${ids.join(',')})&select=id,tema,copy,formato,tipo_visual,meta,midia_url`
       : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
     // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
     //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
@@ -631,12 +644,17 @@ async function jobProduzir(soUid) {
     posts = (Array.isArray(posts) ? posts : []).filter(c => {
       const f = String(c.formato || 'feed').toLowerCase();
       const temCopy = (ehBrief || ehRecriacao) ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
-      return temCopy && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
+      // já completo? (imagem única com arte, ou carrossel com todos os slides) → fora
+      const pend = slidesFaltantes(c, (o.payload || {}).slide).faltam.length > 0;
+      return temCopy && pend && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
     });
 
     let feitos = 0; const erros = [];
+    let faltamNoFim = 0;                    // slides que continuaram pendentes nesta rodada
     for (const c of posts) {
       const m = c.meta || {};
+      const alvo = slidesFaltantes(c, (o.payload || {}).slide);
+      for (const nSlide of alvo.faltam) {    // carrossel: 1..N | ajuste: só o slide pedido
       try {
         const r = await fetch(`${base}/api/gerar-imagem`, {
           method: 'POST',
@@ -648,24 +666,29 @@ async function jobProduzir(soUid) {
             headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
             cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
             // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
-            // preserva slide do carrossel e a intensidade escolhida (o dispatcher não pode perdê-los)
-            ...((o.payload && o.payload.slide) ? { slide: Number(o.payload.slide), total: Number((c.meta||{}).total_slides || (o.payload.total_slides||1)) } : {}),
+            // cada geração carrega o slide e o total — gravarSlide monta meta.slides[] com isso
+            slide: nSlide, total: alvo.tot,
             ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: Number(o.payload.variacao || 30), reload: true } : {}),
           }),
         });
         const d = await r.json().catch(() => null);
         LOG({ etapa: 'gerar-imagem', orderId: o.id, conteudoId: c.id, endpoint: '/api/gerar-imagem', status: r.status, ok: !!(d && (d.url || d.midia_url)) });
-        if (!r.ok || !d || !(d.url || d.midia_url)) { erros.push({ tema: c.tema || 'post', motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
+        if (!r.ok || !d || !(d.url || d.midia_url)) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
-          body: JSON.stringify(ehRecriacao ? { midia_url: (d.url||d.midia_url) } : { midia_url: (d.url||d.midia_url), status: 'aguardando_aprovacao' }),
+          // só o slide 1 (capa) escreve midia_url aqui; os demais já foram gravados em
+          // meta.slides[] pelo gravarSlide() do gerar-imagem (mecanismo existente, não duplicado)
+          body: JSON.stringify(nSlide === 1
+            ? (ehRecriacao ? { midia_url: (d.url||d.midia_url) } : { midia_url: (d.url||d.midia_url), status: 'aguardando_aprovacao' })
+            : (ehRecriacao ? {} : { status: 'aguardando_aprovacao' })),
         }).catch(() => {});
         feitos++; artes++;
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
           body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true } }),
         }).catch(() => {});
-      } catch (e) { erros.push({ tema: c.tema || 'post', motivo: String(e && e.message || e).slice(0,160) }); }
+      } catch (e) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: String(e && e.message || e).slice(0,160) }); }
+      }
     }
 
     const tent = Number((o.payload || {}).tentativas || 0) + (feitos > 0 ? 0 : 1);
@@ -673,8 +696,11 @@ async function jobProduzir(soUid) {
     if (erros.length) pl.erros = erros;   // erro ATIVO só se ESTA tentativa falhou
     // RETRY COM LIMITE: falhou e ainda há tentativa? volta para a fila. Esgotou (3)? vira 'erro'
     // com o motivo visível — nunca fica preso em 'processando' nem some silenciosamente.
-    const estadoFinal = feitos > 0 ? 'concluida'
-      : (!posts.length ? 'concluida' : (tent < 3 ? 'pendente' : 'erro'));
+    // FALHA PARCIAL: carrossel só é 'concluida' se TODOS os slides saíram. Se faltou algum,
+    // volta para a fila (retry) e a retomada gera apenas o que falta — nunca o que já existe.
+    const estadoFinal = (!posts.length) ? 'concluida'
+      : (faltamNoFim === 0 && feitos > 0) ? 'concluida'
+      : (tent < 3 ? 'pendente' : 'erro');
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
       method: 'PATCH', headers: SBH(),
       body: JSON.stringify({
