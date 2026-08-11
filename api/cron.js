@@ -651,6 +651,10 @@ async function jobProduzir(soUid) {
 
     let feitos = 0; const erros = [];
     let faltamNoFim = 0;                    // slides que continuaram pendentes nesta rodada
+    // UNIDADES EXPLÍCITAS: 'feitos' conta SLIDES, então 'total' também precisa contar SLIDES.
+    // Antes total = nº de conteúdos e o painel exibia "9/2". Agora: content_count vs slide_count.
+    const contentCount = posts.length;
+    const slideCount = posts.reduce((acc, c) => acc + slidesFaltantes(c, (o.payload || {}).slide).faltam.length, 0);
     for (const c of posts) {
       const m = c.meta || {};
       const alvo = slidesFaltantes(c, (o.payload || {}).slide);
@@ -685,14 +689,14 @@ async function jobProduzir(soUid) {
         feitos++; artes++;
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
-          body: JSON.stringify({ progresso: feitos, total: posts.length, payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true } }),
+          body: JSON.stringify({ progresso: feitos, total: slideCount, payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, content_count: contentCount, slide_count: slideCount, completed_slide_count: feitos } }),
         }).catch(() => {});
       } catch (e) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: String(e && e.message || e).slice(0,160) }); }
       }
     }
 
     const tent = Number((o.payload || {}).tentativas || 0) + (feitos > 0 ? 0 : 1);
-    const pl = { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, tentativas: tent };
+    const pl = { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, tentativas: tent, content_count: contentCount, slide_count: slideCount, completed_slide_count: feitos };
     if (erros.length) pl.erros = erros;   // erro ATIVO só se ESTA tentativa falhou
     // RETRY COM LIMITE: falhou e ainda há tentativa? volta para a fila. Esgotou (3)? vira 'erro'
     // com o motivo visível — nunca fica preso em 'processando' nem some silenciosamente.
@@ -704,8 +708,8 @@ async function jobProduzir(soUid) {
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
       method: 'PATCH', headers: SBH(),
       body: JSON.stringify({
-        status: (LOG({ etapa: 'fim', orderId: o.id, tentativa: tent, feitos, total: posts.length, resultado: estadoFinal }), estadoFinal),
-        progresso: feitos, total: posts.length, payload: pl,
+        status: (LOG({ etapa: 'fim', orderId: o.id, tentativa: tent, conteudos: contentCount, slides: slideCount, feitos, resultado: estadoFinal }), estadoFinal),
+        progresso: feitos, total: slideCount, payload: pl,
         ...(feitos > 0 ? { concluida_em: new Date().toISOString() } : {}),
       }),
     }).catch(() => {});

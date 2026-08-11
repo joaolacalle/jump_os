@@ -1012,12 +1012,18 @@ const handler = async (req, res) => {
           const lim=new Date(Date.now()+7*864e5).toISOString();
           const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
           const imgs=(Array.isArray(wk)?wk:[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
-          const ja=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=in.(pendente,processando)&select=id&limit=1`);
-          if(imgs.length&&!(Array.isArray(ja)&&ja.length)){
+          // CONTRATO ÚNICO DE ORDEM: toda produção visual carrega payload.ids. Sem isso o backstop
+          // não enxergava o que esta ordem já cobre e criava uma SEGUNDA ordem para os mesmos
+          // conteúdos (causa da duplicidade). Dedup passa a ser POR CONTEÚDO, nunca global.
+          const abertasW=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id,payload`);
+          const naFilaW=new Set();
+          (Array.isArray(abertasW)?abertasW:[]).forEach(o=>{((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naFilaW.add(String(x)))});
+          const idsW=imgs.map(c=>c.id).filter(x=>!naFilaW.has(String(x)));
+          if(idsW.length){
             await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
               method:'POST',headers:H(),
-              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+imgs.length+' imagem(ns))',status:'pendente',total:imgs.length,progresso:0,
-              payload:{periodo:'Semana '+Math.ceil(new Date().getDate()/7)+' · '+new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}})
+              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+idsW.length+' imagem(ns))',status:'pendente',total:idsW.length,progresso:0,
+              payload:{ids:idsW,periodo:'Semana '+Math.ceil(new Date().getDate()/7)+' · '+new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}})
             }).catch(()=>{});
           }
         }catch(e){}
