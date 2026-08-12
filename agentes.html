@@ -1043,7 +1043,10 @@ async function executarLoteCriativos(uid,ordem){
     const _fmt=String(c.formato||'feed').toLowerCase();
     const _ehCarr=(_fmt.indexOf('carrossel')>=0||_fmt.indexOf('carousel')>=0)&&Number(meta.total_slides||0)>1;
     if(_ehCarr){
-      const _n=Math.min(10,Math.max(2,Number(meta.total_slides)||4));
+      // CARDINALIDADE VEM DO CONTEÚDO — sem default. Antes havia "||4", que inventava 4 slides
+      // quando total_slides faltava. A guarda de _ehCarr acima já exige total_slides>1, então
+      // aqui o valor é sempre o declarado pelo conteúdo (teto de 10 mantido por segurança).
+      const _n=Math.min(10,Number(meta.total_slides));
       const _slides=[]; let _cotaFim=false;
       for(let s=1;s<=_n;s++){
         if(PARAR){break}

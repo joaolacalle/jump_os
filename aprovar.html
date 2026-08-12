@@ -207,6 +207,14 @@ textarea.edt{resize:vertical;line-height:1.5}
 .pct-b b{font-family:var(--M);font-size:14px;color:var(--g);flex-shrink:0;min-width:42px}
 .pct-b span{font-size:12.5px;color:var(--t2);line-height:1.45}
 </style>
+<style>
+/* CARD VENCIDO: data/hora de postagem já passou e ainda aguarda aprovação. Apenas indicação
+   VISUAL — não altera status, publicação, ordem nem banco. */
+.ap-card.venc .ap-img,.ap-card.venc img{filter:grayscale(1);opacity:.62;transition:.2s}
+.ap-card.venc:hover .ap-img,.ap-card.venc:hover img{filter:grayscale(.35);opacity:.9}
+.ap-venc-tag{display:inline-block;font-family:var(--M);font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  color:#f0b53f;background:rgba(240,181,63,.12);border:1px solid rgba(240,181,63,.34);border-radius:99px;padding:2px 8px;margin-top:5px}
+</style>
 </head>
 <body>
 <div class="grain"></div>
@@ -275,7 +283,10 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
     if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
     try{
       const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao']).order('created_at',{ascending:false});
-      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao');
+      // ORDEM CRONOLÓGICA DE POSTAGEM: quem publica primeiro aparece primeiro. created_at só
+      // desempata (a publicação continua sendo regida pelo jobPublicar, não por esta ordem).
+      const _qd=c=>{const d=c.data_agendada||c.data_sugerida;return d?new Date(String(d).length<=10?(d+'T09:00:00'):d).getTime():Infinity};
+      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao').sort((a,b)=>_qd(a)-_qd(b));
       // A ARTE VEM DEPOIS DA COPY. Sem copy/headline a arte sai vazia e o card fica sem legenda.
       RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
         &&(c.copy&&String(c.copy).trim())&&(((c.meta||{}).headline||'').trim()));
@@ -508,7 +519,10 @@ function render(){
     const tp=JUMP.tipoPeca(c);
     const ico=tp.ico;
     const sl=JUMP.slidesDe(c);
-    return `<div class="ap-card ap-card-mini" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
+    // VENCIDO (visual apenas): data/hora de postagem já passou e ainda aguarda aprovação.
+    const _dt=c.data_agendada||c.data_sugerida;
+    const _venc=_dt?(new Date(String(_dt).length<=10?(_dt+'T09:00:00'):_dt).getTime()<Date.now()):false;
+    return `<div class="ap-card ap-card-mini${_venc?' venc':''}" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
       <div class="ap-img" style="position:relative">${sl.length?`<img src="${sl[0]}" alt="">`:ico}
         <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
         ${sl.length>1?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">▤ ${sl.length}</span>`:''}
