@@ -3,6 +3,19 @@
 
 
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+
+// CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
+// Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
+// de forma ambígua. Contrato: feed|story|reels => 1 · carrossel => 2..10 declarado na tag.
+function cardinalidade(ct){
+  const fmt = String((ct && ct.formato) || 'feed').toLowerCase();
+  if (!/carrossel|carousel/.test(fmt)) return 1;
+  const n = Number(ct && ct.slides);
+  if (!Number.isFinite(n) || n < 2 || n > 10) {
+    throw new Error('Carrossel sem quantidade de slides definida (informe "slides" entre 2 e 10).');
+  }
+  return Math.floor(n);
+}
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // A Estratégia é a tarefa mais complexa do sistema: pode usar um modelo mais forte.
@@ -185,8 +198,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","slides":4,"avulso":false}</conteudo>
-Para formato "carrossel", inclua "slides" com o NÚMERO de imagens do carrossel (4 a 7; capa + demais em ordem). ATENÇÃO À COTA: cada slide consome 1 imagem do plano — um carrossel de 5 gasta 5 do total de artes. Conte TODOS os slides ao respeitar o limite do bloco COTA E CAPACIDADE. Para os outros formatos, não use "slides".
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO À COTA: cada slide consome 1 imagem do plano — um carrossel de 5 gasta 5 do total de artes. Conte TODOS os slides ao respeitar o limite do bloco COTA E CAPACIDADE. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
 Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
 → "avulso":true (peça específica, vai direto para a arte, SEM aprovação de calendário) quando:
@@ -1038,6 +1051,13 @@ const handler = async (req, res) => {
         // pro Designer. Antes o avulso caía no portão do plano, ficava 'proposto', o backstop não
         // o via (só buscava rascunho/aprovado) e a ordem NUNCA saía — o bug do print do João.
         const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':((agente==='estrategia'&&!ct.avulso)?'proposto':'rascunho');
+        // Contrato de cardinalidade: peça inválida (ex.: carrossel sem "slides") NÃO é gravada
+        // e NÃO derruba as demais — vira aviso rastreável em vez de produção ambígua.
+        const invalidos=[];
+        for(let i=conteudos.length-1;i>=0;i--){
+          try{ cardinalidade(conteudos[i]); }
+          catch(e){ invalidos.push(String((conteudos[i]&&conteudos[i].tema)||'peça')+': '+e.message); conteudos.splice(i,1); }
+        }
         const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
           method:'POST',headers:H(),
           body:JSON.stringify({
@@ -1046,12 +1066,15 @@ const handler = async (req, res) => {
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, ...(/carrossel|carousel/i.test(String(ct.formato||''))?{total_slides:Math.min(10,Math.max(2,Number(ct.slides)||4))}:{})}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct)}
           })
         }).catch(()=>null)));
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
         // engolido e o agente dizia que tinha salvo — calendário vazio, ninguém entendia).
         const falhas=rs.filter(r=>!r||!r.ok);
+        if(invalidos.length){
+          erroGravacao=(erroGravacao?erroGravacao+' · ':'')+invalidos.length+' peça(s) não gravada(s) por contrato inválido: '+invalidos.slice(0,3).join(' · ');
+        }
         if(falhas.length){
           let motivo='';
           try{const j=await falhas[0].json();motivo=j.message||j.hint||j.details||''}catch(e){}
