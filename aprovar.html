@@ -500,6 +500,14 @@ async function aprovarProposta(id,tarefa,btn){
     location.reload();
   }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}}
 }
+// Comparação temporal em America/Sao_Paulo nos DOIS lados (o conteúdo é gravado nessa referência).
+function _msSP(d){
+  const s=String(d||''); if(!s)return NaN;
+  // 'YYYY-MM-DD' → assume 09:00 (mesmo fallback já usado na ordenação)
+  const iso=(s.length<=10?(s+'T09:00:00'):s);
+  return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)?iso:(iso+'-03:00')).getTime();
+}
+function _agoraSP(){ return Date.now(); }   // instante absoluto: comparável ao ms acima
 function render(){
   const _tot=ITENS.length+ESTRATEGIAS.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
   const g=document.getElementById('ap-grid');
@@ -521,7 +529,11 @@ function render(){
     const sl=JUMP.slidesDe(c);
     // VENCIDO (visual apenas): data/hora de postagem já passou e ainda aguarda aprovação.
     const _dt=c.data_agendada||c.data_sugerida;
-    const _venc=_dt?(new Date(String(_dt).length<=10?(_dt+'T09:00:00'):_dt).getTime()<Date.now()):false;
+    // VENCIDO (só apresentação): 3 condições — (1) ainda aguarda ação do usuário,
+    // (2) tem data válida, (3) a data/hora já passou em America/Sao_Paulo (mesma referência
+    // dos dois lados). Estados terminais (aprovado, publicado, rejeitado...) NUNCA recebem P&B.
+    const _aguardaAcao=(c.status==='aguardando_aprovacao');
+    const _venc=(_aguardaAcao&&_dt)?(_msSP(_dt)<_agoraSP()):false;
     return `<div class="ap-card ap-card-mini${_venc?' venc':''}" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
       <div class="ap-img" style="position:relative">${sl.length?`<img src="${sl[0]}" alt="">`:ico}
         <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
