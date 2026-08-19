@@ -470,6 +470,11 @@ const handler = async (req, res) => {
   if (req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
 
   try {
+    // CAMADA 1 — GUARDA EM MEMÓRIA por REQUISIÇÃO (corpo do handler, nível 1): conteúdos já
+    // atendidos por um criador de produção nesta requisição. Fica aqui porque precisa envolver
+    // TODOS os criadores (que vivem em blocos irmãos) e morrer com a requisição — em escopo de
+    // módulo sobreviveria entre chamadas e passaria a pular conteúdos para sempre.
+    const atendidosNestaReq = new Set();
     // Auth
     const jwt=(req.headers.authorization||'').replace('Bearer ','');
     if(!jwt) return res.status(401).json({error:'Não autenticado'});
@@ -1031,15 +1036,18 @@ const handler = async (req, res) => {
           const abertasW=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id,payload`);
           const naFilaW=new Set();
           (Array.isArray(abertasW)?abertasW:[]).forEach(o=>{((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naFilaW.add(String(x)))});
-          const idsW=imgs.map(c=>c.id).filter(x=>!naFilaW.has(String(x)));
+          const idsW=imgs.map(c=>c.id).filter(x=>!naFilaW.has(String(x))&&!atendidosNestaReq.has(String(x)));
           if(idsW.length){
-            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+            idsW.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
+            const _okW=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
               method:'POST',headers:H(),
               body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+idsW.length+' imagem(ns))',status:'pendente',total:idsW.length,progresso:0,
               payload:{ids:idsW,periodo:'Semana '+Math.ceil(new Date().getDate()/7)+' · '+new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}})
-            }).catch(()=>{});
+            }).then(r=>r.ok).catch(e=>{console.error('[ordem] INSERT criador semanal falhou:',e&&e.message);return false;});
+            // INSERT falhou → libera os ids, senão o conteúdo ficaria sem ordem nenhuma
+            if(!_okW){ idsW.forEach(x=>atendidosNestaReq.delete(String(x))); console.error('[ordem] criador semanal: ids liberados para novo criador'); }
           }
-        }catch(e){}
+        }catch(e){ console.error('[ordem] criador semanal falhou:', e && (e.message||e)); }
       }
     }
 
@@ -1109,14 +1117,17 @@ const handler = async (req, res) => {
             const ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[];
             ids.forEach(x=>jaNaFila.add(String(x)));
           });
-          const novos=idsPend.filter(x=>!jaNaFila.has(String(x)));
+          // CAMADA 1: além do banco, respeita o que já foi atendido nesta mesma requisição
+          const novos=idsPend.filter(x=>!jaNaFila.has(String(x))&&!atendidosNestaReq.has(String(x)));
           if(novos.length){
-            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+            novos.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
+            const _okB=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
               method:'POST',headers:H(),
               body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:'criativo',tarefa:'criar_post',
                 detalhe:'Criar '+novos.length+' arte(s) pendente(s)',status:'pendente',total:novos.length,progresso:0,
                 payload:{origem:'backstop',ids:novos}})
-            }).catch(()=>{});
+            }).then(r=>r.ok).catch(e=>{console.error('[ordem] INSERT backstop falhou:',e&&e.message);return false;});
+            if(!_okB){ novos.forEach(x=>atendidosNestaReq.delete(String(x))); console.error('[ordem] backstop: ids liberados'); }
             notaBackstop='🎨 '+novos.length+' arte(s) enviada(s) ao Designer automaticamente.';
           }
         }
