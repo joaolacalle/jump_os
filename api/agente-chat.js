@@ -974,11 +974,16 @@ const handler = async (req, res) => {
     // ═══ AUTO-REPARO (Estratégia): se o agente DESCREVEU o plano mas não emitiu nenhuma tag
     //     <conteudo>, o calendário ficaria vazio e ele "diria" que salvou. Em vez de confiar,
     //     pedimos SOMENTE as tags numa segunda passada. Fim da falha silenciosa. ═══
-    // Intenção de registrar conteúdo sem ter emitido <conteudo>: dispara o reparo.
-    // Cobre plano mensal E avulso ('conteúdo avulso', 'esse post', 'a arte vai aparecer em
-    // aprovações') — vocabulário-independente: é a AÇÃO prometida sem a TAG.
-    const prometeuConteudo=/calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|\blote\b|conte[úu]do avulso|avulso|esse post|este post|a arte vai aparecer|apareç?er[áa]? em aprova|enviei ao designer|ordem foi enviada|vai para aprova/i.test(texto);
-    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo){
+    // GATILHO PROSPECTIVO APENAS. A regex anterior casava com linguagem RETROSPECTIVA
+    // ('esse post', 'avulso', 'a arte vai aparecer', 'vai para aprova'): ao comentar uma peça
+    // JÁ produzida, o reparo disparava, o modelo reemitia a mesma peça e nascia conteúdo novo
+    // com imagem nova. Ficam só os termos que descrevem um PLANO sendo proposto agora.
+    const prometeuConteudo=/calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|\blote\b/i.test(texto);
+    // O auto-reparo cobre a falha silenciosa do PLANO MENSAL (calendário vazio sem o usuário
+    // perceber). Um avulso não tem essa falha: a arte aparece ou o usuário vê que não apareceu.
+    // Era justamente ali que o mecanismo mais errava — fica de fora.
+    const pedidoAvulso=/avulso|uma arte|um post|um criativo|promo(ção|cao)|esse post|este post/i.test(String(mensagem||''));
+    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo && !pedidoAvulso){
       try{
         const r2=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
