@@ -485,17 +485,35 @@ async function aprovarProposta(id,tarefa,btn){
     }else{
       // MENSAL = mapa macro: entra no calendário e libera a Semana 1 (não produz nada ainda)
       await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
-      await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      // A1/A3 — antes este UPDATE não checava erro: em caso de falha o código seguia como se
+      // tivesse fechado a ordem, mostrava sucesso e recarregava — o usuário via "aprovado!" e o
+      // card continuava preso em Aprovações, sem nenhum aviso do motivo.
+      const{error:errConcluir}=await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      if(errConcluir)console.error('[aprovar_estrategia] update concluida falhou:',errConcluir);
       if(btn)btn.textContent='Preparando a Semana 1...';
-      try{const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-        if(tk)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da SEMANA 1 do calendário. Não gere artes ainda. Faça direto, sem perguntar nada.'})});
-      }catch(e){}
+      // DIAGNÓSTICO (não é retry): antes essa chamada era fire-and-forget, sem log nem aviso — se
+      // falhasse, o usuário nunca sabia que precisava abrir a Estratégia manualmente. Agora só
+      // detectamos e avisamos; nenhuma nova tentativa automática é adicionada aqui.
+      let falhouAutoDetalhe=false;
+      try{
+        const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
+        if(tk){
+          const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da SEMANA 1 do calendário. Não gere artes ainda. Faça direto, sem perguntar nada.'})});
+          if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
+        }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
+      }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
       // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
       const lim=new Date(Date.now()+8*864e5).toISOString().slice(0,10);
       const{data:sem1}=await JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).lte('data_sugerida',lim).order('data_sugerida',{ascending:true});
       const ids=(sem1||[]).filter(c=>c.copy&&String(c.copy).trim()).map(c=>c.id);
       if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'usuario',tarefa:'aprovar_semana',detalhe:'Aprovar a Semana 1 ('+ids.length+' post(s))',status:'aguardando_aprovacao',total:ids.length,progresso:0,payload:{ids}}]);
-      JUMP.toast(ids.length?'✓ Planejamento aprovado! A Semana 1 está pronta para sua aprovação.':'✓ Planejamento aprovado! A Semana 1 será liberada em instantes.');
+      if(errConcluir){
+        JUMP.toast('O plano entrou no calendário, mas não consegui fechar esta aprovação (erro ao salvar). Atualize a página — se o cartão continuar aqui, avise o suporte.','err');
+      }else if(falhouAutoDetalhe){
+        JUMP.toast('✓ Planejamento aprovado! ⚠️ Não consegui iniciar a copy da Semana 1 automaticamente — abra o Agente de Estratégia e clique em "Escrever a copy da semana" para destravar as artes.','err');
+      }else{
+        JUMP.toast(ids.length?'✓ Planejamento aprovado! A Semana 1 está pronta para sua aprovação.':'✓ Planejamento aprovado! A Semana 1 será liberada em instantes.');
+      }
     }
     location.reload();
   }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}}

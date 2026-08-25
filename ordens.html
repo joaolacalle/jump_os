@@ -208,14 +208,31 @@ async function aprovarOrdem(id,btn){
       // AUTO-PRODUÇÃO: aprovou a estratégia → a Estratégia escreve a copy da semana e dispara as
       // artes SOZINHA (em background). A tarefa "detalhar_semana" fica visível como fallback manual
       // caso o disparo falhe, e o cron gera as artes do criar_post → elas caem nos cards do Aprovar.
+      // DIAGNÓSTICO (não é retry): antes essa chamada era fire-and-forget, sem log nem aviso — se
+      // falhasse, o usuário nunca sabia que precisava abrir a Estratégia manualmente. Agora só
+      // detectamos e avisamos; nenhuma nova tentativa automática é adicionada aqui.
+      let falhouAutoDetalhe=false;
       try{
         const tkAuto=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-        if(tkAuto)await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkAuto},
-          body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer (crie a ordem criar_post). Faça direto, sem perguntar nada.'})});
-      }catch(e){}
-      await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
-      JUMP.toast('✓ Estratégia aprovada! Está no calendário.');
-      try{JUMPGUIA.dica('estrategia_aprovada','Pronto! O mês está no calendário. Estou escrevendo a copy da semana e gerando as artes automaticamente — em instantes elas aparecem no <b>Aprovar</b> para você aprovar.','Estratégia aprovada')}catch(e){}
+        if(tkAuto){
+          const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkAuto},
+            body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora a copy e os roteiros dos posts da SEMANA ATUAL e dispare as artes para o Designer (crie a ordem criar_post). Faça direto, sem perguntar nada.'})});
+          if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
+        }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
+      }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
+      // A1/A3 — antes este UPDATE não checava erro: em caso de falha o código seguia como se
+      // tivesse fechado a ordem, mostrava sucesso e recarregava — o usuário via "aprovado!" e a
+      // tarefa continuava presa em Aprovações/Tarefas de Serviço, sem nenhum aviso do motivo.
+      const{error:errConcluir}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
+      if(errConcluir){
+        console.error('[aprovar_estrategia] update concluida falhou:',errConcluir);
+        JUMP.toast('O plano entrou no calendário, mas não consegui fechar esta aprovação (erro ao salvar). Atualize a página — se a tarefa continuar aqui, avise o suporte.','err');
+      }else if(falhouAutoDetalhe){
+        JUMP.toast('✓ Estratégia aprovada! Está no calendário. ⚠️ Não consegui iniciar a copy da semana automaticamente — abra o Agente de Estratégia e clique em "Escrever a copy da semana" para destravar as artes.','err');
+      }else{
+        JUMP.toast('✓ Estratégia aprovada! Está no calendário.');
+        try{JUMPGUIA.dica('estrategia_aprovada','Pronto! O mês está no calendário. Estou escrevendo a copy da semana e gerando as artes automaticamente — em instantes elas aparecem no <b>Aprovar</b> para você aprovar.','Estratégia aprovada')}catch(e){}
+      }
       await carregar();
       return;
     }
