@@ -422,6 +422,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=5"></script>
+<script src="assets/classificacao.js?v=1"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -961,7 +962,8 @@ async function executarLoteCriativos(uid,ordem){
     pend=r.data;
   }
   // O Designer só faz IMAGEM: reels/vídeo ficam com o cliente (upload) e não entram no lote.
-  pend=(pend||[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
+  // Fonte única (assets/classificacao.js) — Fase 1, 25/ago/2026.
+  pend=(pend||[]).filter(c=>!JUMP_CLASS.ehMaterialUsuario(c));
   // A ARTE VEM DEPOIS DA COPY: sem headline/copy a arte sai vazia (o tema inteiro viraria a headline).
   const semCopy=pend.filter(c=>!(c.copy&&String(c.copy).trim())||!((c.meta&&c.meta.headline)||'').trim());
   pend=pend.filter(c=>(c.copy&&String(c.copy).trim())&&((c.meta&&c.meta.headline)||'').trim());

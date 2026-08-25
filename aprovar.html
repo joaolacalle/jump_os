@@ -272,6 +272,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=5"></script>
+<script src="assets/classificacao.js?v=1"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
 (async()=>{
@@ -475,7 +476,20 @@ async function aprovarProposta(id,tarefa,btn){
   try{
     await salvarEdicoesProposta();
     if(semanal){
-      const ids=(ESTRATEGIAS.find(o=>o.id===id)||{}).payload?.ids||[];
+      let ids=(ESTRATEGIAS.find(o=>o.id===id)||{}).payload?.ids||[];
+      // DEFESA (Fase 1, 25/ago/2026 — plano "Trilha de material do usuário"): mesmo que a
+      // Semana 1 já tenha sido filtrada na origem (ver sem1, abaixo), este é o último ponto
+      // antes da ordem de produção nascer — confere de novo com a fonte única
+      // (assets/classificacao.js), nunca confia cegamente no payload recebido.
+      if(ids.length){
+        try{
+          const{data:chk}=await JUMP.sb.from('conteudos').select('id,formato').in('id',ids);
+          // emValidacao (25/ago/2026): fecha a 3ª das 3 portas de produção automática — quarentena
+          // de story também aqui, não só no backstop e no criador semanal.
+          const bloqueados=(chk||[]).filter(c=>JUMP_CLASS.ehMaterialUsuario(c)||JUMP_CLASS.emValidacao(c)).map(c=>c.id);
+          if(bloqueados.length)ids=ids.filter(x=>!bloqueados.includes(x));
+        }catch(e){console.error('[aprovar_semana] checagem de material do usuário falhou, seguindo com os ids originais:',e&&e.message);}
+      }
       if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
       // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
       // precisa abrir nada — se a página cair, o cron retoma a mesma ordem.
@@ -503,8 +517,23 @@ async function aprovarProposta(id,tarefa,btn){
         }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
       }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
       // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
+      // Fase 1 (25/ago/2026 — plano "Trilha de material do usuário"): esta query era a causa raiz
+      // do A2 — não tinha filtro de formato nenhum (reels entravam direto) e não tinha piso de
+      // data (varria rascunho antigo esquecido, ex.: 12/08). Agora:
+      //  1) exclui material do usuário construindo o filtro a partir da fonte única, nunca de
+      //     literais escritos aqui — se a lista mudar em assets/classificacao.js, esta query
+      //     muda junto, sem precisar tocar neste arquivo.
+      //  2) piso = hoje-7 dias (janela de ~2 semanas ao redor de hoje, simétrica ao teto de 8
+      //     dias já existente). Rascunho mais antigo que isso NÃO some do banco — só para de
+      //     entrar SILENCIOSAMENTE nesta Semana 1; precisa de um destino próprio (Fase 2+,
+      //     registrado, não implementado agora).
+      const piso=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
       const lim=new Date(Date.now()+8*864e5).toISOString().slice(0,10);
-      const{data:sem1}=await JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).lte('data_sugerida',lim).order('data_sugerida',{ascending:true});
+      let qSem1=JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).gte('data_sugerida',piso).lte('data_sugerida',lim);
+      // emValidacao: mesma quarentena das outras duas portas — construída a partir da fonte
+      // única, nunca de literal escrito aqui.
+      [].concat(JUMP_CLASS.FORMATOS_MATERIAL_USUARIO||[],JUMP_CLASS.FORMATOS_EM_VALIDACAO||[]).forEach(termo=>{qSem1=qSem1.not('formato','ilike','%'+termo+'%')});
+      const{data:sem1}=await qSem1.order('data_sugerida',{ascending:true});
       const ids=(sem1||[]).filter(c=>c.copy&&String(c.copy).trim()).map(c=>c.id);
       if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'usuario',tarefa:'aprovar_semana',detalhe:'Aprovar a Semana 1 ('+ids.length+' post(s))',status:'aguardando_aprovacao',total:ids.length,progresso:0,payload:{ids}}]);
       if(errConcluir){
