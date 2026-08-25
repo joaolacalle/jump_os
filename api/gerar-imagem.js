@@ -4,6 +4,10 @@
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'application/json' });
+// FONTE ÚNICA de classificação de conteúdo — ver assets/classificacao.js. Aqui só o
+// enquadramento vertical (reel/story) é consultado; este endpoint gera imagem para qualquer
+// formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
+const JC = require('../assets/classificacao.js');
 
 const VERSAO = '2026.07.17-pacote-1';
 
@@ -68,7 +72,7 @@ function engine6(M, o) {
   const estFoto = M.estilo_fotografico || '', composic = M.tipo_de_composicao || '', agress = M.nivel_de_agressividade || '';
   const obrig = M.elementos_obrigatorios || '', proib = M.elementos_proibidos || '';
   const paleta = [P1, P2, P3].filter(Boolean).join(', ');
-  const reels = String(o.formato || '').toLowerCase().indexOf('reel') >= 0 || String(o.formato || '').toLowerCase().indexOf('story') >= 0;
+  const reels = JC.ehVertical(o.formato || '');
   const intens = (M.intensidade_visual || 'MEDIA').toUpperCase();
   const vazio = { BAIXA: '70%', MEDIA: '55-60%', 'MÉDIA': '55-60%', ALTA: '40-50%', EXTREMA: '25-35%' }[intens] || '55-60%';
   const elems = { MINIMAL: '2-4', BALANCED: '4-7', DENSE: '8-12' }[(M.complexidade_visual || 'BALANCED').toUpperCase()] || '4-7';
@@ -466,7 +470,12 @@ module.exports = async (req, res) => {
     // feed/carrossel = 4:5 ; story/reels/vídeo = 9:16. O gpt-image-1 só entrega retrato 2:3
     // (o mais próximo dos dois), landscape 3:2 ou 1:1 — então 4:5 e 9:16 vão para o RETRATO.
     const _fmt = String(formato || '').toLowerCase();
-    const _vertical = /reel|story|stories|v[ií]deo/.test(_fmt);
+    // FONTE ÚNICA (25/ago/2026): este é o ponto que de fato decide o corte final da imagem (ver
+    // o crop mais abaixo, que usa esta mesma variável) — um 10º ponto que escapou do mapeamento
+    // original por estar num regex literal (/reel|story.../), não numa string com aspas.
+    // Antes também batia em 'video'/'vídeo': sem efeito prático — conteúdo desses formatos é
+    // MATERIAL_USUARIO e nunca chega a esta chamada por nenhum caminho legítimo hoje.
+    const _vertical = JC.ehVertical(_fmt);
     const t = String(tamanho || (_vertical ? '9:16' : '4:5'));
     const size = (t === '16:9') ? '1536x1024' : (t === '1:1') ? '1024x1024' : '1024x1536';
     // O Diretor precisa saber a TELA REAL, senão compõe para um formato que não existe.

@@ -24,6 +24,10 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
 const VERSAO = '2026.07.16-mix-canvas';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
+// FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
+// usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
+// própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
+const JC = require('../assets/classificacao.js');
 
 const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
@@ -1034,7 +1038,9 @@ const handler = async (req, res) => {
           }).catch(()=>{});
           const lim=new Date(Date.now()+7*864e5).toISOString();
           const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
-          const imgs=(Array.isArray(wk)?wk:[]).filter(c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0});
+          // emValidacao (25/ago/2026): fecha a 2ª das 3 portas de produção automática — story
+          // fica em quarentena aqui também, não só no backstop (ver assets/classificacao.js).
+          const imgs=(Array.isArray(wk)?wk:[]).filter(c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c));
           // CONTRATO ÚNICO DE ORDEM: toda produção visual carrega payload.ids. Sem isso o backstop
           // não enxergava o que esta ordem já cobre e criava uma SEGUNDA ordem para os mesmos
           // conteúdos (causa da duplicidade). Dedup passa a ser POR CONTEÚDO, nunca global.
@@ -1104,7 +1110,14 @@ const handler = async (req, res) => {
     // 'proposto' e ficou sem arte. O caminho da semana já dá baixa acima; aqui pegamos o resto.
     if(agente!=='publicacao'){
       try{
-        const IMGF=c=>{const f=String(c.formato||'feed').toLowerCase();return f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0&&f.indexOf('story')<0};
+        // ATENÇÃO (25/ago/2026): antes esta regra também excluía 'story' — era a ÚNICA das nove
+        // regras divergentes que fazia isso. A fonte única trata story como PRODUCAO_IMAGEM (o
+        // Engine 6.0 produz normalmente, só que vertical) — mas o caminho de produção automática
+        // de story nunca foi validado de ponta a ponta (ver FORMATOS_EM_VALIDACAO em
+        // assets/classificacao.js), e este backstop é o disparo mais amplo do sistema (roda a
+        // cada interação de chat). Por isso ele — só ele, por ora — mantém story fora até a
+        // Fase 2/3 validar o resultado visual real.
+        const IMGF=c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c);
         // pega conteúdos recentes deste usuário, prontos p/ virar arte e ainda sem imagem
         // CORREÇÃO 1: 'criativo_url' NÃO é coluna de conteudos — é campo do JSON da IA, gravado em
         // 'midia_url' (ver INSERT acima) com a flag em meta.criativo_proprio. Pedi-lo no select fazia
@@ -1151,9 +1164,13 @@ const handler = async (req, res) => {
     const _doPlano=conteudos.filter(ct=>ct && ct.avulso!==true && String(ct.avulso)!=='true');
     if(agente==='estrategia' && _doPlano.length>0){
       try{
-        const IMG=['feed','carrossel','story','carousel'];
-        const ehImagem=ct=>{const f=String(ct.formato||'feed').toLowerCase();return IMG.some(x=>f.indexOf(x)>=0)&&f.indexOf('reel')<0&&f.indexOf('video')<0&&f.indexOf('vídeo')<0};
-        const imagens=_doPlano.filter(ehImagem).length;
+        // ATENÇÃO (Fase 1, 25/ago/2026): antes exigia bater numa allowlist explícita
+        // (feed/carrossel/story/carousel); um formato fora dessa lista (mas também não-reel/
+        // vídeo) não contava como "arte". A fonte única não tem allowlist — só a exclusão de
+        // material do usuário — então um formato inesperado agora conta como arte, igual já
+        // acontecia no gate real de produção (cron.js). Este número é só o texto do card
+        // ("X arte(s) para o Designer"), nunca decidiu o que é produzido de fato.
+        const imagens=_doPlano.filter(ct=>!JC.ehMaterialUsuario(ct)).length;
         const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
         if(!(Array.isArray(ex)&&ex.length)){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{

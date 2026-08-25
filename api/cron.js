@@ -9,6 +9,11 @@ const SBH = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json',
 });
+// FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
+// usuário) — ver assets/classificacao.js. Este é o gate que de fato barra produção (jobProduzir);
+// nenhum ponto deste arquivo testa formato por conta própria a partir de agora (Fase 1 do plano
+// "Trilha de material do usuário", 25/ago/2026).
+const JC = require('../assets/classificacao.js');
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -642,11 +647,10 @@ async function jobProduzir(soUid) {
       posts = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
     }
     posts = (Array.isArray(posts) ? posts : []).filter(c => {
-      const f = String(c.formato || 'feed').toLowerCase();
       const temCopy = (ehBrief || ehRecriacao) ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
       // já completo? (imagem única com arte, ou carrossel com todos os slides) → fora
       const pend = slidesFaltantes(c, (o.payload || {}).slide).faltam.length > 0;
-      return temCopy && pend && f.indexOf('reel') < 0 && f.indexOf('video') < 0 && f.indexOf('vídeo') < 0;
+      return temCopy && pend && !JC.ehMaterialUsuario(c);
     });
 
     let feitos = 0; const erros = [];
