@@ -55,6 +55,18 @@
   // confirmar que o pipeline aceita o formato sem erro.
   var FORMATOS_EM_VALIDACAO = ['story'];
 
+  // PISO DA JANELA "SEMANA 1" (25/ago/2026): dias para trás, a partir de hoje, que ainda contam
+  // como "semana atual" para fins de detalhamento/produção. Existia como literal duplicado em
+  // dois lugares (aprovar.html, ao montar o card da Semana 1) e SÓ num deles (agente-chat.js,
+  // ao montar a lista que o agente detalha) — o segundo não tinha piso nenhum, o que fazia o
+  // agente detalhar backlog de semanas atrás em vez do plano recém-aprovado, e o resultado caía
+  // fora da janela do card. Mesmo padrão de bug já visto neste projeto (regra igual escrita em
+  // dois lugares, ou um lugar sem a regra) — por isso mora aqui, não como literal em cada arquivo.
+  // aprovar.html ainda tem o literal embutido (7*864e5) — não foi trocado por esta constante
+  // nesta rodada (escopo era só a query de agente-chat.js); os dois valores são iguais hoje, mas
+  // a extração de aprovar.html fica pendente como correção separada.
+  var PISO_SEMANA1_DIAS = 7;
+
   function _fmt(conteudoOuFormato) {
     if (typeof conteudoOuFormato === 'string') return conteudoOuFormato.toLowerCase();
     return String((conteudoOuFormato && conteudoOuFormato.formato) || 'feed').toLowerCase();
@@ -88,6 +100,7 @@
     FORMATOS_MATERIAL_USUARIO: FORMATOS_MATERIAL_USUARIO,
     FORMATOS_VERTICAL: FORMATOS_VERTICAL,
     FORMATOS_EM_VALIDACAO: FORMATOS_EM_VALIDACAO,
+    PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
     ehMaterialUsuario: ehMaterialUsuario,
     ehVertical: ehVertical,
     emValidacao: emValidacao,
