@@ -827,8 +827,16 @@ const handler = async (req, res) => {
     }
     if(agente==='estrategia'){
       try{
+        // CORREÇÃO 1 (25/ago/2026): esta query não tinha piso de data — só teto (+7d). O card da
+        // Semana 1 (aprovar.html) tem piso de hoje-7d. Duas janelas diferentes para o mesmo
+        // conjunto: com 27 rascunhos sem copy no backlog (os mais antigos de 12/08 e 15/08),
+        // ordenação ascendente e limit=8, esta query sempre devolvia o backlog velho pro agente
+        // detalhar — nunca alcançava o plano recém-aprovado — e o que ele detalhava caía fora do
+        // piso do card, que nunca nascia. Piso agora vem de JC.PISO_SEMANA1_DIAS (mesma origem
+        // que aprovar.html usa, não um literal novo aqui) — teto mantido como estava, sem mudança.
+        const piso=new Date(Date.now()-JC.PISO_SEMANA1_DIAS*864e5).toISOString();
         const lim=new Date(Date.now()+7*864e5).toISOString();
-        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
+        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
         if(Array.isArray(wk)&&wk.length){
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
