@@ -75,7 +75,7 @@
   </div>
 </div>
 
-<script src="assets/jump-core.js?v=5"></script>
+<script src="assets/jump-core.js?v=6"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
@@ -102,7 +102,11 @@ const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agos
     try{
       const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id);
       // 'proposto' = plano ainda não aprovado em Tarefas → não aparece no calendário
-      EVENTOS=(data||[]).filter(e=>e.status!=='proposto');
+      // 'excluido' (Etapa 1 — descarte real, 25/ago/2026) = descartado de vez → também não
+      // aparece. Antes esse status nem existia sendo checado aqui: um post já excluído pelo
+      // botão "🗑 EXCLUIR CONTEÚDO" (aprovar.html) continuava aparecendo no calendário — bug
+      // pré-existente, independente desta correção, fechado de brinde agora.
+      EVENTOS=(data||[]).filter(e=>e.status!=='proposto'&&e.status!=='excluido');
       try{
         const{data:od}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',CTX.viewId||CTX.user.id).eq('para_agente','criativo').eq('tarefa','criar_post').in('status',['pendente','processando']).limit(1);
         LOTE_ATIVO=!!(od&&od.length);

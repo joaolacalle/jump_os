@@ -174,6 +174,8 @@ textarea.edt{resize:vertical;line-height:1.5}
 #modal-estr .ec-foot-r{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 #modal-estr .ec-btn{padding:15px 24px;border-radius:13px;cursor:pointer;font-family:var(--M);font-size:12.5px;letter-spacing:.07em;
   color:var(--t1);background:color-mix(in srgb,var(--t1) 6%,transparent);border:1px solid color-mix(in srgb,var(--t1) 14%,transparent)}
+#modal-estr .ec-del{color:#f87171;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.35)}
+#modal-estr .ec-del:hover{background:rgba(239,68,68,.15)}
 #modal-estr .ec-muted{font-size:13px;color:var(--t3)}
 @media(max-width:820px){#modal-estr .ec-bar,#modal-estr .ec-two{grid-template-columns:1fr}
   #modal-estr .ec-hd,#modal-estr .ec-bar,#modal-estr .ec-estr-body,#modal-estr .ec-foot{padding-left:18px;padding-right:18px}}
@@ -271,7 +273,7 @@ textarea.edt{resize:vertical;line-height:1.5}
     </div>
   </div>
 </div>
-<script src="assets/jump-core.js?v=5"></script>
+<script src="assets/jump-core.js?v=6"></script>
 <script src="assets/classificacao.js?v=1"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
@@ -443,6 +445,7 @@ function abrirEstrategia(id){
     <footer class="ec-foot">
       <div class="ec-foot-r" style="margin-left:0;width:100%">
         <button class="ec-btn ec-save" onclick="document.getElementById('modal-estr').classList.remove('show')">FECHAR</button>
+        <button class="ec-btn ec-del" onclick="descartarProposta('${o.id}',this)">🗑 DESCARTAR</button>
         <button class="btn btn-g" style="margin-left:auto" onclick="aprovarProposta('${o.id}','${o.tarefa}',this)">✓ ${semanal?'APROVAR E PRODUZIR':'APROVAR PLANEJAMENTO'}</button>
       </div>
     </footer>`;
@@ -546,6 +549,44 @@ async function aprovarProposta(id,tarefa,btn){
     }
     location.reload();
   }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}}
+}
+// ETAPA 1 — DESCARTE REAL (25/ago/2026): antes, fechar o card de proposta (mensal/semanal) só
+// escondia o modal — os conteúdos ficavam em 'rascunho' pra sempre, competindo pela janela da
+// Semana 1 e pelos 8 lugares da fila de detalhamento (achado da investigação: 16 carrosséis +
+// 11 reels acumulados assim, resíduo de planos nunca aprovados nem descartados de verdade).
+// Agora descarta de vez: marca os posts do plano como 'excluido' (mesmo status que EXCLUIR
+// CONTEÚDO já usa pra post individual — mesmo significado, "não volta, nada é aprendido") e
+// fecha a ordem. Botão separado do "✕ Fechar"/"FECHAR" (que continuam só fechando o modal) —
+// misturar as duas ações no mesmo ✕ tornaria destrutivo um controle que em todo o resto do
+// app só fecha uma caixa de diálogo.
+async function descartarProposta(id,btn){
+  const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;
+  const semanal=(o.tarefa==='aprovar_semana');
+  const uid=CTX.viewId||CTX.user.id;
+  let ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids.slice():[];
+  if(!ids.length&&!semanal){
+    // Ordens mensais criadas ANTES desta correção não têm payload.ids (agora têm — ver criação
+    // da ordem aprovar_estrategia). Só é seguro descartar pelo status enquanto o plano ainda
+    // está 'proposto' (não promovido pro calendário) — depois de promovido pra 'rascunho' não
+    // dá pra isolar com segurança só os posts DESTE plano específico.
+    try{
+      const{data:prop}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','proposto');
+      ids=(prop||[]).map(c=>c.id);
+    }catch(e){}
+    if(!ids.length){
+      JUMP.toast('Este plano é de antes desta correção e já foi promovido pro calendário — não dá pra isolar com segurança só os posts dele para descartar. Avise o suporte.','err');
+      return;
+    }
+  }
+  if(!confirm('Descartar esta '+(semanal?'semana':'estratégia do mês')+' de vez?\n\n'+ids.length+' post(s) serão excluídos — somem do Aprovar, do calendário e da fila. Esta ação NÃO pode ser desfeita.'))return;
+  if(btn){btn.disabled=true;btn.textContent='Descartando...';}
+  try{
+    if(ids.length)await JUMP.sb.from('conteudos').update({status:'excluido'}).in('id',ids);
+    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
+    document.getElementById('modal-estr').classList.remove('show');
+    JUMP.toast('✓ Descartado — '+ids.length+' post(s) não voltam mais.');
+    location.reload();
+  }catch(e){JUMP.toast(e.message||'Erro ao descartar','err');if(btn){btn.disabled=false;btn.textContent='🗑 DESCARTAR';}}
 }
 // Comparação temporal em America/Sao_Paulo nos DOIS lados (o conteúdo é gravado nessa referência).
 function _msSP(d){
