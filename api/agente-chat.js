@@ -1071,6 +1071,10 @@ const handler = async (req, res) => {
     }
 
     let erroGravacao=null;
+    // ETAPA 1 — DESCARTE REAL (25/ago/2026): pares {avulso,id} dos conteúdos gravados nesta
+    // rodada, na ordem de `conteudos`. Usado mais abaixo pra vincular o plano mensal à sua
+    // ordem de aprovação (payload.ids) — mesmo padrão que a semanal já usa (ver idsW acima).
+    let idsPorConteudo=[];
     if(conteudos.length){
       try{
         // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
@@ -1096,6 +1100,18 @@ const handler = async (req, res) => {
             meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct)}
           })
         }).catch(()=>null)));
+        // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
+        // 'Prefer: return=representation' na resposta do INSERT, só não estava sendo lido até
+        // agora. Só leitura do corpo das respostas OK (as com falha são lidas separadamente
+        // logo abaixo, em falhas[0]) — sem conflito de ler o mesmo corpo duas vezes.
+        idsPorConteudo=(await Promise.all(rs.map(async(r,i)=>{
+          if(!r||!r.ok)return null;
+          try{
+            const j=await r.json();
+            const _id=(Array.isArray(j)&&j[0]&&j[0].id)?j[0].id:null;
+            return _id?{avulso:conteudos[i]&&conteudos[i].avulso,id:_id}:null;
+          }catch(e){return null;}
+        }))).filter(Boolean);
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
         // engolido e o agente dizia que tinha salvo — calendário vazio, ninguém entendia).
         const falhas=rs.filter(r=>!r||!r.ok);
@@ -1179,6 +1195,13 @@ const handler = async (req, res) => {
         // acontecia no gate real de produção (cron.js). Este número é só o texto do card
         // ("X arte(s) para o Designer"), nunca decidiu o que é produzido de fato.
         const imagens=_doPlano.filter(ct=>!JC.ehMaterialUsuario(ct)).length;
+        // ETAPA 1 — DESCARTE REAL (25/ago/2026): antes esta ordem não guardava payload.ids —
+        // não havia como saber, depois de promovido pra 'rascunho', quais posts pertenciam a
+        // ESTE plano especificamente (só dava pra achar por status='proposto', que deixa de
+        // valer após a promoção). Mesmo padrão que aprovar_semana já usa (ver idsW acima).
+        // Ressalva: pode vir menor que _doPlano.length se algum insert individual falhou —
+        // reflete só o que de fato foi gravado, nunca inventa id.
+        const _idsDoPlano=idsPorConteudo.filter(x=>x.avulso!==true&&String(x.avulso)!=='true').map(x=>x.id);
         const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
         if(!(Array.isArray(ex)&&ex.length)){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
@@ -1186,7 +1209,7 @@ const handler = async (req, res) => {
             body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'estrategia',tarefa:'aprovar_estrategia',
               detalhe:'Aprovar a estratégia do mês ('+_doPlano.length+' post(s) planejados · '+imagens+' arte(s) para o Designer)',
               status:'aguardando_aprovacao',total:_doPlano.length,progresso:0,
-              payload:{posts:_doPlano.length,imagens:imagens}})
+              payload:{posts:_doPlano.length,imagens:imagens,ids:_idsDoPlano}})
           }).catch(()=>{});
         }
         // MARCO DO CICLO: o aviso da próxima estratégia sai 5 dias antes de fechar 30 dias DESTA data.

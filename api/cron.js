@@ -596,8 +596,14 @@ async function jobProduzir(soUid) {
     // RECRIAÇÃO: o conteúdo JÁ tem imagem — não filtrar por midia_url nula, senão a ordem de
     // ajuste não encontra nada. O resultado sobrescreve o MESMO registro (sem card novo).
     const ehRecriacao = !!(o.payload && (o.payload.ajuste || o.payload.recriacao));
+    // ETAPA 1 — DESCARTE REAL (25/ago/2026): a busca por payload.ids é por ID puro, sem filtro
+    // de status — se um post referenciado por uma ordem pendente/processando for descartado
+    // (status='excluido') DEPOIS que a ordem já existia, o worker ainda o encontrava e gerava
+    // arte pra ele, gastando cota e ressuscitando algo que o usuário tinha acabado de excluir.
+    // Não usa status=eq.rascunho aqui (quebraria recriação/ajuste, que operam em conteúdo que
+    // JÁ tem imagem) — só exclui o estado terminal.
     const q = ids && ids.length
-      ? `conteudos?id=in.(${ids.join(',')})&select=id,tema,copy,formato,tipo_visual,meta,midia_url`
+      ? `conteudos?id=in.(${ids.join(',')})&status=neq.excluido&select=id,tema,copy,formato,tipo_visual,meta,midia_url`
       : `conteudos?user_id=eq.${o.user_id}&status=eq.rascunho&midia_url=is.null&select=id,tema,copy,formato,tipo_visual,meta&limit=10`;
     // ORDEM AVULSA/RECORRENTE: não há posts no calendário — o alvo é o BRIEFING da ordem.
     //    Criamos o conteúdo do zero (mesma lógica da Estratégia: nasce vinculado e vai ao Aprovar).
