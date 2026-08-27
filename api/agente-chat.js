@@ -1018,6 +1018,9 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    // ETAPA 2 (26/ago/2026): aviso de material do usuário aguardando upload, gerado pelo
+    // "criador semanal" logo abaixo — anexado ao texto de resposta perto de notaBackstop.
+    let notaSemanal=null;
     // TEMPO 2: <detalhe> preenche copy/headline/roteiro dos posts da semana (já existentes)
     const detalhes=[];
     texto=texto.replace(/<detalhe>([\s\S]*?)<\/detalhe>/g,(_,j)=>{
@@ -1045,10 +1048,24 @@ const handler = async (req, res) => {
             method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',progresso:detalhados,concluida_em:new Date().toISOString()})
           }).catch(()=>{});
           const lim=new Date(Date.now()+7*864e5).toISOString();
-          const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato`);
+          const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
+          const wkArr=Array.isArray(wk)?wk:[];
+          // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) já detalhado (copy+headline
+          // prontos) vira card "aguardando material" agora, em vez de só sumir da lista de
+          // imagens a produzir — era o bug reportado: a ordem nascia, concluía com total:0 em
+          // silêncio, e o conteúdo desaparecia sem nunca virar card nem aviso. O que ainda não
+          // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura).
+          const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
+          const matAqui=wkArr.filter(c=>JC.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
+          if(matAqui.length){
+            await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matAqui.join(',')})`,{
+              method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
+            }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+              .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
+          }
           // emValidacao (25/ago/2026): fecha a 2ª das 3 portas de produção automática — story
           // fica em quarentena aqui também, não só no backstop (ver assets/classificacao.js).
-          const imgs=(Array.isArray(wk)?wk:[]).filter(c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c));
+          const imgs=wkArr.filter(c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c));
           // CONTRATO ÚNICO DE ORDEM: toda produção visual carrega payload.ids. Sem isso o backstop
           // não enxergava o que esta ordem já cobre e criava uma SEGUNDA ordem para os mesmos
           // conteúdos (causa da duplicidade). Dedup passa a ser POR CONTEÚDO, nunca global.
@@ -1148,7 +1165,19 @@ const handler = async (req, res) => {
         // o PostgREST devolver 400; o retorno não era array e o backstop morria em silêncio, deixando
         // o conteúdo eternamente em "aguardando produção". Agora usamos o campo real.
         const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,midia_url`);
-        const pend=(Array.isArray(prontos)?prontos:[]).filter(c=>IMGF(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
+        const _prontosArr=Array.isArray(prontos)?prontos:[];
+        // ETAPA 2 (26/ago/2026): material do usuário pronto (copy+headline, só falta o arquivo)
+        // vira card "aguardando material" aqui também — o backstop é o disparo mais amplo do
+        // sistema (roda a cada interação de chat), então é quem mais frequentemente encontra
+        // esse conteúdo primeiro. Mesmo tratamento do criador semanal, mesmo critério de pronto.
+        const matBackstop=_prontosArr.filter(c=>JC.ehMaterialUsuario(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim()).map(c=>c.id);
+        if(matBackstop.length){
+          await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matBackstop.join(',')})`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
+          }).then(r=>{if(r.ok)notaBackstop=(notaBackstop?notaBackstop+'\n':'')+'📎 '+matBackstop.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+            .catch(e=>console.error('[ordem] backstop: marcar aguardando_material falhou:',e&&e.message));
+        }
+        const pend=_prontosArr.filter(c=>IMGF(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
         if(pend.length){
           // CORREÇÃO 2: duplicidade POR CONTEÚDO. Antes, QUALQUER ordem pendente do Criativo
           // bloqueava a criação de ordens para todos os outros conteúdos.
@@ -1428,6 +1457,7 @@ const handler = async (req, res) => {
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
+    if(notaSemanal){ texto+='\n\n'+notaSemanal; }
     if(notaBackstop){ texto+='\n\n'+notaBackstop; }
     if(erroGravacao){
       texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
