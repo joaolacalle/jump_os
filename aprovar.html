@@ -527,21 +527,47 @@ async function aprovarProposta(id,tarefa,btn){
           if(bloqueados.length)ids=ids.filter(x=>!bloqueados.includes(x));
         }catch(e){console.error('[aprovar_semana] checagem de material do usuário falhou, seguindo com os ids originais:',e&&e.message);}
       }
-      if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
+      // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): depois de fechar as Rotas A/B/C e blindar o
+      // backstop, este INSERT é a ÚNICA porta pela qual 'criar_post' nasce para conteúdo da
+      // Estratégia — ponto único de falha. Antes não checava o resultado (mesmo padrão de bug
+      // já corrigido em outros pontos deste arquivo, ver "A1/A3" abaixo): se o INSERT falhasse,
+      // o código seguia como se tivesse disparado a produção, fechava a ordem e mostrava
+      // sucesso — a semana ficava aprovada, sem nenhuma arte a caminho, e ninguém saberia por
+      // quê. Agora o erro é checado e avisado.
+      let erroProducao=null;
+      if(ids.length){
+        const{error:errProd}=await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
+        if(errProd){erroProducao=errProd;console.error('[aprovar_semana] INSERT criar_post falhou:',errProd);}
+      }
       // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
-      // precisa abrir nada — se a página cair, o cron retoma a mesma ordem.
-      try{await JUMP.dispararFila()}catch(e){}
-      await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      // precisa abrir nada — se a página cair, o cron retoma a mesma ordem. Só faz sentido se a
+      // ordem realmente nasceu.
+      if(!erroProducao){ try{await JUMP.dispararFila()}catch(e){} }
+      // ORDEM FANTASMA (27/ago/2026 — ver APRENDIZADOS.md): este UPDATE fechava a própria ordem
+      // sem preencher concluida_em — o único ponto do sistema com esse comportamento. Corrigido
+      // (item 8 do gate). Serve também de instrumento: se esta ordem aparecer 'concluida' sem
+      // que o usuário tenha clicado aqui, concluida_em agora vem preenchido com o horário exato.
+      const{error:errConcluirSem}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
+      if(errConcluirSem)console.error('[aprovar_semana] update concluida falhou:',errConcluirSem);
       // ETAPA 2: aviso explícito SEMPRE, mesmo quando matN=0 — nunca mais silencioso (contagem
-      // separada, nunca somada, como pedido).
-      JUMP.toast('✓ Semana aprovada! '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.');
+      // separada, nunca somada, como pedido). Agora também avisa se a produção ou o fechamento
+      // da ordem falharem — nunca silencioso, mesmo padrão do Bloco A.
+      if(erroProducao){
+        JUMP.toast('⚠️ Semana aprovada, mas não consegui criar a ordem de produção (erro ao salvar). Atualize a página — se as artes não aparecerem em alguns minutos, avise o suporte.','err');
+      }else if(errConcluirSem){
+        JUMP.toast('✓ '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente. ⚠️ Não consegui fechar esta aprovação (erro ao salvar) — atualize a página.','err');
+      }else{
+        JUMP.toast('✓ Semana aprovada! '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.');
+      }
     }else{
       // MENSAL = mapa macro: entra no calendário e libera a Semana 1 (não produz nada ainda)
       await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
       // A1/A3 — antes este UPDATE não checava erro: em caso de falha o código seguia como se
       // tivesse fechado a ordem, mostrava sucesso e recarregava — o usuário via "aprovado!" e o
       // card continuava preso em Aprovações, sem nenhum aviso do motivo.
-      const{error:errConcluir}=await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
+      // item 8 do gate da aprovação semanal (27/ago/2026): concluida_em estava faltando aqui
+      // também — mesmo bug do fechamento do card semanal, mesma correção.
+      const{error:errConcluir}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
       if(errConcluir)console.error('[aprovar_estrategia] update concluida falhou:',errConcluir);
       if(btn)btn.textContent='Preparando a Semana 1...';
       // DIAGNÓSTICO (não é retry): antes essa chamada era fire-and-forget, sem log nem aviso — se
@@ -574,7 +600,19 @@ async function aprovarProposta(id,tarefa,btn){
       [].concat(JUMP_CLASS.FORMATOS_MATERIAL_USUARIO||[],JUMP_CLASS.FORMATOS_EM_VALIDACAO||[]).forEach(termo=>{qSem1=qSem1.not('formato','ilike','%'+termo+'%')});
       const{data:sem1}=await qSem1.order('data_sugerida',{ascending:true});
       const ids=(sem1||[]).filter(c=>c.copy&&String(c.copy).trim()).map(c=>c.id);
-      if(ids.length)await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'usuario',tarefa:'aprovar_semana',detalhe:'Aprovar a Semana 1 ('+ids.length+' post(s))',status:'aguardando_aprovacao',total:ids.length,progresso:0,payload:{ids}}]);
+      // item 7 do gate da aprovação semanal (27/ago/2026): este INSERT não conferia se já
+      // existia um card 'aprovar_semana' em aberto (ou uma ordem de produção já rodando) antes
+      // de criar outro — cron.js (drip semanal) já fazia essa checagem, aqui faltava. Sem isso,
+      // aprovações mensais repetidas (ou um duplo clique) empilhavam cards duplicados da mesma
+      // semana. Mesmo critério do drip: reaproveitado aqui, não reescrito.
+      if(ids.length){
+        const{data:jaSemana}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid)
+          .or('and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao)')
+          .limit(1);
+        if(!(jaSemana&&jaSemana.length)){
+          await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'usuario',tarefa:'aprovar_semana',detalhe:'Aprovar a Semana 1 ('+ids.length+' post(s))',status:'aguardando_aprovacao',total:ids.length,progresso:0,payload:{ids}}]);
+        }
+      }
       if(errConcluir){
         JUMP.toast('O plano entrou no calendário, mas não consegui fechar esta aprovação (erro ao salvar). Atualize a página — se o cartão continuar aqui, avise o suporte.','err');
       }else if(falhouAutoDetalhe){

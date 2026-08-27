@@ -994,7 +994,12 @@ async function executarLoteCriativos(uid,ordem){
         // SAÍDA DIRETA: se a tarefa de aprovação sumiu, os posts ficariam presos p/ sempre.
         const w2=document.getElementById('msgs');
         const d2=document.createElement('div');d2.className='msg a';
-        d2.innerHTML='⏸ <b>Ainda não posso gerar as artes.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">O Agente de Estratégia deixou <b>'+prop+' post(s)</b> esperando a sua aprovação. Assim que você aprovar, eles entram no calendário e eu libero as artes.</div><button class="btn btn-g btn-sm" onclick="aprovarPropostas(this)">✓ Aprovar a estratégia</button>';
+        // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): este botão chamava aprovarPropostas() daqui
+        // mesmo — uma cópia própria da aprovação mensal, separada da de aprovar.html, que nunca
+        // criava o card 'aprovar_semana' (a Semana 1 ficava sem nenhuma aprovação pela frente).
+        // Removida (item 4 do gate) — a aprovação da mensal agora só acontece em Aprovações,
+        // onde o card semanal nasce corretamente. Este aviso só encaminha pra lá.
+        d2.innerHTML='⏸ <b>Ainda não posso gerar as artes.</b><div style="font-size:12px;color:var(--t2);margin:6px 0">O Agente de Estratégia deixou <b>'+prop+' post(s)</b> esperando a sua aprovação. Aprove o planejamento em Aprovações — assim que aprovar, a Semana 1 aparece lá pra você liberar as artes.</div><a class="btn btn-g btn-sm" href="aprovar.html">Aprovar em Aprovações →</a>';
         w2.appendChild(d2);w2.scrollTop=w2.scrollHeight;
         return 'vazio';
       }
@@ -1124,27 +1129,13 @@ async function executarLoteCriativos(uid,ordem){
   try{JUMPGUIA.dica('artes_geradas','As artes vão para o seu painel. Ao aprovar, o post fica travado para edição e entra na fila de publicação — revise a copy no calendário antes.','Artes prontas')}catch(e){}
   return true;
 }
-// Promove as propostas → calendário e dispara a copy da semana. Funciona MESMO se a tarefa
-// de aprovação tiver sido removida (antes os posts ficavam presos em 'proposta' para sempre).
-async function aprovarPropostas(btn){
-  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Aprovando...';
-  try{
-    const uid=CTX.viewId||CTX.user.id;
-    const{data:props}=await JUMP.sb.from('conteudos').select('id,formato,data_sugerida').eq('user_id',uid).eq('status','proposto');
-    if(!props||!props.length){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';return JUMP.toast('Nada para aprovar.','err')}
-    await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
-    // conclui a tarefa de aprovação, se existir
-    await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('user_id',uid).eq('tarefa','aprovar_estrategia').eq('status','aguardando_aprovacao');
-    // cria a ordem da copy (dedup)
-    const{data:ja}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).eq('tarefa','detalhar_semana').in('status',['pendente','processando']).limit(1);
-    if(!(ja&&ja.length)){
-      const h=new Date();
-      await JUMP.sb.from('ordens_servico').insert({user_id:uid,de_agente:'estrategia',para_agente:'estrategia',tarefa:'detalhar_semana',detalhe:'Escrever copy e roteiros da semana ('+props.length+' post(s))',status:'pendente',total:props.length,progresso:0,payload:{periodo:'Semana '+Math.ceil(h.getDate()/7)+' · '+h.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}});
-    }
-    btn.parentElement.innerHTML='✅ <b>Estratégia aprovada!</b><div style="font-size:12px;color:var(--t2);margin-top:6px">Os '+props.length+' post(s) estão no calendário. Agora abra o <b>Agente de Estratégia</b> e clique em <b>Escrever a copy da semana</b> — depois volte aqui para as artes.</div>';
-    JUMP.toast('✓ Estratégia aprovada!');
-  }catch(e){btn.disabled=false;btn.innerHTML='✓ Aprovar estratégia agora';JUMP.toast('Não consegui aprovar. Tente de novo.','err')}
-}
+// GATE DA APROVAÇÃO SEMANAL (27/ago/2026): aprovarPropostas() foi removida daqui — era uma
+// cópia própria da aprovação mensal (a "quarta porta" do vazamento, ver APRENDIZADOS.md),
+// separada da de aprovar.html e que nunca criava o card 'aprovar_semana'. Aprovar por este
+// caminho deixava a Semana 1 sem nenhum card de aprovação em lugar nenhum do sistema — a
+// produção só podia então nascer por uma das rotas já fechadas (A/B) ou pelo backstop, sempre
+// sem o usuário decidir. A aprovação da mensal agora só existe em aprovar.html (ver o link
+// "Aprovar em Aprovações →" acima, onde o aviso desta função aparecia).
 // FICHA TÉCNICA (só quando a ordem pede identidade visual)
 async function gerarFichaTecnica(uid){
   const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid);
