@@ -236,7 +236,8 @@
 </main>
 </div>
 
-<script src="assets/jump-core.js?v=5"></script>
+<script src="assets/jump-core.js?v=6"></script>
+<script src="assets/classificacao.js?v=2"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
@@ -544,6 +545,15 @@ function renderAprovacoes(){
 async function aprovarConteudo(id,btn){
   btn.disabled=true;btn.textContent='…';
   try{
+    // ETAPA 2 (26/ago/2026): checagem real, não só de UI — reconfirma o status atual no banco
+    // antes de aprovar (mesmo padrão que aprovar.html usa). Bloqueio só de interface seria
+    // contornável; aqui o servidor é consultado de novo antes do UPDATE.
+    const{data:cur}=await JUMP.sb.from('conteudos').select('status').eq('id',id).single();
+    if(cur&&cur.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL){
+      btn.disabled=false;btn.textContent='✓ Aprovar';
+      JUMP.toast('Este post ainda espera o vídeo do cliente.','err');
+      return;
+    }
     const{error}=await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
     if(error)throw error;
     // dispara a publicação do próprio usuário (na data → publica agora; futuro → espera o cron)

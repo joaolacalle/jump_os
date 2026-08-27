@@ -273,10 +273,23 @@ textarea.edt{resize:vertical;line-height:1.5}
     </div>
   </div>
 </div>
+<!-- MODAL MATERIAL DO USUÁRIO (Etapa 2, 26/ago/2026) -->
+<div class="modal-bg" id="modal-mat">
+  <div class="modal">
+    <div class="modal-t">Aguardando seu vídeo</div>
+    <p style="font-size:13px;color:var(--t2);margin:-4px 0 16px;line-height:1.55">Este post já está pronto — falta só o arquivo. Envie o vídeo (ou imagem) gravado por você; depois disso ele se comporta como qualquer outro: revise, aprove e publique.</p>
+    <div id="mat-body"></div>
+    <div class="f-group"><label class="f-label">Arquivo</label><input type="file" id="mat-file" accept="video/*,image/*"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="document.getElementById('modal-mat').classList.remove('show')">Fechar</button>
+      <button class="btn btn-g" id="mat-enviar" onclick="enviarMaterial()">⬆ Enviar e continuar</button>
+    </div>
+  </div>
+</div>
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=1"></script>
+<script src="assets/classificacao.js?v=2"></script>
 <script>
-let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
+let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
   try{
     JUMP.sidebar('aprovar');
@@ -285,11 +298,16 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],PLANO='basico';
     PLANO=(CTX.viewCliente||CTX.cliente).plano||'basico';
     if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
     try{
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao']).order('created_at',{ascending:false});
+      // ETAPA 2 (26/ago/2026): 'aguardando_material' entra na busca — sem isso os cards de
+      // material do usuário nem chegariam ao navegador.
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao',JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL]).order('created_at',{ascending:false});
       // ORDEM CRONOLÓGICA DE POSTAGEM: quem publica primeiro aparece primeiro. created_at só
       // desempata (a publicação continua sendo regida pelo jobPublicar, não por esta ordem).
       const _qd=c=>{const d=c.data_agendada||c.data_sugerida;return d?new Date(String(d).length<=10?(d+'T09:00:00'):d).getTime():Infinity};
       ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao').sort((a,b)=>_qd(a)-_qd(b));
+      // ETAPA 2: cards aguardando o vídeo/arquivo do cliente — copy e headline já prontos (é
+      // pré-condição pra virar este status, ver os pontos que gravam isso), só falta o upload.
+      MATERIAL_PEND=(data||[]).filter(c=>c.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL).sort((a,b)=>_qd(a)-_qd(b));
       // A ARTE VEM DEPOIS DA COPY. Sem copy/headline a arte sai vazia e o card fica sem legenda.
       RASCUNHOS=(data||[]).filter(c=>c.status==='rascunho'&&!c.midia_url
         &&(c.copy&&String(c.copy).trim())&&(((c.meta||{}).headline||'').trim()));
@@ -480,16 +498,32 @@ async function aprovarProposta(id,tarefa,btn){
     await salvarEdicoesProposta();
     if(semanal){
       let ids=(ESTRATEGIAS.find(o=>o.id===id)||{}).payload?.ids||[];
+      let matN=0; // ETAPA 2 (26/ago/2026): quantos foram desviados pra "aguardando material" agora
       // DEFESA (Fase 1, 25/ago/2026 — plano "Trilha de material do usuário"): mesmo que a
       // Semana 1 já tenha sido filtrada na origem (ver sem1, abaixo), este é o último ponto
       // antes da ordem de produção nascer — confere de novo com a fonte única
       // (assets/classificacao.js), nunca confia cegamente no payload recebido.
       if(ids.length){
         try{
-          const{data:chk}=await JUMP.sb.from('conteudos').select('id,formato').in('id',ids);
+          const{data:chk}=await JUMP.sb.from('conteudos').select('id,formato,copy,meta').in('id',ids);
+          // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) não é mais só removido da
+          // lista — vira card "aguardando material" na hora, com copy/headline/data/hora já
+          // preenchidos, esperando só o upload. Antes ele desaparecia em silêncio: saía da lista
+          // de ids e nunca virava nada — nem card, nem aviso, nem erro (achado original desta
+          // etapa: ordem 'criar_post' nascia com ids corretos, concluía com total:0 em ~1s).
+          // Só vira o card agora se já estiver pronto (copy+headline); o que ainda não tem copy
+          // continua em 'rascunho' — será revisitado numa passada futura de detalhamento.
+          const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
+          const matAll=(chk||[]).filter(c=>JUMP_CLASS.ehMaterialUsuario(c)).map(c=>c.id);
+          const matProntoIds=(chk||[]).filter(c=>JUMP_CLASS.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
+          if(matProntoIds.length){
+            await JUMP.sb.from('conteudos').update({status:JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL}).in('id',matProntoIds);
+            matN=matProntoIds.length;
+          }
           // emValidacao (25/ago/2026): fecha a 3ª das 3 portas de produção automática — quarentena
           // de story também aqui, não só no backstop e no criador semanal.
-          const bloqueados=(chk||[]).filter(c=>JUMP_CLASS.ehMaterialUsuario(c)||JUMP_CLASS.emValidacao(c)).map(c=>c.id);
+          const valIds=(chk||[]).filter(c=>!JUMP_CLASS.ehMaterialUsuario(c)&&JUMP_CLASS.emValidacao(c)).map(c=>c.id);
+          const bloqueados=matAll.concat(valIds);
           if(bloqueados.length)ids=ids.filter(x=>!bloqueados.includes(x));
         }catch(e){console.error('[aprovar_semana] checagem de material do usuário falhou, seguindo com os ids originais:',e&&e.message);}
       }
@@ -498,7 +532,9 @@ async function aprovarProposta(id,tarefa,btn){
       // precisa abrir nada — se a página cair, o cron retoma a mesma ordem.
       try{await JUMP.dispararFila()}catch(e){}
       await JUMP.sb.from('ordens_servico').update({status:'concluida'}).eq('id',id);
-      JUMP.toast('✓ Semana aprovada! As artes estão sendo produzidas — acompanhe em Tarefas.');
+      // ETAPA 2: aviso explícito SEMPRE, mesmo quando matN=0 — nunca mais silencioso (contagem
+      // separada, nunca somada, como pedido).
+      JUMP.toast('✓ Semana aprovada! '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.');
     }else{
       // MENSAL = mapa macro: entra no calendário e libera a Semana 1 (não produz nada ainda)
       await JUMP.sb.from('conteudos').update({status:'rascunho'}).eq('user_id',uid).eq('status','proposto');
@@ -588,6 +624,50 @@ async function descartarProposta(id,btn){
     location.reload();
   }catch(e){JUMP.toast(e.message||'Erro ao descartar','err');if(btn){btn.disabled=false;btn.textContent='🗑 DESCARTAR';}}
 }
+// ETAPA 2 — MATERIAL DO USUÁRIO (26/ago/2026): card nasce completo (copy/headline/data/hora —
+// ver os pontos que gravam STATUS_AGUARDANDO_MATERIAL), só falta o arquivo. Upload reaproveita
+// o MESMO mecanismo de Storage que upload.html já usa (bucket 'user-uploads'), mas sem passar
+// pela tabela 'uploads' — o vínculo é direto: grava a URL pública no midia_url DESTE conteúdo,
+// o mesmo campo que a arte gerada usa. O publicador (cron.js) já lê midia_url pra montar o
+// container REELS sem distinguir origem — nenhuma mudança lá.
+let MAT_ID=null;
+function abrirMaterial(id){
+  const c=MATERIAL_PEND.find(x=>x.id===id); if(!c)return;
+  MAT_ID=id;
+  const m=c.meta||{};
+  const d=c.data_agendada||c.data_sugerida;
+  const dia=d?new Date(d).toLocaleDateString('pt-BR'):'sem data';
+  const hora=d?String(d).slice(11,16):'';
+  document.getElementById('mat-body').innerHTML=`
+    <div class="f-group"><label class="f-label">Formato</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc((c.formato||'').toUpperCase())}</div></div>
+    <div class="f-group"><label class="f-label">Headline</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc(m.headline||c.tema||'—')}</div></div>
+    <div class="f-group"><label class="f-label">Legenda</label><div style="font-size:13px;color:var(--t2);white-space:pre-wrap">${JUMP.esc(c.copy||'—')}</div></div>
+    <div class="f-group"><label class="f-label">Agendado para</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc(dia)}${hora?(' às '+JUMP.esc(hora)):''}</div></div>`;
+  const fi=document.getElementById('mat-file'); if(fi)fi.value='';
+  const btn=document.getElementById('mat-enviar'); if(btn){btn.disabled=false;btn.textContent='⬆ Enviar e continuar';}
+  document.getElementById('modal-mat').classList.add('show');
+}
+async function enviarMaterial(){
+  if(!MAT_ID)return;
+  const f=(document.getElementById('mat-file').files||[])[0];
+  if(!f)return JUMP.toast('Escolha um arquivo primeiro.','err');
+  const btn=document.getElementById('mat-enviar');
+  btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/material_conteudo/'+MAT_ID+'-'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+    const{error:errUp}=await JUMP.sb.storage.from('user-uploads').upload(path,f);
+    if(errUp)throw errUp;
+    const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
+    // ETAPA 2, item 5 do desenho: depois do upload, o conteúdo passa a 'aguardando_aprovacao'
+    // e se comporta como qualquer outro — mesmo status que gravarSlide() grava pra arte gerada.
+    const{error:errSet}=await JUMP.sb.from('conteudos').update({midia_url:pub.publicUrl,status:'aguardando_aprovacao'}).eq('id',MAT_ID);
+    if(errSet)throw errSet;
+    JUMP.toast('✓ Arquivo enviado! O post já pode ser aprovado.');
+    document.getElementById('modal-mat').classList.remove('show');
+    location.reload();
+  }catch(e){JUMP.toast(e.message||'Erro ao enviar','err');btn.disabled=false;btn.textContent='⬆ Enviar e continuar';}
+}
 // Comparação temporal em America/Sao_Paulo nos DOIS lados (o conteúdo é gravado nessa referência).
 function _msSP(d){
   const s=String(d||''); if(!s)return NaN;
@@ -597,7 +677,7 @@ function _msSP(d){
 }
 function _agoraSP(){ return Date.now(); }   // instante absoluto: comparável ao ms acima
 function render(){
-  const _tot=ITENS.length+ESTRATEGIAS.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
+  const _tot=ITENS.length+ESTRATEGIAS.length+MATERIAL_PEND.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=_tot?'none':'block';
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
@@ -611,7 +691,24 @@ function render(){
       </div>
     </div>`;
   }).join('');
-  g.innerHTML=cardsEstr+ITENS.map(c=>{
+  // ETAPA 2 (26/ago/2026): cards de material do usuário — pronto (copy/headline/data/hora),
+  // só falta o arquivo. Badge amarela no mesmo padrão visual do P&B de vencido (.ap-venc-tag).
+  // Bloqueio de aprovação real fica na função aprovar() (reconfirma status no banco), não aqui —
+  // aqui é só visual, por isso nem tem botão de aprovar neste card.
+  const cardsMat=MATERIAL_PEND.map(c=>{
+    const tp=JUMP.tipoPeca(c);
+    const d=c.data_agendada||c.data_sugerida;
+    const dia=d?new Date(d).toLocaleDateString('pt-BR'):'sem data';
+    return `<div class="ap-card ap-card-mini" id="card-${c.id}" onclick="abrirMaterial('${c.id}')" style="cursor:pointer">
+      <div class="ap-img" style="display:flex;align-items:center;justify-content:center;background:rgba(240,181,63,.08);font-size:30px">${tp.ico}</div>
+      <div class="ap-body" style="padding:10px 12px">
+        <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
+        <span class="ap-venc-tag">⏳ AGUARDANDO SEU VÍDEO</span>
+        <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:4px">${JUMP.esc(dia)} · toque para enviar</div>
+      </div>
+    </div>`;
+  }).join('');
+  g.innerHTML=cardsEstr+cardsMat+ITENS.map(c=>{
     const tp=JUMP.tipoPeca(c);
     const ico=tp.ico;
     const sl=JUMP.slidesDe(c);
@@ -878,6 +975,17 @@ async function salvarGosto(chave,valor){
 async function aprovar(id){
   const c=ITENS.find(i=>i.id===id);
   if(GERANDO){JUMP.toast('Aguarde a geração terminar.','err');return;}
+  // ETAPA 2 (26/ago/2026): checagem real, não só de UI — reconfirma o status atual no banco
+  // antes de aprovar. Item nunca chega aqui pelo fluxo normal (ITENS só tem 'aguardando_
+  // aprovacao'; material do usuário abre abrirMaterial(), não este modal), mas um bloqueio só
+  // de interface é contornável — então o servidor é consultado de novo antes do UPDATE.
+  try{
+    const{data:cur}=await JUMP.sb.from('conteudos').select('status').eq('id',id).single();
+    if(cur&&cur.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL){
+      JUMP.toast('Este post ainda espera o vídeo do cliente — envie o arquivo antes de aprovar.','err');
+      return;
+    }
+  }catch(e){}
   GERANDO=true; loadingArte(true,'Registrando aprovação...');
   try{
     await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);
