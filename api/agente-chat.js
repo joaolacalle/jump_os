@@ -232,11 +232,9 @@ Detalhe SÓ os posts listados (a semana), nunca o mês todo.
 
 REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post citado PRECISA da sua tag na MESMA resposta.
 DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido.
-Ao final do lote, dispare a ordem ao Designer:
-<ordem_servico>{"para":"criativo","tarefa":"criar_post","detalhe":"lote de conteudos pendentes"}</ordem_servico>
+NÃO dispare ordem nenhuma ao Designer ao final do lote. Detalhar a semana só prepara a copy — quem decide se isso vira arte é o cliente, aprovando o card da semana em Aprovações. Escreva as tags <detalhe> e, depois, um resumo curto avisando que a semana está pronta para aprovação. Não use "criar_post" em nenhuma tag <ordem_servico> — essa ordem hoje só pode nascer de um clique de aprovação, nunca de uma resposta sua (ver GATE DA APROVAÇÃO SEMANAL no APRENDIZADOS.md se quiser o histórico).
 
-REGRA CRÍTICA DA ORDEM AO DESIGNER — existem DUAS tarefas diferentes e usar a errada TRAVA a fila:
-• "criar_post" = LOTE. Use SOMENTE quando os posts JÁ EXISTEM no calendário COM copy e headline gravadas (via <detalhe>). O Designer vai buscar esses conteúdos no banco. Se você usar "criar_post" para posts que ainda não têm copy, a ordem fica pendente para sempre e o cliente não consegue gerar arte nenhuma.
+REGRA CRÍTICA DA ORDEM AO DESIGNER — "criar_avulso" é a ÚNICA tarefa que você dispara diretamente para o Designer:
 • "criar_avulso" = ARTES SOLTAS, sem conteúdo no calendário (ex.: "quero 2 criativos avulsos"). Aqui o briefing NÃO pode ir em texto corrido: cada arte vai como um item do array "itens", senão o Designer não tem como saber quantas são nem do que tratam:
 <ordem_servico>{"para":"criativo","tarefa":"criar_avulso","detalhe":"2 criativos avulsos","itens":[{"tipo_visual":"conceitual","brief":"tema completo e específico da arte 1","formato":"4:5"},{"tipo_visual":"pessoa_conceito","brief":"tema completo e específico da arte 2","formato":"4:5"}]}</ordem_servico>
 Cada "brief" precisa ser AUTOSSUFICIENTE (o Designer só lê ele, não lê esta conversa). "tipo_visual" segue o critério abaixo.
@@ -924,6 +922,17 @@ const handler = async (req, res) => {
     });
     // TRIAL: o Tráfego NÃO dispara tarefas para outros agentes (só análise/sugestão).
     if(emTrial&&agente==='trafego'){ ordens=[]; }
+    // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): a Estratégia não dispara mais 'criar_post' por
+    // tag — a instrução saiu do prompt (ver TEMPO 2), mas isso sozinho depende do modelo
+    // obedecer. Trava também aqui, em código: se por qualquer motivo (deriva de prompt,
+    // alucinação) a Estratégia emitir essa tag, ela é descartada antes de virar ordem. A
+    // única porta para 'criar_post' da Estratégia passa a ser o clique de aprovação do card
+    // semanal em aprovar.html — nunca uma resposta do agente.
+    if(agente==='estrategia'){
+      const _bloqueadas=ordens.filter(o=>o.tarefa==='criar_post');
+      if(_bloqueadas.length){ console.error('[ordem] tag <ordem_servico> criar_post da Estratégia descartada (gate da aprovação semanal):',_bloqueadas.length); }
+      ordens=ordens.filter(o=>o.tarefa!=='criar_post');
+    }
     if(ordens.length){
       // RASTRO GLOBAL DA CADEIA: sempre que QUALQUER agente passa trabalho para outro, o passo
       // que ele acabou de concluir vira uma tarefa visível. Assim o painel mostra o fluxo inteiro
@@ -1041,7 +1050,15 @@ const handler = async (req, res) => {
           if(r.ok)detalhados++;
         }catch(e){}
       }
-      // Detalhou a semana → dá BAIXA na própria ordem e libera o Designer (SÓ imagens).
+      // Detalhou a semana → dá BAIXA na própria ordem. NÃO cria mais 'criar_post' aqui.
+      // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): antes deste ponto, detalhar a semana (só
+      // preencher copy/headline) já disparava a produção sozinho — a ordem 'criar_post' nascia
+      // aqui, sem o usuário nunca ver nem aprovar o card 'aprovar_semana'. Era a Rota A do
+      // vazamento do gate do trial (ver APRENDIZADOS.md, "GATE DA APROVAÇÃO SEMANAL"). Agora
+      // detalhar só prepara o conteúdo (copy/headline prontos, ainda 'rascunho') — quem decide
+      // se isso vira produção é SEMPRE o clique do usuário em "Aprovar e produzir" no card
+      // semanal (aprovar.html), nunca este bloco. A criação de 'criar_post' é ato de código
+      // único, vinculado à aprovação — não mais um efeito colateral de detalhar.
       if(detalhados>0){
         try{
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.detalhar_semana&status=in.(pendente,processando)`,{
@@ -1054,7 +1071,8 @@ const handler = async (req, res) => {
           // prontos) vira card "aguardando material" agora, em vez de só sumir da lista de
           // imagens a produzir — era o bug reportado: a ordem nascia, concluía com total:0 em
           // silêncio, e o conteúdo desaparecia sem nunca virar card nem aviso. O que ainda não
-          // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura).
+          // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura). Isto
+          // continua aqui — é marcação de status, não criação de ordem de produção.
           const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
           const matAqui=wkArr.filter(c=>JC.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
           if(matAqui.length){
@@ -1063,27 +1081,7 @@ const handler = async (req, res) => {
             }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
               .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
           }
-          // emValidacao (25/ago/2026): fecha a 2ª das 3 portas de produção automática — story
-          // fica em quarentena aqui também, não só no backstop (ver assets/classificacao.js).
-          const imgs=wkArr.filter(c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c));
-          // CONTRATO ÚNICO DE ORDEM: toda produção visual carrega payload.ids. Sem isso o backstop
-          // não enxergava o que esta ordem já cobre e criava uma SEGUNDA ordem para os mesmos
-          // conteúdos (causa da duplicidade). Dedup passa a ser POR CONTEÚDO, nunca global.
-          const abertasW=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id,payload`);
-          const naFilaW=new Set();
-          (Array.isArray(abertasW)?abertasW:[]).forEach(o=>{((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naFilaW.add(String(x)))});
-          const idsW=imgs.map(c=>c.id).filter(x=>!naFilaW.has(String(x))&&!atendidosNestaReq.has(String(x)));
-          if(idsW.length){
-            idsW.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
-            const _okW=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
-              method:'POST',headers:H(),
-              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes desta semana ('+idsW.length+' imagem(ns))',status:'pendente',total:idsW.length,progresso:0,
-              payload:{ids:idsW,periodo:'Semana '+Math.ceil(new Date().getDate()/7)+' · '+new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}})
-            }).then(r=>r.ok).catch(e=>{console.error('[ordem] INSERT criador semanal falhou:',e&&e.message);return false;});
-            // INSERT falhou → libera os ids, senão o conteúdo ficaria sem ordem nenhuma
-            if(!_okW){ idsW.forEach(x=>atendidosNestaReq.delete(String(x))); console.error('[ordem] criador semanal: ids liberados para novo criador'); }
-          }
-        }catch(e){ console.error('[ordem] criador semanal falhou:', e && (e.message||e)); }
+        }catch(e){ console.error('[ordem] criador semanal (detalhamento) falhou:', e && (e.message||e)); }
       }
     }
 
@@ -1188,8 +1186,23 @@ const handler = async (req, res) => {
             const ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[];
             ids.forEach(x=>jaNaFila.add(String(x)));
           });
+          // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): o backstop cobre o AVULSO (conteúdo pronto
+          // que não passa por aprovação de calendário) — nunca deveria pegar posts do plano
+          // mensal que ainda esperam o card 'aprovar_semana'. Antes disso não tinha como saber a
+          // diferença: depois que a mensal é aprovada, o post do plano vira 'rascunho' igual ao
+          // avulso, mesmo status, indistinguível por aqui. Sem esta checagem, desligar a Rota A
+          // (o bloco que criava 'criar_post' ao detalhar) não resolvia nada: o backstop, rodando
+          // na PRÓXIMA interação de chat com QUALQUER agente — ou mais adiante nesta mesma
+          // resposta — encontrava os mesmos posts já com copy/headline prontos e disparava a
+          // produção sozinho, só um turno mais tarde. Avulso nunca aparece no payload.ids de um
+          // 'aprovar_semana' (não passa por lá) — esta exclusão não o afeta.
+          const semanasAbertas=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=eq.aguardando_aprovacao&select=payload`);
+          const naSemanaAberta=new Set();
+          (Array.isArray(semanasAbertas)?semanasAbertas:[]).forEach(o=>{
+            ((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naSemanaAberta.add(String(x)));
+          });
           // CAMADA 1: além do banco, respeita o que já foi atendido nesta mesma requisição
-          const novos=idsPend.filter(x=>!jaNaFila.has(String(x))&&!atendidosNestaReq.has(String(x)));
+          const novos=idsPend.filter(x=>!jaNaFila.has(String(x))&&!atendidosNestaReq.has(String(x))&&!naSemanaAberta.has(String(x)));
           if(novos.length){
             novos.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
             const _okB=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
