@@ -67,6 +67,15 @@
   // a extração de aprovar.html fica pendente como correção separada.
   var PISO_SEMANA1_DIAS = 7;
 
+  // STATUS "AGUARDANDO MATERIAL" (Etapa 2, 26/ago/2026): conteúdo MATERIAL_USUARIO (reels/vídeo)
+  // que já tem copy/headline prontos, mas ainda não tem o arquivo do cliente. Antes esse
+  // conteúdo era só removido das listas de produção de imagem — nunca virava nada, nunca
+  // avisava ninguém, simplesmente desaparecia (ficava em 'rascunho' pra sempre, sem card em
+  // lugar nenhum). Agora vira card imediatamente, esperando só o upload.
+  // `status` é campo de texto livre (confirmado: sem enum, sem migration necessária) — mora
+  // aqui, não como literal em cada arquivo que precisa gravar ou comparar esse valor.
+  var STATUS_AGUARDANDO_MATERIAL = 'aguardando_material';
+
   function _fmt(conteudoOuFormato) {
     if (typeof conteudoOuFormato === 'string') return conteudoOuFormato.toLowerCase();
     return String((conteudoOuFormato && conteudoOuFormato.formato) || 'feed').toLowerCase();
@@ -101,6 +110,7 @@
     FORMATOS_VERTICAL: FORMATOS_VERTICAL,
     FORMATOS_EM_VALIDACAO: FORMATOS_EM_VALIDACAO,
     PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
+    STATUS_AGUARDANDO_MATERIAL: STATUS_AGUARDANDO_MATERIAL,
     ehMaterialUsuario: ehMaterialUsuario,
     ehVertical: ehVertical,
     emValidacao: emValidacao,
