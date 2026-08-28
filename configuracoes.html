@@ -124,7 +124,7 @@
         <div style="font-size:12.5px;color:var(--t2);line-height:1.55;margin-bottom:12px">A Estratégia planeja o mês inteiro no calendário, mas a produção acontece <b>por semana</b>. Escolha o dia em que o sistema abre o lote da semana (copy + artes).</div>
         <div class="f-group">
           <label class="f-label">Dia do lote semanal</label>
-          <select class="f-input" id="cfg-dia">
+          <select class="f-input" id="cfg-dia" onchange="atualizarAvisoCiclo()">
             <option value="1">Segunda-feira (padrão)</option>
             <option value="2">Terça-feira</option>
             <option value="3">Quarta-feira</option>
@@ -134,6 +134,12 @@
             <option value="0">Domingo</option>
           </select>
         </div>
+        <!-- ANCORAGEM DAS SEMANAS (28/ago/2026, pedido explícito): o dia escolhido acima é o dia
+             em que a semana COMEÇA (não mais só "o dia da produção") — a partir da Semana 2, o
+             card de aprovação nasce 3 dias antes desse dia, pra sobrar tempo de revisar antes da
+             semana começar de verdade. Sem este aviso o cliente escolhe o dia sem saber que ele
+             move TAMBÉM o dia em que vai precisar aprovar — troca a qualquer momento, sem custo. -->
+        <div id="cfg-dia-aviso" style="font-size:11.5px;color:var(--t3);line-height:1.55;margin:-4px 0 12px;padding:10px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:10px"></div>
         <button class="btn btn-g btn-sm" onclick="salvarCiclo()">Salvar ciclo</button>
       </div>
       <div class="card" id="tok-box" style="display:none">
@@ -193,7 +199,7 @@
     </div>
 </main>
 </div>
-<script src="assets/jump-core.js?v=5"></script>
+<script src="assets/jump-core.js?v=6"></script>
 <script>
 let CTX=null;
 const PADRAO={c1:'#8B5CF6',c2:'#A78BFA',c3:'#FFFFFF',c4:'#0E0E13',c5:'#191922',bg:'escuro',t1:'#F5F2EC'};
@@ -257,6 +263,7 @@ function harmoniaDe(marca,modo){
     const _pref=((CTX.viewCliente||CTX.cliente)||{}).preferencias||{};
     const _sel=document.getElementById('cfg-dia');
     if(_sel)_sel.value=String(_pref.dia_lote!=null?_pref.dia_lote:1);
+    atualizarAvisoCiclo();
     const t=(CTX.viewCliente&&CTX.viewCliente.tema)||CTX.cliente.tema||PADRAO;
     document.getElementById('c1').value=t.c1||PADRAO.c1;
     document.getElementById('c2').value=t.c2||PADRAO.c2;
@@ -473,6 +480,17 @@ async function solicitarMais(btn){
     JUMP.toast('Seu gestor foi avisado e pode liberar mais tokens.');
   }catch(e){btn.disabled=false;btn.textContent='Solicitar mais →';JUMP.toast(e.message,'err')}
 }
+// ANCORAGEM DAS SEMANAS (28/ago/2026): explica, em texto claro, o efeito de cada escolha antes
+// de salvar — o dia é quando a semana COMEÇA (não mais só "quando produz"), e o card de
+// aprovação nasce 3 dias antes disso (a partir da Semana 2 — a Semana 1 nasce junto da
+// aprovação do mês, nunca antecipada). Atualiza ao trocar a seleção, sem precisar salvar antes.
+function atualizarAvisoCiclo(){
+  const el=document.getElementById('cfg-dia-aviso'); if(!el)return;
+  const nomes=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const dia=Number(document.getElementById('cfg-dia').value);
+  const diaRevisao=nomes[(dia+7-3)%7];
+  el.innerHTML='⏰ Este é o dia em que a semana <b>COMEÇA</b>. A partir da Semana 2, o card de aprovação nasce <b>3 dias antes</b>, pra você revisar com calma: escolher <b>'+nomes[dia]+'</b> significa revisar no <b>'+diaRevisao+'</b>. A 1ª semana (Semana 1) nasce junto com a aprovação do mês — não dá pra antecipar. Não gostou? Troca a qualquer momento.';
+}
 async function salvarCiclo(){
   const dia=Number(document.getElementById('cfg-dia').value);
   const uid=CTX.viewId||CTX.user.id;
@@ -483,6 +501,7 @@ async function salvarCiclo(){
     if(error)throw error;
     const nomes=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
     JUMP.toast('✓ Lote semanal: toda '+nomes[dia]+'.');
+    atualizarAvisoCiclo();
   }catch(e){JUMP.toast('Não foi possível salvar. Tente de novo.','err')}
 }
 async function carregarAssinatura(plano){

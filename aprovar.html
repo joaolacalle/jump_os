@@ -287,7 +287,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=2"></script>
+<script src="assets/classificacao.js?v=3"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
@@ -438,19 +438,52 @@ function focarCard(){
 }
 function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
 function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
-function abrirEstrategia(id){
-  const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;
-  const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
-  const linhas=posts.map(c=>{
-    const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
-    return `<div class="ec-post">
+function _linhaPost(c,semanal){
+  const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
+  return `<div class="ec-post">
       <div class="ec-post-h">${JUMP.esc((c.formato||'feed').toUpperCase())}${m.pilar?(' · '+JUMP.esc(m.pilar)):''}</div>
       ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema do post',c.tema||'')}
       ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
       ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
       <div class="ec-two">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>
     </div>`;
-  }).join('');
+}
+function abrirEstrategia(id){
+  const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;
+  const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
+  let linhas;
+  if(semanal){
+    linhas=posts.map(c=>_linhaPost(c,true)).join('');
+  }else{
+    // ANCORAGEM DAS SEMANAS (28/ago/2026, item 4): card mensal agrupado por Semana 1-5 —
+    // tema/data/hora/formato, SEM copy (copy é exclusiva do card semanal, quando a semana
+    // realmente abrir). Recalculado "como se aprovado hoje" a cada abertura: a âncora real só
+    // é gravada no clique de "Aprovar Planejamento" (ver aprovarProposta) — um post perto do
+    // limite de uma semana pode reclassificar se a aprovação demorar; é o reflexo da data real
+    // do plano, combinado e aceito com o cliente, não um bug.
+    const cli=(CTX.viewCliente||CTX.cliente)||{};
+    const hojeISO=new Date().toISOString().slice(0,10);
+    const dl=(cli.preferencias&&cli.preferencias.dia_lote);
+    const porSemana={1:[],2:[],3:[],4:[],5:[]};
+    const foraDoHorizonte=[];
+    posts.forEach(c=>{
+      const d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10);
+      const sem=JUMP_CLASS.semanaDoPost(dia,hojeISO,dl);
+      if(sem)porSemana[sem].push(c); else foraDoHorizonte.push(c);
+    });
+    linhas=[1,2,3,4,5].map(n=>{
+      const itens=porSemana[n];
+      if(!itens.length)return '';
+      const corpo=itens.map(c=>_linhaPost(c,false)).join('');
+      return `<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">SEMANA ${n}</div>${corpo}`;
+    }).join('');
+    if(foraDoHorizonte.length){
+      // Não deveria acontecer (a trava de datas em api/agente-chat.js já recusa no momento da
+      // geração) — se aparecer, é sinal de conteúdo antigo de antes desta correção. Mostra em
+      // vez de esconder: nunca some conteúdo em silêncio.
+      linhas+=`<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">FORA DO HORIZONTE DE 5 SEMANAS</div>`+foraDoHorizonte.map(c=>_linhaPost(c,false)).join('');
+    }
+  }
   document.getElementById('estr-body').innerHTML=`
     <header class="ec-hd">
       <div><h2>${semanal?'ESTRATÉGIA SEMANAL':'ESTRATÉGIA MENSAL'}</h2>
@@ -581,19 +614,34 @@ async function aprovarProposta(id,tarefa,btn){
           if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
         }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
       }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
+      // ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md): a data REAL de aprovação vira
+      // a âncora do plano, gravada em preferencias (mesmo padrão que dia_lote já usa — JSONB
+      // existente, sem migration, sem coluna nova). É o que fixa de vez os limites de Semana
+      // 1..5 (até este clique, o card mensal só EXIBIA os grupos recalculados "como se fosse
+      // hoje" — ver abrirEstrategia). Item 2 do pedido.
+      const hojeISO=new Date().toISOString().slice(0,10);
+      let dl=1, prefAtual={};
+      try{
+        const{data:cAtual}=await JUMP.sb.from('clientes').select('preferencias').eq('id',uid).limit(1);
+        prefAtual=((cAtual&&cAtual[0])||{}).preferencias||{};
+        dl=(prefAtual.dia_lote!=null)?prefAtual.dia_lote:1;
+        await JUMP.sb.from('clientes').update({preferencias:{...prefAtual,plano_ancora_em:hojeISO}}).eq('id',uid);
+      }catch(e){console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',e&&e.message);}
       // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
       // Fase 1 (25/ago/2026 — plano "Trilha de material do usuário"): esta query era a causa raiz
       // do A2 — não tinha filtro de formato nenhum (reels entravam direto) e não tinha piso de
-      // data (varria rascunho antigo esquecido, ex.: 12/08). Agora:
+      // data (varria rascunho antigo esquecido, ex.: 12/08). SUBSTITUÍDA em 28/ago/2026: o piso/
+      // teto simétrico (±7/8 dias) que veio depois divergia do que api/agente-chat.js calculava
+      // (mesmo padrão de bug, regra igual/divergente em dois lugares) — foi essa janela ingênua
+      // que deixou passar em branco um plano com posts de 10/12/14 de setembro (ver
+      // APRENDIZADOS.md, "ANCORAGEM DAS SEMANAS"). Agora a janela da Semana 1 vem da fonte única
+      // (assets/classificacao.js), ancorada na data real de aprovação que acabou de ser gravada.
       //  1) exclui material do usuário construindo o filtro a partir da fonte única, nunca de
       //     literais escritos aqui — se a lista mudar em assets/classificacao.js, esta query
       //     muda junto, sem precisar tocar neste arquivo.
-      //  2) piso = hoje-7 dias (janela de ~2 semanas ao redor de hoje, simétrica ao teto de 8
-      //     dias já existente). Rascunho mais antigo que isso NÃO some do banco — só para de
-      //     entrar SILENCIOSAMENTE nesta Semana 1; precisa de um destino próprio (Fase 2+,
-      //     registrado, não implementado agora).
-      const piso=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
-      const lim=new Date(Date.now()+8*864e5).toISOString().slice(0,10);
+      const janela1=JUMP_CLASS.janelasSemanas(hojeISO,dl)[0];
+      const piso=janela1.inicio;
+      const lim=janela1.fim;
       let qSem1=JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).gte('data_sugerida',piso).lte('data_sugerida',lim);
       // emValidacao: mesma quarentena das outras duas portas — construída a partir da fonte
       // única, nunca de literal escrito aqui.
