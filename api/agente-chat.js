@@ -29,6 +29,44 @@ const { zapUpload, zapCriarTask } = require('./_video-lib');
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
+// TRAVA DE DATAS (item 3, "ANCORAGEM DAS SEMANAS", 28/ago/2026): mesmo padrão de cardinalidade()
+// acima — lança Error, a chamadora descarta SÓ aquela peça e acumula um aviso rastreável. NUNCA
+// corrige a data pro limite mais próximo (mesma família de erro do auto-reparo, do default de 4
+// slides e do fallback 09:00 — ver APRENDIZADOS.md: corrigir em silêncio é o que este projeto
+// decidiu nunca mais fazer). Só se aplica a conteúdo do PLANO (avulso:false) — avulso não tem
+// horizonte de plano, fica de fora por definição. Sem data_sugerida ou em formato inesperado,
+// não é esta trava que deve pegar (fora do escopo do item 3) — deixa passar.
+function travaDeDatas(ct, ancoraISO, diaLote) {
+  if (!ct || ct.avulso) return;
+  const raw = ct.data_sugerida;
+  if (!raw) return;
+  const data = String(raw).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+  const hz = JC.horizonteDoPlano(ancoraISO, diaLote);
+  if (data < hz.inicio || data > hz.fim) {
+    throw new Error('data ' + data + ' fora do horizonte do plano (' + hz.inicio + ' a ' + hz.fim + ')');
+  }
+}
+
+// TRAVA DO TRIAL (novo escopo, pedido explícito de 28/ago/2026): durante os 7 dias de teste, o
+// horizonte do plano não pode passar do fim do trial — senão o cliente recebe produção além do
+// período gratuito e pode sumir sem assinar. Mesmo critério de recusa: rejeita o post fora do
+// prazo e avisa; NUNCA encolhe o plano em silêncio nem produz parcialmente. Quem passa do prazo
+// aprovando tarde arca com a consequência (avisos de trial já existem em outros pontos do
+// dashboard — fora do escopo deste arquivo).
+function travaTrial(ct, cortesiaAteISO) {
+  if (!ct || ct.avulso) return;
+  const raw = ct.data_sugerida;
+  if (!raw) return;
+  const data = String(raw).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+  if (!cortesiaAteISO) return;
+  const limite = String(cortesiaAteISO).slice(0, 10);
+  if (data > limite) {
+    throw new Error('data ' + data + ' passa do fim do período de teste (' + limite + ') — assine para liberar o mês completo');
+  }
+}
+
 const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json', 'Prefer': 'return=representation',
@@ -760,6 +798,10 @@ const handler = async (req, res) => {
     const _hojeBR=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
     const _dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
     const _fmt=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+    // 'YYYY-MM-DD' a partir da data-calendário de _hojeBR (mesmos getters locais que _fmt já usa
+    // acima — no servidor, em UTC, local==UTC; string pura de calendário, sem timestamp/fuso, é
+    // o formato que JC.janelasSemanas/semanaDoPost/horizonteDoPlano esperam).
+    const hojeBR_ISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     let dataTxt=`\n\n═══ DATA ATUAL (fuso ${TZ}) ═══\nHOJE é ${_dias[_hojeBR.getDay()]}, ${_fmt(_hojeBR)}. O ano corrente é ${_hojeBR.getFullYear()}.\nREGRA ABSOLUTA: use SEMPRE esta data como referência. NUNCA use datas ou dias da semana de outro ano — seu conhecimento interno de calendário está desatualizado e erraria os dias.`;
     if(agente==='estrategia'||agente==='publicacao'){
       const cal=[];
@@ -769,6 +811,18 @@ const handler = async (req, res) => {
       }
       dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
     }
+    // ANCORAGEM DAS SEMANAS (28/ago/2026): âncora ÚNICA para tudo que precisa saber "quais são
+    // as 5 semanas do plano" ou "qual semana é hoje" neste request — nenhum outro ponto deste
+    // arquivo calcula piso/teto de data por conta própria a partir daqui (ver JC.janelasSemanas
+    // em assets/classificacao.js pro porquê). A âncora REAL só é gravada em
+    // clientes.preferencias.plano_ancora_em no momento do clique de aprovação mensal
+    // (aprovar.html); até existir (conta legada, ou mês ainda não aprovado), usa hoje como
+    // âncora de trabalho — mesmo critério do card mensal, que recalcula "como se aprovado hoje".
+    const hojeISO=hojeBR_ISO(_hojeBR);
+    const diaLoteCliente=(cli.preferencias&&cli.preferencias.dia_lote);
+    const ancoraPlano=(cli.preferencias&&cli.preferencias.plano_ancora_em)||hojeISO;
+    const janelasCliente=JC.janelasSemanas(ancoraPlano,diaLoteCliente);
+    const semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
     if(agente==='publicacao'){
       try{
         const agd=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(aprovado,agendado)&order=data_agendada.asc&limit=30&select=formato,status,data_agendada,meta`);
@@ -825,15 +879,18 @@ const handler = async (req, res) => {
     }
     if(agente==='estrategia'){
       try{
-        // CORREÇÃO 1 (25/ago/2026): esta query não tinha piso de data — só teto (+7d). O card da
-        // Semana 1 (aprovar.html) tem piso de hoje-7d. Duas janelas diferentes para o mesmo
-        // conjunto: com 27 rascunhos sem copy no backlog (os mais antigos de 12/08 e 15/08),
-        // ordenação ascendente e limit=8, esta query sempre devolvia o backlog velho pro agente
-        // detalhar — nunca alcançava o plano recém-aprovado — e o que ele detalhava caía fora do
-        // piso do card, que nunca nascia. Piso agora vem de JC.PISO_SEMANA1_DIAS (mesma origem
-        // que aprovar.html usa, não um literal novo aqui) — teto mantido como estava, sem mudança.
-        const piso=new Date(Date.now()-JC.PISO_SEMANA1_DIAS*864e5).toISOString();
-        const lim=new Date(Date.now()+7*864e5).toISOString();
+        // CORREÇÃO 1 (25/ago/2026) — SUBSTITUÍDA pela ANCORAGEM DAS SEMANAS (28/ago/2026): esta
+        // query tinha piso/teto simétricos (±7/8 dias) calculados aqui mesmo, DIVERGENTES do
+        // piso/teto que aprovar.html calculava pro card da Semana 1 (mesmo padrão de bug já
+        // visto neste arquivo — regra igual, ou divergente, escrita em dois lugares). Foi
+        // exatamente essa janela ingênua que deixou passar em branco um plano aprovado em 27/ago
+        // com posts datados 10/12/14 de setembro: fora da janela de ±7 dias, nunca entravam
+        // aqui, nunca ganhavam copy, o card nunca nascia (ver APRENDIZADOS.md, "ANCORAGEM DAS
+        // SEMANAS"). Agora usa a SEMANA ATUAL do cliente, calculada uma única vez no topo do
+        // request a partir da âncora real do plano (ou de hoje, antes da aprovação) — mesma
+        // fonte que qualquer outro ponto do sistema usa a partir de agora.
+        const piso=semanaAtualCliente.inicio;
+        const lim=semanaAtualCliente.fim;
         const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
         if(Array.isArray(wk)&&wk.length){
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
@@ -1064,7 +1121,11 @@ const handler = async (req, res) => {
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.detalhar_semana&status=in.(pendente,processando)`,{
             method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',progresso:detalhados,concluida_em:new Date().toISOString()})
           }).catch(()=>{});
-          const lim=new Date(Date.now()+7*864e5).toISOString();
+          // ANCORAGEM DAS SEMANAS (28/ago/2026): teto era +7 dias corridos a partir de agora,
+          // calculado aqui mesmo — mais um literal divergente do resto (ver o mesmo problema
+          // corrigido logo acima, em "POSTS DA SEMANA PARA DETALHAR"). Usa o fim da SEMANA ATUAL
+          // do cliente (já calculada no topo do request) em vez de recalcular.
+          const lim=semanaAtualCliente.fim;
           const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
           const wkArr=Array.isArray(wk)?wk:[];
           // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) já detalhado (copy+headline
@@ -1101,8 +1162,41 @@ const handler = async (req, res) => {
         // e NÃO derruba as demais — vira aviso rastreável em vez de produção ambígua.
         const invalidos=[];
         for(let i=conteudos.length-1;i>=0;i--){
-          try{ cardinalidade(conteudos[i]); }
+          try{
+            cardinalidade(conteudos[i]);
+            // ANCORAGEM DAS SEMANAS (28/ago/2026, itens 3 e trava do trial): mesmo checkpoint da
+            // cardinalidade — reject, não corrige. Escopo só do PLANO (avulso fica de fora, por
+            // definição das próprias funções). Âncora de trabalho é ancoraPlano (a real, se já
+            // houver aprovação mensal; hoje, se ainda não houver — calculada uma vez no topo).
+            travaDeDatas(conteudos[i], ancoraPlano, diaLoteCliente);
+            if(emTrial) travaTrial(conteudos[i], cli.cortesia_ate);
+          }
           catch(e){ invalidos.push(String((conteudos[i]&&conteudos[i].tema)||'peça')+': '+e.message); conteudos.splice(i,1); }
+        }
+        // COTA — item 5 (ANCORAGEM DAS SEMANAS, 28/ago/2026): no máximo 80% do saldo de imagens
+        // do plano vai pra posts planejados com arte; os outros 20% ficam de reserva pra
+        // recriações/avulsos do mês (mesmos números que cotaTxt já injeta no prompt — mas nunca
+        // se confia só no texto: "restam 966 de artes" foi o modelo inventando em cima de um
+        // contexto que ele às vezes ignora, não um erro de conta — ver APRENDIZADOS.md). Corta o
+        // EXCESSO (do fim da lista pra trás, ordem de chegada) e avisa — nunca produz além do
+        // que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota de
+        // vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
+        if(agente==='estrategia'){
+          const limImgCota=Number((cli.limites||{}).imagens||0);
+          const usImgCota=Number((cli.uso||{}).imagens||0);
+          const restImgCota=Math.max(0,limImgCota-usImgCota);
+          const tetoPlano=Math.floor(restImgCota*0.8);
+          let acumuladoCota=0;
+          for(let i=0;i<conteudos.length;i++){
+            const ct=conteudos[i];
+            if(ct.avulso||JC.ehMaterialUsuario(ct))continue;
+            let n=1; try{ n=cardinalidade(ct); }catch(e){ n=1; }
+            if(acumuladoCota+n>tetoPlano){
+              invalidos.push(String(ct.tema||'peça')+': ultrapassa os 80% da cota de imagens reservada ao plano ('+tetoPlano+' de '+restImgCota+' restantes; 20% fica reservado a recriações/avulsos do mês)');
+              conteudos.splice(i,1); i--; continue;
+            }
+            acumuladoCota+=n;
+          }
         }
         const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
           method:'POST',headers:H(),

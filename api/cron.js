@@ -798,21 +798,35 @@ async function jobOrdens() {
     recCriadas++;
   }
 
-  // 1.5) DRIP SEMANAL (Fase 1): no dia de lote de cada usuário, cria a tarefa do Criativo
-  //      só com os posts DAQUELA semana ainda sem arte. Evita gerar o mês todo de uma vez.
+  // 1.5) DRIP SEMANAL (Fase 1, 25/ago/2026 — ANCORAGEM DAS SEMANAS, item 6, 28/ago/2026): no dia
+  //      de lote de cada usuário, cria a tarefa do Criativo só com os posts DAQUELA semana ainda
+  //      sem arte. Evita gerar o mês todo de uma vez. Job já existia com deduplicação — só a
+  //      JANELA e a ANTECEDÊNCIA mudaram (pedido explícito: "ajustar a janela e a antecedência,
+  //      não recriar"):
+  //      • JANELA: antes disparava NO PRÓPRIO dia_lote e varria [hoje, hoje+7) — hoje o dia_lote
+  //        é a definição de "em que dia a semana COMEÇA" (Configurações → Ciclo de produção;
+  //        segunda é só o padrão, não mais uma regra fixa — ver assets/classificacao.js).
+  //      • ANTECEDÊNCIA: o card agora nasce 3 DIAS ANTES do início da semana, não no início dela
+  //        — o usuário precisa de tempo pra aprovar antes da semana realmente começar (exemplo
+  //        dado: dia_lote=quarta → card nasce domingo). Semana 1 fica de fora deste job: ela já
+  //        nasce direto em aprovar.html, junto da aprovação mensal — não pode ser antecipada
+  //        (não existe "3 dias antes" de um evento que ainda não aconteceu).
   let lotesSemana = 0;
   const ativos = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-  const iniSem = new Date(); iniSem.setHours(0,0,0,0);
-  const iniISO = iniSem.toISOString();
-  const fimISO = new Date(iniSem.getTime() + 7*864e5).toISOString();
+  const daqui3 = new Date(); daqui3.setHours(0,0,0,0); daqui3.setDate(daqui3.getDate() + 3);
+  const diaSemanaDaqui3 = daqui3.getDay(); // 0=domingo..6=sábado
+  const iniSemISO = daqui3.toISOString().slice(0, 10); // se hoje+3 cair no dia_lote, ESSE é o início da próxima semana
+  const fimSemISO = new Date(daqui3.getTime() + 6*864e5).toISOString().slice(0, 10);
   for (const c of (Array.isArray(ativos) ? ativos : [])) {
     const dl = (c.preferencias && Number.isInteger(c.preferencias.dia_lote)) ? c.preferencias.dia_lote : 1; // padrão segunda
-    if (diaSemana !== dl) continue;
-    const daSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniISO}&data_sugerida=lt.${fimISO}&select=id&limit=50`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    if (diaSemanaDaqui3 !== dl) continue; // só dispara 3 dias antes do início da semana deste cliente
+    const daSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniSemISO}&data_sugerida=lte.${fimSemISO}&select=id&limit=50`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
     if (!Array.isArray(daSemana) || !daSemana.length) continue;
-    // REGRA DE NEGÓCIO: a ESTRATÉGIA SEMANAL é o gatilho — nunca produzimos direto. No dia do
-    // ciclo (dia_lote) criamos o CARD DE APROVAÇÃO da semana; a produção só começa quando o
-    // usuário aprovar no Aprovar (1ª aprovação). Dedup: nada de card/lote duplicado.
+    // REGRA DE NEGÓCIO: a ESTRATÉGIA SEMANAL é o gatilho — nunca produzimos direto. 3 dias antes
+    // do início do ciclo (dia_lote) criamos o CARD DE APROVAÇÃO da semana; a produção só começa
+    // quando o usuário aprovar no Aprovar (1ª aprovação). Dedup: nada de card/lote duplicado —
+    // se a Semana 1 (criada em aprovar.html) ainda estiver aberta quando este job rodar, ele
+    // pula (mesmo critério de sempre) e tenta de novo no próximo dia_lote.
     const ja = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&or=(and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao))&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
     if (Array.isArray(ja) && ja.length) continue; // já tem semana aguardando aprovação ou lote rodando
     const ids = daSemana.map(x => x.id);
