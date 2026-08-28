@@ -104,6 +104,76 @@
     return ehMaterialUsuario(conteudoOuFormato) ? CATEGORIA.MATERIAL_USUARIO : CATEGORIA.PRODUCAO_IMAGEM;
   }
 
+  // ═══ ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md, "ANCORAGEM DAS SEMANAS") ═══
+  // POR QUE ESTAS TRÊS FUNÇÕES EXISTEM: um plano mensal aprovado em 27/ago devolveu posts
+  // datados 10, 12 e 14/set — fora da janela simétrica ±7 dias que várias partes do código
+  // calculavam cada uma por conta própria (mesmo padrão de bug já visto neste arquivo: regra
+  // igual, ou divergente, escrita em lugares diferentes). O card da Semana 1 nunca nasceu, a
+  // copy nunca foi escrita — silenciosamente. A partir de agora, QUALQUER ponto que precise
+  // saber "disto quais 5 semanas o plano cobre" ou "de qual semana é este post" chama as
+  // funções abaixo. Nenhum ponto novo calcula piso/teto de data por conta própria.
+  //
+  // Semana 1 = do dia da aprovação mensal até o domingo anterior ao próximo "dia de lote"
+  // (parcial, a não ser que a aprovação caia exatamente no dia de lote — aí já nasce completa).
+  // Semanas 2-5 = 7 dias corridos cada, começando sempre no dia de lote configurado
+  // (padrão = segunda-feira; ver Configurações → Ciclo de produção).
+  //
+  // IDENTIDADE DA SEMANA (item 2 do pedido): decidida como FUNÇÃO, não como campo persistido
+  // por post — a única coisa gravada é a âncora (clientes.preferencias.plano_ancora_em, mesmo
+  // padrão já usado por dia_lote: JSONB existente, sem migration). Antes da aprovação real, o
+  // card mensal recalcula "como se fosse aprovado hoje" (âncora = hoje) — um post perto do
+  // limite de uma semana pode reclassificar se a aprovação demorar; é o reflexo da data real,
+  // não um bug.
+  //
+  // Datas são strings 'YYYY-MM-DD' comparadas/calculadas em UTC puro (Date.UTC), nunca com o
+  // fuso do servidor nem do navegador — evita o mesmo tipo de divergência silenciosa entre
+  // Node (Vercel, UTC) e o navegador do cliente que já causou bug de datas neste projeto antes.
+  function _toDataUTC(iso) {
+    var s = String(iso == null ? '' : iso).slice(0, 10);
+    var p = s.split('-');
+    return new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2])));
+  }
+  function _isoData(d) { return d.toISOString().slice(0, 10); }
+  function _maisDias(d, n) { return new Date(d.getTime() + n * 86400000); }
+
+  // Retorna as 5 janelas da semana ({semana:1..5, inicio:'YYYY-MM-DD', fim:'YYYY-MM-DD'}) do
+  // plano ancorado em `ancoraISO`. `diaLote` é o dia da semana (0=domingo..6=sábado) em que a
+  // semana COMEÇA — mesmo campo de clientes.preferencias.dia_lote; ausente/inválido usa 1
+  // (segunda), o padrão do sistema.
+  function janelasSemanas(ancoraISO, diaLote) {
+    var dl = Number(diaLote);
+    if (!(dl >= 0 && dl <= 6)) dl = 1;
+    var ancora = _toDataUTC(ancoraISO);
+    var proximo = _maisDias(ancora, 1);
+    while (proximo.getUTCDay() !== dl) { proximo = _maisDias(proximo, 1); }
+    var janelas = [{ semana: 1, inicio: _isoData(ancora), fim: _isoData(_maisDias(proximo, -1)) }];
+    for (var i = 0; i < 4; i++) {
+      var ini = _maisDias(proximo, i * 7);
+      janelas.push({ semana: i + 2, inicio: _isoData(ini), fim: _isoData(_maisDias(ini, 6)) });
+    }
+    return janelas;
+  }
+
+  // A quais das 5 semanas pertence `dataSugerida` ('YYYY-MM-DD' ou ISO completo — só a parte da
+  // data é usada)? Retorna 1..5, ou null se a data cai fora do horizonte do plano (a chamadora
+  // decide o que fazer com null — a REGRA deste projeto é recusar e avisar, nunca corrigir pra
+  // dentro da janela mais próxima; ver "trava de datas" em api/agente-chat.js).
+  function semanaDoPost(dataSugerida, ancoraISO, diaLote) {
+    if (!dataSugerida) return null;
+    var alvo = String(dataSugerida).slice(0, 10);
+    var janelas = janelasSemanas(ancoraISO, diaLote);
+    for (var i = 0; i < janelas.length; i++) {
+      if (alvo >= janelas[i].inicio && alvo <= janelas[i].fim) return janelas[i].semana;
+    }
+    return null;
+  }
+
+  // {inicio,fim} do horizonte inteiro do plano (Semana 1 até o fim da Semana 5).
+  function horizonteDoPlano(ancoraISO, diaLote) {
+    var janelas = janelasSemanas(ancoraISO, diaLote);
+    return { inicio: janelas[0].inicio, fim: janelas[janelas.length - 1].fim };
+  }
+
   return {
     CATEGORIA: CATEGORIA,
     FORMATOS_MATERIAL_USUARIO: FORMATOS_MATERIAL_USUARIO,
@@ -114,6 +184,9 @@
     ehMaterialUsuario: ehMaterialUsuario,
     ehVertical: ehVertical,
     emValidacao: emValidacao,
-    classificar: classificar
+    classificar: classificar,
+    janelasSemanas: janelasSemanas,
+    semanaDoPost: semanaDoPost,
+    horizonteDoPlano: horizonteDoPlano
   };
 });
