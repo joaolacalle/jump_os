@@ -67,6 +67,21 @@ function travaTrial(ct, cortesiaAteISO) {
   }
 }
 
+// TETO DE IMAGENS DO PLANO (item 5 da rodada "Ancoragem das semanas", item 4 da rodada "Janela
+// de planejamento", 28/ago/2026): 80% do saldo de imagens fica pro plano; os outros 20% ficam de
+// reserva pra recriações/avulsos do mês. ÚNICO lugar que calcula essa conta — antes de existir
+// esta função, a mesma fórmula (Math.floor(rest*0.8)) foi escrita 2x de forma independente
+// (o texto injetado no prompt, e o corte de código no checkpoint de cardinalidade); uma terceira
+// cópia nasceria com a checagem de "Semana 1 obrigatória" se não fosse extraída agora — exatamente
+// o padrão de bug que este projeto tenta não repetir (regra igual escrita em lugares diferentes,
+// que um dia diverge). Qualquer ponto que precise saber "quantas peças com arte cabem no plano"
+// chama esta função a partir de agora.
+function tetoImagensPlano(cli) {
+  const lim = Number((cli && cli.limites || {}).imagens || 0);
+  const us = Number((cli && cli.uso || {}).imagens || 0);
+  return Math.floor(Math.max(0, lim - us) * 0.8);
+}
+
 const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json', 'Prefer': 'return=representation',
@@ -209,12 +224,12 @@ Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, m
 Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
-- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência e o bloco COTA E CAPACIDADE do contexto (artes/mês, vídeos/mês e perfil de captação). Nunca planeje mais vídeos do que restam nem do que o cliente consegue gravar.
-  ENTREGA POR SEMANA (OBRIGATÓRIO — evita travar por tempo): NUNCA gere o mês inteiro numa única resposta. Entregue a SEMANA 1 completa (com as tags <conteudo> dela), feche com um resumo curto e pergunte "quer que eu siga com a Semana 2?". A cada "sim/continuar", entregue a próxima semana. Uma semana por resposta mantém a geração rápida e evita que a resposta seja interrompida por tempo.
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "JANELA DE PLANEJAMENTO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
+  ENTREGA POR SEMANA (OBRIGATÓRIO — evita travar por tempo): NUNCA gere o mês inteiro numa única resposta. Entregue a SEMANA 1 completa primeiro (com as tags <conteudo> dela, dentro da janela dela — ver "JANELA DE PLANEJAMENTO"), feche com um resumo curto e pergunte "quer que eu siga com a Semana 2?". A cada "sim/continuar", entregue a próxima semana, na ordem (2, depois 3, depois 4, depois 5). Uma semana por resposta mantém a geração rápida e evita que a resposta seja interrompida por tempo. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
 - RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
 Pergunte se pode produzir os conteúdos.
 
-CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o limite de imagens do plano ao definir quantos posts com arte: use os números REAIS do bloco "COTA E CAPACIDADE" injetado no contexto (artes/mês e vídeos/mês do plano) — nunca presuma valores fixos. Não planeje mais artes do que restam.
+CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o teto de peças com arte do bloco "QUANTO VOCÊ PODE PLANEJAR" — é um teto, não converse sobre o número em si nem tente adivinhar quanto já foi usado. Não planeje mais artes do que esse teto.
 
 ═══ ETAPA 2 — PRODUÇÃO EM LOTES (após aprovar o plano) ═══
 Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos de uma vez). A cada lote, pergunte se quer o próximo.
@@ -239,9 +254,10 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
+DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "JANELA DE PLANEJAMENTO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Comece pela SEMANA 1 (mesmo parcial) antes de ir pra Semana 2.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
-CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO À COTA: cada slide consome 1 imagem do plano — um carrossel de 5 gasta 5 do total de artes. Conte TODOS os slides ao respeitar o limite do bloco COTA E CAPACIDADE. Para os outros formatos, não use "slides".
+CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
 Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
 → "avulso":true (peça específica, vai direto para a arte, SEM aprovação de calendário) quando:
@@ -284,8 +300,8 @@ E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovaçõe
 tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
 
 VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
-ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed.
-ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
+ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed. OBRIGATÓRIO TAMBÉM: marque "avulso":true — este criativo nasceu de uma ordem do Tráfego, não é parte do plano mensal do cliente; sem essa marca ele entraria sem querer no card de aprovação do mês e nas travas de data/cota do plano, que não fazem sentido pra um anúncio avulso.
+ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, "avulso":true (este conteúdo não é parte do plano mensal — nasceu de um criativo que o cliente já subiu por conta própria, pode ter uma data fora do horizonte do plano atual e isso é normal) e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
 ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
   criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor).
 
@@ -823,6 +839,22 @@ const handler = async (req, res) => {
     const ancoraPlano=(cli.preferencias&&cli.preferencias.plano_ancora_em)||hojeISO;
     const janelasCliente=JC.janelasSemanas(ancoraPlano,diaLoteCliente);
     const semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
+    // JANELA DE PLANEJAMENTO COMO DADO, NÃO TEXTO (28/ago/2026 — ver APRENDIZADOS.md, "JANELA
+    // DE PLANEJAMENTO — parâmetro de sistema, não texto"): as 5 janelas concretas do plano vêm
+    // prontas, calculadas pela fonte única (mesma que qualquer outro ponto do sistema usa) — a
+    // Estratégia NUNCA mais calcula "semana atual" por conta própria a partir do calendário de
+    // 40 dias. Ela decide O QUE entra em cada dia; QUAL janela cada semana ocupa é dado, não
+    // escolha dela. Isso é o que corrigiu o caso de 28/08: sem esta injeção, o agente tinha só
+    // uma lista solta de dias e escolheu livremente pular a Semana 1 inteira.
+    if(agente==='estrategia'){
+      const _ddmm=iso=>{ const p=String(iso).split('-'); return p[2]+'/'+p[1]; };
+      const linhasJanelas=janelasCliente.map(j=>{
+        const dias=Math.round((new Date(j.fim+'T00:00:00Z')-new Date(j.inicio+'T00:00:00Z'))/86400000)+1;
+        const parcial=(j.semana===1&&dias<7)?(' (parcial, '+dias+' dia'+(dias>1?'s':'')+')'):'';
+        return 'SEMANA '+j.semana+' — '+_ddmm(j.inicio)+' a '+_ddmm(j.fim)+parcial+' → use "data_sugerida" entre '+j.inicio+' e '+j.fim;
+      }).join('\n');
+      dataTxt+=`\n\n═══ JANELA DE PLANEJAMENTO (as 5 semanas do plano — dado pronto, NUNCA recalcule) ═══\n${linhasJanelas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). Ao "ENTREGAR POR SEMANA": a SEMANA 1 é a PRIMEIRA a ser entregue, mesmo sendo parcial — inclua ao menos 1 peça nela (só pule se a cota de imagens do plano já estiver zerada); depois pergunte se segue para a SEMANA 2, e assim sucessivamente pelas 5. Nunca comece o plano pela Semana 2 nem deixe a Semana 1 vazia sem esse motivo.`;
+    }
     if(agente==='publicacao'){
       try{
         const agd=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(aprovado,agendado)&order=data_agendada.asc&limit=30&select=formato,status,data_agendada,meta`);
@@ -835,12 +867,20 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    // COTA DO PLANO: a Estratégia PRECISA saber quantas artes cabem, senão amontoa posts.
+    // COTA DO PLANO (reescrito 28/ago/2026 — ver APRENDIZADOS.md, "JANELA DE PLANEJAMENTO",
+    // item 4): antes este bloco expunha "já usadas X · RESTAM Y" — números reais, mas o agente
+    // inventou por cima deles três vezes seguidas ("restam 966 artes", "restam 45 artes e 10
+    // vídeos", "restam 36 de 45"), sempre com o valor correto disponível aqui mesmo. Instrução
+    // em prosa não segura comportamento (mesmo padrão de sempre: "não gere ainda" e "só depois
+    // do sim" também foram ignorados). A correção não é escrever melhor — é tirar do agente
+    // qualquer número pra especular: ele recebe só um TETO ("até N peças"), nunca "restam X de
+    // Y". Saldo/consumo/histórico é assunto da interface (Configurações → Meus limites), não do
+    // chat. O teto de artes abaixo vem de tetoImagensPlano() — fonte única da conta, ver o
+    // comentário dela no topo do arquivo.
     let cotaTxt='';
     if(agente==='estrategia'){
       const limImg=Number((cli.limites||{}).imagens||0);
-      const usImg=Number((cli.uso||{}).imagens||0);
-      const rest=Math.max(0,limImg-usImg);
+      const tetoImg=tetoImagensPlano(cli);
       const limVid=Number((cli.limites||{}).videos||0);
       const usVid=Number((cli.uso||{}).videos||0);
       const restVid=Math.max(0,limVid-usVid);
@@ -848,12 +888,13 @@ const handler = async (req, res) => {
       const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
                  medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
                  pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
-      cotaTxt='\n\n═══ COTA E CAPACIDADE (OBRIGATÓRIO RESPEITAR) ═══'+
-        (limImg?('\nARTES DO PLANO: '+limImg+' imagens/mês · já usadas '+usImg+' · RESTAM '+rest+'. NUNCA planeje mais artes (feed/carrossel/story) do que restam. Distribua ao longo do período — no máximo 1 post por dia, nunca amontoe vários no mesmo dia.'):'')+
-        ('\nVÍDEOS DO PLANO (edição por IA): '+(limVid>0?(limVid+' vídeos/mês · já usados '+usVid+' · RESTAM '+restVid+'. NUNCA planeje mais reels/vídeos editados do que restam NEM do que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA (0/mês). Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
-        '\nANÚNCIOS: não têm cota própria — cada criativo de anúncio (finalidade=anuncio) CONSOME a cota de imagens acima. Planeje anúncios só no plano Pro e desconte-os do total de artes que restam.'+
+      cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (teto, não meta — pare nele) ═══'+
+        (limImg?('\nPEÇAS COM ARTE: até '+tetoImg+' peça(s) neste plano (feed/carrossel/story — cada slide de carrossel conta 1). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
+        ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
+        '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
         (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
-        '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).';
+        '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
+        '\n⚠️ NUNCA cite ao cliente quantas peças/vídeos "restam", "já foram usados" ou qualquer número de saldo/consumo — você não tem esse dado, só o teto acima, e especular gerou informação falsa antes. Se ele perguntar o saldo, oriente a olhar em Configurações → Meus limites.';
     }
 
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
@@ -893,7 +934,12 @@ const handler = async (req, res) => {
         const lim=semanaAtualCliente.fim;
         const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
         if(Array.isArray(wk)&&wk.length){
-          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR ('+wk.length+') ═══\n'+
+          // CONTINUIDADE ENTRE SEMANAS (28/ago/2026, item 5 — ver APRENDIZADOS.md, "JANELA DE
+          // PLANEJAMENTO"): qual semana está sendo detalhada vem de dado calculado (dia_lote +
+          // âncora, mesma fonte de sempre), NUNCA de o agente inferir pelo histórico da
+          // conversa. Antes este bloco só listava id/data/tema sem dizer o número da semana —
+          // se o agente mencionasse "Semana 2" pro cliente, estaria adivinhando.
+          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
             '\nDETALHE AGORA, PROATIVAMENTE (não espere o cliente pedir): emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Assim que você detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
         }
@@ -1084,6 +1130,19 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
+    // DEFESA EM PROFUNDIDADE — JANELA DE PLANEJAMENTO (item 5 do mapa, 28/ago/2026): o prompt
+    // agora instrui "avulso":true pra 'novo_criativo_ads' e 'copy_para_criativo' (ambos emitem
+    // <conteudo> fora do plano mensal), mas este projeto já provou repetidas vezes que instrução
+    // em prosa não é garantia de comportamento — por isso, quando existe um sinal ESTRUTURAL
+    // confiável de que a peça não pertence ao plano, o código força a marca em vez de confiar só
+    // no texto. 'criativo_url' é esse sinal aqui: só nasce em 'copy_para_criativo' (o cliente já
+    // subiu o criativo por conta própria) — nenhum outro fluxo do sistema o preenche. Não existe
+    // sinal estrutural equivalente pra 'novo_criativo_ads' (finalidade:'anuncio' também pode
+    // aparecer num post PLANEJADO do mês, ver "ANÚNCIOS" no bloco de cota abaixo — forçar avulso
+    // por essa flag sozinha derrubaria anúncio legítimo do plano); esse caso fica só com a
+    // instrução de prompt, registrado como risco residual aceito.
+    conteudos.forEach(ct=>{ if(ct && ct.criativo_url && !ct.avulso) ct.avulso=true; });
+
     // ETAPA 2 (26/ago/2026): aviso de material do usuário aguardando upload, gerado pelo
     // "criador semanal" logo abaixo — anexado ao texto de resposta perto de notaBackstop.
     let notaSemanal=null;
@@ -1094,11 +1153,23 @@ const handler = async (req, res) => {
       return '';
     });
     let detalhados=0;
+    // LOTE 1 — TRAVA DE DUPLICIDADE, Estágio B (28/ago/2026): antes, este PATCH aceitava
+    // QUALQUER id emitido pelo agente, sem checar se outra requisição concorrente (duplo clique,
+    // duas abas, o auto-disparo da aprovação mensal cruzando com uma mensagem manual) já tinha
+    // detalhado o mesmo post enquanto esta chamada à IA estava em andamento — resultado era
+    // "quem grava por último vence", não determinístico. Severidade baixa (não duplica
+    // produção, só desperdiça a chamada à IA perdedora) — por isso "sem restrição de banco",
+    // só verificação em código: reconfere 'copy' bem ANTES de sobrescrever, na mesma leitura que
+    // já buscava meta/formato (não é uma query nova). Se já tem copy não-vazio, outra requisição
+    // venceu a corrida — não sobrescreve, conta à parte, nunca falha silenciosamente.
+    let detalhesIgnorados=0;
+    let avisoDetalheDuplicado=null;
     if(detalhes.length){
       for(const d of detalhes){
         try{
-          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato`);
+          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy`);
           if(!atual)continue;
+          if(atual.copy&&String(atual.copy).trim()){ detalhesIgnorados++; continue; }
           const meta={...(atual.meta||{}),headline:d.headline||'',subheadline:d.subheadline||'',prova:d.prova||'',cta_arte:d.cta_arte||'',oferta:d.oferta||''};
           const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
             method:'PATCH',headers:H(),
@@ -1106,6 +1177,9 @@ const handler = async (req, res) => {
           });
           if(r.ok)detalhados++;
         }catch(e){}
+      }
+      if(detalhesIgnorados>0){
+        avisoDetalheDuplicado=detalhesIgnorados+' post(s) já tinham copy escrita por outra requisição enquanto esta estava em andamento — não sobrescrevi.';
       }
       // Detalhou a semana → dá BAIXA na própria ordem. NÃO cria mais 'criar_post' aqui.
       // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): antes deste ponto, detalhar a semana (só
@@ -1147,6 +1221,39 @@ const handler = async (req, res) => {
     }
 
     let erroGravacao=null;
+    // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026) — preenchido mais
+    // abaixo, no momento em que o card "aprovar_estrategia" nasce (só a primeira resposta que
+    // abre um plano novo passa por ali).
+    let avisoSemana1Vazia=null;
+    // PLANO MENSAL — TRAVA DE CICLO (LOTE 1 — TRAVAS DE DUPLICIDADE, 28/ago/2026): fecha o
+    // Estágio A do mapa de duplicidade — antes só existia checagem de card ABERTO (mais abaixo,
+    // "ex", na criação do card); um plano já APROVADO não impedia um segundo nascer pro mesmo
+    // ciclo. Definição de "ciclo" (reportada ao João antes de implementar, conforme pedido):
+    // o horizonte de 5 semanas contado a partir da ÂNCORA REAL do plano (JC.horizonteDoPlano,
+    // mesma fonte única de sempre) — não mês-calendário, que não bate com o desenho de âncora já
+    // usado no resto do sistema desde ANCORAGEM DAS SEMANAS. Só bloqueia quando: (a) já existe
+    // uma âncora real gravada (plano_ancora_em — ou seja, algum plano já foi aprovado alguma
+    // vez); (b) hoje ainda está dentro do horizonte dessa âncora; (c) não existe já um card
+    // 'aprovar_estrategia' aberto (isso seria continuação do MESMO plano ainda não aprovado,
+    // não um ciclo novo — mesma query usada mais abaixo em "ex", replicada aqui de propósito
+    // porque esta trava precisa rodar ANTES do INSERT dos conteúdos, não é regra divergente).
+    // Escopo só do PLANO — avulso nunca é tocado por esta trava, mesmo padrão de sempre.
+    let avisoCicloAtivo=null;
+    let cicloAtivoBloqueio=null;
+    if(agente==='estrategia'){
+      const _ancoraReal=(cli.preferencias&&cli.preferencias.plano_ancora_em)||null;
+      if(_ancoraReal){
+        const _hzCiclo=JC.horizonteDoPlano(_ancoraReal,diaLoteCliente);
+        if(hojeISO<=_hzCiclo.fim){
+          try{
+            const _exCiclo=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
+            if(!(Array.isArray(_exCiclo)&&_exCiclo.length)){
+              cicloAtivoBloqueio='O plano do mês atual (âncora '+_ancoraReal+') ainda está em vigor até '+_hzCiclo.fim+'. Um plano completo novo só pode ser aberto depois dessa data — se algo específico do plano atual precisa mudar, peça um ajuste pontual em vez de gerar o mês inteiro de novo.';
+            }
+          }catch(e){}
+        }
+      }
+    }
     // ETAPA 1 — DESCARTE REAL (25/ago/2026): pares {avulso,id} dos conteúdos gravados nesta
     // rodada, na ordem de `conteudos`. Usado mais abaixo pra vincular o plano mensal à sua
     // ordem de aprovação (payload.ids) — mesmo padrão que a semanal já usa (ver idsW acima).
@@ -1161,6 +1268,22 @@ const handler = async (req, res) => {
         // Contrato de cardinalidade: peça inválida (ex.: carrossel sem "slides") NÃO é gravada
         // e NÃO derruba as demais — vira aviso rastreável em vez de produção ambígua.
         const invalidos=[];
+        // TRAVA DE CICLO (continuação, ver cicloAtivoBloqueio acima): se o ciclo atual ainda
+        // está em vigor, TODO o lote não-avulso é recusado de uma vez (não é peça a peça, como
+        // travaDeDatas/travaTrial — é "não pode nascer um plano novo agora", não "esta data é
+        // inválida"). avulso nunca é tocado. avisoCicloAtivo só vira aviso na resposta se algo
+        // realmente foi descartado por causa disso (evita avisar em toda conversa da Estratégia
+        // durante o ciclo, só quando o agente de fato tentou abrir um plano novo).
+        if(cicloAtivoBloqueio){
+          let _cicloRemovidos=0;
+          for(let i=conteudos.length-1;i>=0;i--){
+            if(!conteudos[i].avulso){ conteudos.splice(i,1); _cicloRemovidos++; }
+          }
+          if(_cicloRemovidos>0){
+            avisoCicloAtivo=cicloAtivoBloqueio;
+            invalidos.push(_cicloRemovidos+' peça(s) do plano recusada(s): '+cicloAtivoBloqueio);
+          }
+        }
         for(let i=conteudos.length-1;i>=0;i--){
           try{
             cardinalidade(conteudos[i]);
@@ -1175,24 +1298,22 @@ const handler = async (req, res) => {
         }
         // COTA — item 5 (ANCORAGEM DAS SEMANAS, 28/ago/2026): no máximo 80% do saldo de imagens
         // do plano vai pra posts planejados com arte; os outros 20% ficam de reserva pra
-        // recriações/avulsos do mês (mesmos números que cotaTxt já injeta no prompt — mas nunca
-        // se confia só no texto: "restam 966 de artes" foi o modelo inventando em cima de um
-        // contexto que ele às vezes ignora, não um erro de conta — ver APRENDIZADOS.md). Corta o
-        // EXCESSO (do fim da lista pra trás, ordem de chegada) e avisa — nunca produz além do
-        // que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota de
-        // vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
+        // recriações/avulsos do mês (mesmos números que cotaTxt já injeta no prompt como TETO —
+        // mas nunca se confia só no texto: "restam 966 de artes" foi o modelo inventando em cima
+        // de um contexto que ele às vezes ignora, não um erro de conta — ver APRENDIZADOS.md).
+        // Corta o EXCESSO (do fim da lista pra trás, ordem de chegada) e avisa — nunca produz
+        // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
+        // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
+        // Conta vem de tetoImagensPlano() — fonte única, ver comentário dela no topo do arquivo.
         if(agente==='estrategia'){
-          const limImgCota=Number((cli.limites||{}).imagens||0);
-          const usImgCota=Number((cli.uso||{}).imagens||0);
-          const restImgCota=Math.max(0,limImgCota-usImgCota);
-          const tetoPlano=Math.floor(restImgCota*0.8);
+          const tetoPlano=tetoImagensPlano(cli);
           let acumuladoCota=0;
           for(let i=0;i<conteudos.length;i++){
             const ct=conteudos[i];
             if(ct.avulso||JC.ehMaterialUsuario(ct))continue;
             let n=1; try{ n=cardinalidade(ct); }catch(e){ n=1; }
             if(acumuladoCota+n>tetoPlano){
-              invalidos.push(String(ct.tema||'peça')+': ultrapassa os 80% da cota de imagens reservada ao plano ('+tetoPlano+' de '+restImgCota+' restantes; 20% fica reservado a recriações/avulsos do mês)');
+              invalidos.push(String(ct.tema||'peça')+': ultrapassa os 80% da cota de imagens reservada ao plano ('+tetoPlano+' disponíveis; 20% fica reservado a recriações/avulsos do mês)');
               conteudos.splice(i,1); i--; continue;
             }
             acumuladoCota+=n;
@@ -1340,6 +1461,19 @@ const handler = async (req, res) => {
         const _idsDoPlano=idsPorConteudo.filter(x=>x.avulso!==true&&String(x.avulso)!=='true').map(x=>x.id);
         const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
         if(!(Array.isArray(ex)&&ex.length)){
+          // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026): este é
+          // especificamente o turno que ABRE um plano novo (nenhum 'aprovar_estrategia' já
+          // aberto) — pelo desenho de "ENTREGA POR SEMANA", é sempre a Semana 1 que deveria vir
+          // aqui. Critério confirmado com o João: "não comporta" = teto de imagens do plano = 0
+          // (nunca "poucos dias" — provado matematicamente que a Semana 1 nunca tem menos de 1
+          // dia, e 1 dia já comporta 1 peça). Recusa não apaga o resto do plano (as outras
+          // semanas entregues nesta ou em respostas seguintes continuam válidas) — só avisa alto
+          // o suficiente pra não passar em silêncio, mesmo padrão de erroGravacao.
+          const temPecaSemana1=_doPlano.some(ct=>JC.semanaDoPost(ct&&ct.data_sugerida,ancoraPlano,diaLoteCliente)===1);
+          const tetoDisponivel=tetoImagensPlano(cli);
+          if(!temPecaSemana1 && tetoDisponivel>0){
+            avisoSemana1Vazia='A Semana 1 do plano (a partir de hoje) ficou sem nenhuma peça — o plano começou direto pela Semana 2 em diante, mesmo havendo cota disponível ('+tetoDisponivel+' peça(s) com arte ainda cabem). Peça à Estratégia para completar a Semana 1 antes de aprovar.';
+          }
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
             method:'POST',headers:H(),
             body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'estrategia',tarefa:'aprovar_estrategia',
@@ -1566,6 +1700,9 @@ const handler = async (req, res) => {
 
     if(notaSemanal){ texto+='\n\n'+notaSemanal; }
     if(notaBackstop){ texto+='\n\n'+notaBackstop; }
+    if(avisoSemana1Vazia){ texto+='\n\n⚠️ '+avisoSemana1Vazia; }
+    if(avisoCicloAtivo){ texto+='\n\n⚠️ '+avisoCicloAtivo; }
+    if(avisoDetalheDuplicado){ texto+='\n\n⚠️ '+avisoDetalheDuplicado; }
     if(erroGravacao){
       texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
     }
@@ -1576,7 +1713,7 @@ const handler = async (req, res) => {
         texto+='\n\n⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.';
       }
     }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
