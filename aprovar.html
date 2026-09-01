@@ -567,10 +567,42 @@ async function aprovarProposta(id,tarefa,btn){
       // o código seguia como se tivesse disparado a produção, fechava a ordem e mostrava
       // sucesso — a semana ficava aprovada, sem nenhuma arte a caminho, e ninguém saberia por
       // quê. Agora o erro é checado e avisado.
-      let erroProducao=null;
+      // LOTE 1 — TRAVA DE DUPLICIDADE, Estágio D (28/ago/2026): esta era a ÚNICA porta de
+      // produção sem NENHUMA checagem além do botão desabilitado na tela — que só protege o
+      // mesmo botão na mesma aba; duas abas, dois dispositivos ou um reload+reclique passavam
+      // direto e geravam duas ordens pro mesmo conteúdo (cota consumida e arte produzida em
+      // dobro, sem volta). Duas camadas agora:
+      //   1) checagem AQUI, antes do insert — mesmo padrão já usado no card da Semana 1 duas
+      //      linhas abaixo ("jaSemana"), aplicado à produção em si. Pega o caso comum e informa
+      //      com clareza em vez de deixar a ordem duplicar em silêncio.
+      //   2) a restrição de fato mora no BANCO (índice único parcial sobre conteúdo ativo, ver
+      //      migration em APRENDIZADOS.md/"LOTE 1") — pega a corrida que a camada 1 sozinha não
+      //      fecha (duas abas passando pela checagem ao mesmo tempo). Erro do banco tratado
+      //      abaixo com mensagem amigável, nunca cru.
+      let erroProducao=null, idsJaEmProducao=[];
+      if(ids.length){
+        try{
+          const{data:jaAtivas}=await JUMP.sb.from('ordens_servico').select('payload')
+            .eq('user_id',uid).in('tarefa',['criar_post','criar_avulso']).in('status',['pendente','processando']);
+          const emProducao=new Set();
+          (jaAtivas||[]).forEach(o=>{
+            const pl=o.payload||{};
+            if(pl.slide!=null)return; // ajuste de slide (Família B) sempre coexiste, nunca bloqueia (CONTRATO-ordens.md)
+            (pl.ids||[]).forEach(x=>emProducao.add(x));
+          });
+          idsJaEmProducao=ids.filter(x=>emProducao.has(x));
+          if(idsJaEmProducao.length)ids=ids.filter(x=>!emProducao.has(x));
+        }catch(e){console.error('[aprovar_semana] checagem de produção duplicada falhou, seguindo sem ela (a restrição do banco ainda protege):',e&&e.message);}
+      }
       if(ids.length){
         const{error:errProd}=await JUMP.sb.from('ordens_servico').insert([{user_id:uid,de_agente:'estrategia',para_agente:'criativo',tarefa:'criar_post',detalhe:'Criar as artes da semana ('+ids.length+' post(s))',status:'pendente',total:ids.length,progresso:0,payload:{ids}}]);
-        if(errProd){erroProducao=errProd;console.error('[aprovar_semana] INSERT criar_post falhou:',errProd);}
+        if(errProd){
+          // Camada 2 pegou uma corrida que a camada 1 não viu (duas abas quase juntas) — mesma
+          // causa, mensagem amigável em vez do texto cru do Postgres.
+          const eRestricao=/duplicate key|exclusion|unique constraint|ux_ordem_itens|ordens_sem_producao/i.test(String(errProd.message||errProd.details||''));
+          erroProducao=eRestricao?{message:'parte destes posts já tinha uma ordem de produção em andamento (pega pela restrição do banco)'}:errProd;
+          console.error('[aprovar_semana] INSERT criar_post falhou:',errProd);
+        }
       }
       // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
       // precisa abrir nada — se a página cair, o cron retoma a mesma ordem. Só faz sentido se a
@@ -584,13 +616,17 @@ async function aprovarProposta(id,tarefa,btn){
       if(errConcluirSem)console.error('[aprovar_semana] update concluida falhou:',errConcluirSem);
       // ETAPA 2: aviso explícito SEMPRE, mesmo quando matN=0 — nunca mais silencioso (contagem
       // separada, nunca somada, como pedido). Agora também avisa se a produção ou o fechamento
-      // da ordem falharem — nunca silencioso, mesmo padrão do Bloco A.
+      // da ordem falharem — nunca silencioso, mesmo padrão do Bloco A. LOTE 1: idsJaEmProducao
+      // também nunca fica silencioso — o cliente precisa saber que parte da semana já estava
+      // sendo produzida (provavelmente de um clique/aba anterior) em vez de simplesmente ver um
+      // número menor de artes sem explicação.
+      const _avisoDup=idsJaEmProducao.length?(' ('+idsJaEmProducao.length+' post(s) já estavam com produção em andamento — não duplicados.)'):'';
       if(erroProducao){
-        JUMP.toast('⚠️ Semana aprovada, mas não consegui criar a ordem de produção (erro ao salvar). Atualize a página — se as artes não aparecerem em alguns minutos, avise o suporte.','err');
+        JUMP.toast('⚠️ Semana aprovada, mas não consegui criar a ordem de produção ('+(erroProducao.message||'erro ao salvar')+').'+_avisoDup+' Atualize a página — se as artes não aparecerem em alguns minutos, avise o suporte.','err');
       }else if(errConcluirSem){
-        JUMP.toast('✓ '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente. ⚠️ Não consegui fechar esta aprovação (erro ao salvar) — atualize a página.','err');
+        JUMP.toast('✓ '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.'+_avisoDup+' ⚠️ Não consegui fechar esta aprovação (erro ao salvar) — atualize a página.','err');
       }else{
-        JUMP.toast('✓ Semana aprovada! '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.');
+        JUMP.toast('✓ Semana aprovada! '+ids.length+' pronto(s) para arte · '+matN+' aguardando material do cliente.'+_avisoDup);
       }
     }else{
       // MENSAL = mapa macro: entra no calendário e libera a Semana 1 (não produz nada ainda)
