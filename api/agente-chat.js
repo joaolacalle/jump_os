@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.03-avisos-persistidos';
+const VERSAO = '2026.09.03-reparo-segunda-chamada-avulso';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
@@ -554,6 +554,7 @@ const handler = async (req, res) => {
         lote2_obrigacao_emissao_tag_avulso:true,
         lote2_deteccao_falha_silenciosa:true,
         avisos_persistidos_no_historico:true,
+        reparo_segunda_chamada_avulso:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1228,8 +1229,57 @@ const handler = async (req, res) => {
     let avisoNadaRegistrado=null;
     const _declarouAcao=declarouAcaoSemRegistro(texto);
     if(_declarouAcao && conteudos.length===0){
-      avisoNadaRegistrado='O texto acima menciona uma ação (produção/fila/aprovação), mas o sistema NÃO registrou nenhum conteúdo nesta resposta — nada foi salvo. Peça de novo, descrevendo a peça que você quer.';
-      console.error('[agente-chat] LOTE 2 item 2: texto declarou ação sem <conteudo> emitido — nada registrado. agente='+agente+' user='+targetId+' mensagem='+String(mensagem||'').slice(0,200)+' texto='+texto.slice(0,600));
+      // REPARO DE SEGUNDA CHAMADA — AVULSO (03/set/2026, autorizado após confirmação em produção
+      // de que as duas condições abaixo — conteudos.length===0 e declarouAcaoSemRegistro — são
+      // exatamente o sinal certo): a causa raiz comprovada NÃO é o agente desobedecendo a
+      // instrução de emitir a tag. É o agente lendo a confirmação do cliente ("pode seguir",
+      // "perfeito, pode criar") como referência a uma peça de um turno ANTERIOR (o histórico de
+      // testes/conversas tem várias propostas parecidas) e respondendo como se já tivesse
+      // executado. Instrução em prosa não resolve isso — não é falha de obediência, é falha de
+      // ESTADO (o agente "acha" que já fez). Por isso o reparo não pede de novo em texto livre —
+      // ancora explicitamente na ÚLTIMA resposta do agente ANTES desta confirmação (a proposta de
+      // verdade), copiada literalmente pro prompt, e pede SÓ a tag, correspondente A ELA, nunca a
+      // qualquer outra coisa do histórico. Isso não depende do agente "lembrar" certo sozinho.
+      //
+      // ATENÇÃO — histórico de duplicação (ver APRENDIZADOS.md, "Bug relatado — criação automática
+      // parou"): o auto-reparo do PLANO MENSAL (mais acima, `prometeuConteudo`) já causou
+      // duplicação no passado quando disparava mesmo com conteúdo já registrado. Esta segunda
+      // chamada só é tentada quando `conteudos.length===0` PARA ESTE turno (nada foi capturado
+      // agora) — não reintroduz aquele padrão. Risco residual, aceito e registrado: se o cliente
+      // confirmar a MESMA peça de novo em turnos seguintes (achando que não funcionou), cada
+      // confirmação nova pode gerar sua própria tentativa de reparo — não há proteção contra
+      // confirmação repetida além desta.
+      let _repConteudo=null;
+      const _propostaAnterior=(messages.length>=2 && messages[messages.length-2].role==='assistant') ? messages[messages.length-2].content : null;
+      if(_propostaAnterior){
+        try{
+          const r3=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+            body:JSON.stringify({
+              model:MODEL_DE(agente),max_tokens:2000,system,
+              messages:[...messages,{role:'assistant',content:texto},
+                {role:'user',content:'O cliente confirmou a peça que você propôs no turno anterior (reproduzida abaixo, entre aspas) — mas sua última resposta tratou como se ela já tivesse sido registrada, sem emitir a tag. NADA foi salvo. Responda AGORA somente com a tag <conteudo>{...}</conteudo> correspondente EXATAMENTE a essa proposta (mesmo tema, formato e conteúdo que você descreveu abaixo — não invente uma peça nova, não reemita nenhuma outra peça do histórico), com "avulso":true e os campos de texto (headline, subheadline, prova, cta_arte, copy) dentro dela. Sem nenhum texto antes ou depois, sem markdown.\n\nProposta que o cliente confirmou:\n"""\n'+String(_propostaAnterior).slice(0,2000)+'\n"""'}],
+            }),
+          });
+          const d3=await r3.json();
+          if(r3.ok){
+            const t3=(d3.content||[]).map(c=>c.text||'').join('');
+            (t3.match(/<conteudo>([\s\S]*?)<\/conteudo>/g)||[]).forEach(bloco=>{
+              try{
+                const o=JSON.parse(bloco.replace(/<\/?conteudo>/g,'').trim());
+                if(o.tema){ if(!o.avulso) o.avulso=true; conteudos.push(o); _repConteudo=o; }
+              }catch(e){}
+            });
+          }
+        }catch(e){}
+      }
+      if(conteudos.length===0){
+        avisoNadaRegistrado='O texto acima menciona uma ação (produção/fila/aprovação), mas o sistema NÃO registrou nenhum conteúdo nesta resposta — nada foi salvo. Peça de novo, descrevendo a peça que você quer.';
+        console.error('[agente-chat] LOTE 2 item 2: texto declarou ação sem <conteudo> emitido — nada registrado (reparo de segunda chamada não recuperou, ou não havia proposta anterior identificável). agente='+agente+' user='+targetId+' mensagem='+String(mensagem||'').slice(0,200)+' texto='+texto.slice(0,600));
+      }else if(_repConteudo){
+        console.error('[agente-chat] REPARO SEGUNDA CHAMADA (avulso): recuperado com sucesso a partir da proposta do turno anterior. agente='+agente+' user='+targetId+' tema='+String(_repConteudo.tema||'').slice(0,120));
+      }
     }
 
     // ETAPA 2 (26/ago/2026): aviso de material do usuário aguardando upload, gerado pelo
