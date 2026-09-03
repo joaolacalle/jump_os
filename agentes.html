@@ -571,10 +571,13 @@ async function selecionar(id){
   w.innerHTML='';_lastDay=null;
   /* histórico */
   try{
-    const{data}=await JUMP.sb.from('chat_mensagens').select('role,conteudo,created_at').eq('user_id',CTX.viewId||CTX.user.id).eq('agente',id).order('created_at',{ascending:false}).limit(60);
+    const{data}=await JUMP.sb.from('chat_mensagens').select('role,conteudo,avisos,created_at').eq('user_id',CTX.viewId||CTX.user.id).eq('agente',id).order('created_at',{ascending:false}).limit(60);
     if(data&&data.length){
       // vem do banco em ordem decrescente (60 mais RECENTES); exibe em ordem cronológica.
-      data.slice().reverse().forEach(m=>addMsg(m.role==='user'?'u':'a',m.conteudo,null,m.created_at));
+      // REPARO AVULSO (03/set/2026): 'avisos' é o mesmo texto que apareceu na hora, anexado
+      // aqui só pra exibição — nunca vai junto no que alimenta o modelo (isso lê só 'conteudo',
+      // do lado do servidor). Ver sql/reparo-avulso-passo1-persistir-avisos.sql.
+      data.slice().reverse().forEach(m=>addMsg(m.role==='user'?'u':'a',m.conteudo+(m.avisos?('\n\n'+m.avisos):''),null,m.created_at));
     }else{
       w.innerHTML=`<div class="empty-chat">
         <div class="ec-ico">${a.ico}</div>
