@@ -76,6 +76,25 @@
   // aqui, não como literal em cada arquivo que precisa gravar ou comparar esse valor.
   var STATUS_AGUARDANDO_MATERIAL = 'aguardando_material';
 
+  // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): status novo pra
+  // conteúdo cuja semana fechou (ou cuja data passou) sem aprovação. Mesmo padrão de
+  // 'aguardando_material' acima — texto livre, sem migration, mora só aqui pra nunca virar
+  // literal divergente em cron.js/aprovar.html/dashboard-usuario.html.
+  var STATUS_EXPIRADO = 'expirado';
+
+  // PRAZOS DO CICLO DE EXPIRAÇÃO (item 5 — definidos e reportados ao João, não decididos calados):
+  // - DIAS_AUTO_EXCLUSAO_EXPIRADO: quantos dias depois de expirar um post é excluído (soft-delete,
+  //   status vira 'excluido' — mesmo padrão já usado no resto do sistema pra nunca apagar dado de
+  //   verdade; ver jobOrdens/'expirada' em ordens_servico pro mesmo precedente). Reagendar zera a
+  //   contagem (expirado_em volta a null).
+  // - DIAS_AVISO_SEMANA_FECHANDO: quantos dias antes do fim da semana atual o dashboard avisa que
+  //   ela está perto de fechar (item 5, aviso obrigatório #2).
+  // - DIAS_AVISO_ANTES_EXCLUSAO: quantos dias antes da exclusão automática o dashboard avisa (item
+  //   5, aviso obrigatório #3).
+  var DIAS_AUTO_EXCLUSAO_EXPIRADO = 30;
+  var DIAS_AVISO_SEMANA_FECHANDO = 2;
+  var DIAS_AVISO_ANTES_EXCLUSAO = 5;
+
   function _fmt(conteudoOuFormato) {
     if (typeof conteudoOuFormato === 'string') return conteudoOuFormato.toLowerCase();
     return String((conteudoOuFormato && conteudoOuFormato.formato) || 'feed').toLowerCase();
@@ -174,6 +193,18 @@
     return { inicio: janelas[0].inicio, fim: janelas[janelas.length - 1].fim };
   }
 
+  // 'YYYY-MM-DD' de HOJE no fuso America/Sao_Paulo. Extraído aqui (LOTE 2, 01/set/2026) porque
+  // api/agente-chat.js já calculava isto inline e api/cron.js precisava do mesmo cálculo pro job
+  // de expiração de semana — copiar o literal de novo seria repetir exatamente o erro que este
+  // arquivo existe pra evitar (ver cabeçalho do arquivo). agente-chat.js continua com o cálculo
+  // inline que já tinha (não foi trocado por esta função nesta rodada, pra não mexer em código
+  // que já funciona fora do escopo do Lote 2) — mas nenhum ponto NOVO deve recalcular isso.
+  function hojeISOBrasil() {
+    var TZ = 'America/Sao_Paulo';
+    var d = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
   return {
     CATEGORIA: CATEGORIA,
     FORMATOS_MATERIAL_USUARIO: FORMATOS_MATERIAL_USUARIO,
@@ -181,12 +212,17 @@
     FORMATOS_EM_VALIDACAO: FORMATOS_EM_VALIDACAO,
     PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
     STATUS_AGUARDANDO_MATERIAL: STATUS_AGUARDANDO_MATERIAL,
+    STATUS_EXPIRADO: STATUS_EXPIRADO,
+    DIAS_AUTO_EXCLUSAO_EXPIRADO: DIAS_AUTO_EXCLUSAO_EXPIRADO,
+    DIAS_AVISO_SEMANA_FECHANDO: DIAS_AVISO_SEMANA_FECHANDO,
+    DIAS_AVISO_ANTES_EXCLUSAO: DIAS_AVISO_ANTES_EXCLUSAO,
     ehMaterialUsuario: ehMaterialUsuario,
     ehVertical: ehVertical,
     emValidacao: emValidacao,
     classificar: classificar,
     janelasSemanas: janelasSemanas,
     semanaDoPost: semanaDoPost,
-    horizonteDoPlano: horizonteDoPlano
+    horizonteDoPlano: horizonteDoPlano,
+    hojeISOBrasil: hojeISOBrasil
   };
 });
