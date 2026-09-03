@@ -225,7 +225,7 @@ Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
 - CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "JANELA DE PLANEJAMENTO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
-  ENTREGA POR SEMANA (OBRIGATÓRIO — evita travar por tempo): NUNCA gere o mês inteiro numa única resposta. Entregue a SEMANA 1 completa primeiro (com as tags <conteudo> dela, dentro da janela dela — ver "JANELA DE PLANEJAMENTO"), feche com um resumo curto e pergunte "quer que eu siga com a Semana 2?". A cada "sim/continuar", entregue a próxima semana, na ordem (2, depois 3, depois 4, depois 5). Uma semana por resposta mantém a geração rápida e evita que a resposta seja interrompida por tempo. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
+  MÊS INTEIRO, EM UMA ÚNICA RESPOSTA (OBRIGATÓRIO — LOTE 2, 01/set/2026): monte as 5 semanas AGORA, nesta mesma resposta, com a tag <conteudo> de CADA post do mês inteiro. NUNCA pergunte "quer que eu siga com a Semana 2?" nem espere confirmação para continuar — isso era um workaround do limite de tamanho de resposta que não existe mais: o formato aqui é LEVE (tema/formato/data — sem copy, sem roteiro, ver TEMPO 1 abaixo), então o mês inteiro cabe numa resposta só. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
 - RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
 Pergunte se pode produzir os conteúdos.
 
@@ -253,8 +253,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 - Não repita temas já usados. Cada post tem um pilar (educação/prova/autoridade/oferta/bastidor).
 
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
-Monte o mês inteiro em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline nem roteiro agora (isso é do Tempo 2 — escrever tudo agora estoura o tempo da resposta e o plano se perde).
-DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "JANELA DE PLANEJAMENTO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Comece pela SEMANA 1 (mesmo parcial) antes de ir pra Semana 2.
+Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
+DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "JANELA DE PLANEJAMENTO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
@@ -276,7 +276,7 @@ Uma peça avulsa exige a MESMA inteligência de uma peça do plano. Antes de esc
 5) PROVA: existe número/fato REAL do cliente para sustentar? Se não houver, deixe vazio — nunca invente.
 6) CTA: escolha pelo estágio — frio = "SAIBA MAIS/VER COMO"; morno = "QUERO TESTAR/GARANTIR"; quente = "COMPRAR AGORA". Máx 2 palavras, verbo de ação.
 7) PILAR: classifique (educação|prova|autoridade|oferta|bastidor) — vira o rótulo da arte.
-Se faltar informação essencial do cliente (oferta real, prazo, preço), pergunte UMA vez e produza com o que ele responder. Só então emita as tags. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
+Se faltar informação essencial do cliente (oferta real, prazo, preço), pergunte UMA vez; quando ele responder, você é OBRIGADO a produzir e emitir a tag NA MESMA RESPOSTA em que ele respondeu — nunca adie para um terceiro turno, texto sem a tag correspondente não salva nada. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
 Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando houver "POSTS DA SEMANA PARA DETALHAR" no contexto, ou pedirem para detalhar/produzir a semana)
@@ -443,7 +443,7 @@ REGRAS DO JUMP OS:
 - ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
 - ENTREGUE PRIMEIRO, PERGUNTE DEPOIS: se as memórias dão base mínima, produza a entrega completa AGORA assumindo o mais provável (deixe claro o que assumiu). No máximo 1 pergunta opcional AO FINAL para refinar. NUNCA responda só com lista de perguntas — exceto o check-in do Agente de Identidade, que é guiado.
 - Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
-- ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere duas artes automaticamente: PERGUNTE ANTES, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?". Só produza depois da resposta. O padrão, se o cliente mandar seguir sem escolher, é UMA arte para os dois — nunca gaste duas imagens do saldo dele sem autorização.
+- ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere nenhuma arte NESTE turno: PERGUNTE, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?" — sem emitir nenhuma tag agora. QUANDO ELE RESPONDER (escolher uma opção, ou mandar seguir sem escolher — nesse caso o padrão é UMA arte para os dois), você é OBRIGADO a emitir a tag correspondente NA MESMA RESPOSTA em que ele respondeu — nunca pergunte de novo, nunca adie. Nunca gaste duas imagens do saldo dele sem autorização explícita para "uma para cada".
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
 - RESPOSTA LONGA = DIVIDIR, NUNCA CORTAR: se uma entrega for ficar muito extensa (diagnóstico completo, plano detalhado, análise de mercado), entregue o ESSENCIAL de forma organizada, feche com o próximo passo e ofereça aprofundar em qualquer ponto ("quer que eu detalhe a parte X?"). Uma entrega redonda + convite a continuar é melhor que um texto que corta no meio. Se o cliente pedir "continue", retome EXATAMENTE de onde parou, sem repetir o que já foi dito.
 - FORMATAÇÃO LIMPA E PROFISSIONAL (economiza tokens e fica elegante): escreva em texto corrido, natural. NÃO use markdown decorativo — proibido: ###, ##, **negrito**, tabelas com |, linhas de --- ou ═══, blocos de código com crases. Evite emojis (no máximo 1 quando fizer sentido real). Use frases e parágrafos curtos. Para listas, use traço simples "- item" só quando necessário. Pense: conversa de consultor por mensagem, não documento formatado.
@@ -457,7 +457,10 @@ Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNC
 
 ═══ FRONTEIRA DE ESCOPO (REGRA ABSOLUTA — vale para TODOS os agentes) ═══
 Cada agente executa SOMENTE a sua função. Se o cliente pedir algo que é de OUTRO agente, você NÃO faz — explique em 1 linha, de forma gentil, e indique o agente certo. NUNCA improvise a função de outro agente.
-PEDIDO AVULSO — CONFIRME ANTES DE DISPARAR: quando o cliente pede UMA peça específica ("quero um post sobre X"), primeiro APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. Só emita a tag <conteudo> (que dispara a produção) DEPOIS do "sim" dele. Nunca dispare a produção na mesma resposta em que apresenta a ideia. E um pedido avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
+PEDIDO AVULSO — APRESENTE, DEPOIS CONFIRME, DEPOIS EMITA (LOTE 2, 01/set/2026 — reescrito de proibição pra obrigação: a versão antiga só dizia QUANDO NÃO emitir a tag, nunca mandava explicitamente emiti-la no turno da confirmação — isso deixava o agente dizer "enviado para produção" numa resposta em que NENHUMA tag saía, e o banco ficava vazio; ver APRENDIZADOS.md, "LOTE 2 — prioridade absoluta"):
+TURNO 1 (o cliente pede UMA peça específica, ex.: "quero um post sobre X"): APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. NÃO emita a tag <conteudo> neste turno — a proposta ainda não foi confirmada.
+TURNO 2 (o cliente CONFIRMA — "sim", "pode", "manda", "tá bom" ou equivalente): NESTA MESMA RESPOSTA, SEM EXCEÇÃO, você é OBRIGADO a emitir a tag <conteudo> completa (com "avulso":true e, dentro dela, os campos de texto — ver "PROTOCOLO DE BRIEFING" acima). Texto dizendo "enviado para produção", "está na fila do Designer", "vai aparecer em Aprovações" ou qualquer variação disso SEM a tag <conteudo> na mesma resposta não tem NENHUM efeito no sistema — nada é salvo, nada chega ao Designer, e você terá afirmado ao cliente algo que não aconteceu. Confirmação do cliente sem a tag correspondente na mesma resposta é uma falha crítica: nunca prometa e adie para depois — confirmou, você emite, agora.
+Em ambos os turnos, avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
 NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
 Mapa de funções (quem faz o quê):
 - IDENTIDADE: consultoria de marca, OS_DATA (cores, fontes, posicionamento).
@@ -853,7 +856,7 @@ const handler = async (req, res) => {
         const parcial=(j.semana===1&&dias<7)?(' (parcial, '+dias+' dia'+(dias>1?'s':'')+')'):'';
         return 'SEMANA '+j.semana+' — '+_ddmm(j.inicio)+' a '+_ddmm(j.fim)+parcial+' → use "data_sugerida" entre '+j.inicio+' e '+j.fim;
       }).join('\n');
-      dataTxt+=`\n\n═══ JANELA DE PLANEJAMENTO (as 5 semanas do plano — dado pronto, NUNCA recalcule) ═══\n${linhasJanelas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). Ao "ENTREGAR POR SEMANA": a SEMANA 1 é a PRIMEIRA a ser entregue, mesmo sendo parcial — inclua ao menos 1 peça nela (só pule se a cota de imagens do plano já estiver zerada); depois pergunte se segue para a SEMANA 2, e assim sucessivamente pelas 5. Nunca comece o plano pela Semana 2 nem deixe a Semana 1 vazia sem esse motivo.`;
+      dataTxt+=`\n\n═══ JANELA DE PLANEJAMENTO (as 5 semanas do plano — dado pronto, NUNCA recalcule) ═══\n${linhasJanelas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). MÊS INTEIRO NUMA RESPOSTA SÓ (LOTE 2): emita as tags <conteudo> das 5 semanas juntas, nesta mesma resposta — nunca pergunte se pode seguir para a próxima semana. A SEMANA 1 precisa ter ao menos 1 peça, mesmo sendo parcial (só pule se a cota de imagens do plano já estiver zerada). Nunca comece o plano pela Semana 2 nem deixe a Semana 1 vazia sem esse motivo.`;
     }
     if(agente==='publicacao'){
       try{
@@ -894,7 +897,7 @@ const handler = async (req, res) => {
         '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
         (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
         '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
-        '\n⚠️ NUNCA cite ao cliente quantas peças/vídeos "restam", "já foram usados" ou qualquer número de saldo/consumo — você não tem esse dado, só o teto acima, e especular gerou informação falsa antes. Se ele perguntar o saldo, oriente a olhar em Configurações → Meus limites.';
+        '\n⚠️ PROIBIÇÃO ABSOLUTA (LOTE 2, reforçada 01/set/2026 — já foi ignorada 4 vezes): NUNCA cite ao cliente NENHUM número de saldo/consumo de cota — nem "restam X", nem "já foram usados Y", nem "você tem Z disponíveis", nem uma conta feita por você em cima do teto abaixo. Você não tem esse dado, só o teto (o limite máximo desta rodada) — qualquer número de saldo que você disser é invenção, mesmo que pareça plausível. Se o cliente perguntar quanto já usou ou quanto sobra, responda SEMPRE: "esse número fica em Configurações → Meus limites" — nunca tente calcular ou estimar por conta própria.';
     }
 
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
@@ -1143,6 +1146,22 @@ const handler = async (req, res) => {
     // instrução de prompt, registrado como risco residual aceito.
     conteudos.forEach(ct=>{ if(ct && ct.criativo_url && !ct.avulso) ct.avulso=true; });
 
+    // LOTE 2 — item 2 (detecção e aviso, nunca mais falhar em silêncio, 01/set/2026): o texto do
+    // agente pode declarar uma ação ("enviado para produção", "fila do Designer", "vai aparecer
+    // em Aprovações"...) sem que NENHUMA tag <conteudo> tenha sido emitida — exatamente o bug de
+    // prioridade absoluta deste lote (a instrução de confirmação em REGRAS_GERAIS proibia disparar
+    // cedo demais, mas nunca obrigava disparar no turno certo; ver a reescrita acima). Esta
+    // checagem é o SEGUNDO backstop, agora agnóstico de agente/gatilho (cobre também o caso do
+    // avulso, que o auto-reparo acima propositalmente NÃO cobre — ver 'pedidoAvulso'). NÃO tenta
+    // corrigir sozinho (isso seria reintroduzir o auto-reparo pro avulso, que já causou
+    // duplicação) — só detecta, loga com o texto completo (auditoria) e avisa o cliente.
+    let avisoNadaRegistrado=null;
+    const declarouAcaoSemRegistro=/enviad[oa]s?\s*(para|pra)\s*produ[çc][ãa]o|fila do designer|vai aparecer em aprova[çc][õo]es|disparando agora|cota consumida|mandei\s*(para|pra)\s*o designer|est[áa]\s*(sendo|na fila|a caminho)|envio(u)?\s*(para|pra)\s*aprova[çc][ãa]o|arte(s)?\s*(est[ãa]o|est[áa])\s*sendo\s*(gerada|criada|produzida)/i.test(texto);
+    if(declarouAcaoSemRegistro && conteudos.length===0){
+      avisoNadaRegistrado='O texto acima menciona uma ação (produção/fila/aprovação), mas o sistema NÃO registrou nenhum conteúdo nesta resposta — nada foi salvo. Peça de novo, descrevendo a peça que você quer.';
+      console.error('[agente-chat] LOTE 2 item 2: texto declarou ação sem <conteudo> emitido — nada registrado. agente='+agente+' user='+targetId+' mensagem='+String(mensagem||'').slice(0,200)+' texto='+texto.slice(0,600));
+    }
+
     // ETAPA 2 (26/ago/2026): aviso de material do usuário aguardando upload, gerado pelo
     // "criador semanal" logo abaixo — anexado ao texto de resposta perto de notaBackstop.
     let notaSemanal=null;
@@ -1164,22 +1183,49 @@ const handler = async (req, res) => {
     // venceu a corrida — não sobrescreve, conta à parte, nunca falha silenciosamente.
     let detalhesIgnorados=0;
     let avisoDetalheDuplicado=null;
+    // LOTE 2 — item 4 (semana corrente calculada, trava EM CÓDIGO, 01/set/2026): antes, este PATCH
+    // aceitava qualquer id do cliente, de QUALQUER semana — a única defesa era o prompt (o bloco
+    // "POSTS DA SEMANA PARA DETALHAR" só lista a semana atual), que este projeto já provou repetidas
+    // vezes não ser garantia (ver "obrigação não proibição" acima). Modelo NÃO-CUMULATIVO (item 5,
+    // decisão explícita do produto, substitui a recomendação cumulativa da rodada anterior): só a
+    // semana ATUAL (semanaAtualCliente, já calculada uma vez no topo do request, mesma fonte única
+    // de sempre) pode ser detalhada agora — uma semana passada ou futura é RECUSADA aqui, em
+    // código, nunca só por instrução ao agente. Post sem semana válida (JC.semanaDoPost retorna
+    // null — avulso, ou fora do horizonte de 5 semanas) fica de fora desta trava por definição,
+    // mesmo critério que travaDeDatas/travaTrial já usam pra avulso.
+    let detalhesForaDaSemana=0;
+    let avisoDetalheForaDaSemana=null;
+    // Falha técnica real (PATCH recusado pelo banco, ou exceção) — antes o catch(e){} engolia em
+    // silêncio e só 'detalhados' era contado; agora toda divergência entre emitido/salvo é logada.
+    let detalhesFalhos=0;
     if(detalhes.length){
       for(const d of detalhes){
         try{
-          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy`);
+          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy,data_sugerida`);
           if(!atual)continue;
           if(atual.copy&&String(atual.copy).trim()){ detalhesIgnorados++; continue; }
+          const _semDoId=JC.semanaDoPost(atual.data_sugerida,ancoraPlano,diaLoteCliente);
+          if(_semDoId!==null && _semDoId!==semanaAtualCliente.semana){ detalhesForaDaSemana++; continue; }
           const meta={...(atual.meta||{}),headline:d.headline||'',subheadline:d.subheadline||'',prova:d.prova||'',cta_arte:d.cta_arte||'',oferta:d.oferta||''};
           const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
             method:'PATCH',headers:H(),
             body:JSON.stringify({copy:d.copy||null,roteiro:d.roteiro||null,meta})
           });
           if(r.ok)detalhados++;
-        }catch(e){}
+          else{ detalhesFalhos++; console.error('[detalhe] PATCH recusado pelo banco para id='+d.id+' status='+r.status); }
+        }catch(e){ detalhesFalhos++; console.error('[detalhe] PATCH falhou (exceção) para id='+(d&&d.id)+':', e&&e.message); }
       }
+      // Auditoria barata: loga a conta sempre, mesmo quando bate — ajuda a pegar divergência futura
+      // entre "tags emitidas" e "linhas salvas" antes que vire um bug relatado pelo cliente.
+      console.log('[detalhe] emitidos='+detalhes.length+' salvos='+detalhados+' ignorados_dedup='+detalhesIgnorados+' fora_da_semana='+detalhesForaDaSemana+' falhos='+detalhesFalhos);
       if(detalhesIgnorados>0){
         avisoDetalheDuplicado=detalhesIgnorados+' post(s) já tinham copy escrita por outra requisição enquanto esta estava em andamento — não sobrescrevi.';
+      }
+      if(detalhesForaDaSemana>0){
+        avisoDetalheForaDaSemana=detalhesForaDaSemana+' post(s) não foram detalhados por pertencerem a outra semana do plano (Semana '+semanaAtualCliente.semana+', '+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+', é a única aberta para detalhamento agora) — peça a detalhamento dela quando ela abrir.';
+      }
+      if(detalhesFalhos>0){
+        avisoDetalheDuplicado=(avisoDetalheDuplicado?avisoDetalheDuplicado+' ':'')+detalhesFalhos+' post(s) não foram salvos por erro técnico — peça para detalhar de novo.';
       }
       // Detalhou a semana → dá BAIXA na própria ordem. NÃO cria mais 'criar_post' aqui.
       // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): antes deste ponto, detalhar a semana (só
@@ -1461,10 +1507,11 @@ const handler = async (req, res) => {
         const _idsDoPlano=idsPorConteudo.filter(x=>x.avulso!==true&&String(x.avulso)!=='true').map(x=>x.id);
         const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
         if(!(Array.isArray(ex)&&ex.length)){
-          // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026): este é
-          // especificamente o turno que ABRE um plano novo (nenhum 'aprovar_estrategia' já
-          // aberto) — pelo desenho de "ENTREGA POR SEMANA", é sempre a Semana 1 que deveria vir
-          // aqui. Critério confirmado com o João: "não comporta" = teto de imagens do plano = 0
+          // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026 — mantido pelo
+          // LOTE 2, 01/set/2026, mesmo com o mês inteiro agora vindo numa resposta só em vez de
+          // turno por turno): este é especificamente o turno que ABRE um plano novo (nenhum
+          // 'aprovar_estrategia' já aberto) — a Semana 1 precisa vir com pelo menos 1 peça neste
+          // mesmo lote. Critério confirmado com o João: "não comporta" = teto de imagens do plano = 0
           // (nunca "poucos dias" — provado matematicamente que a Semana 1 nunca tem menos de 1
           // dia, e 1 dia já comporta 1 peça). Recusa não apaga o resto do plano (as outras
           // semanas entregues nesta ou em respostas seguintes continuam válidas) — só avisa alto
@@ -1703,6 +1750,8 @@ const handler = async (req, res) => {
     if(avisoSemana1Vazia){ texto+='\n\n⚠️ '+avisoSemana1Vazia; }
     if(avisoCicloAtivo){ texto+='\n\n⚠️ '+avisoCicloAtivo; }
     if(avisoDetalheDuplicado){ texto+='\n\n⚠️ '+avisoDetalheDuplicado; }
+    if(avisoDetalheForaDaSemana){ texto+='\n\n⚠️ '+avisoDetalheForaDaSemana; }
+    if(avisoNadaRegistrado){ texto+='\n\n🔴 '+avisoNadaRegistrado; }
     if(erroGravacao){
       texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
     }
@@ -1713,7 +1762,7 @@ const handler = async (req, res) => {
         texto+='\n\n⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.';
       }
     }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

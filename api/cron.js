@@ -913,6 +913,74 @@ async function jobOrdens() {
   return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, orfas_resgatadas: orfas, lembretes, convertidos };
 }
 
+async function jobExpiracaoSemana() {
+  // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026 — ver APRENDIZADOS.md,
+  // "LOTE 2"). Decisão explícita do produto: uma semana que passa NÃO acumula — o que não foi
+  // aprovado dentro dela expira, em vez de continuar disponível pra sempre (era a recomendação
+  // "cumulativa" da rodada anterior, revista e substituída por esta).
+  // DUAS FASES, cada uma com seu próprio gatilho — não confundir uma com a outra:
+  //   FASE 1 (expira): conteúdo ainda não decidido pelo cliente, cuja SEMANA fechou OU cuja
+  //     própria DATA já passou, vira 'expirado' (JC.STATUS_EXPIRADO). Só toca no que ainda está
+  //     pendente (rascunho/proposto/aguardando_aprovacao/aguardando_copy/aguardando_material) —
+  //     nunca em algo já aprovado, publicado ou já excluído. Dois gatilhos independentes, OU
+  //     entre eles (qualquer um já expira):
+  //     (a) DATA: data_agendada (se houver) ou data_sugerida já passou.
+  //     (b) SEMANA: a janela (JC.semanaDoPost/janelasSemanas, mesma fonte única de sempre) à qual
+  //         o post pertence já fechou (fim da janela < hoje) — pega o caso em que a data isolada
+  //         do post, por algum motivo (reagendamento anterior que não trocou de semana, borda de
+  //         fuso), ainda não parecia vencida sozinha. Post sem semana válida (avulso, ou fora do
+  //         horizonte de 5 semanas — JC.semanaDoPost retorna null) fica de fora, mesmo critério
+  //         que travaDeDatas/travaTrial (agente-chat.js) já usam.
+  //   FASE 2 (exclui): conteúdo 'expirado' há mais de JC.DIAS_AUTO_EXCLUSAO_EXPIRADO dias vira
+  //     'excluido' — SOFT DELETE (o mesmo status que o resto do sistema já usa pra remoção,
+  //     nunca um DELETE físico — mesmo precedente de jobOrdens/'expirada': dado preservado, nunca
+  //     apagado de verdade). Reagendar (aprovar.html, função reagendar()) tira o post de
+  //     'expirado' e zera expirado_em — reseta a contagem de 30 dias, exatamente como pedido.
+  let expirados = 0, excluidosAutomaticos = 0;
+  const hoje = JC.hojeISOBrasil();
+  try {
+    const clientesAtivos = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const c of (Array.isArray(clientesAtivos) ? clientesAtivos : [])) {
+      const ancora = (c.preferencias && c.preferencias.plano_ancora_em) || null;
+      if (!ancora) continue; // sem plano aprovado ainda: nenhuma semana definida, nada a expirar
+      const dl = (c.preferencias && c.preferencias.dia_lote);
+      const janelas = JC.janelasSemanas(ancora, dl);
+      const pendentes = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material)&data_sugerida=not.is.null&select=id,status,data_sugerida,data_agendada,meta&limit=500`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+      for (const p of (Array.isArray(pendentes) ? pendentes : [])) {
+        const dataRef = String(p.data_agendada || p.data_sugerida || '').slice(0, 10);
+        if (!dataRef) continue;
+        const semana = JC.semanaDoPost(p.data_sugerida, ancora, dl);
+        const janela = (semana != null) ? janelas[semana - 1] : null;
+        const venceuPelaData = dataRef < hoje;
+        const venceuPelaSemana = janela ? (janela.fim < hoje) : false;
+        if (!venceuPelaData && !venceuPelaSemana) continue;
+        await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${p.id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({
+            status: JC.STATUS_EXPIRADO, expirado_em: new Date().toISOString(),
+            meta: { ...(p.meta || {}), status_pre_expiracao: p.status, motivo_expiracao: venceuPelaSemana ? 'semana encerrada' : 'data passada' },
+          }),
+        }).catch(() => {});
+        expirados++;
+      }
+    }
+  } catch (e) { console.error('jobExpiracaoSemana (fase 1 — expirar):', e && e.message); }
+
+  try {
+    const corteExclusao = new Date(Date.now() - JC.DIAS_AUTO_EXCLUSAO_EXPIRADO * 24 * 60 * 60 * 1000).toISOString();
+    const vencidos = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?status=eq.${JC.STATUS_EXPIRADO}&expirado_em=lt.${corteExclusao}&select=id,meta&limit=500`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const v of (Array.isArray(vencidos) ? vencidos : [])) {
+      await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${v.id}`, {
+        method: 'PATCH', headers: SBH(),
+        body: JSON.stringify({ status: 'excluido', meta: { ...(v.meta || {}), motivo_exclusao: 'expirado há mais de ' + JC.DIAS_AUTO_EXCLUSAO_EXPIRADO + ' dias sem aprovação nem reagendamento' } }),
+      }).catch(() => {});
+      excluidosAutomaticos++;
+    }
+  } catch (e) { console.error('jobExpiracaoSemana (fase 2 — auto-excluir):', e && e.message); }
+
+  return { expirados, excluidos_automaticos: excluidosAutomaticos };
+}
+
 async function jobLimpeza() {
   // Remove arquivos com +60 dias (protege o Supabase grátis). Barato, sem IA.
   const LIMITE_DIAS = 60;
@@ -978,7 +1046,12 @@ async function jobLimpeza() {
       const r = await jobLimpeza();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, publicar ou limpeza)' });
+    if (job === 'expiracao') {
+      // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): ver jobExpiracaoSemana.
+      const r = await jobExpiracaoSemana();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, publicar, limpeza ou expiracao)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
