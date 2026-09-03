@@ -854,9 +854,15 @@ const handler = async (req, res) => {
     }
 
     // PÓS-TRIAL: se o cliente saiu do trial e ainda não gerou o mês completo, orienta a Estratégia
+    // REPARO AVULSO — FRENTE A, item 2 (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+    // informação, não ordem"): mesmo padrão do "POSTS DA SEMANA PARA DETALHAR" — este bloco entra
+    // em TODO turno da Estratégia enquanto o cliente não tiver completado o plano pós-trial (pode
+    // durar vários turnos). "Agora gere... Comece já nesta resposta" competia com qualquer assunto
+    // em andamento nesse período. Vira informação (a capacidade está liberada); quem decide o
+    // momento de gerar é o agente, olhando a conversa — não mais uma ordem incondicional.
     let completarTxt = '';
     if (agente === 'estrategia' && !emTrial && cli.onboarding && cli.onboarding.completar_estrategia && !cli.onboarding.estrategia_completada) {
-      completarTxt = `\n\n[ATIVAÇÃO DO PLANO] O cliente acabou de sair do período de teste e o plano está ativo. Agora gere o CALENDÁRIO COMPLETO DO MÊS (não só 7 dias), com todos os posts e disparando as tarefas para os respectivos agentes (Designer, etc). Comece já nesta resposta, de forma natural, celebrando a ativação. Ao concluir a geração do mês, emita <memoria>{"chave":"estrategia_completada","valor":"true"}</memoria> para não repetir.`;
+      completarTxt = `\n\n[ATIVAÇÃO DO PLANO] O cliente acabou de sair do período de teste e o plano está ativo — o calendário completo do mês (não só 7 dias) já pode ser gerado, com todos os posts e as tarefas para os respectivos agentes (Designer, etc). Quando fizer sentido gerar o mês completo, faça isso de forma natural, celebrando a ativação. Ao concluir a geração do mês, emita <memoria>{"chave":"estrategia_completada","valor":"true"}</memoria> para não repetir.`;
     }
 
     // ═══ DATA REAL (fuso do Brasil) — SEM isto o modelo usa o calendário do treino (ano errado)
