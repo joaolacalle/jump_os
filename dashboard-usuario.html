@@ -237,7 +237,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=3"></script>
+<script src="assets/classificacao.js?v=4"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
@@ -420,6 +420,44 @@ const LV={basico:1,plus:2,pro:3};
       const{data:venc}=await JUMP.sb.from('conteudos').select('id,tema').eq('user_id',uid).eq('status','aguardando_aprovacao').limit(20);
       if(venc&&venc.length){
         recs.unshift({tipo:'urgente',titulo:`${venc.length} conteúdo(s) aguardando aprovação`,mensagem:'Você tem artes prontas para revisar e aprovar.',_link:'aprovar.html'});
+      }
+    }catch(e){}
+    // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), avisos obrigatórios
+    // #2 e #3 (definidos e reportados, não decididos calados — ver JUMP_CLASS.DIAS_AVISO_* em
+    // assets/classificacao.js, fonte única, mesma constante que api/cron.js usa pro job real):
+    // #2 — semana atual perto de fechar (o que não for aprovado até lá expira, não acumula).
+    try{
+      const ancoraReal=(cliente.preferencias&&cliente.preferencias.plano_ancora_em);
+      if(ancoraReal){
+        const dl=(cliente.preferencias&&cliente.preferencias.dia_lote);
+        const hojeISO=new Date().toISOString().slice(0,10);
+        const jan=JUMP_CLASS.janelasSemanas(ancoraReal,dl).find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim);
+        if(jan){
+          const diasParaFechar=Math.ceil((new Date(jan.fim+'T00:00:00')-new Date(hojeISO+'T00:00:00'))/86400000);
+          if(diasParaFechar<=JUMP_CLASS.DIAS_AVISO_SEMANA_FECHANDO){
+            const{data:pend}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).in('status',['rascunho','proposto','aguardando_aprovacao','aguardando_copy',JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL]).gte('data_sugerida',jan.inicio).lte('data_sugerida',jan.fim).limit(20);
+            if(pend&&pend.length){
+              const _dd=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
+              recs.unshift({tipo:'urgente',titulo:`Semana atual fecha em ${diasParaFechar} dia${diasParaFechar===1?'':'s'} (${_dd(jan.fim)})`,mensagem:`${pend.length} conteúdo(s) desta semana ainda não foram aprovados — o que não for aprovado até lá expira e não acumula pra próxima semana.`,_link:'aprovar.html'});
+            }
+          }
+        }
+      }
+    }catch(e){}
+    // #3 — conteúdo expirado perto da exclusão automática (recuperável reagendando em aprovar.html).
+    try{
+      const{data:exps}=await JUMP.sb.from('conteudos').select('id,expirado_em').eq('user_id',uid).eq('status',JUMP_CLASS.STATUS_EXPIRADO).not('expirado_em','is',null).limit(50);
+      if(exps&&exps.length){
+        const agoraMs=Date.now();
+        const proximos=exps.filter(e=>{
+          const diasDesde=(agoraMs-new Date(e.expirado_em).getTime())/86400000;
+          const diasRestantes=JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO-diasDesde;
+          return diasRestantes<=JUMP_CLASS.DIAS_AVISO_ANTES_EXCLUSAO && diasRestantes>0;
+        });
+        if(proximos.length){
+          const diasRestantesMin=Math.max(1,Math.floor(JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO-Math.max(...proximos.map(e=>(agoraMs-new Date(e.expirado_em).getTime())/86400000))));
+          recs.unshift({tipo:'urgente',titulo:`${proximos.length} conteúdo(s) expirado(s) serão excluídos em até ${diasRestantesMin} dia(s)`,mensagem:'Reagende antes de perder — depois de excluído não tem mais volta.',_link:'aprovar.html'});
+        }
       }
     }catch(e){}
     if(recs.length){

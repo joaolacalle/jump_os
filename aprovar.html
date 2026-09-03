@@ -287,7 +287,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=3"></script>
+<script src="assets/classificacao.js?v=4"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
@@ -300,11 +300,14 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],P
     try{
       // ETAPA 2 (26/ago/2026): 'aguardando_material' entra na busca — sem isso os cards de
       // material do usuário nem chegariam ao navegador.
-      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao',JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL]).order('created_at',{ascending:false});
+      // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): STATUS_EXPIRADO
+      // entra na busca — sem isso o post expirado nunca chega ao navegador e o cliente não tem
+      // como reagendar (única forma de recuperar um post expirado, ver reagendar()).
+      const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).in('status',['rascunho','aguardando_aprovacao',JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL,JUMP_CLASS.STATUS_EXPIRADO]).order('created_at',{ascending:false});
       // ORDEM CRONOLÓGICA DE POSTAGEM: quem publica primeiro aparece primeiro. created_at só
       // desempata (a publicação continua sendo regida pelo jobPublicar, não por esta ordem).
       const _qd=c=>{const d=c.data_agendada||c.data_sugerida;return d?new Date(String(d).length<=10?(d+'T09:00:00'):d).getTime():Infinity};
-      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao').sort((a,b)=>_qd(a)-_qd(b));
+      ITENS=(data||[]).filter(c=>c.status==='aguardando_aprovacao'||c.status===JUMP_CLASS.STATUS_EXPIRADO).sort((a,b)=>_qd(a)-_qd(b));
       // ETAPA 2: cards aguardando o vídeo/arquivo do cliente — copy e headline já prontos (é
       // pré-condição pra virar este status, ver os pontos que gravam isso), só falta o upload.
       MATERIAL_PEND=(data||[]).filter(c=>c.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL).sort((a,b)=>_qd(a)-_qd(b));
@@ -451,9 +454,27 @@ function _linhaPost(c,semanal){
 function abrirEstrategia(id){
   const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;
   const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
-  let linhas;
+  let linhas, prazoTxt='';
   if(semanal){
     linhas=posts.map(c=>_linhaPost(c,true)).join('');
+    // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), aviso obrigatório #1
+    // ("no card semanal, o prazo de aprovação"): a semana FECHA na data abaixo — o que não for
+    // aprovado até lá EXPIRA (não acumula pra semana seguinte). Usa a âncora REAL do plano (já
+    // existe nesta altura — este card só nasce depois da 1ª aprovação mensal), não a simulação
+    // "como se fosse hoje" que o card MENSAL usa.
+    try{
+      const cliW=(CTX.viewCliente||CTX.cliente)||{};
+      const ancoraReal=(cliW.preferencias&&cliW.preferencias.plano_ancora_em);
+      if(ancoraReal){
+        const dlW=(cliW.preferencias&&cliW.preferencias.dia_lote);
+        const hojeW=new Date().toISOString().slice(0,10);
+        const janW=JUMP_CLASS.janelasSemanas(ancoraReal,dlW).find(j=>hojeW>=j.inicio&&hojeW<=j.fim);
+        if(janW){
+          const _dd=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
+          prazoTxt=`<div class="ec-alert"><div>⏰ <b>Prazo de aprovação: ${_dd(janW.fim)}.</b> Posts desta semana que não forem aprovados até lá expiram (não acumulam pra semana seguinte) — dá pra reagendar depois, mas é melhor aprovar a tempo.</div></div>`;
+        }
+      }
+    }catch(e){}
   }else{
     // ANCORAGEM DAS SEMANAS (28/ago/2026, item 4): card mensal agrupado por Semana 1-5 —
     // tema/data/hora/formato, SEM copy (copy é exclusiva do card semanal, quando a semana
@@ -471,11 +492,22 @@ function abrirEstrategia(id){
       const sem=JUMP_CLASS.semanaDoPost(dia,hojeISO,dl);
       if(sem)porSemana[sem].push(c); else foraDoHorizonte.push(c);
     });
+    // LOTE 2 — item 3 (card mensal enxuto, visualização de semana aberta/travada, 01/set/2026):
+    // este card mensal ainda não tem âncora REAL (só nasce no clique de "Aprovar Planejamento",
+    // ver aprovarProposta) — por isso a simulação acima já usa hojeISO como âncora de trabalho, o
+    // que faz a Semana 1 SEMPRE ser a que abre no momento da aprovação (mesmo critério do item 4,
+    // "semana corrente calculada" em api/agente-chat.js). As semanas 2-5 mostram a data em que
+    // abrem, pra o cliente entender por que só a 1 tem detalhamento liberado de cara.
+    const _janelas=JUMP_CLASS.janelasSemanas(hojeISO,dl);
+    const _ddmm=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
     linhas=[1,2,3,4,5].map(n=>{
       const itens=porSemana[n];
       if(!itens.length)return '';
       const corpo=itens.map(c=>_linhaPost(c,false)).join('');
-      return `<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">SEMANA ${n}</div>${corpo}`;
+      const _sel=(n===1)
+        ?'<span style="font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:.06em;color:#4ade80;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:99px;padding:2px 8px;margin-left:8px">ABERTA AO APROVAR</span>'
+        :'<span style="font-family:var(--M);font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--t3);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:99px;padding:2px 8px;margin-left:8px">🔒 ABRE '+_ddmm(_janelas[n-1].inicio)+'</span>';
+      return `<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">SEMANA ${n}${_sel}</div>${corpo}`;
     }).join('');
     if(foraDoHorizonte.length){
       // Não deveria acontecer (a trava de datas em api/agente-chat.js já recusa no momento da
@@ -492,6 +524,7 @@ function abrirEstrategia(id){
     </header>
     <div class="ec-bar"><div class="ec-status"><i></i>AGUARDANDO APROVAÇÃO</div>
       <div class="ec-date"><span>📋</span><span style="color:var(--t1);font-size:15px">${posts.length} post(s)</span></div></div>
+    ${prazoTxt}
     <div class="ec-estr-body">${linhas||'<div class="ec-muted">Sem posts vinculados a esta proposta.</div>'}</div>
     <footer class="ec-foot">
       <div class="ec-foot-r" style="margin-left:0;width:100%">
@@ -840,7 +873,12 @@ function render(){
     // (2) tem data válida, (3) a data/hora já passou em America/Sao_Paulo (mesma referência
     // dos dois lados). Estados terminais (aprovado, publicado, rejeitado...) NUNCA recebem P&B.
     const _aguardaAcao=(c.status==='aguardando_aprovacao');
-    const _venc=(_aguardaAcao&&_dt)?(_msSP(_dt)<_agoraSP()):false;
+    // LOTE 2 — item 5: post 'expirado' recebe o MESMO tratamento visual P&B que "data vencida" já
+    // usava (pedido explícito — reaproveitar, não criar um estilo novo), mas sempre, independente
+    // de comparar horário — expirado é um ESTADO gravado no banco (JC.STATUS_EXPIRADO), não mais
+    // um cálculo de data feito aqui na tela.
+    const _expirado=(c.status===JUMP_CLASS.STATUS_EXPIRADO);
+    const _venc=_expirado||((_aguardaAcao&&_dt)?(_msSP(_dt)<_agoraSP()):false);
     return `<div class="ap-card ap-card-mini${_venc?' venc':''}" id="card-${c.id}" onclick="abrirEdicao('${c.id}')" style="cursor:pointer">
       <div class="ap-img" style="position:relative">${sl.length?`<img src="${sl[0]}" alt="">`:ico}
         <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${tp.ico} ${JUMP.esc(tp.label.toUpperCase())}</span>
@@ -849,7 +887,7 @@ function render(){
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
         ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
-        ${(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
+        ${_expirado?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⛔ EXPIRADO — reagende para recuperar</div>':(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
           return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
       </div></div>`;
@@ -873,9 +911,13 @@ function abrirEdicao(id){
     ? `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar este slide</button>
        <button class="btn btn-o btn-sm" onclick="regerarCarrossel('${id}')" title="Gasta ${tot} imagens">🎨 Recriar carrossel (${tot})</button>`
     : `<button class="btn btn-o btn-sm" onclick="regerarSlide('${id}')" title="Gasta 1 imagem">🎨 Recriar imagem</button>`;
-  const aprovarBtn=PLANO==='basico'
-    ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
-    : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`;
+  // LOTE 2 — item 5: post 'expirado' NÃO pode ser aprovado direto — precisa ser reagendado
+  // primeiro (é o que "recuperar" significa aqui). O botão de aprovar some; só reagendar aparece.
+  const _expiradoEdicao=(c.status===JUMP_CLASS.STATUS_EXPIRADO);
+  const aprovarBtn=_expiradoEdicao?''
+    :(PLANO==='basico'
+      ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
+      : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`);
   // ── #1 POST VENCIDO: a data sugerida já passou e ninguém aprovou. Antes ficava mudo
   // (o cliente aprovava algo que "publica dia 12" com o dia 12 no passado). Agora avisa e reagenda.
   const dtSug=c.data_sugerida?new Date(c.data_sugerida):null;
@@ -894,13 +936,14 @@ function abrirEdicao(id){
     </header>
 
     <div class="ec-bar">
-      <div class="ec-status ${vencido?'venc':''}"><i></i>${vencido?'DATA VENCIDA':(c.status==='aprovado'?'APROVADO':'AGUARDANDO APROVAÇÃO')}</div>
+      <div class="ec-status ${(_expiradoEdicao||vencido)?'venc':''}"><i></i>${_expiradoEdicao?'EXPIRADO':(vencido?'DATA VENCIDA':(c.status==='aprovado'?'APROVADO':'AGUARDANDO APROVAÇÃO'))}</div>
       <label class="ec-date">
         <span>🗓</span>
         <input type="date" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)">
       </label>
     </div>
-    ${vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:''}
+    ${_expiradoEdicao?`<div class="ec-alert"><div><b>Este post expirou</b> — a semana dele já fechou (ou a data já passou) sem aprovação. Reagende para uma data nova e ele volta a poder ser aprovado. Sem reagendar, é excluído automaticamente ${JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO} dias após expirar.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`
+      :(vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:'')}
 
     <div class="ec-grid">
       <section class="ec-pane">
@@ -965,11 +1008,28 @@ function irSlide(i){
 async function reagendar(id){
   const d=new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0);
   try{
-    const{error}=await JUMP.sb.from('conteudos').update({data_sugerida:d.toISOString(),data_agendada:null}).eq('id',id);
+    const c0=ITENS.find(x=>x.id===id);
+    // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): reagendar um post
+    // EXPIRADO precisa tirá-lo do estado 'expirado' e zerar expirado_em (reseta a contagem de
+    // 30 dias até a exclusão automática — pedido explícito). Restaura o status de ANTES de
+    // expirar, gravado em meta.status_pre_expiracao pelo job de expiração (api/cron.js,
+    // jobExpiracaoSemana) — nunca assume 'aguardando_aprovacao' às cegas.
+    const patch={data_sugerida:d.toISOString(),data_agendada:null};
+    if(c0&&c0.status===JUMP_CLASS.STATUS_EXPIRADO){
+      patch.status=(c0.meta&&c0.meta.status_pre_expiracao)||'aguardando_aprovacao';
+      patch.expirado_em=null;
+    }
+    const{error}=await JUMP.sb.from('conteudos').update(patch).eq('id',id);
     if(error)throw error;
-    const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=d.toISOString();
     JUMP.toast('Reagendado para '+d.toLocaleDateString('pt-BR')+'.');
-    abrirEdicao(id);
+    // Se o status restaurado não é mais 'aguardando_aprovacao' (ex.: voltou pra 'rascunho'), o
+    // card sai desta grade — ela só lista aguardando_aprovacao/expirado (ver fetch inicial).
+    if(c0&&patch.status&&patch.status!=='aguardando_aprovacao'){
+      ITENS=ITENS.filter(i=>i.id!==id); fecharEdicao(); render();
+    }else{
+      if(c0){ c0.data_sugerida=d.toISOString(); if(patch.status)c0.status=patch.status; }
+      abrirEdicao(id);
+    }
   }catch(e){JUMP.toast('Não consegui reagendar: '+(e.message||'erro'),'err')}
 }
 function fecharEdicao(){document.getElementById('modal-edit').classList.remove('show');EDIT_ID=null;}
