@@ -82,6 +82,50 @@ function tetoImagensPlano(cli) {
   return Math.floor(Math.max(0, lim - us) * 0.8);
 }
 
+// LOTE 2 — item 2 (detecção de falha silenciosa, 01/set/2026) + REPARO AVULSO FRENTE B
+// (03/set/2026): o agente pode declarar que fez algo ("enviado para produção", "fila do
+// Designer", "vai aparecer em Aprovações"...) sem emitir NENHUMA tag <conteudo> — o sistema não
+// salvou nada e o agente afirmou o contrário pro cliente. `declarouAcaoSemRegistro(texto)` decide
+// se a resposta contém essa declaração.
+//
+// Calibrada primeiro contra 1 frase só (o relato original) — não generalizava. Um teste real em
+// produção pegou o comportamento INVERTIDO no mesmo dia: (a) NÃO disparou pra "as artes FORAM
+// enviadas... e VÃO aparecer em Aprovações" (plural + voz passiva, nenhuma cláusula cobria); (b)
+// disparou pra "já está na fila do Designer", mencionando uma peça ANTERIOR, não uma ação nova
+// deste turno (falso positivo). Corrigido: (a) cláusula nova pra "foi/foram enviad[oa]s ao
+// designer" + "vai/vão aparecer" (plural cobre os dois lados agora); (b) das cláusulas do
+// gatilho, só as DUAS que descrevem ESTADO (não ação) — "está/estão (sendo|na fila|a caminho)" e
+// "fila do designer" — são ambíguas o bastante pra confundir referência a algo antigo com
+// declaração nova; só essas duas são ignoradas quando "já" aparece antes, na MESMA frase (corte
+// por . ! ?). As cláusulas de AÇÃO (mandei, foi/foram enviado, vai/vão aparecer) não são afetadas
+// pelo filtro — "já mandei para o designer" É uma declaração válida (aconteceu agora), diferente
+// de "já está na fila" (pode ser sobre qualquer peça, de qualquer época).
+//
+// MESMO ERRO QUE O AUTO-REPARO ANTIGO JÁ TINHA CORRIGIDO (ver 'GATILHO PROSPECTIVO APENAS', mais
+// abaixo, em torno de 'prometeuConteudo') — gatilho lexical sozinho não distingue prospectivo de
+// retrospectivo. A lição não tinha sido herdada na primeira versão desta função. Registrado no
+// APRENDIZADOS.md pra não se repetir numa terceira.
+//
+// REMENDO, NÃO SOLUÇÃO (aceito assim, 03/set/2026): a causa de fundo é estrutural — blocos de
+// contexto sempre-injetados no prompt (ex.: "POSTS DA SEMANA PARA DETALHAR", "SITUAÇÃO REAL DA
+// SUA FILA") competem com a conversa em andamento e podem levar o agente a falar sobre a coisa
+// errada. Essa causa não é corrigida aqui — ver Frente A (proposta separada).
+const GATILHOS_ACAO_SEM_REGISTRO=/enviad[oa]s?\s*(para|pra)\s*produ[çc][ãa]o|fila do designer|(vai|vão)\s*aparecer em aprova[çc][õo]es|disparando agora|cota consumida|mandei\s*(para|pra)\s*o designer|(foi|foram)\s*enviad[oa]s?\s*(para|pra)\s*o\s*designer|(est[áa]|est[ãa]o)\s*(sendo|na fila|a caminho)|envio(u)?\s*(para|pra)\s*aprova[çc][ãa]o|arte(s)?\s*(est[ãa]o|est[áa])\s*sendo\s*(gerada|criada|produzida)/gi;
+const GATILHO_RETROSPECTIVO_AMBIGUO=/^(est[áa]|est[ãa]o)\s*(sendo|na fila|a caminho)|^fila do designer/i;
+function declarouAcaoSemRegistro(texto){
+  const t=String(texto||'');
+  for(const g of t.matchAll(GATILHOS_ACAO_SEM_REGISTRO)){
+    if(GATILHO_RETROSPECTIVO_AMBIGUO.test(g[0])){
+      const antesDoMatch=t.slice(0,g.index);
+      const corte=Math.max(antesDoMatch.lastIndexOf('.'),antesDoMatch.lastIndexOf('!'),antesDoMatch.lastIndexOf('?'));
+      const fraseAteAqui=t.slice(corte+1,g.index);
+      if(/já/i.test(fraseAteAqui)) continue; // "já está"/"já ...fila" = referência a algo antigo, não conta
+    }
+    return true;
+  }
+  return false;
+}
+
 const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json', 'Prefer': 'return=representation',
@@ -1159,9 +1203,11 @@ const handler = async (req, res) => {
     // avulso, que o auto-reparo acima propositalmente NÃO cobre — ver 'pedidoAvulso'). NÃO tenta
     // corrigir sozinho (isso seria reintroduzir o auto-reparo pro avulso, que já causou
     // duplicação) — só detecta, loga com o texto completo (auditoria) e avisa o cliente.
+    // Regra em si (calibração plural/voz-passiva + filtro de menção retrospectiva) mora em
+    // `declarouAcaoSemRegistro()`, escopo do módulo — ver comentário lá (REPARO AVULSO FRENTE B).
     let avisoNadaRegistrado=null;
-    const declarouAcaoSemRegistro=/enviad[oa]s?\s*(para|pra)\s*produ[çc][ãa]o|fila do designer|vai aparecer em aprova[çc][õo]es|disparando agora|cota consumida|mandei\s*(para|pra)\s*o designer|est[áa]\s*(sendo|na fila|a caminho)|envio(u)?\s*(para|pra)\s*aprova[çc][ãa]o|arte(s)?\s*(est[ãa]o|est[áa])\s*sendo\s*(gerada|criada|produzida)/i.test(texto);
-    if(declarouAcaoSemRegistro && conteudos.length===0){
+    const _declarouAcao=declarouAcaoSemRegistro(texto);
+    if(_declarouAcao && conteudos.length===0){
       avisoNadaRegistrado='O texto acima menciona uma ação (produção/fila/aprovação), mas o sistema NÃO registrou nenhum conteúdo nesta resposta — nada foi salvo. Peça de novo, descrevendo a peça que você quer.';
       console.error('[agente-chat] LOTE 2 item 2: texto declarou ação sem <conteudo> emitido — nada registrado. agente='+agente+' user='+targetId+' mensagem='+String(mensagem||'').slice(0,200)+' texto='+texto.slice(0,600));
     }
