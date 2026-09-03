@@ -961,11 +961,17 @@ const handler = async (req, res) => {
         const nProp=Array.isArray(prop)?prop.length:0;
         const comCopy=Array.isArray(apr)?apr.filter(c=>c.copy&&String(c.copy).trim()):[];
         const semCopy=Array.isArray(apr)?apr.filter(c=>!(c.copy&&String(c.copy).trim())):[];
+        // REPARO AVULSO — FRENTE A (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+        // informação, não ordem"): este bloco entra em TODO turno do Criativo em que existe algo
+        // pendente — mesmo quando a conversa é sobre outra coisa (uma peça avulsa, um ajuste
+        // específico). Por isso é só informação de fundo, nunca instrução de agir por conta
+        // própria: quem decide se isto é o assunto da vez é o agente, olhando a conversa — o
+        // bloco não pode mandar.
         if(nProp||comCopy.length||semCopy.length){
-          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (use isto, NÃO diga que o cliente precisa pedir um plano) ═══';
-          if(nProp)semanaTxt+=`\n- ${nProp} post(s) PROPOSTOS pela Estratégia aguardando a APROVAÇÃO DO CLIENTE. Você não pode gerar as artes deles ainda. Diga isso com clareza e aponte a página Aprovações.`;
-          if(semCopy.length)semanaTxt+=`\n- ${semCopy.length} post(s) aprovados mas SEM COPY/headline. A arte só sai depois do texto — peça ao cliente que acione o Estrategista ("Escrever a copy da semana").`;
-          if(comCopy.length)semanaTxt+=`\n- ${comCopy.length} post(s) PRONTOS para você gerar a arte agora: ${comCopy.slice(0,6).map(c=>`id:${c.id} · ${c.formato||'feed'} · ${c.tema}`).join(' | ')}. Ofereça gerar.`;
+          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (informação de fundo — NÃO diga que o cliente precisa pedir um plano) ═══';
+          if(nProp)semanaTxt+=`\n- ${nProp} post(s) PROPOSTOS pela Estratégia aguardando a APROVAÇÃO DO CLIENTE. Você não pode gerar as artes deles ainda — isso acontece na página Aprovações.`;
+          if(semCopy.length)semanaTxt+=`\n- ${semCopy.length} post(s) aprovados mas SEM COPY/headline. A arte só sai depois do texto, que vem do Estrategista.`;
+          if(comCopy.length)semanaTxt+=`\n- ${comCopy.length} post(s) PRONTOS para gerar a arte, quando fizer sentido na conversa: ${comCopy.slice(0,6).map(c=>`id:${c.id} · ${c.formato||'feed'} · ${c.tema}`).join(' | ')}.`;
         }
       }catch(e){}
     }
@@ -990,9 +996,17 @@ const handler = async (req, res) => {
           // âncora, mesma fonte de sempre), NUNCA de o agente inferir pelo histórico da
           // conversa. Antes este bloco só listava id/data/tema sem dizer o número da semana —
           // se o agente mencionasse "Semana 2" pro cliente, estaria adivinhando.
+          // REPARO AVULSO — FRENTE A (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+          // informação, não ordem"): este bloco entra em TODO turno da Estratégia enquanto
+          // existir post da semana sem copy — mesmo quando a conversa é sobre outra coisa (uma
+          // peça avulsa, uma confirmação pendente). "DETALHE AGORA, PROATIVAMENTE (não espere o
+          // cliente pedir)" foi a instrução que, num teste real, fez o agente abandonar uma
+          // confirmação de avulso em andamento pra pular pra Semana 4 sem ninguém ter pedido.
+          // Vira informação de fundo — quem decide se isto é o assunto da vez é o agente, olhando
+          // a conversa; o bloco não pode mandar.
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
-            '\nDETALHE AGORA, PROATIVAMENTE (não espere o cliente pedir): emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Assim que você detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
+            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Assim que detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
         }
       }catch(e){}
     }
