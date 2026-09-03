@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.07.16-mix-canvas';
+const VERSAO = '2026.09.03-avisos-persistidos';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
@@ -506,6 +506,10 @@ const handler = async (req, res) => {
         tarefa_aprovar_estrategia:true,
         estrategia_ciclo_2_tempos:true,
         detalhamento_semanal:true,
+        lote2_vencimento_semana_nao_cumulativa:true,
+        lote2_obrigacao_emissao_tag_avulso:true,
+        lote2_deteccao_falha_silenciosa:true,
+        avisos_persistidos_no_historico:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1736,32 +1740,48 @@ const handler = async (req, res) => {
     // recebiam created_at=now() IGUAL → empate → o reverse do histórico embaralhava (a resposta
     // aparecia ACIMA da pergunta ao reabrir o agente). Escalona 1s: pergunta antes, resposta depois.
     const _tPar=Date.now();
+
+    // REPARO AVULSO — AVISOS SOBREVIVEM AO RECARREGAR (03/set/2026): os avisos abaixo
+    // (notaSemanal, notaBackstop, avisoNadaRegistrado, erroGravacao, avisoCicloAtivo, os dois
+    // avisos de <detalhe> e o de truncamento) eram só ANEXADOS ao `texto` da resposta HTTP
+    // DEPOIS do insert em chat_mensagens já ter acontecido logo abaixo — nunca eram gravados.
+    // Quem recarregava a tela perdia a informação, inclusive o mais importante de todos
+    // (avisoNadaRegistrado: "nada foi salvo, peça de novo"). Corrigido gravando-os numa coluna
+    // PRÓPRIA — avisos (texto, nullable, sql/reparo-avulso-passo1-persistir-avisos.sql) —
+    // separada de `conteudo`. DE PROPÓSITO separada, não concatenada: o histórico que volta pro
+    // MODELO (abaixo, "select role,conteudo") continua sem tocar nesta coluna — um aviso
+    // operacional não é fala do agente; se voltasse como se fosse, o modelo trataria a própria
+    // bronca ("nada foi registrado") como parte da conversa, podendo reagir a ela sem o cliente
+    // ter pedido nada de novo. `texto` (o que o modelo realmente disse, sem avisos) é o que
+    // continua alimentando o histórico do agente — sem mudança aí.
+    let avisosPartes=[];
+    if(notaSemanal) avisosPartes.push(notaSemanal);
+    if(notaBackstop) avisosPartes.push(notaBackstop);
+    if(avisoSemana1Vazia) avisosPartes.push('⚠️ '+avisoSemana1Vazia);
+    if(avisoCicloAtivo) avisosPartes.push('⚠️ '+avisoCicloAtivo);
+    if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
+    if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
+    if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
+    if(erroGravacao) avisosPartes.push('🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.');
+    if(truncou){
+      avisosPartes.push(agente==='estrategia'
+        ? ('⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.')
+        : '⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.');
+    }
+    // Mesmo texto final que o código antigo produzia (concatenação com '\n\n' entre cada parte
+    // presente) — só o MOMENTO em que é montado mudou (antes do insert, não depois).
+    const avisosTxt = avisosPartes.length ? avisosPartes.join('\n\n') : null;
+
     await Promise.all([
       ...memWrites,
       sbInsert('chat_mensagens',[
         {user_id:targetId,agente,role:'user',conteudo:mensagem,created_at:new Date(_tPar).toISOString()},
-        {user_id:targetId,agente,role:'assistant',conteudo:texto,created_at:new Date(_tPar+1000).toISOString()},
+        {user_id:targetId,agente,role:'assistant',conteudo:texto,avisos:avisosTxt,created_at:new Date(_tPar+1000).toISOString()},
       ]),
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
-    if(notaSemanal){ texto+='\n\n'+notaSemanal; }
-    if(notaBackstop){ texto+='\n\n'+notaBackstop; }
-    if(avisoSemana1Vazia){ texto+='\n\n⚠️ '+avisoSemana1Vazia; }
-    if(avisoCicloAtivo){ texto+='\n\n⚠️ '+avisoCicloAtivo; }
-    if(avisoDetalheDuplicado){ texto+='\n\n⚠️ '+avisoDetalheDuplicado; }
-    if(avisoDetalheForaDaSemana){ texto+='\n\n⚠️ '+avisoDetalheForaDaSemana; }
-    if(avisoNadaRegistrado){ texto+='\n\n🔴 '+avisoNadaRegistrado; }
-    if(erroGravacao){
-      texto+='\n\n🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.';
-    }
-    if(truncou){
-      if(agente==='estrategia'){
-        texto+='\n\n⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.';
-      }else{
-        texto+='\n\n⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.';
-      }
-    }
+    if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
