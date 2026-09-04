@@ -156,7 +156,19 @@ async function sbInsert(t,b){
   }
   return r;
 }
-async function sbUpsert(t,b){ await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:{...H(),'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(b)}); }
+// REPARO AVULSO — mesmo ponto cego de sbInsert/sbPatch acima, fechado agora por exigência do
+// CONTRATO DE ENGENHARIA (família 1 — falha silenciosa não pode ficar aberta, ver APRENDIZADOS.md
+// topo). Único uso é em memWrites (gravação de memórias aprendidas) — nenhum chamador depende do
+// retorno anterior (`undefined`), então, como em sbInsert/sbPatch, a mudança é só de
+// visibilidade: continua sem lançar exceção, passa a logar quando o Supabase recusar.
+async function sbUpsert(t,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:{...H(),'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbUpsert falhou — tabela='+t+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
 
 // Nível mínimo de plano por agente
 const NIVEL = { identidade:1, mercado:1, diagnostico:1, estrategia:1, criativo:1, publicacao:2, trafego:3, video:3 };
@@ -1930,8 +1942,16 @@ const handler = async (req, res) => {
     // pedido de "não pode sumir em silêncio": antes, essa falha não aparecia em lugar nenhum.
     let falhaGravarConversa=false;
     try{
+      // REPARO AVULSO — CHAVES IGUAIS NO LOTE (05/set/2026, achado real em produção via log da
+      // Vercel: "All object keys must must match"). O PostgREST recusa um INSERT em lote inteiro
+      // se os objetos do array não tiverem exatamente o mesmo conjunto de chaves — a linha do
+      // usuário não trazia `avisos` (só a do assistente traz, de propósito, desde a rodada de
+      // persistência de avisos) e isso bastava pra derrubar as DUAS linhas, silenciosamente (nem
+      // rede, nem RLS, nem coluna ausente — a coluna existe, é só o formato do lote). `avisos`
+      // nunca fez sentido pra linha do usuário (é um aviso do SISTEMA sobre a resposta do agente),
+      // por isso `null` explícito aqui — mesma chave, valor vazio, nunca aparece pro usuário.
       const rChat=await sbInsert('chat_mensagens',[
-        {user_id:targetId,agente,role:'user',conteudo:mensagem,created_at:new Date(_tPar).toISOString()},
+        {user_id:targetId,agente,role:'user',conteudo:mensagem,avisos:null,created_at:new Date(_tPar).toISOString()},
         {user_id:targetId,agente,role:'assistant',conteudo:texto,avisos:avisosTxt,created_at:new Date(_tPar+1000).toISOString()},
       ]);
       falhaGravarConversa=!rChat||!rChat.ok;
