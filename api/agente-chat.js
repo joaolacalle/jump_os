@@ -24,6 +24,13 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
 const VERSAO = '2026.09.04-gravacao-conversa-isolada';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
+// REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
+// "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
+// <detalhe>, este arquivo GARANTE o card 'aprovar_semana' (cria se não existir, reaproveita se já
+// existir) em vez de deixar o backstop (mais abaixo) tentar criar 'criar_post' direto. Mesma
+// função que api/cron.js usa no job de drip semanal — Família 2 do Contrato: mesma decisão em N
+// lugares vira N regras que divergem com o tempo.
+const { garantirCardAprovarSemana } = require('./_semana-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -1418,6 +1425,34 @@ const handler = async (req, res) => {
               method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
             }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
               .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
+          }
+          // SEXTA PORTA (05/set/2026): detalhar pelo chat NUNCA cria 'criar_post' — garante o
+          // card 'aprovar_semana' cobrindo tudo que ficou pronto (rascunho, sem mídia) até o fim
+          // da semana atual do cliente. Cria se não existir; reaproveita se já existir (mesma
+          // dedup que cron.js e aprovar.html usam — ver api/_semana-lib.js). Sem extraPayload:
+          // ao contrário do drip do cron, aqui o conteúdo já está detalhado, então
+          // 'precisa_detalhar' não se aplica.
+          const _idsSemana=wkArr.map(c=>c.id);
+          if(_idsSemana.length){
+            // CAMADA 1 (mesmo padrão do backstop, mais abaixo — "além do banco, respeita o que já
+            // foi atendido nesta mesma requisição"): registra ANTES de chamar garantir. Achado no
+            // teste desta correção — a dedup de garantirCardAprovarSemana só pergunta "já existe
+            // ALGUM card aprovar_semana aberto?", não "existe um card cobrindo ESTES ids". Se
+            // outra semana (ex.: a Semana 1, ainda não aprovada) já tem card aberto, garantir
+            // devolve jaExistia:true SEM cobrir os ids que acabaram de ser detalhados agora — e o
+            // backstop, rodando mais abaixo NESTA MESMA resposta, os pegaria e disparia produção
+            // sozinho: a mesma sexta porta, por um caminho lateral. Isto fecha o buraco só para a
+            // requisição corrente (o que resolve o incidente relatado); a lacuna estrutural entre
+            // semanas — um card aberto de uma semana não protege o conteúdo já pronto de outra —
+            // fica registrada em APRENDIZADOS.md como achado separado, não corrigida aqui (mudaria
+            // a semântica de dedup compartilhada por cron.js e aprovar.html, fora do escopo desta
+            // rodada).
+            _idsSemana.forEach(x=>atendidosNestaReq.add(String(x)));
+            const _g=await garantirCardAprovarSemana(KEY(),targetId,_idsSemana,agente);
+            if(!_g.criado && !_g.jaExistia){
+              notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+              console.error('[ordem] garantirCardAprovarSemana falhou ao concluir detalhamento — user='+targetId);
+            }
           }
         }catch(e){ console.error('[ordem] criador semanal (detalhamento) falhou:', e && (e.message||e)); }
       }

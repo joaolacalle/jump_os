@@ -14,6 +14,10 @@ const SBH = () => ({
 // nenhum ponto deste arquivo testa formato por conta própria a partir de agora (Fase 1 do plano
 // "Trilha de material do usuário", 25/ago/2026).
 const JC = require('../assets/classificacao.js');
+// REPARO AVULSO — SEXTA PORTA (05/set/2026): a criação do card 'aprovar_semana' (mais abaixo,
+// job de drip semanal) agora vem de um módulo único, também consultado por api/agente-chat.js —
+// ver api/_semana-lib.js para o porquê (Família 2 do Contrato: mesma decisão em N lugares).
+const { garantirCardAprovarSemana } = require('./_semana-lib.js');
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -824,17 +828,16 @@ async function jobOrdens() {
     if (!Array.isArray(daSemana) || !daSemana.length) continue;
     // REGRA DE NEGÓCIO: a ESTRATÉGIA SEMANAL é o gatilho — nunca produzimos direto. 3 dias antes
     // do início do ciclo (dia_lote) criamos o CARD DE APROVAÇÃO da semana; a produção só começa
-    // quando o usuário aprovar no Aprovar (1ª aprovação). Dedup: nada de card/lote duplicado —
-    // se a Semana 1 (criada em aprovar.html) ainda estiver aberta quando este job rodar, ele
-    // pula (mesmo critério de sempre) e tenta de novo no próximo dia_lote.
-    const ja = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&or=(and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao))&select=id&limit=1`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-    if (Array.isArray(ja) && ja.length) continue; // já tem semana aguardando aprovação ou lote rodando
+    // quando o usuário aprovar no Aprovar (1ª aprovação). Dedup + INSERT agora vêm de
+    // garantirCardAprovarSemana (api/_semana-lib.js) — mesma regra de sempre (se a Semana 1,
+    // criada em aprovar.html, ou outra semana já estiver aberta, pula e tenta de novo no próximo
+    // dia_lote), só que num lugar único, compartilhado com api/agente-chat.js.
     const ids = daSemana.map(x => x.id);
-    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
-      method: 'POST', headers: SBH(),
-      body: JSON.stringify({ user_id: c.id, de_agente: 'estrategia', para_agente: 'usuario', tarefa: 'aprovar_semana', detalhe: 'Aprovar a semana (' + ids.length + ' post(s))', status: 'aguardando_aprovacao', total: ids.length, progresso: 0, payload: { ids, precisa_detalhar: true } }),
-    }).catch(()=>{});
-    lotesSemana++;
+    const _g = await garantirCardAprovarSemana(KEY(), c.id, ids, 'estrategia', { precisa_detalhar: true });
+    // REPARO AVULSO (05/set/2026): antes este contador somava mesmo quando o INSERT falhava em
+    // silêncio (fetch sem checar .ok, achado na varredura da Família 1) — agora só conta quando
+    // o card foi de fato criado.
+    if (_g.criado) lotesSemana++;
   }
 
   // 1.9) RESGATE DE ÓRFÃ — bug achado ao ler o schema, não o código.
