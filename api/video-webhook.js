@@ -6,8 +6,18 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 function H() {
   return { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
 }
+// REPARO AVULSO — VISIBILIDADE DE FALHA NA GRAVAÇÃO (04/set/2026, mesmo achado de
+// api/agente-chat.js — ver APRENDIZADOS.md "regressão — conversa parou de ser gravada"): antes,
+// uma recusa do Supabase (400 etc.) passava batido, sem log nenhum. Resposta ao Shotstack
+// continua sempre 200 (comentário original abaixo, não mudou) — só passa a logar quando o PATCH
+// falhar de verdade, e a devolver a Response pra quem quiser conferir.
 async function sbPatch(path, body) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method: 'PATCH', headers: H(), body: JSON.stringify(body) });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method: 'PATCH', headers: H(), body: JSON.stringify(body) });
+  if (!r.ok) {
+    let motivo = ''; try { const j = await r.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
+    console.error('[video-webhook] sbPatch falhou — path=' + path + ' status=' + r.status + ' motivo=' + String(motivo).slice(0, 200));
+  }
+  return r;
 }
 
 module.exports = async (req, res) => {

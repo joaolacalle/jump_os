@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.03-reparo-segunda-chamada-avulso';
+const VERSAO = '2026.09.04-gravacao-conversa-isolada';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
@@ -131,8 +131,31 @@ const H = () => ({
   'Content-Type': 'application/json', 'Prefer': 'return=representation',
 });
 async function sbGet(p){ const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{headers:H()}); return r.json(); }
-async function sbPatch(p,b){ await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{method:'PATCH',headers:H(),body:JSON.stringify(b)}); }
-async function sbInsert(t,b){ await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:H(),body:JSON.stringify(b)}); }
+// REPARO AVULSO — VISIBILIDADE DE FALHA NA GRAVAÇÃO (04/set/2026, ver APRENDIZADOS.md "regressão
+// — conversa parou de ser gravada"): antes, sbPatch/sbInsert só rejeitavam a Promise em falha de
+// REDE (fetch não completou) — se o Supabase/Postgres RECUSASSE a gravação (400, coluna errada,
+// regra violada etc.), a função devolvia normalmente, ninguém checava `r.ok`, e o chamador achava
+// que tinha gravado. Foi exatamente esse buraco que explicou um caso real (aviso apareceu na
+// tela, nada foi salvo). Correção é só de VISIBILIDADE — continua sem lançar exceção (nenhum
+// chamador existente foi escrito esperando que uma falha HTTP derrube o fluxo; mudar isso agora
+// quebraria pontos que hoje seguem em frente mesmo com falha), só passa a logar o motivo e a
+// devolver a Response (antes devolvia `undefined`) pra quem quiser conferir por conta própria.
+async function sbPatch(p,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{method:'PATCH',headers:H(),body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbPatch falhou — path='+p+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
+async function sbInsert(t,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:H(),body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbInsert falhou — tabela='+t+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
 async function sbUpsert(t,b){ await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:{...H(),'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(b)}); }
 
 // Nível mínimo de plano por agente
@@ -555,6 +578,8 @@ const handler = async (req, res) => {
         lote2_deteccao_falha_silenciosa:true,
         avisos_persistidos_no_historico:true,
         reparo_segunda_chamada_avulso:true,
+        sbinsert_sbpatch_logam_falha:true,
+        gravacao_conversa_isolada_do_promise_all:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1888,16 +1913,43 @@ const handler = async (req, res) => {
     // presente) — só o MOMENTO em que é montado mudou (antes do insert, não depois).
     const avisosTxt = avisosPartes.length ? avisosPartes.join('\n\n') : null;
 
-    await Promise.all([
-      ...memWrites,
-      sbInsert('chat_mensagens',[
+    // REPARO AVULSO — GRAVAÇÃO DA CONVERSA ISOLADA (04/set/2026, autorizado após regressão real:
+    // ver APRENDIZADOS.md "regressão — conversa parou de ser gravada"). ANTES, chat_mensagens
+    // entrava no MESMO Promise.all que memWrites (memórias aprendidas) e o patch de uso/cota — os
+    // três viviam ou morriam juntos. Se qualquer um dos três desse erro de REDE (não de banco —
+    // isso o item acima já cobre), o Promise.all inteiro rejeitava, caía no catch geral do
+    // handler (linha ~1927) e devolvia 500 — derrubando a gravação da conversa junto, mesmo que a
+    // resposta do agente já estivesse pronta. A conversa agora tem sua PRÓPRIA tentativa,
+    // ISOLADA e ANTES de qualquer outra gravação: sucesso ou falha de memórias/uso não pode mais
+    // afetar (nem ser afetado por) o histórico ser salvo. Se ainda assim a gravação da conversa
+    // falhar (rede OU o banco recusando — sbInsert acima já loga o motivo nos dois casos), o
+    // cliente AINDA recebe a resposta do agente (o conteúdo já foi gerado, não faz sentido
+    // esconder) — só que com um aviso visível AO VIVO nesta troca. Esse aviso não pode ser salvo
+    // na própria linha (é exatamente ela que falhou em gravar), então só aparece agora — não
+    // sobrevive a um recarregar. É o melhor possível dado que a gravação já falhou, e resolve o
+    // pedido de "não pode sumir em silêncio": antes, essa falha não aparecia em lugar nenhum.
+    let falhaGravarConversa=false;
+    try{
+      const rChat=await sbInsert('chat_mensagens',[
         {user_id:targetId,agente,role:'user',conteudo:mensagem,created_at:new Date(_tPar).toISOString()},
         {user_id:targetId,agente,role:'assistant',conteudo:texto,avisos:avisosTxt,created_at:new Date(_tPar+1000).toISOString()},
-      ]),
+      ]);
+      falhaGravarConversa=!rChat||!rChat.ok;
+    }catch(e){
+      falhaGravarConversa=true;
+      console.error('[agente-chat] falha de rede ao gravar a conversa em chat_mensagens — nada foi persistido nesta troca. erro='+e.message+' user='+targetId+' agente='+agente);
+    }
+
+    // Memórias e uso seguem em paralelo — independentes da gravação da conversa acima (podem
+    // falhar sem impedir a conversa de já ter sido salva, e vice-versa). Comportamento de cada um
+    // em relação ao catch geral não mudou aqui — não fazia parte do pedido desta rodada.
+    await Promise.all([
+      ...memWrites,
       sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
     ]);
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
+    if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
     return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);

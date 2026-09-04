@@ -12,14 +12,30 @@ async function sbGet(path) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: H() });
   return r.json();
 }
+// REPARO AVULSO — VISIBILIDADE DE FALHA NA GRAVAÇÃO (04/set/2026, mesmo achado de
+// api/agente-chat.js — ver APRENDIZADOS.md "regressão — conversa parou de ser gravada"). O
+// contrato de retorno NÃO muda (sbInsert continua devolvendo o corpo já parseado — os dois
+// pontos que chamam esta função em iniciarPorShotstack/iniciarPorZapcap já tratam uma falha como
+// "jobId: null" via Array.isArray, sem esperar exceção) — só passa a logar o motivo quando o
+// Supabase recusar, em vez de passar batido como antes.
 async function sbInsert(table, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST', headers: { ...H(), Prefer: 'return=representation' }, body: JSON.stringify(body),
   });
-  return r.json();
+  const j = await r.json();
+  if (!r.ok) {
+    const motivo = (j && (j.message || j.hint || j.details)) || JSON.stringify(j).slice(0, 200);
+    console.error('[video-editar] sbInsert falhou — tabela=' + table + ' status=' + r.status + ' motivo=' + String(motivo).slice(0, 200));
+  }
+  return j;
 }
 async function sbPatch(path, body) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method: 'PATCH', headers: H(), body: JSON.stringify(body) });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method: 'PATCH', headers: H(), body: JSON.stringify(body) });
+  if (!r.ok) {
+    let motivo = ''; try { const j = await r.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
+    console.error('[video-editar] sbPatch falhou — path=' + path + ' status=' + r.status + ' motivo=' + String(motivo).slice(0, 200));
+  }
+  return r;
 }
 
 module.exports = async (req, res) => {
