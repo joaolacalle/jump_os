@@ -722,6 +722,13 @@ async function aprovarProposta(id,tarefa,btn){
       // de criar outro — cron.js (drip semanal) já fazia essa checagem, aqui faltava. Sem isso,
       // aprovações mensais repetidas (ou um duplo clique) empilhavam cards duplicados da mesma
       // semana. Mesmo critério do drip: reaproveitado aqui, não reescrito.
+      // SEXTA PORTA (05/set/2026): cron.js e api/agente-chat.js hoje chamam os DOIS uma função
+      // única, garantirCardAprovarSemana (api/_semana-lib.js), pra esta mesma regra não divergir
+      // entre eles. Este bloco NÃO chama essa função — roda no navegador (Supabase client com a
+      // sessão do próprio usuário), api/*.js roda no servidor (service key); são runtimes
+      // diferentes, e unificar exigiria um endpoint novo (fora do escopo autorizado). Fica com a
+      // MESMA query de dedup abaixo, replicada de propósito — se api/_semana-lib.js mudar a
+      // regra, este bloco precisa ser revisado junto.
       if(ids.length){
         const{data:jaSemana}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid)
           .or('and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao)')

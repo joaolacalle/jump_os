@@ -1834,7 +1834,7 @@ async function enviarTexto(txt){
       if(AG==='estrategia')atualizarBotaoEstrategia();
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
-        try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta e a ordem já foi enviada ao <b>Designer</b>. Abra o Agente de Criativo e clique em <b>Executar ordem agora</b> para gerar as artes.','Semana detalhada')}catch(e){}
+        try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
       }
       if(d.tokens!==undefined)atualizarUso(d.tokens);
       if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
