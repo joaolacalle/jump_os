@@ -137,7 +137,26 @@ const H = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json', 'Prefer': 'return=representation',
 });
-async function sbGet(p){ const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{headers:H()}); return r.json(); }
+// REPARO AVULSO — FALHA 1 DA SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "SEXTA PORTA ainda
+// aberta — produção sem aprovação"): sbGet era o ÚNICO dos quatro helpers (sbGet/sbPatch/
+// sbInsert/sbUpsert) que nunca ganhou a correção da Família 1 — não conferia `r.ok`, só devolvia
+// `r.json()` cru. Reproduzido em teste: card aprovar_semana não nascia, sem nenhum aviso, quando
+// a leitura que calcula os ids do card falhava (400/500/corpo inválido) — Array.isArray(x)?x:[]
+// tratava a falha exatamente como "não há nada pra proteger". Mesma filosofia das outras três:
+// só visibilidade (loga o motivo), NUNCA muda o que é devolvido — todo chamador existente já foi
+// escrito esperando `r.json()` cru (a maioria já faz Array.isArray(x)?x:[] por conta própria), e
+// mudar o contrato de retorno agora quebraria esses pontos silenciosamente, o mesmo tipo de bug
+// que este reparo existe pra fechar.
+async function sbGet(p){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{headers:H()});
+  if(!r.ok){
+    let corpo=null; try{corpo=await r.json();}catch(e){}
+    const motivo=(corpo&&(corpo.message||corpo.hint||corpo.details))||JSON.stringify(corpo||{}).slice(0,200);
+    console.error('[agente-chat] sbGet falhou — path='+p+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+    return corpo; // mesmo valor que r.json() devolveria hoje — comportamento inalterado, só ganhou o log
+  }
+  return r.json();
+}
 // REPARO AVULSO — VISIBILIDADE DE FALHA NA GRAVAÇÃO (04/set/2026, ver APRENDIZADOS.md "regressão
 // — conversa parou de ser gravada"): antes, sbPatch/sbInsert só rejeitavam a Promise em falha de
 // REDE (fetch não completou) — se o Supabase/Postgres RECUSASSE a gravação (400, coluna errada,
@@ -1401,60 +1420,101 @@ const handler = async (req, res) => {
       // semanal (aprovar.html), nunca este bloco. A criação de 'criar_post' é ato de código
       // único, vinculado à aprovação — não mais um efeito colateral de detalhar.
       if(detalhados>0){
+        // FALHA 1 DA SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "SEXTA PORTA ainda aberta —
+        // produção sem aprovação"): antes, o fechamento da ordem 'detalhar_semana', a leitura de
+        // `wk` e a garantia do card 'aprovar_semana' viviam dentro do MESMO try/catch — qualquer
+        // uma travando as outras duas em silêncio (só console.error, nenhum aviso ao cliente).
+        // Foi exatamente isso que aconteceu em produção: a leitura de `wk` falhou (sbGet não
+        // conferia `r.ok` — ver correção do helper acima), `wkArr` virou [] em silêncio,
+        // `_idsSemana.length` deu 0, a garantia nunca chegou a rodar, e nenhum aviso apareceu —
+        // reproduzido em teste antes desta correção. Agora os três passos são independentes:
+        // um falhando não impede os outros, e a garantia do card — a parte que protege o gate —
+        // tem o próprio try/catch e SEMPRE avisa o cliente quando não consegue confirmar que o
+        // card existe, nunca fica em silêncio.
         try{
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.detalhar_semana&status=in.(pendente,processando)`,{
             method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',progresso:detalhados,concluida_em:new Date().toISOString()})
           }).catch(()=>{});
-          // ANCORAGEM DAS SEMANAS (28/ago/2026): teto era +7 dias corridos a partir de agora,
-          // calculado aqui mesmo — mais um literal divergente do resto (ver o mesmo problema
-          // corrigido logo acima, em "POSTS DA SEMANA PARA DETALHAR"). Usa o fim da SEMANA ATUAL
-          // do cliente (já calculada no topo do request) em vez de recalcular.
-          const lim=semanaAtualCliente.fim;
-          const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
-          const wkArr=Array.isArray(wk)?wk:[];
-          // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) já detalhado (copy+headline
-          // prontos) vira card "aguardando material" agora, em vez de só sumir da lista de
-          // imagens a produzir — era o bug reportado: a ordem nascia, concluía com total:0 em
-          // silêncio, e o conteúdo desaparecia sem nunca virar card nem aviso. O que ainda não
-          // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura). Isto
-          // continua aqui — é marcação de status, não criação de ordem de produção.
-          const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
-          const matAqui=wkArr.filter(c=>JC.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
-          if(matAqui.length){
-            await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matAqui.join(',')})`,{
-              method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
-            }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
-              .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
-          }
-          // SEXTA PORTA (05/set/2026): detalhar pelo chat NUNCA cria 'criar_post' — garante o
-          // card 'aprovar_semana' cobrindo tudo que ficou pronto (rascunho, sem mídia) até o fim
-          // da semana atual do cliente. Cria se não existir; reaproveita se já existir (mesma
-          // dedup que cron.js e aprovar.html usam — ver api/_semana-lib.js). Sem extraPayload:
-          // ao contrário do drip do cron, aqui o conteúdo já está detalhado, então
-          // 'precisa_detalhar' não se aplica.
-          const _idsSemana=wkArr.map(c=>c.id);
-          if(_idsSemana.length){
-            // CAMADA 1 (mesmo padrão do backstop, mais abaixo — "além do banco, respeita o que já
-            // foi atendido nesta mesma requisição"): registra ANTES de chamar garantir. Achado no
-            // teste desta correção — a dedup de garantirCardAprovarSemana só pergunta "já existe
-            // ALGUM card aprovar_semana aberto?", não "existe um card cobrindo ESTES ids". Se
-            // outra semana (ex.: a Semana 1, ainda não aprovada) já tem card aberto, garantir
-            // devolve jaExistia:true SEM cobrir os ids que acabaram de ser detalhados agora — e o
-            // backstop, rodando mais abaixo NESTA MESMA resposta, os pegaria e disparia produção
-            // sozinho: a mesma sexta porta, por um caminho lateral. Isto fecha o buraco só para a
-            // requisição corrente (o que resolve o incidente relatado); a lacuna estrutural entre
-            // semanas — um card aberto de uma semana não protege o conteúdo já pronto de outra —
-            // fica registrada em APRENDIZADOS.md como achado separado, não corrigida aqui (mudaria
-            // a semântica de dedup compartilhada por cron.js e aprovar.html, fora do escopo desta
-            // rodada).
-            _idsSemana.forEach(x=>atendidosNestaReq.add(String(x)));
-            const _g=await garantirCardAprovarSemana(KEY(),targetId,_idsSemana,agente);
-            if(!_g.criado && !_g.jaExistia){
-              notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
-              console.error('[ordem] garantirCardAprovarSemana falhou ao concluir detalhamento — user='+targetId);
+        }catch(e){ console.error('[ordem] criador semanal: fechar detalhar_semana falhou (exceção):', e && e.message); }
+
+        // ANCORAGEM DAS SEMANAS (28/ago/2026): teto era +7 dias corridos a partir de agora,
+        // calculado aqui mesmo — mais um literal divergente do resto (ver o mesmo problema
+        // corrigido logo acima, em "POSTS DA SEMANA PARA DETALHAR"). Usa o fim da SEMANA ATUAL
+        // do cliente (já calculada no topo do request) em vez de recalcular.
+        const lim=semanaAtualCliente.fim;
+        let wk=null;
+        try{
+          wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
+        }catch(e){
+          console.error('[ordem] criador semanal: leitura de wk falhou (exceção):', e && e.message);
+        }
+        // FALHA 1 / VARREDURA FAMÍLIA 1 (leituras): "lista vazia" NUNCA pode significar a mesma
+        // coisa que "leitura falhou" — Array.isArray(wk)?wk:[] sozinho apaga essa diferença.
+        // `wkFalhou` guarda a distinção; `wkArr` segue existindo só pro uso não-crítico (material
+        // do usuário) logo abaixo, que já tolerava lista vazia por natureza.
+        const wkFalhou=!Array.isArray(wk);
+        const wkArr=wkFalhou?[]:wk;
+
+        if(wkArr.length){
+          try{
+            // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) já detalhado (copy+headline
+            // prontos) vira card "aguardando material" agora, em vez de só sumir da lista de
+            // imagens a produzir — era o bug reportado: a ordem nascia, concluía com total:0 em
+            // silêncio, e o conteúdo desaparecia sem nunca virar card nem aviso. O que ainda não
+            // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura). Isto
+            // continua aqui — é marcação de status, não criação de ordem de produção.
+            const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
+            const matAqui=wkArr.filter(c=>JC.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
+            if(matAqui.length){
+              await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matAqui.join(',')})`,{
+                method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
+              }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+                .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
+            }
+          }catch(e){ console.error('[ordem] criador semanal: aguardando_material falhou (exceção):', e && e.message); }
+        }
+
+        // SEXTA PORTA (05/set/2026): detalhar pelo chat NUNCA cria 'criar_post' — garante o
+        // card 'aprovar_semana' cobrindo tudo que ficou pronto (rascunho, sem mídia) até o fim
+        // da semana atual do cliente. Cria se não existir; reaproveita se já existir (mesma
+        // dedup que cron.js e aprovar.html usam — ver api/_semana-lib.js). Sem extraPayload:
+        // ao contrário do drip do cron, aqui o conteúdo já está detalhado, então
+        // 'precisa_detalhar' não se aplica. Bloco próprio (FALHA 1): não depende mais de nada
+        // acima ter dado certo, e SEMPRE avisa se não conseguir garantir o gate.
+        try{
+          if(wkFalhou){
+            // Não sabemos quais ids proteger — não dá pra distinguir "nada pronto" de "não
+            // consegui ler". Trata como falha da garantia, nunca como "nada a fazer".
+            notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui conferir os posts prontos da semana para garantir o card de aprovação — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+            console.error('[ordem] garantirCardAprovarSemana: leitura de wk falhou, garantia não pôde rodar — user='+targetId);
+          }else{
+            const _idsSemana=wkArr.map(c=>c.id);
+            if(_idsSemana.length){
+              // CAMADA 1 (mesmo padrão do backstop, mais abaixo — "além do banco, respeita o que já
+              // foi atendido nesta mesma requisição"): registra ANTES de chamar garantir. Achado no
+              // teste desta correção — a dedup de garantirCardAprovarSemana só pergunta "já existe
+              // ALGUM card aprovar_semana aberto?", não "existe um card cobrindo ESTES ids". Se
+              // outra semana (ex.: a Semana 1, ainda não aprovada) já tem card aberto, garantir
+              // devolve jaExistia:true SEM cobrir os ids que acabaram de ser detalhados agora — e o
+              // backstop, rodando mais abaixo NESTA MESMA resposta, os pegaria e disparia produção
+              // sozinho: a mesma sexta porta, por um caminho lateral. Isto fecha o buraco só para a
+              // requisição corrente (o que resolve o incidente relatado); a lacuna estrutural entre
+              // semanas — um card aberto de uma semana não protege o conteúdo já pronto de outra —
+              // fica registrada em APRENDIZADOS.md como achado separado, não corrigida aqui (mudaria
+              // a semântica de dedup compartilhada por cron.js e aprovar.html, fora do escopo desta
+              // rodada).
+              _idsSemana.forEach(x=>atendidosNestaReq.add(String(x)));
+              const _g=await garantirCardAprovarSemana(KEY(),targetId,_idsSemana,agente);
+              if(!_g.criado && !_g.jaExistia){
+                notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+                console.error('[ordem] garantirCardAprovarSemana falhou ao concluir detalhamento — user='+targetId);
+              }
             }
           }
-        }catch(e){ console.error('[ordem] criador semanal (detalhamento) falhou:', e && (e.message||e)); }
+        }catch(e){
+          notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+          console.error('[ordem] garantirCardAprovarSemana: exceção inesperada:', e && e.message);
+        }
       }
     }
 
