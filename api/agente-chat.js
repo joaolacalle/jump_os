@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.04-gravacao-conversa-isolada';
+const VERSAO = '2026.09.06-falha1-sbget-endurecido';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -618,6 +618,11 @@ const handler = async (req, res) => {
         reparo_segunda_chamada_avulso:true,
         sbinsert_sbpatch_logam_falha:true,
         gravacao_conversa_isolada_do_promise_all:true,
+        chat_mensagens_linha_usuario_avisos_null:true,
+        sexta_porta_garante_card_aprovar_semana_no_detalhe:true,
+        sexta_porta_dedup_extraida_semana_lib:true,
+        sbget_loga_falha_sem_mudar_retorno:true,
+        garantia_do_card_independente_da_leitura_de_material:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
