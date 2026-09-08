@@ -82,15 +82,23 @@ async function garantirCardAprovarSemana(serviceKey, userId, ids, deAgente, extr
 // falha na consulta vira log explícito com motivo; lista vazia legítima (sem erro) continua sem
 // logar nada — não é uma falha, não precisa avisar.
 //
-// ENTREGA 1 (07/set/2026): só extrai a consulta pro lugar único, SEM mudar o critério — ainda
-// filtra role=eq.usuario, o mesmo de sempre. Comportamento idêntico ao de antes desta entrega.
-// A mudança de critério (tirar role do filtro) é a ENTREGA 2, autorizada separadamente pelo João
-// — "entrega separada porque muda quem recebe o job. Subir depois de 1 e 3 confirmados, para que
-// qualquer efeito seja atribuível."
+// ENTREGA 2 (07/set/2026, autorizada separadamente — "entrega separada porque muda quem recebe
+// o job"): tirado `role` do critério. Motivo (não é redefinir o que `role` significa — é tirá-lo
+// da decisão): `role` já responde três perguntas diferentes no sistema (permissão administrativa,
+// roteamento de UI, bypass de cota em agente-chat.js) e nenhuma delas é "esta conta consome o
+// produto" — agente-chat.js já resolveu essa pergunta com `cli.plano`, não com `role`. Estes dois
+// jobs eram o único lugar do sistema em que `role=usuario` decidia se o cliente recebia o produto
+// — critério introduzido só no Lote 2 (01/set/2026), divergente do resto do arquivo (jobEstrategia
+// e jobPublicar nunca filtraram por role). E era redundante mesmo antes: `plano_ancora_em`
+// presente (jobExpiracaoSemana) e conteúdo `rascunho` na janela (drip) já filtram quem tem algo
+// de verdade a fazer — uma conta sem plano ancorado não tem nada a vencer nem card a gerar,
+// seja qual for o `role`. Confirmado no banco (07/set): só uma conta no sistema inteiro tinha
+// `role` fora de 'usuario' e `plano_ancora_em` preenchido (a admin que motivou o achado) — nenhum
+// supervisor no mesmo estado.
 async function clientesElegiveisSemana(serviceKey) {
   const headers = H(serviceKey);
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,preferencias`, { headers });
     if (!r.ok) {
       let motivo = ''; try { const j = await r.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
       console.error('[clientesElegiveisSemana] consulta falhou — status=' + r.status + ' motivo=' + String(motivo).slice(0, 200));
