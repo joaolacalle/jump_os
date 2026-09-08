@@ -17,7 +17,7 @@ const JC = require('../assets/classificacao.js');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026): a criação do card 'aprovar_semana' (mais abaixo,
 // job de drip semanal) agora vem de um módulo único, também consultado por api/agente-chat.js —
 // ver api/_semana-lib.js para o porquê (Família 2 do Contrato: mesma decisão em N lugares).
-const { garantirCardAprovarSemana } = require('./_semana-lib.js');
+const { garantirCardAprovarSemana, clientesElegiveisSemana } = require('./_semana-lib.js');
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -816,7 +816,10 @@ async function jobOrdens() {
   //        nasce direto em aprovar.html, junto da aprovação mensal — não pode ser antecipada
   //        (não existe "3 dias antes" de um evento que ainda não aconteceu).
   let lotesSemana = 0;
-  const ativos = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+  // CAUSA COMUM (07/set/2026, ver APRENDIZADOS.md): esta consulta e a de jobExpiracaoSemana eram
+  // duas cópias literais da mesma regra, cada uma com seu próprio catch silencioso — Família 2 +
+  // Família 1 juntas. Unificada em clientesElegiveisSemana (api/_semana-lib.js).
+  const ativos = await clientesElegiveisSemana(KEY());
   const daqui3 = new Date(); daqui3.setHours(0,0,0,0); daqui3.setDate(daqui3.getDate() + 3);
   const diaSemanaDaqui3 = daqui3.getDay(); // 0=domingo..6=sábado
   const iniSemISO = daqui3.toISOString().slice(0, 10); // se hoje+3 cair no dia_lote, ESSE é o início da próxima semana
@@ -942,7 +945,11 @@ async function jobExpiracaoSemana() {
   let expirados = 0, excluidosAutomaticos = 0;
   const hoje = JC.hojeISOBrasil();
   try {
-    const clientesAtivos = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    // CAUSA COMUM (07/set/2026, ver APRENDIZADOS.md): esta consulta e a do drip semanal
+    // (jobOrdens) eram duas cópias literais da mesma regra, cada uma com seu próprio catch
+    // silencioso — Família 2 + Família 1 juntas. Unificada em clientesElegiveisSemana
+    // (api/_semana-lib.js).
+    const clientesAtivos = await clientesElegiveisSemana(KEY());
     for (const c of (Array.isArray(clientesAtivos) ? clientesAtivos : [])) {
       const ancora = (c.preferencias && c.preferencias.plano_ancora_em) || null;
       if (!ancora) continue; // sem plano aprovado ainda: nenhuma semana definida, nada a expirar

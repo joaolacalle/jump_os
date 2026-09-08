@@ -72,4 +72,36 @@ async function garantirCardAprovarSemana(serviceKey, userId, ids, deAgente, extr
   }
 }
 
-module.exports = { garantirCardAprovarSemana };
+// FONTE ÚNICA — clientes elegíveis para os jobs de conteúdo semanal (07/set/2026, achado "causa
+// comum" no incidente "vencimento e ciclo semanal não rodaram", ver APRENDIZADOS.md). Antes,
+// api/cron.js tinha a MESMA consulta escrita duas vezes (jobOrdens/drip semanal L819 e
+// jobExpiracaoSemana L945) — Família 2 do Contrato. Unificada aqui.
+// Fecha também Família 1: as duas cópias tinham `.catch(()=>[])` próprio, tornando "a consulta
+// falhou" indistinguível de "nenhum cliente elegível" — o que escondeu o problema real (uma conta
+// com role=admin, mas cliente ativo de verdade, sendo pulada em silêncio pelos dois jobs). Agora
+// falha na consulta vira log explícito com motivo; lista vazia legítima (sem erro) continua sem
+// logar nada — não é uma falha, não precisa avisar.
+//
+// ENTREGA 1 (07/set/2026): só extrai a consulta pro lugar único, SEM mudar o critério — ainda
+// filtra role=eq.usuario, o mesmo de sempre. Comportamento idêntico ao de antes desta entrega.
+// A mudança de critério (tirar role do filtro) é a ENTREGA 2, autorizada separadamente pelo João
+// — "entrega separada porque muda quem recebe o job. Subir depois de 1 e 3 confirmados, para que
+// qualquer efeito seja atribuível."
+async function clientesElegiveisSemana(serviceKey) {
+  const headers = H(serviceKey);
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&role=eq.usuario&select=id,preferencias`, { headers });
+    if (!r.ok) {
+      let motivo = ''; try { const j = await r.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
+      console.error('[clientesElegiveisSemana] consulta falhou — status=' + r.status + ' motivo=' + String(motivo).slice(0, 200));
+      return [];
+    }
+    const j = await r.json();
+    return Array.isArray(j) ? j : [];
+  } catch (e) {
+    console.error('[clientesElegiveisSemana] consulta falhou (rede) — erro=' + (e && e.message));
+    return [];
+  }
+}
+
+module.exports = { garantirCardAprovarSemana, clientesElegiveisSemana };
