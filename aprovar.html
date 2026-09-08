@@ -712,6 +712,13 @@ async function aprovarProposta(id,tarefa,btn){
       const piso=janela1.inicio;
       const lim=janela1.fim;
       let qSem1=JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).gte('data_sugerida',piso).lte('data_sugerida',lim);
+      // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"): esta
+      // query não tinha NENHUMA exclusão de avulso — um post avulso com data_sugerida coincidindo
+      // com a janela da Semana 1 entraria misturado no card do plano. Agora exclui origem='avulso'
+      // por dado explícito. origem IS NULL (legado, sem a coluna) mantém o comportamento ATUAL —
+      // sem exclusão nenhuma, exatamente como já era antes desta entrega — nunca tratado como
+      // 'avulso' nem como 'plano' por inferência.
+      qSem1=qSem1.or('origem.eq.plano,origem.is.null');
       // emValidacao: mesma quarentena das outras duas portas — construída a partir da fonte
       // única, nunca de literal escrito aqui.
       [].concat(JUMP_CLASS.FORMATOS_MATERIAL_USUARIO||[],JUMP_CLASS.FORMATOS_EM_VALIDACAO||[]).forEach(termo=>{qSem1=qSem1.not('formato','ilike','%'+termo+'%')});
