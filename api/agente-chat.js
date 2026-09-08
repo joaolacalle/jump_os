@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-postura-frente3-tempo2-corrigido';
+const VERSAO = '2026.09.09-postura-frente1-bloco-sem-ordem';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -87,6 +87,60 @@ function tetoImagensPlano(cli) {
   const lim = Number((cli && cli.limites || {}).imagens || 0);
   const us = Number((cli && cli.uso || {}).imagens || 0);
   return Math.floor(Math.max(0, lim - us) * 0.8);
+}
+
+// FRENTE 1 DO LOTE DE POSTURA (09/set/2026, ver APRENDIZADOS.md "FRENTE 1 — PROPOSTA" e "FRENTE
+// 1 IMPLEMENTADA"): resumo REAL do plano, por semana, pra Estratégia. Ataca os itens 1/3/5 do
+// lote na raiz — o diagnóstico anterior confirmou que a Estratégia é o único agente-chave sem
+// nenhum dado de "o que já existe no calendário" (Publicação tem; Estratégia, não), e é
+// exatamente ela a protagonista dos dois achados de 09/09 (semana descrita como detalhada sem
+// nunca ter sido). Absorve a antiga "JANELA DE PLANEJAMENTO" (só datas, sem estado) — cada linha
+// agora carrega data + o que já está gravado. Informação de fundo, mesmo princípio da Frente A
+// (27/ago): nenhuma linha manda agir, só descreve — quem decide se isto é assunto da vez é o
+// agente, olhando a conversa.
+//
+// FONTE ÚNICA: bucket de data→semana usa JC.semanaDoPost (mesma função que a trava do <detalhe>
+// já usa) — nenhum cálculo de janela reinventado aqui. Filtro por `origem` (não por coincidência
+// de data): só conta como "do plano" quem tem origem='plano' ou origem IS NULL (legado, mesmo
+// contrato de comportamento da Falha 3) — origem='avulso' fica de fora mesmo que a data caia
+// dentro da janela de alguma semana, senão este resumo reintroduziria exatamente o tipo de
+// contaminação avulso/plano que a Falha 3 já fechou em outros dois pontos (backstop, card da
+// Semana 1).
+//
+// Sem uso fora deste arquivo hoje — função pura, local; se um dia precisar em cron.js ou outro
+// request, extrair pra _semana-lib.js é trivial.
+async function resumoPlanoPorSemana(targetId, janelasCliente, ancoraPlano, diaLoteCliente) {
+  const _ddmm = iso => { const p = String(iso).split('-'); return p[2] + '/' + p[1]; };
+  const [posts, cards] = await Promise.all([
+    sbGet(`conteudos?user_id=eq.${targetId}&status=neq.excluido&status=neq.rejeitado&or=(origem.eq.plano,origem.is.null)&select=id,copy,data_sugerida&order=data_sugerida.asc&limit=200`),
+    sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=in.(aguardando_aprovacao,concluida)&select=status,payload`),
+  ]);
+  const idParaStatusCard = new Map();
+  (Array.isArray(cards) ? cards : []).forEach(o => {
+    const ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : [];
+    ids.forEach(id => idParaStatusCard.set(String(id), o.status));
+  });
+  const porSemana = new Map();
+  janelasCliente.forEach(j => porSemana.set(j.semana, { total: 0, comCopy: 0, cardStatus: null }));
+  (Array.isArray(posts) ? posts : []).forEach(c => {
+    let sem = null;
+    try { sem = JC.semanaDoPost(c.data_sugerida, ancoraPlano, diaLoteCliente); } catch (e) {}
+    if (sem === null || !porSemana.has(sem)) return; // fora do horizonte de 5 semanas — não é assunto deste resumo
+    const b = porSemana.get(sem);
+    b.total++;
+    if (c.copy && String(c.copy).trim()) b.comCopy++;
+    const statusCard = idParaStatusCard.get(String(c.id));
+    if (statusCard === 'concluida') b.cardStatus = 'aprovado';
+    else if (statusCard === 'aguardando_aprovacao' && b.cardStatus !== 'aprovado') b.cardStatus = 'aguardando';
+  });
+  return janelasCliente.map(j => {
+    const b = porSemana.get(j.semana) || { total: 0, comCopy: 0, cardStatus: null };
+    const dias = Math.round((new Date(j.fim + 'T00:00:00Z') - new Date(j.inicio + 'T00:00:00Z')) / 86400000) + 1;
+    const parcial = (j.semana === 1 && dias < 7) ? (' (parcial, ' + dias + ' dia' + (dias > 1 ? 's' : '') + ')') : '';
+    const cardTxt = b.cardStatus === 'aprovado' ? 'card de aprovação aprovado' : b.cardStatus === 'aguardando' ? 'card de aprovação aguardando o cliente' : 'nenhum card de aprovação aberto';
+    const copyTxt = b.total ? (b.comCopy + ' de ' + b.total + ' post(s) com copy') : 'nenhum post gravado ainda';
+    return 'SEMANA ' + j.semana + ' — ' + _ddmm(j.inicio) + ' a ' + _ddmm(j.fim) + parcial + ' → use "data_sugerida" entre ' + j.inicio + ' e ' + j.fim + ' · ' + copyTxt + ' · ' + cardTxt;
+  }).join('\n');
 }
 
 // LOTE 2 — item 2 (detecção de falha silenciosa, 01/set/2026) + REPARO AVULSO FRENTE B
@@ -329,7 +383,7 @@ Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, m
 Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
-- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "JANELA DE PLANEJAMENTO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
   MÊS INTEIRO, EM UMA ÚNICA RESPOSTA (OBRIGATÓRIO — LOTE 2, 01/set/2026): monte as 5 semanas AGORA, nesta mesma resposta, com a tag <conteudo> de CADA post do mês inteiro. NUNCA pergunte "quer que eu siga com a Semana 2?" nem espere confirmação para continuar — isso era um workaround do limite de tamanho de resposta que não existe mais: o formato aqui é LEVE (tema/formato/data — sem copy, sem roteiro, ver TEMPO 1 abaixo), então o mês inteiro cabe numa resposta só. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
 - RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
 Pergunte se pode produzir os conteúdos.
@@ -359,7 +413,7 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
 Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
-DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "JANELA DE PLANEJAMENTO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
+DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
@@ -630,6 +684,9 @@ const handler = async (req, res) => {
         falha3_backstop_filtra_por_origem:true,
         falha3_card_semana1_exclui_avulso_por_origem:true,
         postura_frente3_tempo2_texto_designer_corrigido:true,
+        postura_frente1_bloco_estado_real_por_semana:true,
+        postura_frente1_cota_informa_teto_e_consumido:true,
+        postura_frente1_bloco_sem_ordem_frenteA:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -979,14 +1036,42 @@ const handler = async (req, res) => {
     // 40 dias. Ela decide O QUE entra em cada dia; QUAL janela cada semana ocupa é dado, não
     // escolha dela. Isso é o que corrigiu o caso de 28/08: sem esta injeção, o agente tinha só
     // uma lista solta de dias e escolheu livremente pular a Semana 1 inteira.
+    // FRENTE 1 (09/set/2026, lote de postura — ver APRENDIZADOS.md "FRENTE 1 IMPLEMENTADA"): este
+    // bloco ABSORVEU o antigo "JANELA DE PLANEJAMENTO" (que só tinha datas) — agora cada linha
+    // também carrega o estado real (quantos posts, quantos com copy, status do card de
+    // aprovação). Dois blocos parecidos competindo por atenção foi diagnosticado como parte da
+    // causa da deriva de 04/09 (Frente A) — fica um só. Falha na consulta não pode derrubar o
+    // request nem silenciar o gate de datas: se falhar, cai pro texto antigo (só datas, sem
+    // estado) — trava de datas (travaDeDatas) continua valendo de qualquer forma, ela não
+    // depende deste texto.
     if(agente==='estrategia'){
-      const _ddmm=iso=>{ const p=String(iso).split('-'); return p[2]+'/'+p[1]; };
-      const linhasJanelas=janelasCliente.map(j=>{
-        const dias=Math.round((new Date(j.fim+'T00:00:00Z')-new Date(j.inicio+'T00:00:00Z'))/86400000)+1;
-        const parcial=(j.semana===1&&dias<7)?(' (parcial, '+dias+' dia'+(dias>1?'s':'')+')'):'';
-        return 'SEMANA '+j.semana+' — '+_ddmm(j.inicio)+' a '+_ddmm(j.fim)+parcial+' → use "data_sugerida" entre '+j.inicio+' e '+j.fim;
-      }).join('\n');
-      dataTxt+=`\n\n═══ JANELA DE PLANEJAMENTO (as 5 semanas do plano — dado pronto, NUNCA recalcule) ═══\n${linhasJanelas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). MÊS INTEIRO NUMA RESPOSTA SÓ (LOTE 2): emita as tags <conteudo> das 5 semanas juntas, nesta mesma resposta — nunca pergunte se pode seguir para a próxima semana. A SEMANA 1 precisa ter ao menos 1 peça, mesmo sendo parcial (só pule se a cota de imagens do plano já estiver zerada). Nunca comece o plano pela Semana 2 nem deixe a Semana 1 vazia sem esse motivo.`;
+      let resumoSemanas=null;
+      try{ resumoSemanas=await resumoPlanoPorSemana(targetId,janelasCliente,ancoraPlano,diaLoteCliente); }
+      catch(e){ console.error('[agente-chat] resumoPlanoPorSemana falhou — motivo='+String(e&&e.message).slice(0,200)); }
+      if(!resumoSemanas){
+        // fallback: mesmo texto de antes da Frente 1, só datas — nunca deixa a Estratégia sem
+        // saber as janelas, mesmo se a consulta de estado falhar.
+        const _ddmm=iso=>{ const p=String(iso).split('-'); return p[2]+'/'+p[1]; };
+        resumoSemanas=janelasCliente.map(j=>{
+          const dias=Math.round((new Date(j.fim+'T00:00:00Z')-new Date(j.inicio+'T00:00:00Z'))/86400000)+1;
+          const parcial=(j.semana===1&&dias<7)?(' (parcial, '+dias+' dia'+(dias>1?'s':'')+')'):'';
+          return 'SEMANA '+j.semana+' — '+_ddmm(j.inicio)+' a '+_ddmm(j.fim)+parcial+' → use "data_sugerida" entre '+j.inicio+' e '+j.fim+' · estado não pôde ser lido agora';
+        }).join('\n');
+      }
+      // FRENTE A, PORTÃO DE REGRA DUPLICADA (09/set/2026 — ver APRENDIZADOS.md "FRENTE 1 —
+      // CORREÇÃO DE ORDEM NO BLOCO DE FUNDO"): esta frase de fechamento teve, numa primeira
+      // versão, três instruções de AÇÃO ("emita as tags nesta resposta", "Semana 1 precisa ter
+      // ao menos 1 peça", "nunca comece pela Semana 2") — um bloco que entra em TODO turno,
+      // inclusive quando o cliente fala de outra coisa, mandando agir. Violação direta do
+      // princípio da própria Frente A (informação, nunca ordem), no mesmo commit em que a citou.
+      // As três já existem na persona (ETAPA 1 linha ~387, TEMPO 1 linha ~415, lidas só quando o
+      // agente de fato monta o plano) — removidas daqui por serem AÇÃO, não por serem
+      // redundantes: mesmo se não existissem em nenhum outro lugar, não seriam deste bloco. A
+      // Semana 1 obrigatória também tem reforço em código (`avisoSemana1Vazia`, mais abaixo).
+      // Fica só o que descreve: as 5 linhas de estado, o limite de data (fato sobre o mecanismo:
+      // "o sistema recusa e avisa" — não é uma ordem, é a mesma natureza das linhas de estado) e
+      // a frase de contenção final.
+      dataTxt+=`\n\n═══ SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO (dado pronto, NUNCA recalcule nem estime) ═══\n${resumoSemanas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). As linhas acima descrevem o que JÁ existe — nunca afirme ao cliente que uma semana foi detalhada, tem copy ou tem card de aprovação além do que a linha dela diz.`;
     }
     if(agente==='publicacao'){
       try{
@@ -1005,14 +1090,23 @@ const handler = async (req, res) => {
     // inventou por cima deles três vezes seguidas ("restam 966 artes", "restam 45 artes e 10
     // vídeos", "restam 36 de 45"), sempre com o valor correto disponível aqui mesmo. Instrução
     // em prosa não segura comportamento (mesmo padrão de sempre: "não gere ainda" e "só depois
-    // do sim" também foram ignorados). A correção não é escrever melhor — é tirar do agente
-    // qualquer número pra especular: ele recebe só um TETO ("até N peças"), nunca "restam X de
-    // Y". Saldo/consumo/histórico é assunto da interface (Configurações → Meus limites), não do
-    // chat. O teto de artes abaixo vem de tetoImagensPlano() — fonte única da conta, ver o
-    // comentário dela no topo do arquivo.
+    // do sim" também foram ignorados). A correção NAQUELA rodada foi tirar do agente qualquer
+    // número pra especular — só o TETO, nunca "restam X de Y". Só que isso TAMBÉM falhou: o
+    // diagnóstico do lote de postura (09/set/2026) achou a mesma proibição "já foi ignorada 4
+    // vezes" — o agente inventou saldo mesmo SEM receber nenhum dado pra especular em cima.
+    // FRENTE 1 (09/set/2026, ver APRENDIZADOS.md "FRENTE 1 IMPLEMENTADA"): as duas apostas
+    // (dar o dado real, e esconder o dado) já foram tentadas e já falharam — a decisão desta
+    // rodada, autorizada pelo João com esta ressalva registrada, é voltar a dar o dado real
+    // (teto E consumido, rotulados com precisão sobre o que cada um significa), mas com uma
+    // proibição mais estrita de ARITMÉTICA em cima dos números — não é mais "você não tem o
+    // dado", é "você TEM os dois números exatos, não calcule um terceiro". Se isto regredir de
+    // novo em produção, o próximo passo já registrado é o detector da Frente 2 (auditar a
+    // resposta em busca de números de cota, como `declarouAcaoSemRegistro` já faz pra ação sem
+    // registro) — não mais uma quarta tentativa de reescrever a instrução em prosa.
     let cotaTxt='';
     if(agente==='estrategia'){
       const limImg=Number((cli.limites||{}).imagens||0);
+      const usImg=Number((cli.uso||{}).imagens||0);
       const tetoImg=tetoImagensPlano(cli);
       const limVid=Number((cli.limites||{}).videos||0);
       const usVid=Number((cli.uso||{}).videos||0);
@@ -1021,13 +1115,13 @@ const handler = async (req, res) => {
       const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
                  medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
                  pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
-      cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (teto, não meta — pare nele) ═══'+
-        (limImg?('\nPEÇAS COM ARTE: até '+tetoImg+' peça(s) neste plano (feed/carrossel/story — cada slide de carrossel conta 1). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
+      cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (dado pronto, NUNCA calcule nem estime) ═══'+
+        (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva de 20% pra avulso/recriação já descontada — não recalcule, não desconte de novo). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
         ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
         '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
         (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
         '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
-        '\n⚠️ PROIBIÇÃO ABSOLUTA (LOTE 2, reforçada 01/set/2026 — já foi ignorada 4 vezes): NUNCA cite ao cliente NENHUM número de saldo/consumo de cota — nem "restam X", nem "já foram usados Y", nem "você tem Z disponíveis", nem uma conta feita por você em cima do teto abaixo. Você não tem esse dado, só o teto (o limite máximo desta rodada) — qualquer número de saldo que você disser é invenção, mesmo que pareça plausível. Se o cliente perguntar quanto já usou ou quanto sobra, responda SEMPRE: "esse número fica em Configurações → Meus limites" — nunca tente calcular ou estimar por conta própria.';
+        '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
     }
 
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
