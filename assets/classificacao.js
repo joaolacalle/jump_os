@@ -205,6 +205,68 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  // Quantas peças com arte cabem AGORA no plano (Frente 1 do lote de postura, 09/set/2026 — ver
+  // APRENDIZADOS.md "FRENTE 1 IMPLEMENTADA"). Extraído aqui na Frente 2/Nível 3 (09/set/2026, ver
+  // "PAINEL DE ESTADO REAL — IMPLEMENTAÇÃO") pela MESMA razão que moveu `resumoSemanasEstrategia`
+  // pra este arquivo: o painel de estado precisa do mesmo número que o prompt da Estratégia já usa
+  // pra cota, calculado do MESMO jeito — reserva de 20% pra avulso/recriação. `api/agente-chat.js`
+  // passa a chamar esta função em vez de ter a própria cópia.
+  function tetoImagensPlano(cli) {
+    var lim = Number((cli && cli.limites || {}).imagens || 0);
+    var us = Number((cli && cli.uso || {}).imagens || 0);
+    return Math.floor(Math.max(0, lim - us) * 0.8);
+  }
+
+  // Resumo REAL do plano, por semana — fonte única entre o bloco injetado no prompt da Estratégia
+  // (servidor, `sbGet` com chave de serviço) e o painel de estado real na interface (navegador,
+  // `JUMP.sb` com RLS — Frente 2/Nível 3, 09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL
+  // — IMPLEMENTAÇÃO"). Extraído de `resumoPlanoPorSemana` (Frente 1, api/agente-chat.js): mesma
+  // regra de agregação, duas formas de BUSCAR os dados (chave de serviço vs. RLS), nunca duas
+  // formas de CONTAR — exatamente o cuidado que este arquivo existe pra impor (ver cabeçalho).
+  //
+  // Função pura: recebe `posts` e `cards` já buscados (não sabe nem precisa saber como chegaram
+  // até aqui) e as `janelasCliente` já calculadas (`janelasSemanas`, acima). O filtro por `origem`
+  // (plano/avulso, ver Falha 3) já deve ter sido aplicado pela QUERY que buscou `posts` — esta
+  // função só agrega o que recebeu, não filtra de novo.
+  //
+  // Devolve `{texto, porSemana}`: `texto` é a mesma string, linha a linha, que ia pro prompt da
+  // Estratégia (byte-idêntica ao formato validado na Frente 1 — nada mudou no texto que o agente
+  // recebe); `porSemana` é o array cru por semana (`{semana,inicio,fim,total,comCopy,cardStatus}`)
+  // — o painel usa isto pra decidir o indicador visual (semana atual vazia ou sem copy) sem
+  // precisar reabrir o texto formatado pra extrair números dele de volta.
+  function resumoSemanasEstrategia(posts, cards, janelasCliente, ancoraISO, diaLote) {
+    var _ddmm = function (iso) { var p = String(iso).split('-'); return p[2] + '/' + p[1]; };
+    var idParaStatusCard = {};
+    (Array.isArray(cards) ? cards : []).forEach(function (o) {
+      var ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : [];
+      ids.forEach(function (id) { idParaStatusCard[String(id)] = o.status; });
+    });
+    var porSemanaMapa = {};
+    janelasCliente.forEach(function (j) {
+      porSemanaMapa[j.semana] = { semana: j.semana, inicio: j.inicio, fim: j.fim, total: 0, comCopy: 0, cardStatus: null };
+    });
+    (Array.isArray(posts) ? posts : []).forEach(function (c) {
+      var sem = null;
+      try { sem = semanaDoPost(c.data_sugerida, ancoraISO, diaLote); } catch (e) {}
+      if (sem === null || !porSemanaMapa[sem]) return; // fora do horizonte de 5 semanas — não é assunto deste resumo
+      var b = porSemanaMapa[sem];
+      b.total++;
+      if (c.copy && String(c.copy).trim()) b.comCopy++;
+      var statusCard = idParaStatusCard[String(c.id)];
+      if (statusCard === 'concluida') b.cardStatus = 'aprovado';
+      else if (statusCard === 'aguardando_aprovacao' && b.cardStatus !== 'aprovado') b.cardStatus = 'aguardando';
+    });
+    var porSemana = janelasCliente.map(function (j) { return porSemanaMapa[j.semana]; });
+    var linhas = porSemana.map(function (b) {
+      var dias = Math.round((_toDataUTC(b.fim) - _toDataUTC(b.inicio)) / 86400000) + 1;
+      var parcial = (b.semana === 1 && dias < 7) ? (' (parcial, ' + dias + ' dia' + (dias > 1 ? 's' : '') + ')') : '';
+      var cardTxt = b.cardStatus === 'aprovado' ? 'card de aprovação aprovado' : b.cardStatus === 'aguardando' ? 'card de aprovação aguardando o cliente' : 'nenhum card de aprovação aberto';
+      var copyTxt = b.total ? (b.comCopy + ' de ' + b.total + ' post(s) com copy') : 'nenhum post gravado ainda';
+      return 'SEMANA ' + b.semana + ' — ' + _ddmm(b.inicio) + ' a ' + _ddmm(b.fim) + parcial + ' → use "data_sugerida" entre ' + b.inicio + ' e ' + b.fim + ' · ' + copyTxt + ' · ' + cardTxt;
+    });
+    return { texto: linhas.join('\n'), porSemana: porSemana };
+  }
+
   return {
     CATEGORIA: CATEGORIA,
     FORMATOS_MATERIAL_USUARIO: FORMATOS_MATERIAL_USUARIO,
@@ -223,6 +285,8 @@
     janelasSemanas: janelasSemanas,
     semanaDoPost: semanaDoPost,
     horizonteDoPlano: horizonteDoPlano,
-    hojeISOBrasil: hojeISOBrasil
+    hojeISOBrasil: hojeISOBrasil,
+    tetoImagensPlano: tetoImagensPlano,
+    resumoSemanasEstrategia: resumoSemanasEstrategia
   };
 });
