@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-postura-frente1-bloco-sem-ordem';
+const VERSAO = '2026.09.09-frente2-nivel3-painel-estrategia';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -83,64 +83,19 @@ function travaTrial(ct, cortesiaAteISO) {
 // o padrão de bug que este projeto tenta não repetir (regra igual escrita em lugares diferentes,
 // que um dia diverge). Qualquer ponto que precise saber "quantas peças com arte cabem no plano"
 // chama esta função a partir de agora.
-function tetoImagensPlano(cli) {
-  const lim = Number((cli && cli.limites || {}).imagens || 0);
-  const us = Number((cli && cli.uso || {}).imagens || 0);
-  return Math.floor(Math.max(0, lim - us) * 0.8);
-}
-
-// FRENTE 1 DO LOTE DE POSTURA (09/set/2026, ver APRENDIZADOS.md "FRENTE 1 — PROPOSTA" e "FRENTE
-// 1 IMPLEMENTADA"): resumo REAL do plano, por semana, pra Estratégia. Ataca os itens 1/3/5 do
-// lote na raiz — o diagnóstico anterior confirmou que a Estratégia é o único agente-chave sem
-// nenhum dado de "o que já existe no calendário" (Publicação tem; Estratégia, não), e é
-// exatamente ela a protagonista dos dois achados de 09/09 (semana descrita como detalhada sem
-// nunca ter sido). Absorve a antiga "JANELA DE PLANEJAMENTO" (só datas, sem estado) — cada linha
-// agora carrega data + o que já está gravado. Informação de fundo, mesmo princípio da Frente A
-// (27/ago): nenhuma linha manda agir, só descreve — quem decide se isto é assunto da vez é o
-// agente, olhando a conversa.
-//
-// FONTE ÚNICA: bucket de data→semana usa JC.semanaDoPost (mesma função que a trava do <detalhe>
-// já usa) — nenhum cálculo de janela reinventado aqui. Filtro por `origem` (não por coincidência
-// de data): só conta como "do plano" quem tem origem='plano' ou origem IS NULL (legado, mesmo
-// contrato de comportamento da Falha 3) — origem='avulso' fica de fora mesmo que a data caia
-// dentro da janela de alguma semana, senão este resumo reintroduziria exatamente o tipo de
-// contaminação avulso/plano que a Falha 3 já fechou em outros dois pontos (backstop, card da
-// Semana 1).
-//
-// Sem uso fora deste arquivo hoje — função pura, local; se um dia precisar em cron.js ou outro
-// request, extrair pra _semana-lib.js é trivial.
+// FRENTE 2 (NÍVEL 3 — PAINEL, 09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL —
+// IMPLEMENTAÇÃO"): `tetoImagensPlano` e o cálculo por trás de `resumoPlanoPorSemana` foram
+// EXTRAÍDOS pra `assets/classificacao.js` (`JC.tetoImagensPlano`/`JC.resumoSemanasEstrategia`) —
+// fonte única entre o bloco injetado neste prompt (aqui, via `sbGet`/chave de serviço) e o painel
+// de estado real na interface (agentes.html, via `JUMP.sb`/RLS). Este arquivo continua sendo o
+// único responsável por BUSCAR os dados (é quem tem a chave de serviço) — a REGRA de como contar
+// já não mora mais aqui. Ver assets/classificacao.js pro corpo das duas funções.
 async function resumoPlanoPorSemana(targetId, janelasCliente, ancoraPlano, diaLoteCliente) {
-  const _ddmm = iso => { const p = String(iso).split('-'); return p[2] + '/' + p[1]; };
   const [posts, cards] = await Promise.all([
     sbGet(`conteudos?user_id=eq.${targetId}&status=neq.excluido&status=neq.rejeitado&or=(origem.eq.plano,origem.is.null)&select=id,copy,data_sugerida&order=data_sugerida.asc&limit=200`),
     sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=in.(aguardando_aprovacao,concluida)&select=status,payload`),
   ]);
-  const idParaStatusCard = new Map();
-  (Array.isArray(cards) ? cards : []).forEach(o => {
-    const ids = (o.payload && Array.isArray(o.payload.ids)) ? o.payload.ids : [];
-    ids.forEach(id => idParaStatusCard.set(String(id), o.status));
-  });
-  const porSemana = new Map();
-  janelasCliente.forEach(j => porSemana.set(j.semana, { total: 0, comCopy: 0, cardStatus: null }));
-  (Array.isArray(posts) ? posts : []).forEach(c => {
-    let sem = null;
-    try { sem = JC.semanaDoPost(c.data_sugerida, ancoraPlano, diaLoteCliente); } catch (e) {}
-    if (sem === null || !porSemana.has(sem)) return; // fora do horizonte de 5 semanas — não é assunto deste resumo
-    const b = porSemana.get(sem);
-    b.total++;
-    if (c.copy && String(c.copy).trim()) b.comCopy++;
-    const statusCard = idParaStatusCard.get(String(c.id));
-    if (statusCard === 'concluida') b.cardStatus = 'aprovado';
-    else if (statusCard === 'aguardando_aprovacao' && b.cardStatus !== 'aprovado') b.cardStatus = 'aguardando';
-  });
-  return janelasCliente.map(j => {
-    const b = porSemana.get(j.semana) || { total: 0, comCopy: 0, cardStatus: null };
-    const dias = Math.round((new Date(j.fim + 'T00:00:00Z') - new Date(j.inicio + 'T00:00:00Z')) / 86400000) + 1;
-    const parcial = (j.semana === 1 && dias < 7) ? (' (parcial, ' + dias + ' dia' + (dias > 1 ? 's' : '') + ')') : '';
-    const cardTxt = b.cardStatus === 'aprovado' ? 'card de aprovação aprovado' : b.cardStatus === 'aguardando' ? 'card de aprovação aguardando o cliente' : 'nenhum card de aprovação aberto';
-    const copyTxt = b.total ? (b.comCopy + ' de ' + b.total + ' post(s) com copy') : 'nenhum post gravado ainda';
-    return 'SEMANA ' + j.semana + ' — ' + _ddmm(j.inicio) + ' a ' + _ddmm(j.fim) + parcial + ' → use "data_sugerida" entre ' + j.inicio + ' e ' + j.fim + ' · ' + copyTxt + ' · ' + cardTxt;
-  }).join('\n');
+  return JC.resumoSemanasEstrategia(posts, cards, janelasCliente, ancoraPlano, diaLoteCliente).texto;
 }
 
 // LOTE 2 — item 2 (detecção de falha silenciosa, 01/set/2026) + REPARO AVULSO FRENTE B
@@ -687,6 +642,7 @@ const handler = async (req, res) => {
         postura_frente1_bloco_estado_real_por_semana:true,
         postura_frente1_cota_informa_teto_e_consumido:true,
         postura_frente1_bloco_sem_ordem_frenteA:true,
+        frente2_nivel3_painel_estrategia_agregacao_extraida_pra_classificacao:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1107,7 +1063,7 @@ const handler = async (req, res) => {
     if(agente==='estrategia'){
       const limImg=Number((cli.limites||{}).imagens||0);
       const usImg=Number((cli.uso||{}).imagens||0);
-      const tetoImg=tetoImagensPlano(cli);
+      const tetoImg=JC.tetoImagensPlano(cli);
       const limVid=Number((cli.limites||{}).videos||0);
       const usVid=Number((cli.uso||{}).videos||0);
       const restVid=Math.max(0,limVid-usVid);
@@ -1718,9 +1674,9 @@ const handler = async (req, res) => {
         // Corta o EXCESSO (do fim da lista pra trás, ordem de chegada) e avisa — nunca produz
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
-        // Conta vem de tetoImagensPlano() — fonte única, ver comentário dela no topo do arquivo.
+        // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
         if(agente==='estrategia'){
-          const tetoPlano=tetoImagensPlano(cli);
+          const tetoPlano=JC.tetoImagensPlano(cli);
           let acumuladoCota=0;
           for(let i=0;i<conteudos.length;i++){
             const ct=conteudos[i];
@@ -1907,7 +1863,7 @@ const handler = async (req, res) => {
           // semanas entregues nesta ou em respostas seguintes continuam válidas) — só avisa alto
           // o suficiente pra não passar em silêncio, mesmo padrão de erroGravacao.
           const temPecaSemana1=_doPlano.some(ct=>JC.semanaDoPost(ct&&ct.data_sugerida,ancoraPlano,diaLoteCliente)===1);
-          const tetoDisponivel=tetoImagensPlano(cli);
+          const tetoDisponivel=JC.tetoImagensPlano(cli);
           if(!temPecaSemana1 && tetoDisponivel>0){
             avisoSemana1Vazia='A Semana 1 do plano (a partir de hoje) ficou sem nenhuma peça — o plano começou direto pela Semana 2 em diante, mesmo havendo cota disponível ('+tetoDisponivel+' peça(s) com arte ainda cabem). Peça à Estratégia para completar a Semana 1 antes de aprovar.';
           }
