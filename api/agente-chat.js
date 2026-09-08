@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.07-clientes-elegiveis-semana-sem-role';
+const VERSAO = '2026.09.09-falha3-origem-consumida';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -626,6 +626,9 @@ const handler = async (req, res) => {
         clientes_elegiveis_semana_fonte_unica_cron:true,
         clientes_elegiveis_semana_loga_falha_da_consulta:true,
         clientes_elegiveis_semana_criterio_sem_role:true,
+        falha3_origem_gravado_no_insert:true,
+        falha3_backstop_filtra_por_origem:true,
+        falha3_card_semana1_exclui_avulso_por_origem:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1631,6 +1634,13 @@ const handler = async (req, res) => {
             user_id:targetId, tema:ct.tema, copy:ct.copy,
             formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
+            // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"):
+            // `origem` é dado explícito de nascença — plano ou avulso, gravado uma vez, nunca mais
+            // inferido depois por card aberto/fechado. Os quatro caminhos (plano mensal, avulso
+            // comum, Tráfego, copy_para_criativo) passam todos por aqui — a diferença é só esta
+            // linha, não quatro pontos de escrita divergentes. NÃO confundir com `origem_agente`
+            // (linha acima, já existia — registra QUAL agente escreveu, pergunta diferente).
+            origem:ct.avulso?'avulso':'plano',
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
             meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct)}
@@ -1683,7 +1693,13 @@ const handler = async (req, res) => {
         // 'midia_url' (ver INSERT acima) com a flag em meta.criativo_proprio. Pedi-lo no select fazia
         // o PostgREST devolver 400; o retorno não era array e o backstop morria em silêncio, deixando
         // o conteúdo eternamente em "aguardando produção". Agora usamos o campo real.
-        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,midia_url`);
+        // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"):
+        // exclui origem='plano' DIRETO NA QUERY — post do plano mensal nunca entra no conjunto
+        // candidato do backstop, dado explícito, não inferência por card. `or=(origem.neq.plano,
+        // origem.is.null)` inclui avulso E o legado sem a coluna (NULL) — PostgREST/SQL: `neq`
+        // sozinho excluiria NULL também (NULL<>'plano' não é TRUE), por isso o `or` com `is.null`
+        // explícito, senão conteúdo legado sumia do backstop em silêncio.
+        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&or=(origem.neq.plano,origem.is.null)&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,midia_url,origem`);
         const _prontosArr=Array.isArray(prontos)?prontos:[];
         // ETAPA 2 (26/ago/2026): material do usuário pronto (copy+headline, só falta o arquivo)
         // vira card "aguardando material" aqui também — o backstop é o disparo mais amplo do
@@ -1707,23 +1723,32 @@ const handler = async (req, res) => {
             const ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[];
             ids.forEach(x=>jaNaFila.add(String(x)));
           });
-          // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): o backstop cobre o AVULSO (conteúdo pronto
-          // que não passa por aprovação de calendário) — nunca deveria pegar posts do plano
-          // mensal que ainda esperam o card 'aprovar_semana'. Antes disso não tinha como saber a
-          // diferença: depois que a mensal é aprovada, o post do plano vira 'rascunho' igual ao
-          // avulso, mesmo status, indistinguível por aqui. Sem esta checagem, desligar a Rota A
-          // (o bloco que criava 'criar_post' ao detalhar) não resolvia nada: o backstop, rodando
-          // na PRÓXIMA interação de chat com QUALQUER agente — ou mais adiante nesta mesma
-          // resposta — encontrava os mesmos posts já com copy/headline prontos e disparava a
-          // produção sozinho, só um turno mais tarde. Avulso nunca aparece no payload.ids de um
-          // 'aprovar_semana' (não passa por lá) — esta exclusão não o afeta.
+          // GATE DA APROVAÇÃO SEMANAL (27/ago/2026, endurecido em 09/set/2026 — Falha 3): o
+          // backstop cobre o AVULSO (conteúdo pronto que não passa por aprovação de calendário) —
+          // nunca deveria pegar posts do plano mensal que ainda esperam o card 'aprovar_semana'.
+          // Até aqui a query já barra `origem='plano'` (comentário acima) — quem chega em `pend`
+          // só tem `origem='avulso'` ou `origem IS NULL` (legado, sem a coluna). Post com
+          // `origem='avulso'` é dado explícito: NUNCA é protegido por card, produção sempre livre
+          // — é a função original do backstop. O que ainda depende de inferência por card aberto
+          // (`naSemanaAberta`, mesmo mecanismo de antes) é só o legado sem `origem` — até essas
+          // linhas saírem de circulação (produzidas, aprovadas ou descartadas), mantém o
+          // comportamento ATUAL, exatamente como decidido no relatório da migration (nunca tratar
+          // ausência de dado como um dos dois valores).
           const semanasAbertas=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=eq.aguardando_aprovacao&select=payload`);
           const naSemanaAberta=new Set();
           (Array.isArray(semanasAbertas)?semanasAbertas:[]).forEach(o=>{
             ((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naSemanaAberta.add(String(x)));
           });
-          // CAMADA 1: além do banco, respeita o que já foi atendido nesta mesma requisição
-          const novos=idsPend.filter(x=>!jaNaFila.has(String(x))&&!atendidosNestaReq.has(String(x))&&!naSemanaAberta.has(String(x)));
+          const origemPorId=new Map(pend.map(c=>[String(c.id),c.origem||null]));
+          // CAMADA 1: além do banco, respeita o que já foi atendido nesta mesma requisição.
+          // origem='avulso' pula a checagem de card por definição; origem IS NULL (legado) mantém
+          // a checagem de sempre.
+          const novos=idsPend.filter(x=>{
+            const sx=String(x);
+            if(jaNaFila.has(sx)||atendidosNestaReq.has(sx)) return false;
+            if(origemPorId.get(sx)==='avulso') return true;
+            return !naSemanaAberta.has(sx);
+          });
           if(novos.length){
             novos.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
             const _okB=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
