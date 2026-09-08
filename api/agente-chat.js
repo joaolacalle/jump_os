@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-falha3-origem-consumida';
+const VERSAO = '2026.09.09-postura-frente3-tempo2-corrigido';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -629,6 +629,7 @@ const handler = async (req, res) => {
         falha3_origem_gravado_no_insert:true,
         falha3_backstop_filtra_por_origem:true,
         falha3_card_semana1_exclui_avulso_por_origem:true,
+        postura_frente3_tempo2_texto_designer_corrigido:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1085,9 +1086,19 @@ const handler = async (req, res) => {
           // confirmação de avulso em andamento pra pular pra Semana 4 sem ninguém ter pedido.
           // Vira informação de fundo — quem decide se isto é o assunto da vez é o agente, olhando
           // a conversa; o bloco não pode mandar.
+          // FRENTE 3 (09/set/2026, ver APRENDIZADOS.md "LOTE DE POSTURA — AUTORIZADO EM TRÊS
+          // FRENTES"): a frase antiga aqui ("assim que detalhar, o sistema envia a arte ao
+          // Designer automaticamente") era falsa desde o GATE DA APROVAÇÃO SEMANAL (27/ago) —
+          // detalhar só grava copy; a produção só começa depois que o cliente aprova o card
+          // 'aprovar_semana' em Aprovações. Reescrita para descrever o estado real, sem virar
+          // ordem (mesmo princípio da Frente A — este bloco informa, não manda). A frase seguinte
+          // ("avise o cliente que... as artes... estão prontas") também mudou: dizia pro agente
+          // afirmar que as artes já estavam prontas no mesmo turno do detalhamento — não estão,
+          // só a copy está; as artes ficam pendentes da aprovação. Deixar como estava
+          // contradiria, duas frases depois, a correção que acabou de ser feita.
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
-            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Assim que detalhar, o sistema envia a arte ao Designer automaticamente. Depois, em 1 frase, avise o cliente que a copy e as artes da semana estão prontas para revisar em Aprovações.';
+            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
         }
       }catch(e){}
     }
