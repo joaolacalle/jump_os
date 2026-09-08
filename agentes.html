@@ -24,8 +24,16 @@
 .chat-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
 .chat-top{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--bd)}
 .ag-dash{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end;align-items:center;max-width:62%}
-.ag-db{font-family:var(--B);font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid rgba(var(--ac,168,85,247),.35);background:rgba(var(--ac,168,85,247),.1);color:var(--t1);cursor:pointer;transition:.15s;white-space:nowrap}
+.ag-db{position:relative;font-family:var(--B);font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:9px;border:1px solid rgba(var(--ac,168,85,247),.35);background:rgba(var(--ac,168,85,247),.1);color:var(--t1);cursor:pointer;transition:.15s;white-space:nowrap}
 .ag-db:hover{background:rgba(var(--ac,168,85,247),.2);border-color:rgba(var(--ac,168,85,247),.6)}
+/* PAINEL DE ESTADO REAL (Frente 2 / Nível 3, 09/set/2026 — ver APRENDIZADOS.md "PAINEL DE ESTADO
+   REAL — IMPLEMENTAÇÃO"): popup genérico, reaproveitável por qualquer agente que declare estado.
+   .ag-db já ganhou position:relative acima só pra ancorar o .ag-dot (indicador) quando usado
+   dentro da barra de botões — mesmo componente visual que a lista lateral já usa. */
+.estado-linha{padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px;line-height:1.6;color:var(--t2)}
+.estado-linha:last-child{border-bottom:0}
+.estado-linha b{color:var(--t1)}
+.estado-cota{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:12.5px;color:var(--t3);line-height:1.6}
 .ct-ico{border:1.5px solid rgba(168,85,247,.45);transition:.2s}
 @media(max-width:760px){.ag-dash{max-width:100%;margin-left:0;margin-top:8px;justify-content:flex-start}.chat-top{flex-wrap:wrap}}
 .vm-opt{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--t1);cursor:pointer;font-weight:600}
@@ -187,6 +195,21 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
       </div>
     </div>
   </div>
+
+<!-- POPUP DE ESTADO REAL (Frente 2 / Nível 3, 09/set/2026 — ver APRENDIZADOS.md "PAINEL DE ESTADO
+     REAL — IMPLEMENTAÇÃO"). Genérico por desenho: hoje só a Estratégia declara um painel
+     (abrirPainelEstrategia); outro agente que ganhar o seu chama o MESMO overlay/estrutura, só
+     muda o título e o corpo montado em JS — nenhum popup novo por agente. -->
+<div id="estado-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharPainelEstado()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;max-width:480px;width:100%;padding:24px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px;color:var(--g)" id="estado-titulo">Estado</div>
+      <button onclick="fecharPainelEstado()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div id="estado-corpo"><div style="text-align:center;padding:24px 0;color:var(--t3);font-size:13px">Carregando...</div></div>
+    <div id="estado-acao"></div>
+  </div>
+</div>
 
 <!-- MODAL DE PROMOÇÃO/DM (só Publicação) -->
 <div id="promo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharPromo()">
@@ -422,7 +445,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=4"></script>
+<script src="assets/classificacao.js?v=5"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -431,7 +454,7 @@ const AGS=[
   {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
   {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
-  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'cmdCalendario'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
   {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
@@ -602,7 +625,7 @@ async function selecionar(id){
   // suas ordens pendentes. O usuário criava tarefa para o Mercado, abria o Mercado e não
   // via nada. Agora TODO agente mostra o que tem para fazer.
   verificarOrdens(id);
-  if(id==='estrategia')atualizarBotaoEstrategia();
+  if(id==='estrategia')atualizarEstadoEstrategia();
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
@@ -1697,27 +1720,115 @@ function cmdCalendario(){
   if(PODE_DETALHAR)return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
   enviarTexto('Gere a estratégia desta semana para o meu nicho: temas, formatos e datas, conferindo os dias no calendário real.');
 }
-async function atualizarBotaoEstrategia(){
-  const b=document.getElementById('btn-cmdCalendario');
-  if(!b)return;
-  b.innerHTML='📅 Estratégia da semana';
-  const trava=m=>{b.disabled=true;b.style.opacity='.45';b.style.cursor='not-allowed';b.title=m};
-  const libera=m=>{b.disabled=false;b.style.opacity='';b.style.cursor='';b.title=m};
+// PAINEL DE ESTADO REAL (Frente 2 / Nível 3, 09/set/2026 — ver APRENDIZADOS.md "PAINEL DE ESTADO
+// REAL — IMPLEMENTAÇÃO"): esta função fazia só a trava do botão antigo (cmdCalendario, quando o
+// botão do cabeçalho disparava a ação direto). Agora o botão abre um popup com o estado real
+// primeiro — a ação de gerar/detalhar mora DENTRO do popup — então esta função passou a também
+// buscar e montar esse estado (5 semanas + cota) e decidir o indicador visual (.ag-dot) no botão.
+// Chamada nos MESMOS dois gatilhos de sempre — seleção do agente (mais abaixo) e depois de cada
+// resposta (dentro de enviarTexto, quando AG==='estrategia') — cobre "ao abrir" e "após cada
+// resposta", os dois gatilhos de atualização pedidos pro painel, sem nenhum gatilho novo.
+//
+// FONTE ÚNICA: agrega com JUMP_CLASS.resumoSemanasEstrategia/tetoImagensPlano — a MESMA função
+// que api/agente-chat.js chama (lá com chave de serviço; aqui com JUMP.sb, sujeito a RLS) pro
+// bloco que vai pro prompt da Estratégia. Nenhuma regra de contagem reescrita neste arquivo — só
+// a fala pro humano é formatada diferente da fala pro agente (ver `linhas` abaixo): mesma conta,
+// dois textos, cada um pro seu leitor.
+let PAINEL_ESTRATEGIA_ABERTO=false;
+async function atualizarEstadoEstrategia(){
   const uid=CTX.viewId||CTX.user.id;
+  // 1) trava do ciclo (regra idêntica à do botão antigo) — decide PODE_DETALHAR e a mensagem de
+  // bloqueio, se houver, pro botão de ação dentro do popup.
+  let travaMsg=null;
   try{
     const{data:ord}=await JUMP.sb.from('ordens_servico').select('tarefa,status').eq('user_id',uid)
       .in('status',['aguardando_aprovacao','pendente','processando'])
       .in('tarefa',['aprovar_estrategia','detalhar_semana','criar_post']);
     const tem=t=>(ord||[]).some(o=>o.tarefa===t);
-    if(tem('aprovar_estrategia'))return trava('Você tem uma estratégia aguardando aprovação em Tarefas de serviço.');
-    if(tem('detalhar_semana'))return trava('Esta semana já está em andamento — use "Escrever a copy da semana" na caixa de ordens acima.');
-    if(tem('criar_post'))return trava('O Designer está produzindo os criativos desta semana. Aguarde concluir.');
-    // sem ciclo em execução: libera. Se houver posts sem copy, o clique detalha.
-    const lim=new Date(Date.now()+7*864e5).toISOString();
-    const{data:wk}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').or('copy.is.null,copy.eq.').lte('data_sugerida',lim).limit(1);
-    PODE_DETALHAR=!!(wk&&wk.length);
-    libera(PODE_DETALHAR?'Escreve a headline e a copy dos posts desta semana.':'Monta a estratégia desta semana no calendário.');
-  }catch(e){}
+    if(tem('aprovar_estrategia'))travaMsg='Você tem uma estratégia aguardando aprovação em Tarefas de serviço.';
+    else if(tem('detalhar_semana'))travaMsg='Esta semana já está em andamento — use "Escrever a copy da semana" na caixa de ordens acima.';
+    else if(tem('criar_post'))travaMsg='O Designer está produzindo os criativos desta semana. Aguarde concluir.';
+    if(travaMsg){PODE_DETALHAR=false;}
+    else{
+      const lim=new Date(Date.now()+7*864e5).toISOString();
+      const{data:wk}=await JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','rascunho').or('copy.is.null,copy.eq.').lte('data_sugerida',lim).limit(1);
+      PODE_DETALHAR=!!(wk&&wk.length);
+    }
+  }catch(e){ travaMsg='Não consegui checar o andamento agora — tente de novo em instantes.'; }
+
+  // 2) estado real das 5 semanas + cota. Busca `clientes` fresco (não reaproveita CTX.cliente em
+  // memória — uso/limites podem ter mudado desde que a página carregou; o painel promete dado
+  // real, não dado de quando a aba abriu) e as mesmas duas tabelas que api/agente-chat.js lê.
+  let estadoHtml=null, dotAtivo=false;
+  try{
+    const[{data:cliRows},{data:posts},{data:cards}]=await Promise.all([
+      JUMP.sb.from('clientes').select('preferencias,uso,limites').eq('id',uid).limit(1),
+      JUMP.sb.from('conteudos').select('id,copy,data_sugerida').eq('user_id',uid)
+        .neq('status','excluido').neq('status','rejeitado')
+        .or('origem.eq.plano,origem.is.null').order('data_sugerida',{ascending:true}).limit(200),
+      JUMP.sb.from('ordens_servico').select('status,payload').eq('user_id',uid).eq('tarefa','aprovar_semana').in('status',['aguardando_aprovacao','concluida']),
+    ]);
+    const cli=(cliRows&&cliRows[0])||{};
+    const hojeISO=JUMP_CLASS.hojeISOBrasil();
+    const diaLote=(cli.preferencias||{}).dia_lote;
+    const ancoraPlano=(cli.preferencias||{}).plano_ancora_em||hojeISO;
+    const janelas=JUMP_CLASS.janelasSemanas(ancoraPlano,diaLote);
+    const r=JUMP_CLASS.resumoSemanasEstrategia(posts||[],cards||[],janelas,ancoraPlano,diaLote);
+    const _ddmm=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
+    const linhas=r.porSemana.map(b=>{
+      const copyTxt=b.total?(b.comCopy+' de '+b.total+' com copy'):'nenhum post ainda';
+      const cardTxt=b.cardStatus==='aprovado'?'card aprovado':b.cardStatus==='aguardando'?'card aguardando aprovação':'sem card aberto';
+      return '<div class="estado-linha"><b>Semana '+b.semana+'</b> — '+_ddmm(b.inicio)+' a '+_ddmm(b.fim)+'<br>'+copyTxt+' · '+cardTxt+'</div>';
+    }).join('');
+    const teto=JUMP_CLASS.tetoImagensPlano(cli);
+    const usImg=Number((cli.uso||{}).imagens||0);
+    const limImg=Number((cli.limites||{}).imagens||0);
+    const cotaHtml=limImg?('<div class="estado-cota">Peças com arte: usadas '+usImg+' de '+limImg+' no mês (soma tudo — plano, avulsos e recriações). Até '+teto+' cabem agora neste plano.</div>'):'';
+    estadoHtml=linhas+cotaHtml;
+    // indicador: semana ATUAL vazia (nenhum post) OU sem copy (nenhum dos posts gravados tem
+    // copy ainda) — as duas leituras que motivaram este painel (achado de 09/09).
+    const atual=r.porSemana.find(b=>hojeISO>=b.inicio&&hojeISO<=b.fim)||r.porSemana[0];
+    dotAtivo=!!(atual&&(atual.total===0||atual.comCopy===0));
+  }catch(e){
+    estadoHtml='<div style="padding:16px 0;color:var(--t3);font-size:13px">Não consegui carregar o estado agora.</div>';
+  }
+
+  // 3) indicador visual no botão do cabeçalho.
+  const btn=document.getElementById('btn-abrirPainelEstrategia');
+  if(btn){
+    const dotExistente=btn.querySelector('.ag-dot');
+    if(dotAtivo&&!dotExistente)btn.insertAdjacentHTML('afterbegin','<span class="ag-dot"></span>');
+    else if(!dotAtivo&&dotExistente)dotExistente.remove();
+  }
+
+  // 4) se o popup estiver aberto agora, atualiza o conteúdo ao vivo — cobre o gatilho "após cada
+  // resposta do agente enquanto estiver aberto".
+  if(PAINEL_ESTRATEGIA_ABERTO)renderPainelEstrategia(estadoHtml,travaMsg);
+}
+
+function renderPainelEstrategia(estadoHtml,travaMsg){
+  document.getElementById('estado-corpo').innerHTML=estadoHtml||'';
+  const acaoBtn=travaMsg
+    ?('<button class="btn btn-o" disabled title="'+String(travaMsg).replace(/"/g,'&quot;')+'" style="width:100%;opacity:.6;cursor:not-allowed">'+travaMsg+'</button>')
+    :('<button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();cmdCalendario()">'+(PODE_DETALHAR?'✍️ Escrever a copy da semana':'📅 Montar a estratégia da semana')+'</button>');
+  document.getElementById('estado-acao').innerHTML=
+    '<div style="display:flex;gap:8px;margin-top:16px;align-items:stretch">'+
+      '<button class="btn btn-o btn-sm" onclick="atualizarEstadoEstrategia()" title="Atualizar">🔄</button>'+
+      '<div style="flex:1">'+acaoBtn+'</div>'+
+    '</div>';
+}
+
+async function abrirPainelEstrategia(){
+  document.getElementById('estado-titulo').textContent='🗓 Seu plano';
+  document.getElementById('estado-corpo').innerHTML='<div style="text-align:center;padding:24px 0;color:var(--t3);font-size:13px">Carregando...</div>';
+  document.getElementById('estado-acao').innerHTML='';
+  document.getElementById('estado-overlay').style.display='flex';
+  PAINEL_ESTRATEGIA_ABERTO=true;
+  await atualizarEstadoEstrategia();
+}
+function fecharPainelEstado(){
+  document.getElementById('estado-overlay').style.display='none';
+  PAINEL_ESTRATEGIA_ABERTO=false;
 }
 function cmdCriativosPend(){
   // AÇÃO REAL (não mensagem de chat): leva à Fila — a fonte única do que precisa ser executado,
@@ -1831,7 +1942,7 @@ async function enviarTexto(txt){
         JUMP.toast('📅 '+d.conteudos+' post(s) planejados!');
         try{JUMPGUIA.dica('estrategia_criada','A estratégia foi criada, mas ainda <b>não está no calendário</b>. Vá em <b>Tarefas de serviço</b> e clique em <b>Aprovar estratégia</b> — só então o Designer começa as artes.','Estratégia gerada')}catch(e){}
       }
-      if(AG==='estrategia')atualizarBotaoEstrategia();
+      if(AG==='estrategia')atualizarEstadoEstrategia();
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
