@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-frente2-painel-correcoes-joao';
+const VERSAO = '2026.09.09-fila-tecnica-cinco-correcoes';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -672,6 +672,11 @@ const handler = async (req, res) => {
         frente2_painel_estrategia_linha_avulsos_aguardando_aprovacao:true,
         frente2_status_ativos_conteudo_allowlist_via_constantes:true,
         frente2_avulsos_e_legado_sem_origem_no_bloco_do_prompt:true,
+        fila_tecnica_jobordens_dasemana_loga_falha_da_consulta:true,
+        fila_tecnica_jobordens_blocos_1_e_1_5_isolados_em_try_catch:true,
+        fila_tecnica_datas_cron_via_hojeisobrasil_metricas_seguranca_ordens:true,
+        fila_tecnica_jobproduzir_ehbrief_grava_origem_avulso:true,
+        fila_tecnica_detalhe_id_invalido_loga_e_conta:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1482,11 +1487,20 @@ const handler = async (req, res) => {
     // Falha técnica real (PATCH recusado pelo banco, ou exceção) — antes o catch(e){} engolia em
     // silêncio e só 'detalhados' era contado; agora toda divergência entre emitido/salvo é logada.
     let detalhesFalhos=0;
+    // FILA TÉCNICA — item 5 (09/set/2026): único ramo do loop que não deixava rastro nenhum —
+    // nem contador, nem log — quando o id citado pelo agente não existe no banco (id inventado,
+    // ou de outro usuário — a query já filtra por user_id=eq.${targetId}, então "não existe" e
+    // "não é deste cliente" caem no mesmo caso, ambos ilegítimos do ponto de vista da auditoria).
+    // Os outros três desvios (dedup, fora da semana, falha técnica) sempre incrementavam um
+    // contador próprio; este simplesmente desaparecia. Não altera o texto de resposta ao cliente
+    // (nenhum avisoPartes novo) — só visibilidade server-side, pra honrar "nenhum muda
+    // comportamento".
+    let detalhesIdInvalido=0;
     if(detalhes.length){
       for(const d of detalhes){
         try{
           const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy,data_sugerida`);
-          if(!atual)continue;
+          if(!atual){ detalhesIdInvalido++; console.error('[detalhe] id citado pelo agente não encontrado (ou não pertence ao cliente) — id='+d.id+' user='+targetId); continue; }
           if(atual.copy&&String(atual.copy).trim()){ detalhesIgnorados++; continue; }
           const _semDoId=JC.semanaDoPost(atual.data_sugerida,ancoraPlano,diaLoteCliente);
           if(_semDoId!==null && _semDoId!==semanaAtualCliente.semana){ detalhesForaDaSemana++; continue; }
@@ -1501,7 +1515,7 @@ const handler = async (req, res) => {
       }
       // Auditoria barata: loga a conta sempre, mesmo quando bate — ajuda a pegar divergência futura
       // entre "tags emitidas" e "linhas salvas" antes que vire um bug relatado pelo cliente.
-      console.log('[detalhe] emitidos='+detalhes.length+' salvos='+detalhados+' ignorados_dedup='+detalhesIgnorados+' fora_da_semana='+detalhesForaDaSemana+' falhos='+detalhesFalhos);
+      console.log('[detalhe] emitidos='+detalhes.length+' salvos='+detalhados+' ignorados_dedup='+detalhesIgnorados+' fora_da_semana='+detalhesForaDaSemana+' falhos='+detalhesFalhos+' id_invalido='+detalhesIdInvalido);
       if(detalhesIgnorados>0){
         avisoDetalheDuplicado=detalhesIgnorados+' post(s) já tinham copy escrita por outra requisição enquanto esta estava em andamento — não sobrescrevi.';
       }
@@ -2188,7 +2202,7 @@ const handler = async (req, res) => {
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

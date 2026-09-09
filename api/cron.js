@@ -18,6 +18,18 @@ const JC = require('../assets/classificacao.js');
 // job de drip semanal) agora vem de um módulo único, também consultado por api/agente-chat.js —
 // ver api/_semana-lib.js para o porquê (Família 2 do Contrato: mesma decisão em N lugares).
 const { garantirCardAprovarSemana, clientesElegiveisSemana } = require('./_semana-lib.js');
+// FILA TÉCNICA — item 3 (09/set/2026, ver APRENDIZADOS.md "FILA TÉCNICA — CINCO CORREÇÕES"):
+// `jobMetricas`, `jobSeguranca` e `jobOrdens` calculavam "hoje" com `new Date()` cru (UTC, o
+// fuso do processo na Vercel) em vez de `JC.hojeISOBrasil()` (fonte única de "hoje" já usada no
+// resto do sistema) — mesma pergunta ("que dia é hoje?") respondida de duas formas, Família 2.
+// Não erra hoje porque os horários dos crons (vercel.json) caem longe da meia-noite de SP —
+// risco latente registrado desde a investigação de 08/09/2026 ("DATA DO SERVIDOR ATRASADA"),
+// verificado numericamente (730 dias, nos horários reais de disparo, ver
+// /tmp/test_frente_datas_cron.js) antes de aplicar: nenhuma divergência.
+// `_hojeSPComoData(iso)` parseia o resultado de `hojeISOBrasil()` (já resolvido pro calendário de
+// SP) como UTC PURO — nunca reinterpretar por um terceiro fuso ao extrair dia-do-mês/dia-da-semana
+// (mesma técnica que `_toDataUTC` já usa em assets/classificacao.js).
+function _hojeSPComoData(iso) { return new Date(iso + 'T00:00:00Z'); }
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -139,8 +151,9 @@ async function jobSeguranca() {
   });
 
   if (!alertas.length) return { avisos: 0 };
-  // Evita duplicar: marca o dia
-  const tag = `seg_${new Date().toISOString().slice(0,10)}`;
+  // Evita duplicar: marca o dia. FILA TÉCNICA — item 3 (09/set/2026): era `new Date()` cru (UTC),
+  // trocado por `JC.hojeISOBrasil()` — fonte única, ver nota no topo do arquivo.
+  const tag = `seg_${JC.hojeISOBrasil()}`;
   let criados = 0;
   for (const adminId of adminIds) {
     // já avisou hoje?
@@ -271,7 +284,9 @@ async function jobMetricas() {
     { headers: SBH() }
   ).then(r => r.json()).catch(() => []);
   if (!Array.isArray(contas) || !contas.length) return { coletadas: 0 };
-  const hoje = new Date().toISOString().slice(0, 10);
+  // FILA TÉCNICA — item 3 (09/set/2026): era `new Date()` cru (UTC), trocado por
+  // `JC.hojeISOBrasil()` — fonte única, ver nota no topo do arquivo.
+  const hoje = JC.hojeISOBrasil();
   let ok = 0; const erros = [];
   for (const c of contas) {
     try {
@@ -649,6 +664,13 @@ async function jobProduzir(soUid) {
           formato: it.formato || 'feed', tipo_visual: it.tipo_visual || 'conceitual',
           data_sugerida: amanha, data_agendada: amanha + 'T09:00:00',
           status: 'rascunho', origem_agente: 'criativo',
+          // FILA TÉCNICA — item 4 (09/set/2026): este era o único caminho do sistema que ainda
+          // gravava `origem` nula em `conteudos` — todo o resto já migrou pra Falha 3 (ver
+          // sql/falha3-passo1-coluna-origem.sql e a linha equivalente em api/agente-chat.js,
+          // `origem:ct.avulso?'avulso':'plano'`). Este bloco, por construção, SÓ roda quando não
+          // há posts de calendário e o alvo é o briefing da ordem (comentário "ORDEM
+          // AVULSA/RECORRENTE" acima) — ou seja, é sempre avulso, nunca inferência.
+          origem: 'avulso',
           meta: { headline: it.headline || it.tema || brief, subheadline: it.subheadline || '', cta_arte: it.cta_arte || '', pilar: it.pilar || '', avulso: true, ordem_id: o.id },
         }))),
       }).then(r => r.json()).catch(() => []);
@@ -761,46 +783,59 @@ async function jobOrdens() {
     }
   } catch (e) {}
   // Lembrete barato (sem IA): avisa usuários com ordens pendentes + ativa recorrentes do dia
-  const hoje = new Date().toISOString().slice(0, 10);
-  const diaDoMes = new Date().getDate();
-  const diaSemana = new Date().getDay(); // 0=domingo
+  // FILA TÉCNICA — item 3 (09/set/2026): eram `new Date()` crus (UTC). `hoje` trocado por
+  // `JC.hojeISOBrasil()`; `diaDoMes`/`diaSemana` derivados do MESMO `hoje` (nunca recalculados
+  // separadamente — evitaria reintroduzir a mesma divergência entre dois cálculos de "hoje" que
+  // este item inteiro existe para eliminar), lendo os campos como UTC puro (nunca reinterpretar
+  // por um terceiro fuso — ver `_hojeSPComoData` no topo do arquivo).
+  const hoje = JC.hojeISOBrasil();
+  const _hojeData = _hojeSPComoData(hoje);
+  const diaDoMes = _hojeData.getUTCDate();
+  const diaSemana = _hojeData.getUTCDay(); // 0=domingo
   let lembretes = 0, recCriadas = 0;
 
   // 1) Ordens recorrentes: gera a ordem do ciclo (1x por período) com anti-duplicata
-  const recorrentes = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?recorrencia=not.is.null&select=*`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-  for (const o of (Array.isArray(recorrentes) ? recorrentes : [])) {
-    // REGRAS DE RECORRÊNCIA (o dia é calculado, não adivinhado):
-    //  mensal        → dia 1
-    //  primeira_seg  → 1ª segunda-feira do mês (diaDoMes 1..7 numa segunda)
-    //  semanal       → toda segunda
-    //  quinzenal     → dias 1 e 15
-    //  dia_mes:N     → todo dia N
-    const rec = String(o.recorrencia || '');
-    let deveDisparar = false;
-    if (rec === 'mensal') deveDisparar = (diaDoMes === 1);
-    else if (rec === 'primeira_seg') deveDisparar = (diaSemana === 1 && diaDoMes <= 7);
-    else if (rec === 'semanal') deveDisparar = (diaSemana === 1);
-    else if (rec === 'quinzenal') deveDisparar = (diaDoMes === 1 || diaDoMes === 15);
-    else if (rec.indexOf('dia_mes:') === 0) deveDisparar = (diaDoMes === Number(rec.split(':')[1] || 0));
-    if (!deveDisparar) continue;
-    if (o.ultimo_lembrete === hoje) continue; // já disparou hoje
+  // FILA TÉCNICA — item 2 (09/set/2026): bloco não tinha try/catch próprio — uma exceção aqui
+  // (ex.: erro de rede na 1ª chamada) abortava a função inteira via o catch genérico do topo,
+  // e o drip semanal (bloco 1.5, abaixo) nunca chegava a rodar, sem nenhum log que apontasse
+  // qual dos dois blocos falhou. Mesmo padrão de isolamento que EXPIRAÇÃO e WATCHDOG (acima) já
+  // tinham — estendido aos dois blocos que faltavam.
+  try {
+    const recorrentes = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?recorrencia=not.is.null&select=*`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    for (const o of (Array.isArray(recorrentes) ? recorrentes : [])) {
+      // REGRAS DE RECORRÊNCIA (o dia é calculado, não adivinhado):
+      //  mensal        → dia 1
+      //  primeira_seg  → 1ª segunda-feira do mês (diaDoMes 1..7 numa segunda)
+      //  semanal       → toda segunda
+      //  quinzenal     → dias 1 e 15
+      //  dia_mes:N     → todo dia N
+      const rec = String(o.recorrencia || '');
+      let deveDisparar = false;
+      if (rec === 'mensal') deveDisparar = (diaDoMes === 1);
+      else if (rec === 'primeira_seg') deveDisparar = (diaSemana === 1 && diaDoMes <= 7);
+      else if (rec === 'semanal') deveDisparar = (diaSemana === 1);
+      else if (rec === 'quinzenal') deveDisparar = (diaDoMes === 1 || diaDoMes === 15);
+      else if (rec.indexOf('dia_mes:') === 0) deveDisparar = (diaDoMes === Number(rec.split(':')[1] || 0));
+      if (!deveDisparar) continue;
+      if (o.ultimo_lembrete === hoje) continue; // já disparou hoje
 
-    // A ordem do ciclo nasce PRONTA PARA PRODUÇÃO AUTOMÁTICA quando é peça de arte:
-    // vira 'criar_avulso' com o briefing → o worker gera → a arte cai no Aprovar.
-    // (Ordens que não são arte seguem como tarefa do usuário, com lembrete.)
-    const ehArte = (o.para_agente === 'criativo');
-    const nova = ehArte
-      ? { user_id: o.user_id, de_agente: 'usuario', para_agente: 'criativo', tarefa: 'criar_avulso',
-          detalhe: o.detalhe, status: 'pendente', total: 1, progresso: 0, ordem_pai: o.id,
-          payload: { brief: o.detalhe, recorrente: true, itens: [{ tema: o.detalhe, formato: 'feed', tipo_visual: 'conceitual' }] } } // recorrente: o texto da tarefa É o briefing definido pelo usuário
-      : { user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario',
-          detalhe: o.detalhe, status: 'pendente', ordem_pai: o.id };
-    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
-      method: 'POST', headers: SBH(), body: JSON.stringify(nova),
-    }).catch(()=>{});
-    await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ ultimo_lembrete: hoje }) }).catch(()=>{});
-    recCriadas++;
-  }
+      // A ordem do ciclo nasce PRONTA PARA PRODUÇÃO AUTOMÁTICA quando é peça de arte:
+      // vira 'criar_avulso' com o briefing → o worker gera → a arte cai no Aprovar.
+      // (Ordens que não são arte seguem como tarefa do usuário, com lembrete.)
+      const ehArte = (o.para_agente === 'criativo');
+      const nova = ehArte
+        ? { user_id: o.user_id, de_agente: 'usuario', para_agente: 'criativo', tarefa: 'criar_avulso',
+            detalhe: o.detalhe, status: 'pendente', total: 1, progresso: 0, ordem_pai: o.id,
+            payload: { brief: o.detalhe, recorrente: true, itens: [{ tema: o.detalhe, formato: 'feed', tipo_visual: 'conceitual' }] } } // recorrente: o texto da tarefa É o briefing definido pelo usuário
+        : { user_id: o.user_id, de_agente: 'usuario', para_agente: o.para_agente, tarefa: 'tarefa_usuario',
+            detalhe: o.detalhe, status: 'pendente', ordem_pai: o.id };
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
+        method: 'POST', headers: SBH(), body: JSON.stringify(nova),
+      }).catch(()=>{});
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ ultimo_lembrete: hoje }) }).catch(()=>{});
+      recCriadas++;
+    }
+  } catch (e) { console.error('[jobOrdens] bloco 1 (ordens recorrentes) falhou:', e.message); }
 
   // 1.5) DRIP SEMANAL (Fase 1, 25/ago/2026 — ANCORAGEM DAS SEMANAS, item 6, 28/ago/2026): no dia
   //      de lote de cada usuário, cria a tarefa do Criativo só com os posts DAQUELA semana ainda
@@ -815,20 +850,52 @@ async function jobOrdens() {
   //        dado: dia_lote=quarta → card nasce domingo). Semana 1 fica de fora deste job: ela já
   //        nasce direto em aprovar.html, junto da aprovação mensal — não pode ser antecipada
   //        (não existe "3 dias antes" de um evento que ainda não aconteceu).
-  let lotesSemana = 0;
+  let lotesSemana = 0, lotesSemanaConsultaFalhou = 0;
+  // FILA TÉCNICA — item 2 (09/set/2026): bloco isolado em try/catch próprio, mesmo motivo do
+  // bloco 1 acima — sem isso, uma exceção aqui também abortava a função inteira (e o resto de
+  // jobOrdens, abaixo — resgate de órfã, lembretes, conversão de trial — nunca rodava).
+  try {
   // CAUSA COMUM (07/set/2026, ver APRENDIZADOS.md): esta consulta e a de jobExpiracaoSemana eram
   // duas cópias literais da mesma regra, cada uma com seu próprio catch silencioso — Família 2 +
   // Família 1 juntas. Unificada em clientesElegiveisSemana (api/_semana-lib.js).
   const ativos = await clientesElegiveisSemana(KEY());
-  const daqui3 = new Date(); daqui3.setHours(0,0,0,0); daqui3.setDate(daqui3.getDate() + 3);
-  const diaSemanaDaqui3 = daqui3.getDay(); // 0=domingo..6=sábado
+  // FILA TÉCNICA — item 3 (09/set/2026): `daqui3` era um `new Date()` cru INDEPENDENTE de `hoje`
+  // (linha ~779) — dois cálculos de "agora" no mesmo job, cada um no seu próprio fuso do processo
+  // (UTC). Agora deriva do MESMO `_hojeData` (já resolvido pro calendário de SP) — fecha a mesma
+  // pergunta respondida duas vezes (Família 2) E elimina, de brinde, a janela teórica de dois
+  // `new Date()` lidos em instantes ligeiramente diferentes dentro do mesmo job. É ESTE cálculo
+  // que alimenta o casamento com `dia_lote` do cliente (linha do `if (diaSemanaDaqui3 !== dl)`
+  // abaixo) — verificado numericamente que não muda qual dia é considerado nos horários reais de
+  // disparo do cron (ver /tmp/test_frente_datas_cron.js, 730 dias, 0 divergências).
+  const daqui3 = new Date(_hojeData.getTime() + 3 * 864e5);
+  const diaSemanaDaqui3 = daqui3.getUTCDay(); // 0=domingo..6=sábado
   const iniSemISO = daqui3.toISOString().slice(0, 10); // se hoje+3 cair no dia_lote, ESSE é o início da próxima semana
   const fimSemISO = new Date(daqui3.getTime() + 6*864e5).toISOString().slice(0, 10);
   for (const c of (Array.isArray(ativos) ? ativos : [])) {
     const dl = (c.preferencias && Number.isInteger(c.preferencias.dia_lote)) ? c.preferencias.dia_lote : 1; // padrão segunda
     if (diaSemanaDaqui3 !== dl) continue; // só dispara 3 dias antes do início da semana deste cliente
-    const daSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniSemISO}&data_sugerida=lte.${fimSemISO}&select=id&limit=50`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-    if (!Array.isArray(daSemana) || !daSemana.length) continue;
+    // FILA TÉCNICA — item 1 (09/set/2026): era `.then(r=>r.json()).catch(()=>[])` — "a consulta
+    // falhou" e "não há rascunho nenhum na janela" caíam no mesmo `[]`, indistinguíveis. Foi
+    // exatamente essa lacuna que custou duas rodadas de diagnóstico em 08/09 (o drip não criou o
+    // card e não deu nenhum motivo). Mesmo padrão de clientesElegiveisSemana (api/_semana-lib.js):
+    // checagem explícita de `r.ok`, log com status+motivo só quando falha de verdade — lista
+    // vazia legítima (consulta OK, sem rascunho na janela) continua sem logar nada.
+    let daSemana;
+    try {
+      const rDaSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniSemISO}&data_sugerida=lte.${fimSemISO}&select=id&limit=50`, { headers: SBH() });
+      if (!rDaSemana.ok) {
+        let motivo = ''; try { const j = await rDaSemana.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
+        console.error('[jobOrdens] drip semanal: consulta de daSemana falhou — status=' + rDaSemana.status + ' motivo=' + String(motivo).slice(0, 200) + ' user=' + c.id);
+        lotesSemanaConsultaFalhou++;
+        continue;
+      }
+      daSemana = await rDaSemana.json();
+    } catch (e) {
+      console.error('[jobOrdens] drip semanal: consulta de daSemana falhou (rede) — user=' + c.id + ' erro=' + (e && e.message));
+      lotesSemanaConsultaFalhou++;
+      continue;
+    }
+    if (!Array.isArray(daSemana) || !daSemana.length) continue; // legítimo: consulta OK, sem rascunho na janela — nada a fazer, não é falha
     // REGRA DE NEGÓCIO: a ESTRATÉGIA SEMANAL é o gatilho — nunca produzimos direto. 3 dias antes
     // do início do ciclo (dia_lote) criamos o CARD DE APROVAÇÃO da semana; a produção só começa
     // quando o usuário aprovar no Aprovar (1ª aprovação). Dedup + INSERT agora vêm de
@@ -842,6 +909,7 @@ async function jobOrdens() {
     // o card foi de fato criado.
     if (_g.criado) lotesSemana++;
   }
+  } catch (e) { console.error('[jobOrdens] bloco 1.5 (drip semanal) falhou:', e.message); }
 
   // 1.9) RESGATE DE ÓRFÃ — bug achado ao ler o schema, não o código.
   //      `executarLoteCriativos` marca a ordem como 'processando'. Se o navegador fechar no
@@ -916,7 +984,7 @@ async function jobOrdens() {
     convertidos++;
   }
 
-  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, orfas_resgatadas: orfas, lembretes, convertidos };
+  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, lotes_semana_consulta_falhou: lotesSemanaConsultaFalhou, orfas_resgatadas: orfas, lembretes, convertidos };
 }
 
 async function jobExpiracaoSemana() {
