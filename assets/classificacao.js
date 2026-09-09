@@ -82,6 +82,40 @@
   // literal divergente em cron.js/aprovar.html/dashboard-usuario.html.
   var STATUS_EXPIRADO = 'expirado';
 
+  // ALLOWLIST DE STATUS ATIVOS DE `conteudos` (Frente 2 / painel de estado, 09/set/2026 — ver
+  // APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO JOÃO"). ANTES: a consulta que alimenta
+  // o bloco do prompt E o painel negava só `excluido`/`rejeitado` (lista de EXCLUSÃO) — quando o
+  // status `expirado` passou a existir (LOTE 2, acima), ele entrou automaticamente como "ativo"
+  // até alguém notar (achado do João, 09/09: semana mostrando posts expirados como se tivessem
+  // copy). Uma lista de exclusão erra por padrão A FAVOR de incluir qualquer status novo — o
+  // silêncio da Família 1 embutido na própria forma da consulta. Substituída por uma lista de
+  // INCLUSÃO: só entra quem está nomeado aqui. Um status novo no futuro fica de FORA por padrão
+  // até alguém decidir conscientemente incluí-lo — o erro vira "sumiu" (visível, alguém percebe
+  // um post que não aparece) em vez de "virou dado errado sem ninguém notar".
+  // Levantamento (busca por todo ESCRITOR de `conteudos.status` no projeto, não só leitores):
+  //   rascunho, proposto, aguardando_aprovacao, aguardando_copy, aguardando_material, aprovado,
+  //   agendado, publicado, baixado — nove, todos ativos (fazem parte do plano/produção corrente).
+  //   excluido, rejeitado, expirado — três, terminais, ficam de fora (não é "parte do plano").
+  // `aguardando_copy` e `agendado`: nenhum ponto do código atual GRAVA estes dois valores (achado
+  // reportado ao João) — inclusos mesmo assim, por decisão explícita dele: o risco é assimétrico
+  // (incluir um status que ninguém escreve não tem efeito; excluir um que alguma parte ESCREVE —
+  // um worker/publicador fora deste repo, por exemplo — faz o conteúdo desaparecer em silêncio,
+  // exatamente o que aconteceu com `expirado`). PENDÊNCIA registrada: confirmar se `aguardando_copy`
+  // é vocabulário morto e onde `agendado` é de fato gravado; remover daqui só com evidência, nunca
+  // por ausência de prova.
+  var STATUS_RASCUNHO = 'rascunho';
+  var STATUS_PROPOSTO = 'proposto';
+  var STATUS_AGUARDANDO_APROVACAO = 'aguardando_aprovacao';
+  var STATUS_AGUARDANDO_COPY = 'aguardando_copy'; // sem escrita encontrada hoje — ver nota acima
+  var STATUS_APROVADO = 'aprovado';
+  var STATUS_AGENDADO = 'agendado'; // sem escrita encontrada hoje — ver nota acima
+  var STATUS_PUBLICADO = 'publicado';
+  var STATUS_BAIXADO = 'baixado';
+  var STATUS_ATIVOS_CONTEUDO = [
+    STATUS_RASCUNHO, STATUS_PROPOSTO, STATUS_AGUARDANDO_APROVACAO, STATUS_AGUARDANDO_COPY,
+    STATUS_AGUARDANDO_MATERIAL, STATUS_APROVADO, STATUS_AGENDADO, STATUS_PUBLICADO, STATUS_BAIXADO,
+  ];
+
   // PRAZOS DO CICLO DE EXPIRAÇÃO (item 5 — definidos e reportados ao João, não decididos calados):
   // - DIAS_AUTO_EXCLUSAO_EXPIRADO: quantos dias depois de expirar um post é excluído (soft-delete,
   //   status vira 'excluido' — mesmo padrão já usado no resto do sistema pra nunca apagar dado de
@@ -275,6 +309,15 @@
     PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
     STATUS_AGUARDANDO_MATERIAL: STATUS_AGUARDANDO_MATERIAL,
     STATUS_EXPIRADO: STATUS_EXPIRADO,
+    STATUS_RASCUNHO: STATUS_RASCUNHO,
+    STATUS_PROPOSTO: STATUS_PROPOSTO,
+    STATUS_AGUARDANDO_APROVACAO: STATUS_AGUARDANDO_APROVACAO,
+    STATUS_AGUARDANDO_COPY: STATUS_AGUARDANDO_COPY,
+    STATUS_APROVADO: STATUS_APROVADO,
+    STATUS_AGENDADO: STATUS_AGENDADO,
+    STATUS_PUBLICADO: STATUS_PUBLICADO,
+    STATUS_BAIXADO: STATUS_BAIXADO,
+    STATUS_ATIVOS_CONTEUDO: STATUS_ATIVOS_CONTEUDO,
     DIAS_AUTO_EXCLUSAO_EXPIRADO: DIAS_AUTO_EXCLUSAO_EXPIRADO,
     DIAS_AVISO_SEMANA_FECHANDO: DIAS_AVISO_SEMANA_FECHANDO,
     DIAS_AVISO_ANTES_EXCLUSAO: DIAS_AVISO_ANTES_EXCLUSAO,
