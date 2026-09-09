@@ -33,6 +33,12 @@
 .estado-linha{padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px;line-height:1.6;color:var(--t2)}
 .estado-linha:last-child{border-bottom:0}
 .estado-linha b{color:var(--t1)}
+/* PAINEL — LINHA DE AVULSOS (09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — VALIDADO EM
+   PRODUÇÃO"): avulso não pertence a semana (Falha 3) — por isso NÃO entra em .estado-linha nem na
+   agregação de resumoSemanasEstrategia. Linha própria, visualmente separada (borda tracejada),
+   mesmo raciocínio do painel: estado que hoje só existe no banco passa a ficar visível também aqui. */
+.estado-avulsos{margin-top:6px;padding-top:12px;border-top:1px dashed var(--bd);font-size:13px;line-height:1.6;color:var(--t2)}
+.estado-avulsos b{color:var(--t1)}
 .estado-cota{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:12.5px;color:var(--t3);line-height:1.6}
 .ct-ico{border:1.5px solid rgba(168,85,247,.45);transition:.2s}
 @media(max-width:760px){.ag-dash{max-width:100%;margin-left:0;margin-top:8px;justify-content:flex-start}.chat-top{flex-wrap:wrap}}
@@ -1761,12 +1767,17 @@ async function atualizarEstadoEstrategia(){
   // real, não dado de quando a aba abriu) e as mesmas duas tabelas que api/agente-chat.js lê.
   let estadoHtml=null, dotAtivo=false;
   try{
-    const[{data:cliRows},{data:posts},{data:cards}]=await Promise.all([
+    const[{data:cliRows},{data:posts},{data:cards},{count:avulsosCount}]=await Promise.all([
       JUMP.sb.from('clientes').select('preferencias,uso,limites').eq('id',uid).limit(1),
       JUMP.sb.from('conteudos').select('id,copy,data_sugerida').eq('user_id',uid)
         .neq('status','excluido').neq('status','rejeitado')
         .or('origem.eq.plano,origem.is.null').order('data_sugerida',{ascending:true}).limit(200),
       JUMP.sb.from('ordens_servico').select('status,payload').eq('user_id',uid).eq('tarefa','aprovar_semana').in('status',['aguardando_aprovacao','concluida']),
+      // PAINEL — AVULSOS (09/set/2026): avulso não tem card de aprovação por semana (produção
+      // sempre livre, Falha 3) — o estado que existe é o do PRÓPRIO post depois de produzido:
+      // origem='avulso' + status='aguardando_aprovacao'. Contagem simples, sem agregação por
+      // semana — não entra em resumoSemanasEstrategia por desenho (avulso não pertence a semana).
+      JUMP.sb.from('conteudos').select('id',{count:'exact',head:true}).eq('user_id',uid).eq('origem','avulso').eq('status','aguardando_aprovacao'),
     ]);
     const cli=(cliRows&&cliRows[0])||{};
     const hojeISO=JUMP_CLASS.hojeISOBrasil();
@@ -1780,11 +1791,13 @@ async function atualizarEstadoEstrategia(){
       const cardTxt=b.cardStatus==='aprovado'?'card aprovado':b.cardStatus==='aguardando'?'card aguardando aprovação':'sem card aberto';
       return '<div class="estado-linha"><b>Semana '+b.semana+'</b> — '+_ddmm(b.inicio)+' a '+_ddmm(b.fim)+'<br>'+copyTxt+' · '+cardTxt+'</div>';
     }).join('');
+    const nAvulsos=Number(avulsosCount||0);
+    const avulsosHtml='<div class="estado-avulsos"><b>Avulsos</b> — '+(nAvulsos?(nAvulsos+' aguardando aprovação (fora do plano semanal)'):'nenhum aguardando aprovação')+'</div>';
     const teto=JUMP_CLASS.tetoImagensPlano(cli);
     const usImg=Number((cli.uso||{}).imagens||0);
     const limImg=Number((cli.limites||{}).imagens||0);
     const cotaHtml=limImg?('<div class="estado-cota">Peças com arte: usadas '+usImg+' de '+limImg+' no mês (soma tudo — plano, avulsos e recriações). Até '+teto+' cabem agora neste plano.</div>'):'';
-    estadoHtml=linhas+cotaHtml;
+    estadoHtml=linhas+avulsosHtml+cotaHtml;
     // indicador: semana ATUAL vazia (nenhum post) OU sem copy (nenhum dos posts gravados tem
     // copy ainda) — as duas leituras que motivaram este painel (achado de 09/09).
     const atual=r.porSemana.find(b=>hojeISO>=b.inicio&&hojeISO<=b.fim)||r.porSemana[0];
