@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-frente2-painel-linha-avulsos';
+const VERSAO = '2026.09.09-frente2-painel-correcoes-joao';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -90,12 +90,38 @@ function travaTrial(ct, cortesiaAteISO) {
 // de estado real na interface (agentes.html, via `JUMP.sb`/RLS). Este arquivo continua sendo o
 // único responsável por BUSCAR os dados (é quem tem a chave de serviço) — a REGRA de como contar
 // já não mora mais aqui. Ver assets/classificacao.js pro corpo das duas funções.
+//
+// CORREÇÕES DO JOÃO (09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO
+// JOÃO"): duas mudanças nesta função.
+// (1) a consulta de `posts` trocou de lista de EXCLUSÃO (`status=neq.excluido&status=neq.
+//     rejeitado`, deixava `expirado` entrar como se fosse ativo) pra lista de INCLUSÃO
+//     (`JC.STATUS_ATIVOS_CONTEUDO`, fonte única com o painel) — mesma causa raiz corrigida nos
+//     dois lugares que liam essa regra.
+// (2) duas novas leituras (avulsosPend/semOrigemPend) alimentam duas linhas novas no texto: quantos
+//     avulsos aguardam aprovação (mesmo dado que o painel mostra do lado do cliente — Frente A:
+//     informa, não manda) e quanto conteúdo antigo (de antes da migration da Falha 3, sem
+//     `origem` e sem `data_sugerida`) não cai em nenhuma categoria — nunca contado como avulso
+//     (seria a mesma inferência que a Falha 3 baniu), só reportado como o que é.
 async function resumoPlanoPorSemana(targetId, janelasCliente, ancoraPlano, diaLoteCliente) {
-  const [posts, cards] = await Promise.all([
-    sbGet(`conteudos?user_id=eq.${targetId}&status=neq.excluido&status=neq.rejeitado&or=(origem.eq.plano,origem.is.null)&select=id,copy,data_sugerida&order=data_sugerida.asc&limit=200`),
+  const [posts, cards, avulsosPend, semOrigemPend] = await Promise.all([
+    sbGet(`conteudos?user_id=eq.${targetId}&status=in.(${JC.STATUS_ATIVOS_CONTEUDO.join(',')})&or=(origem.eq.plano,origem.is.null)&select=id,copy,data_sugerida&order=data_sugerida.asc&limit=200`),
     sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=in.(aguardando_aprovacao,concluida)&select=status,payload`),
+    // AVULSOS PENDENTES: avulso não passa por card de aprovação semanal (produção sempre livre,
+    // Falha 3) — o estado dele é o do próprio post depois de produzido. Mesma leitura que o
+    // painel (agentes.html) faz do lado do cliente.
+    sbGet(`conteudos?user_id=eq.${targetId}&status=eq.${JC.STATUS_AGUARDANDO_APROVACAO}&origem=eq.avulso&select=id&limit=500`),
+    // LEGADO SEM ORIGEM: conteúdo de antes da migration da Falha 3 (`origem IS NULL`, sem
+    // backfill — decisão deliberada, nunca inferir) que também não tem `data_sugerida`, então não
+    // cai em nenhuma semana (resumoSemanasEstrategia descarta quem não tem semana) nem no balde
+    // de avulso (não tem origem='avulso'). Não é contado como avulso — reportado como o que é.
+    sbGet(`conteudos?user_id=eq.${targetId}&status=eq.${JC.STATUS_AGUARDANDO_APROVACAO}&origem=is.null&data_sugerida=is.null&select=id&limit=500`),
   ]);
-  return JC.resumoSemanasEstrategia(posts, cards, janelasCliente, ancoraPlano, diaLoteCliente).texto;
+  const texto = JC.resumoSemanasEstrategia(posts, cards, janelasCliente, ancoraPlano, diaLoteCliente).texto;
+  const nAvulsos = Array.isArray(avulsosPend) ? avulsosPend.length : 0;
+  const nSemOrigem = Array.isArray(semOrigemPend) ? semOrigemPend.length : 0;
+  const linhaAvulsos = '\nAVULSOS (fora do plano semanal, dado pronto) — ' + (nAvulsos ? (nAvulsos + ' aguardando aprovação do cliente.') : 'nenhum aguardando aprovação.');
+  const linhaSemOrigem = nSemOrigem ? ('\nCONTEÚDO ANTIGO SEM CATEGORIA (' + nSemOrigem + ') — anterior a 08/set/2026, sem "plano" nem "avulso" definido; não conte como avulso nem como parte de nenhuma semana, é só um registro de que existe.') : '';
+  return texto + linhaAvulsos + linhaSemOrigem;
 }
 
 // LOTE 2 — item 2 (detecção de falha silenciosa, 01/set/2026) + REPARO AVULSO FRENTE B
@@ -644,6 +670,8 @@ const handler = async (req, res) => {
         postura_frente1_bloco_sem_ordem_frenteA:true,
         frente2_nivel3_painel_estrategia_agregacao_extraida_pra_classificacao:true,
         frente2_painel_estrategia_linha_avulsos_aguardando_aprovacao:true,
+        frente2_status_ativos_conteudo_allowlist_via_constantes:true,
+        frente2_avulsos_e_legado_sem_origem_no_bloco_do_prompt:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
