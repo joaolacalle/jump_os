@@ -460,7 +460,7 @@ const AGS=[
   {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
   {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
-  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Estratégia da semana',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
+  {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Seu plano',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
   {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
@@ -1717,7 +1717,11 @@ async function subirVideoTrigger(){
 }
 function aplicarIdentidade(){enviarTexto('Reaplique a identidade visual da minha marca na minha dashboard (cores e tema), usando o que você já sabe sobre mim.');}
 function cmdMetricas(){enviarTexto('Puxe e analise as métricas mais recentes do meu Instagram conectado: seguidores, alcance, melhores posts e horários.');}
-// Botão da Estratégia: nome FIXO "Estratégia da semana".
+// Botão da Estratégia: nome FIXO "Seu plano" (renomeado de "Estratégia da semana" em 09/set/2026
+// — ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO JOÃO"; mesmo texto do título do
+// popup — padrão pra outros agentes que ganharem painel: possessivo + o que o painel mostra, ex.
+// Criativo → "Sua fila", Publicação → "Suas publicações"). `cmdCalendario` (função abaixo) é o
+// atalho de gerar/detalhar que mora DENTRO do popup, não é mais o que o botão do cabeçalho chama.
 // Só fica clicável quando NÃO há estratégia em execução (aguardando aprovação, copy pendente
 // ou Designer produzindo). Evita o usuário disparar um ciclo em cima de outro.
 let PODE_DETALHAR=false;
@@ -1767,10 +1771,15 @@ async function atualizarEstadoEstrategia(){
   // real, não dado de quando a aba abriu) e as mesmas duas tabelas que api/agente-chat.js lê.
   let estadoHtml=null, dotAtivo=false;
   try{
-    const[{data:cliRows},{data:posts},{data:cards},{count:avulsosCount}]=await Promise.all([
+    const[{data:cliRows},{data:posts},{data:cards},{count:avulsosCount},{count:semOrigemCount}]=await Promise.all([
       JUMP.sb.from('clientes').select('preferencias,uso,limites').eq('id',uid).limit(1),
+      // CORREÇÃO DO JOÃO (09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO
+      // JOÃO"): lista de EXCLUSÃO trocada por lista de INCLUSÃO — `JUMP_CLASS.STATUS_ATIVOS_
+      // CONTEUDO`, fonte única com api/agente-chat.js. A antiga (`neq excluido/rejeitado`) deixava
+      // `expirado` entrar como se fosse ativo (achado do João: semana mostrando posts expirados
+      // como se tivessem copy).
       JUMP.sb.from('conteudos').select('id,copy,data_sugerida').eq('user_id',uid)
-        .neq('status','excluido').neq('status','rejeitado')
+        .in('status',JUMP_CLASS.STATUS_ATIVOS_CONTEUDO)
         .or('origem.eq.plano,origem.is.null').order('data_sugerida',{ascending:true}).limit(200),
       JUMP.sb.from('ordens_servico').select('status,payload').eq('user_id',uid).eq('tarefa','aprovar_semana').in('status',['aguardando_aprovacao','concluida']),
       // PAINEL — AVULSOS (09/set/2026): avulso não tem card de aprovação por semana (produção
@@ -1778,6 +1787,14 @@ async function atualizarEstadoEstrategia(){
       // origem='avulso' + status='aguardando_aprovacao'. Contagem simples, sem agregação por
       // semana — não entra em resumoSemanasEstrategia por desenho (avulso não pertence a semana).
       JUMP.sb.from('conteudos').select('id',{count:'exact',head:true}).eq('user_id',uid).eq('origem','avulso').eq('status','aguardando_aprovacao'),
+      // CORREÇÃO DO JOÃO — LEGADO SEM ORIGEM: a contagem acima mostrava "nenhum" mesmo com avulsos
+      // reais pendentes, porque a coluna `origem` nasceu na Falha 3 SEM backfill (decisão
+      // deliberada — nunca inferir `origem` de dado ausente) e todo conteúdo anterior à migration
+      // ficou com `origem IS NULL`. Não entra na contagem de avulso acima (seria a mesma inferência
+      // que a Falha 3 baniu) — é uma contagem À PARTE, só de quem também não tem `data_sugerida`
+      // (ou seja: não aparece em nenhuma das 5 semanas acima nem no balde de avulso — cai fora de
+      // tudo, o ponto cego real). Reportado como o que é, nunca rotulado como avulso.
+      JUMP.sb.from('conteudos').select('id',{count:'exact',head:true}).eq('user_id',uid).is('origem',null).is('data_sugerida',null).eq('status','aguardando_aprovacao'),
     ]);
     const cli=(cliRows&&cliRows[0])||{};
     const hojeISO=JUMP_CLASS.hojeISOBrasil();
@@ -1792,7 +1809,10 @@ async function atualizarEstadoEstrategia(){
       return '<div class="estado-linha"><b>Semana '+b.semana+'</b> — '+_ddmm(b.inicio)+' a '+_ddmm(b.fim)+'<br>'+copyTxt+' · '+cardTxt+'</div>';
     }).join('');
     const nAvulsos=Number(avulsosCount||0);
-    const avulsosHtml='<div class="estado-avulsos"><b>Avulsos</b> — '+(nAvulsos?(nAvulsos+' aguardando aprovação (fora do plano semanal)'):'nenhum aguardando aprovação')+'</div>';
+    const nSemOrigem=Number(semOrigemCount||0);
+    const avulsosHtml='<div class="estado-avulsos"><b>Avulsos</b> — '+(nAvulsos?(nAvulsos+' aguardando aprovação (fora do plano semanal)'):'nenhum aguardando aprovação')+
+      (nSemOrigem?('<br><span style="color:var(--t3);font-size:12px">+ '+nSemOrigem+' conteúdo(s) antigo(s) sem categoria definida (anterior a 08/09) — revisar manualmente</span>'):'')+
+      '</div>';
     const teto=JUMP_CLASS.tetoImagensPlano(cli);
     const usImg=Number((cli.uso||{}).imagens||0);
     const limImg=Number((cli.limites||{}).imagens||0);
