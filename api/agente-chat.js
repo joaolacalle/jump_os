@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-frente2-nivel3-painel-estrategia';
+const VERSAO = '2026.09.09-frente2-painel-linha-avulsos';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
@@ -643,6 +643,7 @@ const handler = async (req, res) => {
         postura_frente1_cota_informa_teto_e_consumido:true,
         postura_frente1_bloco_sem_ordem_frenteA:true,
         frente2_nivel3_painel_estrategia_agregacao_extraida_pra_classificacao:true,
+        frente2_painel_estrategia_linha_avulsos_aguardando_aprovacao:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
