@@ -5,6 +5,8 @@
 // Protegido por CRON_SECRET.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
+// HANDOFF — CADEIA (11/set/2026): avanço/timeout genéricos, ver api/_cadeia-lib.js.
+const { avancarCadeia, verificarTimeoutCadeia } = require('./_cadeia-lib');
 const SBH = () => ({
   'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
   'Content-Type': 'application/json',
@@ -651,6 +653,17 @@ async function jobProduzir(soUid) {
             ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
         }).catch(() => {});
         if (ok) artes++;
+        // HANDOFF — CADEIA (11/set/2026): se esta ordem faz parte de uma cadeia (payload.cadeia
+        // ou o formato antigo payload.sequencia — ver api/_cadeia-lib.js), fecha o elo atual e
+        // cria o próximo automaticamente. É EXATAMENTE aqui que o 3º elo de novo_criativo_ads
+        // nunca fechava (elo 2, criar_criativo_ads, sempre passou por este branch, e nada aqui
+        // lia payload.sequencia/etapa até esta correção). Só avança em sucesso — falha PARA a
+        // cadeia neste elo, preserva o que já foi produzido antes (não desfaz, não recomeça).
+        if (ok) {
+          try {
+            await avancarCadeia({ id: o.id, user_id: o.user_id, detalhe: o.detalhe, payload: o.payload }, { tipo: 'arquivo_url', valor: d.url });
+          } catch (e) { console.error('[cadeia-lib] avancarCadeia falhou (soArquivo) — ordem=' + o.id + ' erro=' + (e && e.message)); }
+        }
       } catch (e) {}
       ordensFeitas++; continue;
     }
@@ -750,6 +763,15 @@ async function jobProduzir(soUid) {
       }),
     }).catch(() => {});
     ordensFeitas++;
+    // HANDOFF — CADEIA (11/set/2026): mesmo mecanismo do branch soArquivo, acima (ver ali pro
+    // comentário completo). Nenhuma cadeia usa este caminho hoje — novo_criativo_ads passa
+    // inteira pelo soArquivo — fica pronto pra qualquer cadeia futura cujo elo produza post de
+    // calendário em vez de arquivo avulso ("vale para qualquer cadeia, não só para esta").
+    if (estadoFinal === 'concluida') {
+      try {
+        await avancarCadeia({ id: o.id, user_id: o.user_id, detalhe: o.detalhe, payload: o.payload }, { tipo: 'conteudo_ids', valor: posts.map(p => p.id) });
+      } catch (e) { console.error('[cadeia-lib] avancarCadeia falhou (loop principal) — ordem=' + o.id + ' erro=' + (e && e.message)); }
+    }
   }
   return { ordens: ordensFeitas, artes };
 }
@@ -1110,7 +1132,12 @@ async function jobLimpeza() {
       // em vez de esperar a próxima janela de 5 minutos.
 
       const r = await jobProduzir();
-      return res.status(200).json({ ok: true, job, ...r });
+      // HANDOFF — CADEIA (11/set/2026): timeout de passagem/prazo total roda como passo IRMÃO
+      // deste job — nunca dentro de jobProduzir() — pra não alterar nada do worker de produção
+      // em si (lock/retry/watchdog ficam exatamente como estavam). Ver api/_cadeia-lib.js.
+      let cadeia = {};
+      try { cadeia = await verificarTimeoutCadeia(); } catch (e) { console.error('[cadeia-lib] verificarTimeoutCadeia falhou:', e.message); }
+      return res.status(200).json({ ok: true, job, ...r, cadeia });
     }
     if (job === 'ordens') {
       const r = await jobOrdens();

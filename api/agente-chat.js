@@ -22,8 +22,10 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.09-fila-tecnica-cinco-correcoes';
+const VERSAO = '2026.09.11-handoff-cadeia-fundacao';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
+// HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
+const { avancarCadeia } = require('./_cadeia-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
 // <detalhe>, este arquivo GARANTE o card 'aprovar_semana' (cria se não existir, reaproveita se já
@@ -677,6 +679,12 @@ const handler = async (req, res) => {
         fila_tecnica_datas_cron_via_hojeisobrasil_metricas_seguranca_ordens:true,
         fila_tecnica_jobproduzir_ehbrief_grava_origem_avulso:true,
         fila_tecnica_detalhe_id_invalido_loga_e_conta:true,
+        handoff_cadeia_avanco_generico_cadeia_lib:true,
+        handoff_cadeia_idempotencia_por_ordem_pai:true,
+        handoff_cadeia_timeout_passagem_2min_dois_estouros:true,
+        handoff_cadeia_prazo_total_por_formula:true,
+        handoff_cadeia_chamada_retorno_generica:true,
+        handoff_cadeia_ponte_formato_antigo_sequencia_etapa:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1320,7 +1328,12 @@ const handler = async (req, res) => {
             }))};
             body.total=itens.length; body.progresso=0;
           }
-          if(ehCadeia)body.payload={...(body.payload||{}),sequencia:['estrategia','criativo','trafego'],etapa:0,brief:o.detalhe||''};
+          // HANDOFF — CADEIA (11/set/2026): formato novo (payload.cadeia — ver api/_cadeia-lib.js).
+          // 3 elos descritos por inteiro no nascimento; o 3º (tipo:'retorno') fecha o loop de
+          // volta ao Tráfego — resolve o achado do inventário (3º elo nunca fechava, porque
+          // nada em api/cron.js lia sequencia/etapa, formato antigo). Compatibilidade com o
+          // formato antigo (ordens já em voo) fica em normalizarCadeia(), dentro do módulo.
+          if(ehCadeia)body.payload={...(body.payload||{}),cadeia:[{agente:'estrategia',tarefa:'novo_criativo_ads',tipo:'executa'},{agente:'criativo',tarefa:'criar_criativo_ads',tipo:'executa'},{agente:'trafego',tarefa:'retorno_criativo_ads',tipo:'retorno'}],elo:0,cadeia_iniciada_em:new Date().toISOString(),brief:o.detalhe||''};
           return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
         }));
         // AUTO-DISPATCH pós-criação: a ordem nasce e a execução começa — sem depender de PLAY.
@@ -1940,20 +1953,19 @@ const handler = async (req, res) => {
         }).catch(()=>{});
       }
       if(agente==='estrategia'&&conteudos.length>0){
-        // conclui a etapa da cadeia e DISPARA a próxima (Criativo) automaticamente
+        // HANDOFF — CADEIA (11/set/2026): fecha o elo 1 e delega o avanço pro mecanismo genérico
+        // (api/_cadeia-lib.js) — a MESMA função usada pelo worker (api/cron.js) pros elos
+        // seguintes. Elimina a duplicação que existia aqui (uma lógica de avanço só pra este
+        // caso, sem relação com a do worker, hardcoded em 'criar_criativo_ads'/'estrategia') —
+        // ver APRENDIZADOS.md "Handoff entre agentes — fechar a cadeia" pro relatório completo.
         const pend=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.novo_criativo_ads&status=eq.pendente&select=*`);
         for(const od of (Array.isArray(pend)?pend:[])){
           await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
             method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
           }).catch(()=>{});
-          const pl=od.payload||{};
-          const seq=pl.sequencia||[];const et=(pl.etapa!=null?pl.etapa:0)+1;
-          if(seq[et]){
-            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
-              method:'POST',headers:H(),
-              body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:seq[et],tarefa:'criar_criativo_ads',detalhe:'Criar o criativo do anúncio: '+(pl.brief||od.detalhe||''),status:'pendente',ordem_pai:od.id,total:1,progresso:0,payload:{...pl,etapa:et}})
-            }).catch(()=>{});
-          }
+          try{
+            await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},{tipo:'conteudo_ids',valor:idsPorConteudo.map(x=>x.id)});
+          }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (chat estratégia) — ordem='+od.id+' erro='+(e&&e.message));}
         }
       }
     }catch(e){}
