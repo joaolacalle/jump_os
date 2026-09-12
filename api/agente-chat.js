@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.11-handoff-cadeia-fundacao';
+const VERSAO = '2026.09.12-handoff-criativo-estrategia';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -442,8 +442,9 @@ E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovaçõe
 tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
 
 VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
-ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado, grave com <conteudo> e dispare a ordem ao Designer (ou ao Editor, se vídeo). OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed. OBRIGATÓRIO TAMBÉM: marque "avulso":true — este criativo nasceu de uma ordem do Tráfego, não é parte do plano mensal do cliente; sem essa marca ele entraria sem querer no card de aprovação do mês e nas travas de data/cota do plano, que não fazem sentido pra um anúncio avulso.
+ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado e grave com <conteudo> — o sistema cria a ordem ao Designer (ou ao Editor, se vídeo) automaticamente ao final, por código; você não precisa (e não deve) disparar tag nenhuma ao Designer, isso já é feito pelo avanço automático da cadeia. OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed. OBRIGATÓRIO TAMBÉM: marque "avulso":true — este criativo nasceu de uma ordem do Tráfego, não é parte do plano mensal do cliente; sem essa marca ele entraria sem querer no card de aprovação do mês e nas travas de data/cota do plano, que não fazem sentido pra um anúncio avulso.
 ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, "avulso":true (este conteúdo não é parte do plano mensal — nasceu de um criativo que o cliente já subiu por conta própria, pode ter uma data fora do horizonte do plano atual e isso é normal) e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
+ORDEM 'direcao_avulso_criativo' (do Designer — HANDOFF, 12/set/2026): o cliente pediu uma arte avulsa direto ao Designer, com ou sem tema, e o Designer não fez mini-briefing — delegou a direção pra você, que conhece o DNA da marca. A ordem traz "tema" (use exatamente esse, se veio — NUNCA troque por outro) ou vem sem tema (aí você escolhe um, e SÓ um: ver "TEMAS JÁ USADOS" abaixo, escolha um tema FORA dessa lista, nunca repita). A ordem também traz "formato" e, se for carrossel, "slides" — use EXATAMENTE o que veio, nunca infira nem troque (se vier "carrossel" sem "slides" válido, é bug de outro agente; ainda assim NÃO invente um número — grave como peça única e avise em 1 linha que o carrossel precisou ser feito como imagem única por falta da quantidade). Decida objetivo, headline, copy, tipo_visual e prova real do OS_DATA, e registre com <conteudo> (headline, copy, formato e slides exatamente como vieram na ordem, "avulso":true — este conteúdo não é parte do plano mensal). Não precisa e não deve disparar nada ao Designer: o sistema cria a ordem de produção da arte automaticamente ao final, por código. Não avise o cliente diretamente (quem está com o cliente é o Designer, na conversa dele) — só grave a tag.
 ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
   criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor).
 
@@ -490,7 +491,10 @@ LOGO: a logo real é aplicada pelo sistema UMA vez. NUNCA descreva/escreva logo,
 GOSTO DO CLIENTE (aprendizado): se houver memórias 'referencia_aprovada' (o que ele já gostou) e 'evitar_visual' (o que ele rejeitou), RESPEITE-AS — repita o que funcionou e NUNCA repita o que foi rejeitado. Isso é o que diferencia o JUMP OS: o Designer aprende o gosto da marca.
 VERACIDADE: use só dados reais do OS_DATA. NUNCA invente planos, ofertas, números ou selos falsos.
 
-PEDIDO AVULSO / PROMOÇÃO: se o cliente pedir uma arte fora do cronograma (ex: promoção), faça mini-briefing (máx 4 perguntas: objetivo, headline/mensagem, tipo de visual, oferta/prova real) e então gere. Artes avulsas consomem o SALDO EXTRA do plano (mesma cota usada para recriar imagens): básico=6, plus=9, pro=15 por mês. Avise o cliente quando o saldo extra estiver acabando.
+PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing de até 4 perguntas; não faz mais): se o cliente pedir uma arte fora do cronograma (ex: promoção), COM ou SEM tema, NÃO faça perguntas sobre objetivo, mensagem, tipo de visual ou oferta/prova — isso agora é decidido pela Estratégia a partir do DNA da marca, sem precisar perguntar de novo o que ela já sabe deduzir. Responda que já está providenciando e, NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto — a arte nasce em Aprovações quando estiver pronta):
+<ordem_servico>{"para":"estrategia","tarefa":"direcao_avulso_criativo","detalhe":"resumo em 1 linha do pedido do cliente","tema":"o tema, EXATAMENTE como o cliente disse — omita este campo se o cliente não deu um tema","formato":"feed ou carrossel","slides":"número de 2 a 10, só quando formato=carrossel e o cliente disse o número"}</ordem_servico>
+FORMATO: se o cliente não especificar, é SEMPRE peça única (uma imagem) — nunca carrossel por padrão. Só é carrossel se o cliente pedir explicitamente E disser quantos slides (2 a 10). ÚNICA PERGUNTA AINDA PERMITIDA nesta situação: se o cliente disser "quero um carrossel" SEM dizer quantos slides, aí sim pergunte só isso ("quantos slides?") — nunca invente a quantidade (mesma regra de sempre: carrossel sem número declarado não é produzido).
+Artes avulsas consomem o SALDO EXTRA do plano (mesma cota usada para recriar imagens): básico=6, plus=9, pro=15 por mês. Avise o cliente quando o saldo extra estiver acabando.
 
 CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceituais mantendo a identidade.
 
@@ -685,6 +689,10 @@ const handler = async (req, res) => {
         handoff_cadeia_prazo_total_por_formula:true,
         handoff_cadeia_chamada_retorno_generica:true,
         handoff_cadeia_ponte_formato_antigo_sequencia_etapa:true,
+        handoff_criativo_sem_mini_briefing_delega_estrategia:true,
+        handoff_criativo_temas_usados_como_dado_nao_prosa:true,
+        handoff_criativo_formato_slides_explicitos_na_cadeia:true,
+        handoff_criativo_ordem_direcao_avulso_excluida_da_fila_generica:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -955,11 +963,33 @@ const handler = async (req, res) => {
     // ORDENS DE SERVIÇO pendentes destinadas a este agente (cadeia de orquestração)
     let ordensTxt='';
     try{
-      const ordP=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.${agente}&status=eq.pendente&select=id,de_agente,tarefa,detalhe&order=created_at.asc&limit=5`);
+      const ordP=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.${agente}&status=eq.pendente&select=id,de_agente,tarefa,detalhe,payload&order=created_at.asc&limit=5`);
       if(Array.isArray(ordP)&&ordP.length){
         ordensTxt='\n\nORDENS PENDENTES PARA VOCÊ (de outros agentes — atenda-as):\n'
-          +ordP.map(o=>`- de ${o.de_agente}: ${o.tarefa} — ${o.detalhe||''}`).join('\n')
+          +ordP.map(o=>{
+            const pl=o.payload||{};
+            const camposCadeia=(o.tarefa==='direcao_avulso_criativo')
+              ?` [tema:${pl.tema?JSON.stringify(pl.tema):'(não informado — escolha um, fora da lista de temas já usados abaixo)'}, formato:${pl.formato||'feed'}${pl.slides?', slides:'+pl.slides:''}]`
+              :'';
+            return `- de ${o.de_agente}: ${o.tarefa} — ${o.detalhe||''}${camposCadeia}`;
+          }).join('\n')
           +'\nApós atender uma ordem, ela será marcada como concluída.';
+        // HANDOFF — CRIATIVO→ESTRATÉGIA (12/set/2026): "tema não pode repetir" não pode ser
+        // instrução em prosa (Família 3 — 5 casos documentados de instrução em prosa ignorada
+        // neste projeto) — a lista de temas usados chega como DADO, consultado fresco agora,
+        // nunca descrita de memória pelo agente. Recorte: últimos 20 conteúdos ATIVOS (mesma
+        // constante JC.STATUS_ATIVOS_CONTEUDO usada em todo o resto do arquivo — exclui só
+        // excluído/rejeitado), por created_at desc — cobre ~1-2 meses de cadência normal,
+        // independente de quão frequente o cliente posta.
+        if(ordP.some(o=>o.tarefa==='direcao_avulso_criativo'&&!(o.payload&&o.payload.tema))){
+          try{
+            const usados=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(${JC.STATUS_ATIVOS_CONTEUDO.join(',')})&select=tema&order=created_at.desc&limit=20`);
+            const temasUsados=(Array.isArray(usados)?usados:[]).map(c=>c.tema).filter(Boolean);
+            if(temasUsados.length){
+              ordensTxt+='\n\nTEMAS JÁ USADOS por este cliente (últimos 20 conteúdos — NÃO repita nenhum destes ao escolher tema para a ordem \'direcao_avulso_criativo\' sem tema informado):\n- '+temasUsados.join('\n- ');
+            }
+          }catch(e){}
+        }
       }
     }catch(e){}
 
@@ -1334,6 +1364,24 @@ const handler = async (req, res) => {
           // nada em api/cron.js lia sequencia/etapa, formato antigo). Compatibilidade com o
           // formato antigo (ordens já em voo) fica em normalizarCadeia(), dentro do módulo.
           if(ehCadeia)body.payload={...(body.payload||{}),cadeia:[{agente:'estrategia',tarefa:'novo_criativo_ads',tipo:'executa'},{agente:'criativo',tarefa:'criar_criativo_ads',tipo:'executa'},{agente:'trafego',tarefa:'retorno_criativo_ads',tipo:'retorno'}],elo:0,cadeia_iniciada_em:new Date().toISOString(),brief:o.detalhe||''};
+          // HANDOFF — CRIATIVO→ESTRATÉGIA, PEDIDO AVULSO (12/set/2026): 2 elos — Estratégia produz
+          // a direção, Criativo (worker, não chat) produz a arte. Sem aprovação prévia (diferente
+          // de novo_criativo_ads): nasce 'pendente' direto, cai no default de `body.status` acima.
+          // Formato/slides SEMPRE explícitos aqui — decididos pelo Designer no turno dele — nunca
+          // inferidos depois (nem por Estratégia, nem pelo worker): "nunca inferido no destino".
+          const ehDirecaoAvulso=(agente==='criativo'&&o.tarefa==='direcao_avulso_criativo');
+          if(ehDirecaoAvulso){
+            const fmt=(String(o.formato||'feed').toLowerCase().indexOf('carross')>=0)?'carrossel':'feed';
+            const slidesN=Number(o.slides);
+            body.payload={...(body.payload||{}),
+              cadeia:[{agente:'estrategia',tarefa:'direcao_avulso_criativo',tipo:'executa'},{agente:'criativo',tarefa:'criar_avulso',tipo:'executa'}],
+              elo:0,cadeia_iniciada_em:new Date().toISOString(),
+              brief:o.detalhe||'',
+              ...(o.tema?{tema:String(o.tema).slice(0,200)}:{}),
+              formato:fmt,
+              ...(fmt==='carrossel'&&Number.isFinite(slidesN)&&slidesN>=2&&slidesN<=10?{slides:Math.floor(slidesN)}:{}),
+            };
+          }
           return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
         }));
         // AUTO-DISPATCH pós-criação: a ordem nasce e a execução começa — sem depender de PLAY.
@@ -1789,6 +1837,32 @@ const handler = async (req, res) => {
           conteudos.length=conteudos.length-falhas.length; // só conta o que entrou de verdade
         }
       }catch(e){erroGravacao='falha ao gravar os posts: '+e.message}
+    }
+
+    // HANDOFF — CRIATIVO→ESTRATÉGIA, PEDIDO AVULSO (12/set/2026): fecha o elo 1 (Estratégia) e
+    // avança pro elo 2 (Criativo, via _cadeia-lib.js — mesmo módulo do handoff anterior). PRECISA
+    // rodar ANTES do backstop abaixo: o backstop também varre conteúdo avulso pronto sem arte e
+    // criaria uma 2ª ordem pro Designer pro MESMO conteúdo se corresse primeiro (idempotência do
+    // avanço da cadeia, por ordem_pai, só protege contra 2 chamadas a avancarCadeia — não contra
+    // um mecanismo DIFERENTE criando outra ordem antes dele existir). Só fecha se de fato saiu
+    // <conteudo> avulso nesta resposta — se não saiu, a ordem continua pendente (retry natural no
+    // próximo turno da Estratégia), nunca fecha vazio.
+    if(agente==='estrategia'){
+      try{
+        const pendDirecao=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.direcao_avulso_criativo&status=eq.pendente&select=*`);
+        const idsAvulsoNovos=idsPorConteudo.filter(x=>x&&(x.avulso===true||String(x.avulso)==='true')).map(x=>x.id);
+        if(Array.isArray(pendDirecao)&&pendDirecao.length&&idsAvulsoNovos.length){
+          for(const od of pendDirecao){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+              method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+            }).catch(()=>{});
+            try{
+              await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},
+                {tipo:'conteudo_ids',valor:idsAvulsoNovos,payloadExtra:{ids:idsAvulsoNovos}});
+            }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (direcao_avulso_criativo) — ordem='+od.id+' erro='+(e&&e.message));}
+          }
+        }
+      }catch(e){}
     }
 
     let notaBackstop=null;

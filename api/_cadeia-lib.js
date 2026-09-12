@@ -33,6 +33,13 @@
 //                              base64, nunca texto longo (item 1.3).
 //   payload.avisos             [{ em, motivo }] — 1º estouro de passagem, NÃO terminal (item 2.2).
 //
+// ARGUMENTO `resultadoElo` de avancarCadeia — { tipo, valor, payloadExtra? }: `tipo`/`valor` vão
+// pra resultado_etapas (histórico/referência, nunca conteúdo — item 1.3). `payloadExtra` (12/set/
+// 2026, handoff Criativo→Estratégia) é OPCIONAL e é diferente: é o dado OPERACIONAL que o PRÓXIMO
+// elo precisa pra o worker rodar (ex.: `{ids:[novoConteudoId]}` quando o elo que fechou criou um
+// conteúdo que só passa a existir depois de rodar — não podia estar em payload.cadeia, decidido
+// no nascimento). Mesclado no payload do próximo elo; nunca vai pro histórico de resultado_etapas.
+//
 // COMPATIBILIDADE COM O FORMATO ANTIGO (payload.sequencia + payload.etapa, único uso real: a
 // `novo_criativo_ads` já em voo antes deste deploy): `avancarCadeia` lê os dois formatos — ver
 // `normalizarCadeia` abaixo. `verificarTimeoutCadeia` só enxerga o formato novo (payload.cadeia);
@@ -202,7 +209,13 @@ async function avancarCadeia(ordemFechada, resultadoElo) {
     ordem_pai: ordemFechada.id,
     total: 1, progresso: ehRetorno ? 1 : 0,
     ...(ehRetorno ? { concluida_em: agora } : {}),
-    payload: { ...plSemFormatoAntigo, cadeia: norm.cadeia, elo: proximoIdx, resultado_etapas: resultadoEtapas, elo_iniciado_em: agora },
+    // payloadExtra (12/set/2026, handoff Criativo→Estratégia): campo OPCIONAL em resultadoElo —
+    // dado OPERACIONAL que o próximo elo precisa pra o WORKER processar (ex.: payload.ids
+    // apontando pro conteúdo que a Estratégia acabou de gravar, que só passa a existir DEPOIS do
+    // elo atual — não dá pra estar em payload.cadeia, decidido no nascimento da cadeia). Nunca
+    // confundir com resultado_etapas: aquele é histórico/auditoria (referência, item 1.3);
+    // payloadExtra é o dado que o PRÓXIMO elo de fato consome pra rodar.
+    payload: { ...plSemFormatoAntigo, ...((resultadoElo && resultadoElo.payloadExtra) || {}), cadeia: norm.cadeia, elo: proximoIdx, resultado_etapas: resultadoEtapas, elo_iniciado_em: agora },
   };
   const r = await sbInsert(corpo);
   const d = r && r.ok ? await r.json().catch(() => null) : null;
