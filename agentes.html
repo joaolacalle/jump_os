@@ -823,10 +823,14 @@ const NATUREZA={criativo:'producao',video:'producao',
   estrategia:'consultoria',mercado:'consultoria',diagnostico:'consultoria',
   trafego:'consultoria',publicacao:'consultoria',identidade:'consultoria'};
 function naturezaDe(ag){return NATUREZA[ag]||'consultoria'}
-// Ordens do fluxo semanal da Estratégia (têm botão próprio: "Escrever a copy da semana")
+// Ordens do fluxo semanal da Estratégia (têm botão próprio: "Escrever a copy da semana") — e,
+// desde 12/set/2026, também 'direcao_avulso_criativo' (handoff Criativo→Estratégia, mesmo
+// motivo: fecha por código quando <conteudo> sai, NUNCA pelo botão genérico ▶ executar abaixo,
+// que marca 'concluida' sem checar se algo foi de fato produzido — fecharia a ordem vazia e a
+// cadeia nunca chegaria ao Designer).
 function ehFluxoSemanal(o){
   const t=String(o.tarefa||'').toLowerCase();
-  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
+  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0||t.indexOf('direcao_avulso_criativo')>=0;
 }
 async function executarOrdens(btn,soId){
   // ── UNIFICADO: o PLAY não executa mais no navegador. Ele apenas ACIONA o mesmo worker do
