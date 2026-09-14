@@ -1,7 +1,7 @@
 /* JUMP OS — Core compartilhado das dashboards */
 /* VERSAO: bump obrigatório a cada alteração deste arquivo. O mesmo número vai no ?v= das páginas,
    então o navegador é forçado a baixar o build novo (fim do "código certo, runtime antigo"). */
-window.JUMP_VERSAO='5';
+window.JUMP_VERSAO='6';
 window.JUMP=(function(){
   /* ══ TEMA ══ */
   function hexRgb(h){h=h.replace('#','');return parseInt(h.substr(0,2),16)+','+parseInt(h.substr(2,2),16)+','+parseInt(h.substr(4,2),16)}
@@ -314,7 +314,11 @@ window.JUMP=(function(){
     c = c || {}; opts = opts || {};
     const meta = c.meta || {};
     const formato = String(c.formato || 'feed');
-    const ehReel = /reel|v[íi]deo|video/i.test(formato);
+    // FONTE ÚNICA (25/ago/2026): antes esta função tinha regra própria de formato (não incluía
+    // 'story' — divergia da fonte única sem ninguém perceber, inócuo hoje só porque story está
+    // em quarentena de produção e nunca chega a ter uma primeira imagem). Toda página que chama
+    // payloadDoConteudo precisa carregar assets/classificacao.js também.
+    const ehReel = JUMP_CLASS.ehVertical(formato);
     return {
       // `prompt` = o TEMA cru. Nunca uma frase montada, nunca jargão de design:
       // o Engine 6.0 + o Diretor de Arte são donos da direção de arte, não a página.
