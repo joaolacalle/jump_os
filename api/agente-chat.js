@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-entrega1-limpeza-divida-acumulada';
+const VERSAO = '2026.09.15-parte1-parte2-recado-headline-publicacao-manual';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -728,6 +728,14 @@ const handler = async (req, res) => {
         worker_direcao_avulsa_auth_interna_escopada_so_estrategia_e_ordem_validada_no_banco:true,
         worker_direcao_avulsa_auth_interna_falha_nunca_degrada_pra_jwt:true,
         entrega1_15_09_limpeza_divida_acumulada:true,
+        // Marcas de rastreio (15/set/2026, "Parte 1" e "Parte 2") — nenhuma mexe neste arquivo,
+        // ambas em dashboard-usuario.html/calendario.html; registradas aqui só pra manter o
+        // diagnóstico (/api/agente-chat?diag=1) como o painel único de "o que já subiu".
+        parte1_dashboard_recado_aprovacao_duplicado_removido:true,
+        parte1_dashboard_headline_sem_quebra_forcada:true,
+        parte2_calendario_publicacao_manual_reaproveita_infra_etapa2:true,
+        parte2_calendario_publicacao_manual_origem_avulso_sem_migration:true,
+        parte2_calendario_excluir_direto_do_dia:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
