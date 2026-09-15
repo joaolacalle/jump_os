@@ -40,18 +40,18 @@
 // conteúdo que só passa a existir depois de rodar — não podia estar em payload.cadeia, decidido
 // no nascimento). Mesclado no payload do próximo elo; nunca vai pro histórico de resultado_etapas.
 //
-// COMPATIBILIDADE COM O FORMATO ANTIGO (payload.sequencia + payload.etapa, único uso real: a
-// `novo_criativo_ads` já em voo antes deste deploy): `avancarCadeia` lê os dois formatos — ver
-// `normalizarCadeia` abaixo. `verificarTimeoutCadeia` só enxerga o formato novo (payload.cadeia);
-// uma ordem antiga em voo passa a ser coberta pelo timeout a partir do PRÓXIMO elo que ela gerar
-// (que já nasce no formato novo). PRAZO PARA REMOÇÃO DESTA PONTE: condicional, não uma data fixa
-// — remover quando a consulta abaixo (rodada por quem tem acesso ao banco; este ambiente não tem
-// credencial de produção) retornar zero linhas:
+// PONTE COM O FORMATO ANTIGO (payload.sequencia + payload.etapa) — REMOVIDA (15/set/2026,
+// "Entrega 1 — limpeza e dívida acumulada", autorizado pelo João). A condição de remoção estava
+// escrita aqui desde 11/set: "remover quando a consulta abaixo retornar zero linhas" —
 //   select count(*) from ordens_servico where status in ('pendente','processando',
 //   'aguardando_aprovacao') and payload ? 'sequencia' and not (payload ? 'cadeia');
+// Confirmada em produção (Supabase MCP, 15/set/2026): 0 linhas. `normalizarCadeia` só reconhece
+// payload.cadeia agora; qualquer ordem antiga que ainda exista em estado terminal (concluída/erro)
+// fica intocada — este módulo nunca mexe em ordem sem payload.cadeia, e nenhuma delas está mais
+// viva pra passar por avancarCadeia de novo.
 //
 // GARANTIAS (o que este módulo NUNCA faz):
-//   - nunca mexe em ordem sem payload.cadeia (nem formato novo, nem `sequencia` antigo).
+//   - nunca mexe em ordem sem payload.cadeia.
 //   - nunca cria o próximo elo sem checar antes se ele já existe — idempotência por `ordem_pai`
 //     (item 1.1; ver `avancarCadeia`, "IDEMPOTÊNCIA" abaixo, pro porquê da chave escolhida e por
 //     que NÃO reaproveita `ordem_itens`/Lote 1).
@@ -115,21 +115,14 @@ function autodisparar() {
   if (b && process.env.CRON_SECRET) fetch(`${b}/api/cron?job=produzir&secret=${process.env.CRON_SECRET}`, { method: 'POST' }).catch(() => {});
 }
 
-// PONTE COM O FORMATO ANTIGO (ver "COMPATIBILIDADE" no topo do arquivo). Só existe pra
-// `novo_criativo_ads` já em voo — é o único lugar do código que já usou `sequencia`/`etapa`.
+// Lê o payload.cadeia da ordem (única forma reconhecida — a ponte com o formato antigo,
+// payload.sequencia/etapa, foi removida em 15/set/2026, condição verificada, ver comentário no
+// topo do arquivo).
 function normalizarCadeia(pl) {
   if (Array.isArray(pl.cadeia) && pl.cadeia.length) {
-    return { cadeia: pl.cadeia, elo: Number(pl.elo != null ? pl.elo : 0), formatoAntigo: false };
+    return { cadeia: pl.cadeia, elo: Number(pl.elo != null ? pl.elo : 0) };
   }
-  if (Array.isArray(pl.sequencia) && pl.sequencia.length) {
-    const cadeia = pl.sequencia.map((agente, i) => ({
-      agente,
-      tarefa: i === 0 ? 'novo_criativo_ads' : 'criar_criativo_ads',
-      tipo: i === pl.sequencia.length - 1 ? 'retorno' : 'executa',
-    }));
-    return { cadeia, elo: Number(pl.etapa != null ? pl.etapa : 0), formatoAntigo: true };
-  }
-  return { cadeia: null, elo: 0, formatoAntigo: false };
+  return { cadeia: null, elo: 0 };
 }
 
 // avancarCadeia — chamada nos pontos onde uma ordem que faz parte de uma cadeia ACABOU de
@@ -189,16 +182,6 @@ async function avancarCadeia(ordemFechada, resultadoElo) {
   // resultado_etapas completo. Mesmo mecanismo pra qualquer cadeia futura que queira voltar à
   // origem, sem código por caso.
   const ehRetorno = proximo.tipo === 'retorno';
-  // MIGRAÇÃO DE FORMATO NA PASSAGEM (item 1.5): a ordem nova sempre nasce no formato NOVO
-  // (payload.cadeia), mesmo quando a que está fechando ainda era do formato antigo
-  // (payload.sequencia/etapa) — sequencia/etapa NUNCA são repropagados adiante. É assim que uma
-  // cadeia antiga em voo "gradua" pro formato novo a partir do seu próximo elo (e passa a ser
-  // coberta pelo timeout de passagem a partir daí — verificarTimeoutCadeia só reconhece
-  // payload.cadeia). Exceção: cadeia_iniciada_em de uma cadeia que nasceu no formato antigo não
-  // existe (o formato antigo nunca gravou isso) — não dá pra recuperar o instante real de início,
-  // então o prazo TOTAL da cadeia fica sem checagem pra essas (verificarTimeoutCadeia já trata
-  // isso de forma explícita, não silenciosa); o timeout de PASSAGEM funciona normalmente.
-  const { sequencia, etapa, ...plSemFormatoAntigo } = pl;
   const corpo = {
     user_id: ordemFechada.user_id,
     de_agente: eloAtual.agente || null,
@@ -215,7 +198,7 @@ async function avancarCadeia(ordemFechada, resultadoElo) {
     // elo atual — não dá pra estar em payload.cadeia, decidido no nascimento da cadeia). Nunca
     // confundir com resultado_etapas: aquele é histórico/auditoria (referência, item 1.3);
     // payloadExtra é o dado que o PRÓXIMO elo de fato consome pra rodar.
-    payload: { ...plSemFormatoAntigo, ...((resultadoElo && resultadoElo.payloadExtra) || {}), cadeia: norm.cadeia, elo: proximoIdx, resultado_etapas: resultadoEtapas, elo_iniciado_em: agora },
+    payload: { ...pl, ...((resultadoElo && resultadoElo.payloadExtra) || {}), cadeia: norm.cadeia, elo: proximoIdx, resultado_etapas: resultadoEtapas, elo_iniciado_em: agora },
   };
   const r = await sbInsert(corpo);
   const d = r && r.ok ? await r.json().catch(() => null) : null;

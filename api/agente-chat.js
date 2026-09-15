@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-worker-direcao-avulsa-auth-interna';
+const VERSAO = '2026.09.15-entrega1-limpeza-divida-acumulada';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -491,7 +491,7 @@ LOGO: a logo real é aplicada pelo sistema UMA vez. NUNCA descreva/escreva logo,
 GOSTO DO CLIENTE (aprendizado): se houver memórias 'referencia_aprovada' (o que ele já gostou) e 'evitar_visual' (o que ele rejeitou), RESPEITE-AS — repita o que funcionou e NUNCA repita o que foi rejeitado. Isso é o que diferencia o JUMP OS: o Designer aprende o gosto da marca.
 VERACIDADE: use só dados reais do OS_DATA. NUNCA invente planos, ofertas, números ou selos falsos.
 
-PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing de até 4 perguntas; não faz mais): se o cliente pedir uma arte fora do cronograma (ex: promoção), COM ou SEM tema, NÃO faça perguntas sobre objetivo, mensagem, tipo de visual ou oferta/prova — isso agora é decidido pela Estratégia a partir do DNA da marca, sem precisar perguntar de novo o que ela já sabe deduzir. Responda que já está providenciando e, NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto — a arte nasce em Aprovações quando estiver pronta):
+PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing de até 4 perguntas; não faz mais): se o cliente pedir uma arte fora do cronograma (ex: promoção), COM ou SEM tema, NÃO faça perguntas sobre objetivo, mensagem, tipo de visual ou oferta/prova — isso agora é decidido pela Estratégia a partir do DNA da marca, sem precisar perguntar de novo o que ela já sabe deduzir. Responda que já está providenciando, dizendo que a peça vai aparecer em Aprovações assim que estiver pronta e que o cliente não precisa esperar nem ficar na tela — o processo continua sozinho (15/set/2026: informação que faltava dizer ao cliente, não instrução de ação nova). NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto):
 <ordem_servico>{"para":"estrategia","tarefa":"direcao_avulso_criativo","detalhe":"resumo em 1 linha do pedido do cliente","tema":"o tema, EXATAMENTE como o cliente disse — omita este campo se o cliente não deu um tema","formato":"feed ou carrossel","slides":"número de 2 a 10, só quando formato=carrossel e o cliente disse o número"}</ordem_servico>
 FORMATO: se o cliente não especificar, é SEMPRE peça única (uma imagem) — nunca carrossel por padrão. Só é carrossel se o cliente pedir explicitamente E disser quantos slides (2 a 10). ÚNICA PERGUNTA AINDA PERMITIDA nesta situação: se o cliente disser "quero um carrossel" SEM dizer quantos slides, aí sim pergunte só isso ("quantos slides?") — nunca invente a quantidade (mesma regra de sempre: carrossel sem número declarado não é produzido).
 Artes avulsas consomem o SALDO EXTRA do plano (mesma cota usada para recriar imagens): básico=6, plus=9, pro=15 por mês. Avise o cliente quando o saldo extra estiver acabando.
@@ -712,8 +712,9 @@ const handler = async (req, res) => {
         handoff_cadeia_timeout_passagem_2min_dois_estouros:true,
         handoff_cadeia_prazo_total_por_formula:true,
         handoff_cadeia_chamada_retorno_generica:true,
-        handoff_cadeia_ponte_formato_antigo_sequencia_etapa:true,
+        handoff_cadeia_ponte_formato_antigo_removida_condicao_verificada_zero_ordens:true,
         handoff_criativo_sem_mini_briefing_delega_estrategia:true,
+        handoff_criativo_avisa_aprovacoes_e_nao_precisa_esperar_na_tela:true,
         handoff_criativo_temas_usados_como_dado_nao_prosa:true,
         handoff_criativo_formato_slides_explicitos_na_cadeia:true,
         handoff_criativo_ordem_direcao_avulso_excluida_da_fila_generica:true,
@@ -726,6 +727,7 @@ const handler = async (req, res) => {
         worker_direcao_avulsa_auth_interna_x_internal_secret:true,
         worker_direcao_avulsa_auth_interna_escopada_so_estrategia_e_ordem_validada_no_banco:true,
         worker_direcao_avulsa_auth_interna_falha_nunca_degrada_pra_jwt:true,
+        entrega1_15_09_limpeza_divida_acumulada:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
