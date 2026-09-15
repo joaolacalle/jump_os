@@ -680,10 +680,18 @@ async function verificarOrdens(alvo){
       // 🔴 ERA: TODA ordem da Estratégia virava "escrever a copy da semana" — o pedido avulso
       // do usuário aparecia na lista mas o único botão fazia OUTRA coisa (ficava preso).
       // Agora: o fluxo semanal tem o botão dele; cada pedido avulso tem execução própria.
-      const semanais=ords.filter(ehFluxoSemanal), avulsas=ords.filter(o=>!ehFluxoSemanal(o));
+      // 🔴 ERA: TODA ordem da Estratégia virava "escrever a copy da semana" — o pedido avulso
+      // do usuário aparecia na lista mas o único botão fazia OUTRA coisa (ficava preso).
+      // Agora: o fluxo semanal tem o botão dele; ordem de cadeia executa sozinha, sem botão
+      // (15/set/2026 — ver ehOrdemDeCadeia acima); cada avulso comum tem execução própria.
+      const semanais=ords.filter(ehFluxoSemanal);
+      const naoSemanais=ords.filter(o=>!ehFluxoSemanal(o));
+      const emCadeia=naoSemanais.filter(ehOrdemDeCadeia), avulsas=naoSemanais.filter(o=>!ehOrdemDeCadeia(o));
       corpo='<div style="margin:6px 0">';
       if(semanais.length) corpo+='<div style="font-size:12.5px;color:var(--t2);padding:3px 0">'
         +semanais.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
+      if(emCadeia.length) corpo+='<div style="font-size:12.5px;color:var(--t2);padding:3px 0">'
+        +emCadeia.map(o=>'• '+JUMP.esc(o.detalhe||o.tarefa)).join('<br>')+'</div>';
       corpo+=avulsas.map(o=>{
         const seu=prioOrdem(o)>=10;
         const tag=seu?'<span style="font-family:var(--M);font-size:9px;background:var(--cy);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px">SEU PEDIDO</span>':'';
@@ -692,7 +700,7 @@ async function verificarOrdens(alvo){
           '<button class="btn btn-o btn-sm" title="Atender esta agora" onclick="executarOrdens(this,\''+o.id+'\')">▶</button></div>';
       }).join('')+'</div>';
       acao=(semanais.length?'<button class="btn btn-g btn-sm" onclick="detalharSemana(this)">✍️ Escrever a copy da semana</button>':'')
-        +(avulsas.length?' <span style="font-family:var(--M);font-size:10.5px;color:var(--t3)">⏳ execução automática em andamento</span>':'');
+        +((avulsas.length||emCadeia.length)?' <span style="font-family:var(--M);font-size:10.5px;color:var(--t3)">⏳ execução automática em andamento</span>':'');
     }else{
       const consult=naturezaDe(alvo)==='consultoria';
       // BOTÃO POR ORDEM: antes era tudo-ou-nada — um pedido seu ficava preso atrás do lote.
@@ -823,14 +831,27 @@ const NATUREZA={criativo:'producao',video:'producao',
   estrategia:'consultoria',mercado:'consultoria',diagnostico:'consultoria',
   trafego:'consultoria',publicacao:'consultoria',identidade:'consultoria'};
 function naturezaDe(ag){return NATUREZA[ag]||'consultoria'}
-// Ordens do fluxo semanal da Estratégia (têm botão próprio: "Escrever a copy da semana") — e,
-// desde 12/set/2026, também 'direcao_avulso_criativo' (handoff Criativo→Estratégia, mesmo
-// motivo: fecha por código quando <conteudo> sai, NUNCA pelo botão genérico ▶ executar abaixo,
-// que marca 'concluida' sem checar se algo foi de fato produzido — fecharia a ordem vazia e a
-// cadeia nunca chegaria ao Designer).
+// Ordens do fluxo semanal da Estratégia — têm botão próprio: "Escrever a copy da semana".
+// 🔴 ERA: 'direcao_avulso_criativo' também entrava aqui (12/set/2026), pra impedir o botão ▶
+// genérico de marcar a ordem 'concluida' sem checar se algo foi produzido. O efeito colateral:
+// ela herdava o botão "Escrever a copy da semana" (detalharSemana(), mensagem fixa, sem relação
+// com o pedido avulso) — confirmado em produção, 14/set/2026 (ver APRENDIZADOS.md, "Worker
+// executa ordem pendente + correção do botão"). Corrigido (15/set/2026): retirada daqui — agora
+// é tratada como ordem DE CADEIA (ver `ehOrdemDeCadeia` em verificarOrdens, abaixo), que já
+// executa sozinha (worker automático) e por isso também não ganha botão nenhum — nem este, nem
+// o ▶ genérico.
 function ehFluxoSemanal(o){
   const t=String(o.tarefa||'').toLowerCase();
-  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0||t.indexOf('direcao_avulso_criativo')>=0;
+  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
+}
+// Ordens DE CADEIA (payload.cadeia presente — ver api/_cadeia-lib.js, protegido): o worker do
+// servidor já executa sozinha, sem depender de nenhum clique (job=produzir, a cada 5min, mais o
+// auto-dispatch na criação). Um botão aqui seria redundante — e, se a ordem for de um tipo que o
+// botão ▶ genérico não sabe tratar corretamente (era o caso de 'direcao_avulso_criativo'), pior
+// que redundante: dispara o comando errado. Estrutural (por `payload.cadeia`, não por nome de
+// tarefa) pra cobrir qualquer cadeia futura, não só esta.
+function ehOrdemDeCadeia(o){
+  return !!(o && o.payload && Array.isArray(o.payload.cadeia));
 }
 async function executarOrdens(btn,soId){
   // ── UNIFICADO: o PLAY não executa mais no navegador. Ele apenas ACIONA o mesmo worker do
