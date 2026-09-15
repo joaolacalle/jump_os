@@ -167,6 +167,11 @@
     <div class="apr-track" id="apr-track"></div>
   </div>
 
+  <!-- BANNER DE TRIAL — CONSOLIDADO (15/set/2026, "Entrega 1"): existia um segundo banner,
+       criado por JS, dizendo a mesma coisa (Família 2 aplicada à interface). Este ficou — já
+       tinha elemento fixo dedicado, estilo próprio (moldura, ícone, título+subtítulo) e posição
+       coerente com o resto da página (agrupado com "Criativos para aprovar", perto do topo, como
+       os outros avisos). Ganhou o botão "Ativar assinatura" que só existia no banner removido. -->
   <div id="trial-banner" style="display:none;margin:0 0 18px;padding:14px 18px;border-radius:12px;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(251,191,36,.12));border:1px solid rgba(168,85,247,.35)">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:22px">✨</div>
@@ -174,6 +179,7 @@
         <div style="font-weight:800;font-size:14px;color:var(--t1)" id="trial-titulo">Período de teste</div>
         <div style="font-size:12px;color:var(--t2);font-family:var(--M)" id="trial-sub">Aproveite os agentes no seu teste gratuito.</div>
       </div>
+      <a href="configuracoes.html#assinatura" class="btn btn-g btn-sm" style="white-space:nowrap">Ativar assinatura →</a>
     </div>
   </div>
 
@@ -304,7 +310,9 @@ const LV={basico:1,plus:2,pro:3};
         if(diasRest>0&&bn){
           bn.style.display='block';
           document.getElementById('trial-titulo').textContent='🎁 Teste grátis — '+diasRest+(diasRest===1?' dia restante':' dias restantes');
-          document.getElementById('trial-sub').textContent='Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+'. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
+          // 15/set/2026: absorveu o único dado que o banner removido tinha e este não — o aviso
+          // de cota reduzida durante o teste.
+          document.getElementById('trial-sub').textContent='Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+' — sua cota de geração é reduzida durante o teste. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
         }
       }
     }catch(e){}
@@ -476,20 +484,10 @@ const LV={basico:1,plus:2,pro:3};
         <i>${a.ico}</i>${a.n}${un?'':' 🔒'}</a>`;
     }).join('');
 
-    // Aviso de período de teste (trial) — cota reduzida
-    try{
-      if(cliente.cortesia_ate && new Date(cliente.cortesia_ate).getTime()>Date.now() && cliente.tipo_cortesia==='trial'){
-        const fim=new Date(cliente.cortesia_ate);
-        const dias=Math.max(1,Math.ceil((fim.getTime()-Date.now())/(864e5)));
-        const aviso=document.createElement('div');
-        aviso.style.cssText='background:rgba(var(--g-rgb),.08);border:1px solid rgba(var(--g-rgb),.3);border-radius:11px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--t2);line-height:1.55;display:flex;align-items:center;gap:14px;flex-wrap:wrap';
-        aviso.innerHTML='<div style="flex:1;min-width:200px">✨ <strong style="color:var(--t1)">Período de teste ativo</strong> — faltam '+dias+' dia(s). Durante o teste, sua cota de geração é reduzida.</div><a href="configuracoes.html#assinatura" class="btn btn-g btn-sm" style="white-space:nowrap">Ativar assinatura →</a>';
-        const main=document.querySelector('.main');
-        const hd=main&&main.querySelector('.hd');
-        if(hd&&hd.nextSibling)hd.parentNode.insertBefore(aviso,hd.nextSibling);
-        else if(main)main.insertBefore(aviso,main.firstChild);
-      }
-    }catch(e){}
+    // 15/set/2026 ("Entrega 1"): banner de trial duplicado removido daqui — consolidado no
+    // #trial-banner fixo (ver comentário no HTML e o bloco "Banner do período de teste" acima),
+    // que já cobre o mesmo aviso, o mesmo botão "Ativar assinatura →" e usa _conta (correto para
+    // supervisor vendo o dashboard de um cliente — este bloco usava `cliente`, que não cobria isso).
 
     // Caixa de uso: Infográficos (imagens) + Edições de vídeo
     window._ctx=ctx;
