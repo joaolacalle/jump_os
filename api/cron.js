@@ -201,18 +201,35 @@ async function jobPublicar(soUserId) {
     try {
       const igId = conta.meta.ig_id, tk = conta.token;
       const ehVideo = /reel|v[ií]deo|video/i.test(p.formato || '') || /\.(mp4|mov)(\?|$)/i.test(p.midia_url || '');
-      // STORY NÃO TEM LEGENDA (item 3, 15/set/2026): regra de plataforma — Stories do Instagram
-      // não têm campo de legenda como feed/reels, o texto (se houver) vai na própria arte. Antes
-      // este ponto sempre montava `caption` (copy, ou tema como fallback) e mandava pra Meta
-      // pra QUALQUER formato, story incluído — dado que a publicação de story não usa e que podia
-      // gerar erro/comportamento indevido na API. Se algum story tiver copy gravada de antes
-      // desta correção, ela é ignorada aqui, nunca enviada.
-      // ACHADO À PARTE, reportado, NÃO corrigido nesta rodada (fora do pedido, que era só sobre
-      // copy): este bloco não define `media_type:'STORIES'` em nenhum caminho — um story cai no
-      // `else` abaixo e publica como post de FEED comum (mesmo payload de uma imagem normal). A
-      // publicação de story pode estar indo pro lugar errado desde sempre — não é sobre texto,
-      // é sobre o tipo de mídia. Registrado para avaliação/entrega própria.
-      const ehStory = /story/i.test(p.formato || '');
+      // STORY: media_type ausente (15/set/2026, "Publicação de Stories — tipo de mídia ausente"),
+      // achado reportado na rodada anterior (caption) e corrigido agora. `formato` já vem no
+      // SELECT que buscou `posts`, não precisa de consulta nova — e a detecção usa a FONTE ÚNICA
+      // (assets/classificacao.js, `JC.ehStory`), não um regex local: o projeto já teve dez pontos
+      // divergindo sobre formato (ver cabeçalho de classificacao.js) e este é mais um ponto que
+      // precisa saber "isto é story" — passou a perguntar à fonte única em vez de testar sozinho.
+      // `JC.ehStory` foi adicionado nesta rodada (não existia antes) — `JC.emValidacao` também
+      // bate só com 'story' hoje, mas significa outra coisa (quarentena de PRODUÇÃO AUTOMÁTICA,
+      // ver nota em classificacao.js) e não deve ser reaproveitada pra este fim; os dois valores
+      // coincidem por acaso hoje, não por definição.
+      //
+      // Documentação da Meta (Content Publishing API / referência do endpoint IG User /media),
+      // verificada antes de implementar — não presumida por analogia com reels:
+      //   - media_type:'STORIES' aceita tanto image_url (Story de imagem) quanto video_url (Story
+      //     de vídeo) — é o MESMO container de mídia dos outros formatos, só com o tipo declarado.
+      //   - O fluxo é o mesmo dos demais: cria o container → (vídeo) aguarda processamento → publica
+      //     via media_publish com o creation_id. Nenhuma rota nova precisa existir só pra Stories.
+      //   - `caption` NÃO é um parâmetro suportado por media_type:'STORIES' — a documentação lista
+      //     explicitamente como não suportado. Reforça (não só "não é usado pela interface", como
+      //     a correção anterior já tratava) que o valor correto é omitir a chave, não mandar vazio.
+      //   - Vídeo: MOV/MP4, até 100MB, 3 a 60 segundos. Imagem: JPEG, até 8MB. Nenhuma validação
+      //     nova adicionada aqui pra esses limites — se a Meta recusar (vídeo fora da janela, por
+      //     exemplo), o `catch` já existente grava `erro_publicacao` e avisa o cliente (nunca
+      //     falha silenciosa), o mesmo tratamento que já cobre qualquer recusa de container hoje.
+      //   - `is_carousel_item` não é suportado por Stories — não é uma restrição nova pra este
+      //     código: a produção automática de story está em quarentena (`FORMATOS_EM_VALIDACAO`) e
+      //     a criação manual (calendario.html) nunca grava `meta.slides`, então `ehCarrossel`
+      //     (abaixo) já não alcança story na prática; não adicionei uma trava redundante.
+      const ehStory = JC.ehStory(p);
       const caption = ehStory ? '' : String(p.copy || p.tema || '').slice(0, 2100);
       // CARROSSEL: os slides ficam em meta.slides (gravados pelo Designer); a capa é o midia_url.
       const slidesArr = (p.meta && Array.isArray(p.meta.slides)) ? p.meta.slides.filter(s => s && s.url).slice().sort((a, b) => Number(a.n) - Number(b.n)) : [];
@@ -232,7 +249,9 @@ async function jobPublicar(soUserId) {
         }
         c1 = await criarContainer({ media_type: 'CAROUSEL', children: filhos, caption });
       } else {
-        const body = ehVideo ? { media_type: 'REELS', video_url: p.midia_url, caption } : { image_url: p.midia_url, caption };
+        const body = ehStory
+          ? (ehVideo ? { media_type: 'STORIES', video_url: p.midia_url } : { media_type: 'STORIES', image_url: p.midia_url })
+          : (ehVideo ? { media_type: 'REELS', video_url: p.midia_url, caption } : { image_url: p.midia_url, caption });
         c1 = await criarContainer(body);
       }
       if (!c1.id) throw new Error((c1.error && c1.error.message) || 'container recusado');

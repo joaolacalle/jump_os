@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-correcao-rumo-recado-gerar-copy-ia-story-sem-copy';
+const VERSAO = '2026.09.15-publicador-story-media-type-stories';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -748,6 +748,11 @@ const handler = async (req, res) => {
         story_sem_campo_copy_na_criacao_manual_e_no_card_de_aprovacao:true,
         story_sem_botao_gerar_copy_ia:true,
         story_publicador_nunca_envia_caption_pra_meta_mesmo_com_copy_gravada:true,
+        // Marca de rastreio (15/set/2026, "Publicação de Stories — tipo de mídia ausente") — não
+        // toca api/agente-chat.js, vive em assets/classificacao.js (fonte única, ehStory nova) e
+        // api/cron.js (jobPublicar agora declara media_type:'STORIES'); registrada aqui pelo
+        // mesmo motivo das marcas anteriores no mesmo dia.
+        publicador_story_media_type_stories_imagem_e_video_via_fonte_unica:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
