@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.12-handoff-criativo-estrategia';
+const VERSAO = '2026.09.15-arte-criada-texto-honesto';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -582,7 +582,34 @@ Quando o cliente demonstrar uma PREFERÊNCIA de edição (ex: "gosto de legenda 
 ESCOPO: você cuida só de VÍDEO. Arte estática é com o Designer; estratégia/roteiro com a Estratégia. Responda em texto limpo e prático.`,
 };
 
-const REGRAS_GERAIS = `
+// ESCOPO ESTRUTURAL — PEDIDO AVULSO SÓ PARA QUEM O RESOLVE (HANDOFF CRIATIVO→ESTRATÉGIA, SEXTO
+// CASO, 14/set/2026, ver APRENDIZADOS.md): até aqui, o parágrafo "PEDIDO AVULSO — APRESENTE,
+// DEPOIS CONFIRME, DEPOIS EMITA" (LOTE 2, 01/set) era injetado por REGRAS_GERAIS igual pra TODOS
+// os 8 agentes, sem exceção. Na prática, só a ESTRATÉGIA o exercita de verdade — é a única que
+// emite <conteudo> em resposta a pedido avulso direto no chat (ver "Mapa de funções" abaixo: só
+// ela escreve texto/conteúdo; os outros redirecionam ou não têm código nenhum ouvindo essa tag).
+// Pros outros 6 (identidade/mercado/diagnóstico/publicação/tráfego/video), a regra era só ruído —
+// nunca tinha como chegar ao Turno 2, porque nenhum deles produz <conteudo>. Pro Designer
+// (criativo) especificamente, deixou de ser ruído inofensivo quando ganhou instrução PRÓPRIA de
+// pedido avulso (linha ~494, 12/set): "não pergunte nada, emita <ordem_servico> no mesmo turno" —
+// direto oposto de "Turno 1: pergunte, não emita". Resultado documentado: o cliente pediu arte
+// avulsa, o Designer obedeceu a regra genérica (perguntar) em vez da específica (não perguntar) —
+// nunca emitiu a tag, nenhuma ordem nasceu. Duas regras em prosa, mesmo julgamento, sem uma citar
+// a outra — Família 2. Fix estrutural, não frase de exceção: o parágrafo do avulso só é injetado
+// quando `agente==='estrategia'`, onde continua com o texto IDÊNTICO de sempre (nada reescrito,
+// nada removido — ela nasceu pra esse caso e continua resolvendo exatamente esse caso). Pros
+// outros 7 agentes (incluindo o Designer), REGRAS_GERAIS deixa de carregar essa instrução —
+// silêncio estrutural, não frase dizendo "isso não vale aqui". Isso também fecha a porta pra
+// QUALQUER agente futuro que ganhe caminho próprio de avulso (como o Designer ganhou): ele só
+// herda o conflito se alguém decidir explicitamente incluí-lo aqui — nunca por default.
+const REGRAS_PEDIDO_AVULSO_ESTRATEGIA = `PEDIDO AVULSO — APRESENTE, DEPOIS CONFIRME, DEPOIS EMITA (LOTE 2, 01/set/2026 — reescrito de proibição pra obrigação: a versão antiga só dizia QUANDO NÃO emitir a tag, nunca mandava explicitamente emiti-la no turno da confirmação — isso deixava o agente dizer "enviado para produção" numa resposta em que NENHUMA tag saía, e o banco ficava vazio; ver APRENDIZADOS.md, "LOTE 2 — prioridade absoluta"):
+TURNO 1 (o cliente pede UMA peça específica, ex.: "quero um post sobre X"): APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. NÃO emita a tag <conteudo> neste turno — a proposta ainda não foi confirmada.
+TURNO 2 (o cliente CONFIRMA — "sim", "pode", "manda", "tá bom" ou equivalente): NESTA MESMA RESPOSTA, SEM EXCEÇÃO, você é OBRIGADO a emitir a tag <conteudo> completa (com "avulso":true e, dentro dela, os campos de texto — ver "PROTOCOLO DE BRIEFING" acima). Texto dizendo "enviado para produção", "está na fila do Designer", "vai aparecer em Aprovações" ou qualquer variação disso SEM a tag <conteudo> na mesma resposta não tem NENHUM efeito no sistema — nada é salvo, nada chega ao Designer, e você terá afirmado ao cliente algo que não aconteceu. Confirmação do cliente sem a tag correspondente na mesma resposta é uma falha crítica: nunca prometa e adie para depois — confirmou, você emite, agora.
+Em ambos os turnos, avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
+`;
+
+function REGRAS_GERAIS(agente){
+  return `
 NOME PÚBLICO: internamente a base do cliente se chama OS_DATA, mas ao FALAR com o cliente chame SEMPRE de "DNA do Negócio". Nunca escreva "OS_DATA" numa resposta visível — soa técnico e o cliente não sabe o que é.
 REGRAS DO JUMP OS:
 - Responda SEMPRE em português brasileiro, direto e aplicável ao nicho do cliente (use as MEMÓRIAS abaixo).
@@ -603,11 +630,7 @@ Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNC
 
 ═══ FRONTEIRA DE ESCOPO (REGRA ABSOLUTA — vale para TODOS os agentes) ═══
 Cada agente executa SOMENTE a sua função. Se o cliente pedir algo que é de OUTRO agente, você NÃO faz — explique em 1 linha, de forma gentil, e indique o agente certo. NUNCA improvise a função de outro agente.
-PEDIDO AVULSO — APRESENTE, DEPOIS CONFIRME, DEPOIS EMITA (LOTE 2, 01/set/2026 — reescrito de proibição pra obrigação: a versão antiga só dizia QUANDO NÃO emitir a tag, nunca mandava explicitamente emiti-la no turno da confirmação — isso deixava o agente dizer "enviado para produção" numa resposta em que NENHUMA tag saía, e o banco ficava vazio; ver APRENDIZADOS.md, "LOTE 2 — prioridade absoluta"):
-TURNO 1 (o cliente pede UMA peça específica, ex.: "quero um post sobre X"): APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. NÃO emita a tag <conteudo> neste turno — a proposta ainda não foi confirmada.
-TURNO 2 (o cliente CONFIRMA — "sim", "pode", "manda", "tá bom" ou equivalente): NESTA MESMA RESPOSTA, SEM EXCEÇÃO, você é OBRIGADO a emitir a tag <conteudo> completa (com "avulso":true e, dentro dela, os campos de texto — ver "PROTOCOLO DE BRIEFING" acima). Texto dizendo "enviado para produção", "está na fila do Designer", "vai aparecer em Aprovações" ou qualquer variação disso SEM a tag <conteudo> na mesma resposta não tem NENHUM efeito no sistema — nada é salvo, nada chega ao Designer, e você terá afirmado ao cliente algo que não aconteceu. Confirmação do cliente sem a tag correspondente na mesma resposta é uma falha crítica: nunca prometa e adie para depois — confirmou, você emite, agora.
-Em ambos os turnos, avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
-NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
+${agente==='estrategia' ? REGRAS_PEDIDO_AVULSO_ESTRATEGIA : ''}NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
 Mapa de funções (quem faz o quê):
 - IDENTIDADE: consultoria de marca, OS_DATA (cores, fontes, posicionamento).
 - MERCADO: análise de concorrentes e oportunidades do nicho.
@@ -618,6 +641,7 @@ Mapa de funções (quem faz o quê):
 - TRÁFEGO: consultor de anúncios — lê seus números reais, diagnostica e entrega a estratégia (você executa no seu Gerenciador).
 - EDITOR DE VÍDEO: edição/montagem de vídeos e Reels (a partir do roteiro da Estratégia).
 Exemplo correto (Designer recebe "cria imagem para um reels"): "Posso criar a arte de capa/post estático. O roteiro do Reel é com o Agente de Estratégia, e a edição do vídeo com o Editor de Vídeo. Quer que eu crie a arte estática agora?" — e só gera imagem se confirmado.`;
+}
 
 const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
@@ -693,6 +717,12 @@ const handler = async (req, res) => {
         handoff_criativo_temas_usados_como_dado_nao_prosa:true,
         handoff_criativo_formato_slides_explicitos_na_cadeia:true,
         handoff_criativo_ordem_direcao_avulso_excluida_da_fila_generica:true,
+        sexta_regra_avulso_606_escopada_so_estrategia:true,
+        sexta_regra_avulso_nao_injetada_pra_designer_nem_demais_agentes:true,
+        setimo_caso_designer_nao_delega_e_produz_no_mesmo_turno:true,
+        setimo_caso_trava_em_codigo_gerar_imagem_descartada_se_direcao_avulso_criativo:true,
+        setimo_caso_descarte_avisa_cliente_e_loga_nunca_silencioso:true,
+        arte_criada_descreve_conceito_pendente_nunca_producao_confirmada:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1225,7 +1255,7 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1314,6 +1344,33 @@ const handler = async (req, res) => {
       const _bloqueadas=ordens.filter(o=>o.tarefa==='criar_post');
       if(_bloqueadas.length){ console.error('[ordem] tag <ordem_servico> criar_post da Estratégia descartada (gate da aprovação semanal):',_bloqueadas.length); }
       ordens=ordens.filter(o=>o.tarefa!=='criar_post');
+    }
+    // TRAVA — DELEGAR E PRODUZIR SÃO EXCLUDENTES (14/set/2026, "Entrega A", ver APRENDIZADOS.md
+    // "Designer não pode delegar e produzir no mesmo turno" — sétimo caso de instrução ignorada,
+    // com agravante: aqui competiam duas TAGS DE AÇÃO, não dois textos de prosa). Achado real em
+    // produção: pedido avulso sem tema ao Designer — ele emitiu <ordem_servico>
+    // direcao_avulso_criativo (delegando a direção à Estratégia, corretamente, por linha ~494)
+    // E <gerar_imagem> na MESMA resposta, com tema/pilar/cta INVENTADOS (linhas 501-506 mandam
+    // "ao gerar, emita a tag", sem exceção nenhuma pro cenário de delegação — nada nas duas
+    // instruções cita a outra). Quem delega está declarando que não tem o insumo (tema/copy) —
+    // gerar a imagem no mesmo turno significa produzir sobre um insumo inventado, exatamente o
+    // que aconteceu (declarouAcaoSemRegistro pegou o texto, mas a tag <gerar_imagem> passava
+    // batida, sem nenhum registro do descarte). Escopo estrutural (não injetar a instrução
+    // genérica de <gerar_imagem> quando o cenário é delegação) NÃO é viável aqui como foi na 606:
+    // lá o gatilho era o AGENTE (estrategia/criativo), conhecido ANTES da chamada ao modelo; aqui
+    // o gatilho é a DECISÃO do próprio turno (delegar vs. já ter o insumo), que só existe DEPOIS
+    // da resposta — não dá pra omitir a instrução de antemão sem adivinhar o que o cliente vai
+    // pedir. A garantia só pode vir em código, depois da resposta, nunca confiando no modelo
+    // (mesmo princípio do backstop ~1869: "não confiar no LLM p/ efeito colateral"). Não há caso
+    // legítimo das duas tags juntas: <ordem_servico> direcao_avulso_criativo só nasce quando o
+    // Designer NÃO tem o tema (linha ~494) — é a única tag que o Designer emite pra Estratégia
+    // (conferido: nenhuma outra <ordem_servico> do Designer usa "para":"estrategia"). Descarte
+    // NUNCA silencioso: loga e avisa o cliente, mesma disciplina do resto do arquivo.
+    let avisoImagemDescartada=null;
+    if(agente==='criativo'&&imgReq&&ordens.some(o=>o.para==='estrategia'&&o.tarefa==='direcao_avulso_criativo')){
+      console.error('[gerar_imagem] descartada — Designer delegou (direcao_avulso_criativo) e tentou gerar imagem no mesmo turno, user='+targetId);
+      imgReq=null;
+      avisoImagemDescartada='A arte ainda não foi gerada — este pedido acabou de ser encaminhado à Estratégia, que define o tema e o texto antes de qualquer imagem. A produção começa automaticamente assim que a direção voltar.';
     }
     if(ordens.length){
       // RASTRO GLOBAL DA CADEIA: sempre que QUALQUER agente passa trabalho para outro, o passo
@@ -2052,7 +2109,17 @@ const handler = async (req, res) => {
         registros.push({tarefa:'calendario_gerado',detalhe:conteudos.length+' post(s) planejado(s) e enviados para aprovação'});
       }
       if(agente==='criativo'&&imgReq){
-        registros.push({tarefa:'arte_criada',detalhe:'arte gerada pelo Designer (Content Engine 6.0)'});
+        // TEXTO CORRIGIDO (15/set/2026, ver APRENDIZADOS.md "arte_criada — rótulo sem produção"):
+        // este registro nasce sempre que a resposta contém <gerar_imagem> — ou seja, SEMPRE antes
+        // de qualquer produção real. A imagem só existe se o cliente clicar "Gerar imagem" no
+        // preview (mostrarBotaoImagem, agentes.html) e, mesmo aí, só é salva com uma ação própria
+        // de "salvar" depois (o preview roda com registrar:false). Dizer "arte gerada" aqui era
+        // sempre uma afirmação falsa no momento em que era escrita — nunca há produção confirmada
+        // neste ponto do código. Decisão do João (opção b, 15/set): manter o registro nascendo
+        // sempre (ele serve à auditoria — sem ele, um conceito proposto e nunca clicado desaparece
+        // do rastro), mas descrever o estado real, nunca o que ainda não aconteceu. Mesmo
+        // princípio do painel "Seu plano": mostrar o estado real em vez de esconder.
+        registros.push({tarefa:'arte_criada',detalhe:'conceito de arte pronto — aguardando o cliente clicar em "Gerar imagem" para produzir'});
       }
       if(agente==='trafego'&&ordens.some(o=>o.tarefa==='novo_criativo_ads')){
         registros.push({tarefa:'campanha_planejada',detalhe:'estratégia de anúncio (público, orçamento, criativo) entregue'});
@@ -2232,6 +2299,7 @@ const handler = async (req, res) => {
     if(avisoCicloAtivo) avisosPartes.push('⚠️ '+avisoCicloAtivo);
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
+    if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
     if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
     if(erroGravacao) avisosPartes.push('🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.');
     if(truncou){
