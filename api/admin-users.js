@@ -869,9 +869,33 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
         `Tema: ${tema}. Formato: ${formato || 'feed'}.${data_sugerida ? ` Data sugerida: ${data_sugerida}.` : ''} ` +
         `Crie a copy completa (headline + legenda + hashtags + CTA) no tom da marca e registre com a tag <conteudo> usando este criativo. ` +
         `URL do criativo: ${criativo_url}`;
+      // CADEIA DE ELO ÚNICO (15/set/2026, "Cadeia copy_para_criativo órfã", religada pelo mesmo
+      // mecanismo do worker de direcao_avulso_criativo — reaproveitado, não duplicado). Antes esta
+      // ordem nascia sem `payload.cadeia`: nenhum worker a processava (nenhum job do cron filtrava
+      // por esta tarefa) — dependia só do Estrategista abrir o chat sozinho, o que nunca acontecia
+      // na prática. Com `payload.cadeia` de UM elo só (sem elo seguinte — este pedido NÃO dispara
+      // nada ao Designer, o criativo já existe, ver instrução da Estratégia em api/agente-chat.js
+      // ~linha 446), ganha de graça: (a) o worker do cron passa a processá-la (bloco próprio,
+      // espelhando o de direcao_avulso_criativo), (b) os relógios de _cadeia-lib.js (timeout de
+      // passagem 2min, prazo total) passam a vigiar esta ordem também — hoje ela só teria o
+      // watchdog genérico de 1x/dia, (c) o botão ▶ genérico em agentes.html para de aparecer pra
+      // ela (ehOrdemDeCadeia, estrutural por payload.cadeia — nenhuma mudança precisou ir lá).
+      // avancarCadeia (_cadeia-lib.js, protegido, não alterado) já sabe fechar uma cadeia de UM elo
+      // só — "FECHAMENTO EXPLÍCITO", quando não há próximo elo — nenhum código novo lá foi preciso.
+      // Campos extras no payload (criativo_url, criativo_tipo, tema, formato, data_sugerida): o
+      // worker do cron usa pra montar a mensagem sintética que aciona a Estratégia via modo
+      // interno — mesmo padrão de direcao_avulso_criativo, que já guarda tema/formato/slides ali
+      // pelo mesmo motivo (o worker não tem acesso a uma conversa viva, só ao payload salvo).
       await sbInsert('ordens_servico', {
         user_id: uid, de_agente: 'publicacao', para_agente: 'estrategia',
         tarefa: 'copy_para_criativo', detalhe, status: 'pendente',
+        payload: {
+          cadeia: [{ agente: 'estrategia', tarefa: 'copy_para_criativo', tipo: 'executa' }],
+          elo: 0, cadeia_iniciada_em: new Date().toISOString(),
+          criativo_url, criativo_tipo: criativo_tipo || 'imagem',
+          tema: String(tema).slice(0, 400), formato: formato || 'feed',
+          ...(data_sugerida ? { data_sugerida } : {}),
+        },
       });
       // avisa que há uma ordem (registro leve; o Estrategista atende quando aberto)
       return res.status(200).json({ ok: true });

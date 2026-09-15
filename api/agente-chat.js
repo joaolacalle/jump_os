@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-publicador-story-media-type-stories';
+const VERSAO = '2026.09.15-cadeia-copy-para-criativo-religada';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -753,6 +753,15 @@ const handler = async (req, res) => {
         // api/cron.js (jobPublicar agora declara media_type:'STORIES'); registrada aqui pelo
         // mesmo motivo das marcas anteriores no mesmo dia.
         publicador_story_media_type_stories_imagem_e_video_via_fonte_unica:true,
+        // Marcas de rastreio (15/set/2026, "Cadeia copy_para_criativo órfã") — tocam
+        // api/admin-users.js (nascimento da ordem, payload.cadeia de 1 elo), este arquivo (portão
+        // de auth interna ampliado + novo HANDOFF de fechamento), api/cron.js (bloco próprio do
+        // worker) e agentes.html (retirada de ehFluxoSemanal); registradas aqui pelo mesmo padrão
+        // de rastro único das rodadas anteriores do dia.
+        copy_para_criativo_cadeia_elo_unico_worker_processa_sozinho:true,
+        copy_para_criativo_auth_interna_ampliada_no_mesmo_portao_sem_duplicar:true,
+        copy_para_criativo_fechamento_por_criativo_url_nao_so_avulso:true,
+        copy_para_criativo_removida_de_ehfluxosemanal_agentes_html:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -789,8 +798,13 @@ const handler = async (req, res) => {
     //    lá, o modo interno herda a MESMA liberdade do modo usuário (qualquer prompt de imagem).
     //    Aqui NÃO pode — este endpoint atende chat livre (qualquer agente, qualquer mensagem,
     //    ver_id de supervisor/admin) quando autenticado por JWT; o modo interno só pode fazer UMA
-    //    coisa: a Estratégia fechar uma ordem 'direcao_avulso_criativo' já existente e pendente/
-    //    processando. Três requisitos pedidos (reportados em APRENDIZADOS.md):
+    //    coisa: a Estratégia fechar uma ordem já existente e pendente/processando, de UMA das duas
+    //    tarefas de cadeia de elo único a partir da Estratégia — 'direcao_avulso_criativo' (original
+    //    desta rodada de 15/set) e 'copy_para_criativo' (adicionada na mesma data, "Cadeia
+    //    copy_para_criativo órfã" — reaproveitando este MESMO portão, ampliado por tarefa, nunca
+    //    duplicado; pedido explícito do João: "não duplicar a lógica de autenticação"). Nenhuma das
+    //    três garantias abaixo mudou — só o `IN` de uma tarefa virou duas. Três requisitos pedidos
+    //    (reportados em APRENDIZADOS.md):
     //    1) segredo nunca aparece em resposta, log de cliente ou mensagem de erro — abaixo só se
     //       loga "presente e incorreto" + origem (x-forwarded-for); nunca o valor, tamanho ou
     //       prefixo do segredo recebido (evita dar pista pra força bruta).
@@ -823,9 +837,15 @@ const handler = async (req, res) => {
         console.error('[auth-interno] chamada fora do escopo permitido — agente='+agente+' ordem_id='+(_ordemId?'presente':'ausente')+' user_id='+(_uidReq?'presente':'ausente'));
         return res.status(403).json({error:'Fora do escopo do modo interno'});
       }
-      const [_ordem]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&para_agente=eq.estrategia&tarefa=eq.direcao_avulso_criativo&status=in.(pendente,processando)&select=id`);
+      // TAREFA AMPLIADA (15/set/2026, "Cadeia copy_para_criativo órfã"): era `tarefa=eq.
+      // direcao_avulso_criativo` sozinho; agora aceita as duas tarefas de cadeia de elo único que
+      // partem da Estratégia por este caminho — mesmo `IN`, mesmo `select=id` (nunca devolve mais
+      // que o id, nunca vaza payload/detalhe pra fora do escopo já checado acima). Ampliar a lista
+      // não afrouxa nenhuma garantia: ainda precisa ser uma ordem REAL, deste user, pendente ou
+      // processando, para=estrategia — só o nome da tarefa aceita duas opções em vez de uma.
+      const [_ordem]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&para_agente=eq.estrategia&tarefa=in.(direcao_avulso_criativo,copy_para_criativo)&status=in.(pendente,processando)&select=id`);
       if(!_ordem){
-        console.error('[auth-interno] ordem_id não corresponde a uma direcao_avulso_criativo pendente/processando deste user — ordem='+_ordemId);
+        console.error('[auth-interno] ordem_id não corresponde a uma direcao_avulso_criativo/copy_para_criativo pendente/processando deste user — ordem='+_ordemId);
         return res.status(403).json({error:'Ordem inválida para o modo interno'});
       }
       user={id:_uidReq};
@@ -1972,7 +1992,13 @@ const handler = async (req, res) => {
           try{
             const j=await r.json();
             const _id=(Array.isArray(j)&&j[0]&&j[0].id)?j[0].id:null;
-            return _id?{avulso:conteudos[i]&&conteudos[i].avulso,id:_id}:null;
+            // criativo_url ADICIONADO (15/set/2026, "Cadeia copy_para_criativo órfã") — campo novo,
+            // só leitura adiante (o HANDOFF de direcao_avulso_criativo, logo abaixo, nunca leu nem
+            // lê este campo — puramente aditivo, nada que já existia mudou de forma). Usado pelo
+            // HANDOFF de copy_para_criativo (novo, mais abaixo) pra identificar qual conteúdo
+            // recém-gravado é o resultado de QUAL ordem, sem confiar só em "avulso:true" (que
+            // direcao_avulso_criativo também marca — ver comentário no handoff novo).
+            return _id?{avulso:conteudos[i]&&conteudos[i].avulso,criativo_url:conteudos[i]&&conteudos[i].criativo_url,id:_id}:null;
           }catch(e){return null;}
         }))).filter(Boolean);
         // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
@@ -2012,6 +2038,53 @@ const handler = async (req, res) => {
               await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},
                 {tipo:'conteudo_ids',valor:idsAvulsoNovos,payloadExtra:{ids:idsAvulsoNovos}});
             }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (direcao_avulso_criativo) — ordem='+od.id+' erro='+(e&&e.message));}
+          }
+        }
+      }catch(e){}
+    }
+
+    // HANDOFF — copy_para_criativo (15/set/2026, "Cadeia copy_para_criativo órfã"): mesmo
+    // mecanismo do handoff acima (mesmo bloco fecha-a-ordem-e-chama-avancarCadeia, mesma função
+    // genérica de _cadeia-lib.js, protegida, não tocada) — bloco PRÓPRIO, não uma modificação do
+    // handoff de direcao_avulso_criativo, pela mesma razão que aquele já é separado do backstop:
+    // cada handoff decide SOZINHO quando a SUA ordem fechou, sem If's espalhados por um bloco
+    // genérico. DIFERENÇA DELIBERADA em relação ao handoff acima: esta cadeia tem UM elo só (o
+    // criativo já existe — a instrução da Estratégia, ~linha 446, é explícita: "NÃO dispare ordem
+    // ao Designer") — por isso `resultadoElo` aqui NÃO leva `payloadExtra:{ids:...}` (não há
+    // próximo elo que precise desse dado operacional pra rodar). `avancarCadeia` já sabe fechar
+    // sem criar nada quando não há próximo elo (_cadeia-lib.js, "FECHAMENTO EXPLÍCITO") — nenhuma
+    // mudança precisou ir lá; é exatamente o que "reaproveitar, não criar mecanismo próprio" pediu.
+    //
+    // SINAL DE FECHAMENTO — por que `criativo_url`, não só `avulso:true`: direcao_avulso_criativo
+    // (handoff acima) TAMBÉM marca avulso:true nos <conteudo> que grava, e as duas ordens podem,
+    // em tese, estar pendentes pro MESMO cliente no MESMO turno (o prompt injeta até 5 ordens
+    // pendentes de uma vez, ver `ordensTxt` acima). Filtrar só por avulso:true correria o risco de
+    // fechar a ordem errada com o conteúdo errado. `criativo_url` só existe em <conteudo> emitido
+    // para copy_para_criativo (é campo OBRIGATÓRIO da instrução dessa tarefa, nunca pedido na de
+    // direcao_avulso_criativo) — sinal específico o bastante pra não precisar de nenhum id de
+    // ordem na própria tag.
+    // ACHADO RESIDUAL, reportado — não corrigido aqui (exigiria tocar o handoff acima, protegido
+    // nesta rodada: "não alterar cadeia direcao_avulso_criativo e seu worker"): o filtro do handoff
+    // ACIMA (`idsAvulsoNovos`, linha ~2022) continua sendo só `avulso===true`, sem excluir
+    // `criativo_url` — no cenário raro de as duas ordens estarem pendentes pro mesmo cliente E a
+    // Estratégia responder às duas no MESMO turno, aquele handoff poderia incluir por engano o id
+    // do conteúdo desta cadeia na lista que avança pro Designer (`criar_avulso`), gerando uma arte
+    // indevida pra um criativo que o cliente já subiu pronto. Não acontece hoje (nenhuma ordem
+    // pendente de nenhum dos dois tipos, confirmado no banco antes desta entrega) — registrado
+    // pra decisão futura, não presumido como seguro pra sempre.
+    if(agente==='estrategia'){
+      try{
+        const pendCopy=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.copy_para_criativo&status=eq.pendente&select=*`);
+        const idsCopyNovos=idsPorConteudo.filter(x=>x&&x.criativo_url&&(x.avulso===true||String(x.avulso)==='true')).map(x=>x.id);
+        if(Array.isArray(pendCopy)&&pendCopy.length&&idsCopyNovos.length){
+          for(const od of pendCopy){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+              method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+            }).catch(()=>{});
+            try{
+              await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},
+                {tipo:'conteudo_ids',valor:idsCopyNovos});
+            }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (copy_para_criativo) — ordem='+od.id+' erro='+(e&&e.message));}
           }
         }
       }catch(e){}

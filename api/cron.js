@@ -630,7 +630,7 @@ async function jobProduzir(soUid) {
     delete pl.erros;
     return pl;
   };
-  let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0;
+  let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0, copiasCriativo = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // DIREÇÃO AVULSA — elo 0 da cadeia Designer→Estratégia→Criativo (15/set/2026, "Worker executa
@@ -689,6 +689,59 @@ async function jobProduzir(soUid) {
         if (r.ok) direcoesAvulsas++;
         else console.error('[worker] direcao_avulso_criativo falhou — ordem=' + o.id + ' status=' + r.status + ' erro=' + String((d && d.error) || '').slice(0, 160));
       } catch (e) { console.error('[worker] direcao_avulso_criativo — exceção — ordem=' + o.id + ' erro=' + (e && e.message)); }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // COPY PARA CRIATIVO — elo único (15/set/2026, "Cadeia copy_para_criativo órfã", autorizado pelo
+  // João — reaproveita INTEGRALMENTE o mecanismo acima, não duplica nada). Bloco PRÓPRIO, espelhando
+  // o de DIREÇÃO AVULSA logo acima — mesmo formato de chamada (fetch a api/agente-chat com
+  // x-internal-secret, ordem_id, user_id), mesma ausência de lock pendente→processando pelo MESMO
+  // motivo (os relógios de _cadeia-lib.js só enxergam 'pendente'; ver comentário completo acima,
+  // não repetido aqui). ÚNICA diferença estrutural: esta cadeia tem um elo só — o cliente já subiu
+  // o criativo pronto, a Estratégia só escreve a copy e grava <conteudo> com "criativo_url" (NÃO
+  // dispara nada ao Designer, ver instrução em api/agente-chat.js ~linha 446) — avancarCadeia já
+  // fecha uma cadeia de 1 elo sem criar próximo elo nenhum (_cadeia-lib.js, "FECHAMENTO EXPLÍCITO"),
+  // nenhuma mudança precisou ir lá.
+  //
+  // Antes desta correção: a ordem nascia (api/admin-users.js, ação `criar_os_copy`, quando o
+  // cliente sobe um criativo pronto e pede legenda pelo formulário "Enviar Conteúdo") sem
+  // `payload.cadeia` — nenhum job do cron a processava (grep confirmou: zero ocorrências de
+  // 'copy_para_criativo' em todo este arquivo antes de hoje) e o próprio comentário do código em
+  // api/admin-users.js admitia o desenho: "avisa que há uma ordem — o Estrategista atende quando
+  // aberto" — dependia do cliente ou de alguém abrir o chat da Estratégia por conta própria, o que
+  // não acontecia na prática. Mesmo problema que `direcao_avulso_criativo` tinha antes de hoje,
+  // mesma correção.
+  if (process.env.CRON_SECRET) {
+    const pendCopy = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=eq.copy_para_criativo&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const o of (Array.isArray(pendCopy) ? pendCopy : [])) {
+      try {
+        const pl = o.payload || {};
+        // MENSAGEM SINTÉTICA — mesmo motivo do bloco de direção avulsa: sem este sinal explícito,
+        // REGRAS_PEDIDO_AVULSO_ESTRATEGIA (injetada em TODO prompt de Estratégia, protegida, não
+        // alterada) poderia levar o agente a "apresentar e perguntar" em vez de produzir direto —
+        // aqui a confirmação já aconteceu no ato de o cliente subir o criativo e preencher o
+        // formulário, não numa conversa que o worker precisaria retomar.
+        const temaTxt = pl.tema ? `tema "${String(pl.tema).slice(0, 200)}"` : 'sem tema informado pelo cliente — escreva a copy a partir do que a arte mostra e do DNA da marca';
+        const fmtTxt = pl.formato ? String(pl.formato).slice(0, 40) : 'feed';
+        const dataTxt = pl.data_sugerida ? ` Data sugerida: ${pl.data_sugerida}.` : '';
+        const mensagemSintetica = `Pedido de legenda confirmado — o cliente já subiu o criativo pronto (não é uma proposta nova aguardando aprovação sua) e quer só a copy para ele. Formato: ${fmtTxt}. ${temaTxt}.${dataTxt} URL do criativo: ${pl.criativo_url || '(ausente — verifique a ordem)'}. Escreva a copy completa (headline + legenda + hashtags + CTA) no tom da marca e emita a tag <conteudo> já nesta resposta, com "avulso":true e "criativo_url" preenchido com a URL exata acima — não pergunte nem apresente a proposta de novo, a confirmação já aconteceu. Não dispare nada ao Designer: o criativo já existe.`;
+        const body = { agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, mensagem: mensagemSintetica };
+        // VISÃO (mesmo mecanismo de "Gerar copy com IA" no card de aprovação, api/agente-chat.js
+        // `_blocoDeImagem`): quando o criativo é uma imagem, manda também pra Estratégia poder
+        // olhar a arte real, não só o tema em texto. Vídeo fica de fora — `_blocoDeImagem` só lê
+        // imagem (PNG/JPEG/GIF/WEBP, por sniff de bytes); pra vídeo a Estratégia trabalha só com
+        // o tema/formato informados, igual já fazia antes desta rodada.
+        if (pl.criativo_url && pl.criativo_tipo !== 'video') body.imagem_url = pl.criativo_url;
+        const r = await fetch(`${base}/api/agente-chat`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json().catch(() => null);
+        LOG({ etapa: 'copy-criativo', orderId: o.id, userId: o.user_id, status: r.status, ok: !!(r.ok) });
+        if (r.ok) copiasCriativo++;
+        else console.error('[worker] copy_para_criativo falhou — ordem=' + o.id + ' status=' + r.status + ' erro=' + String((d && d.error) || '').slice(0, 160));
+      } catch (e) { console.error('[worker] copy_para_criativo — exceção — ordem=' + o.id + ' erro=' + (e && e.message)); }
     }
   }
 
@@ -864,7 +917,7 @@ async function jobProduzir(soUid) {
       } catch (e) { console.error('[cadeia-lib] avancarCadeia falhou (loop principal) — ordem=' + o.id + ' erro=' + (e && e.message)); }
     }
   }
-  return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas };
+  return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas, copias_criativo: copiasCriativo };
 }
 
 async function jobOrdens() {
