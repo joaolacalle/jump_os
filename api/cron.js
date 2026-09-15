@@ -201,7 +201,19 @@ async function jobPublicar(soUserId) {
     try {
       const igId = conta.meta.ig_id, tk = conta.token;
       const ehVideo = /reel|v[ií]deo|video/i.test(p.formato || '') || /\.(mp4|mov)(\?|$)/i.test(p.midia_url || '');
-      const caption = String(p.copy || p.tema || '').slice(0, 2100);
+      // STORY NÃO TEM LEGENDA (item 3, 15/set/2026): regra de plataforma — Stories do Instagram
+      // não têm campo de legenda como feed/reels, o texto (se houver) vai na própria arte. Antes
+      // este ponto sempre montava `caption` (copy, ou tema como fallback) e mandava pra Meta
+      // pra QUALQUER formato, story incluído — dado que a publicação de story não usa e que podia
+      // gerar erro/comportamento indevido na API. Se algum story tiver copy gravada de antes
+      // desta correção, ela é ignorada aqui, nunca enviada.
+      // ACHADO À PARTE, reportado, NÃO corrigido nesta rodada (fora do pedido, que era só sobre
+      // copy): este bloco não define `media_type:'STORIES'` em nenhum caminho — um story cai no
+      // `else` abaixo e publica como post de FEED comum (mesmo payload de uma imagem normal). A
+      // publicação de story pode estar indo pro lugar errado desde sempre — não é sobre texto,
+      // é sobre o tipo de mídia. Registrado para avaliação/entrega própria.
+      const ehStory = /story/i.test(p.formato || '');
+      const caption = ehStory ? '' : String(p.copy || p.tema || '').slice(0, 2100);
       // CARROSSEL: os slides ficam em meta.slides (gravados pelo Designer); a capa é o midia_url.
       const slidesArr = (p.meta && Array.isArray(p.meta.slides)) ? p.meta.slides.filter(s => s && s.url).slice().sort((a, b) => Number(a.n) - Number(b.n)) : [];
       const ehCarrossel = !ehVideo && slidesArr.length > 1;

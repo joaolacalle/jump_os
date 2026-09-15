@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-parte1-parte2-recado-headline-publicacao-manual';
+const VERSAO = '2026.09.15-correcao-rumo-recado-gerar-copy-ia-story-sem-copy';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -736,6 +736,18 @@ const handler = async (req, res) => {
         parte2_calendario_publicacao_manual_reaproveita_infra_etapa2:true,
         parte2_calendario_publicacao_manual_origem_avulso_sem_migration:true,
         parte2_calendario_excluir_direto_do_dia:true,
+        // Marcas de rastreio (15/set/2026, correção de rumo + item 2 + item 3, mesmo dia da
+        // entrega de Parte 1/Parte 2 acima) — itens 1 e 3 tocam dashboard-usuario.html,
+        // aprovar.html, calendario.html e api/cron.js; registradas aqui pelo mesmo motivo das
+        // marcas de Parte 1/Parte 2: manter o diagnóstico como painel único de "o que já subiu".
+        correcao_rumo_recado_aprovacao_restaurado_em_recados_e_alertas:true,
+        correcao_rumo_proximo_passo_caso_aprovacao_removido_demais_casos_intactos:true,
+        gerar_copy_ia_visao_estrategia_bloco_imagem_compartilhado_com_identidade:true,
+        gerar_copy_ia_botao_card_aprovacao_so_quando_falta_copy_qualquer_origem:true,
+        gerar_copy_ia_chamada_direta_estrategia_sem_cadeia_nova_sem_cota_nova:true,
+        story_sem_campo_copy_na_criacao_manual_e_no_card_de_aprovacao:true,
+        story_sem_botao_gerar_copy_ia:true,
+        story_publicador_nunca_envia_caption_pra_meta_mesmo_com_copy_gravada:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -786,7 +798,7 @@ const handler = async (req, res) => {
     //       PARA aqui (401) mesmo que por acaso exista um Authorization JWT válido no mesmo
     //       request; sem isto o comportamento dependeria de qual bloco roda primeiro, um acidente
     //       de ordem de código, não uma decisão.
-    const { agente, mensagem, ver_id } = req.body||{};
+    const { agente, mensagem, ver_id, imagem_url } = req.body||{};
     if(!agente||!PERSONAS[agente]) return res.status(400).json({error:'Agente inválido'});
     if(!mensagem||!mensagem.trim()) return res.status(400).json({error:'Mensagem vazia'});
     if(mensagem.length>4000) return res.status(400).json({error:'Mensagem muito longa'});
@@ -1006,6 +1018,30 @@ const handler = async (req, res) => {
     if(!Array.isArray(hist))hist=[];
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
 
+    // VISÃO — bloco compartilhado (extraído em 15/set/2026, "Gerar copy com IA": existia só
+    // dentro do gatilho do Identidade abaixo; agora dois gatilhos usam a MESMA função de
+    // fetch+sniff+base64, em vez de duas cópias que podem divergir).
+    async function _blocoDeImagem(url){
+      try{
+        const r=await fetch(url);
+        if(!r.ok)return null;
+        const ct=r.headers.get('content-type')||'image/png';
+        if(!/image\/(png|jpe?g|webp|gif)/.test(ct))return null;
+        const buf=Buffer.from(await r.arrayBuffer());
+        // Detecta o tipo REAL pelos bytes (o cabeçalho às vezes mente: declara jpeg mas é png).
+        const sniff=(b)=>{
+          if(b.length>=8&&b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47)return 'image/png';
+          if(b.length>=3&&b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF)return 'image/jpeg';
+          if(b.length>=6&&b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return 'image/gif';
+          if(b.length>=12&&b[0]===0x52&&b[1]===0x49&&b[2]===0x46&&b[3]===0x46&&b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return 'image/webp';
+          return null;
+        };
+        const mt=sniff(buf)||ct.split(';')[0];
+        if(buf.length>=4500000)return null; // <4.5MB
+        return {type:'image',source:{type:'base64',media_type:mt,data:buf.toString('base64')}};
+      }catch(e){ return null; }
+    }
+
     // VISÃO: o Identidade enxerga a logo/criativos reais para extrair cores e estilo
     let conteudoUser=mensagem;
     if(agente==='identidade' && /analis|cor|identidade|logo|marca|come[çc]ar|iniciar|sim/i.test(mensagem)){
@@ -1018,32 +1054,27 @@ const handler = async (req, res) => {
         if(arr.length){
           const blocks=[];
           for(const im of arr){
-            try{
-              const r=await fetch(im.url);
-              if(r.ok){
-                const ct=r.headers.get('content-type')||'image/png';
-                if(/image\/(png|jpe?g|webp|gif)/.test(ct)){
-                  const buf=Buffer.from(await r.arrayBuffer());
-                  // Detecta o tipo REAL pelos bytes (o cabeçalho às vezes mente: declara jpeg mas é png).
-                  const sniff=(b)=>{
-                    if(b.length>=8&&b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47)return 'image/png';
-                    if(b.length>=3&&b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF)return 'image/jpeg';
-                    if(b.length>=6&&b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return 'image/gif';
-                    if(b.length>=12&&b[0]===0x52&&b[1]===0x49&&b[2]===0x46&&b[3]===0x46&&b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return 'image/webp';
-                    return null;
-                  };
-                  const mt=sniff(buf)||ct.split(';')[0];
-                  if(buf.length<4500000){ // <4.5MB
-                    blocks.push({type:'image',source:{type:'base64',media_type:mt,data:buf.toString('base64')}});
-                  }
-                }
-              }
-            }catch(e){}
+            const bl=await _blocoDeImagem(im.url);
+            if(bl)blocks.push(bl);
           }
           if(blocks.length){
             blocks.push({type:'text',text:mensagem+'\n\n[As imagens acima são a logo/criativos REAIS do cliente. Extraia as cores exatas (hex aproximados), a tipografia aparente e avalie a qualidade visual a partir delas.]'});
             conteudoUser=blocks;
           }
+        }
+      }catch(e){}
+    }
+    // VISÃO: "Gerar copy com IA" no card de aprovação (item 2, 15/set/2026) — a Estratégia pode
+    // olhar a arte REAL do conteúdo (midia_url) ao escrever a legenda, quando o card manda
+    // `imagem_url`. Escopado só à Estratégia (é quem escreve toda copy do sistema — mesmo
+    // critério da 606) e só quando o campo vem preenchido — nunca dispara sozinho numa
+    // conversa normal. Falha ao buscar a imagem NUNCA quebra o pedido — a Estratégia responde
+    // só com texto/tema/formato, sem a arte (degradação, não erro).
+    if(agente==='estrategia' && imagem_url && typeof imagem_url==='string'){
+      try{
+        const bl=await _blocoDeImagem(imagem_url);
+        if(bl){
+          conteudoUser=[bl,{type:'text',text:mensagem+'\n\n[A imagem acima é a arte REAL deste conteúdo. Use-a para decidir o texto — o que ela mostra, o que ela já diz visualmente (não repita na legenda o que já está óbvio na imagem).]'}];
         }
       }catch(e){}
     }
