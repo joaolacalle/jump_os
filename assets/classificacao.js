@@ -55,6 +55,16 @@
   // confirmar que o pipeline aceita o formato sem erro.
   var FORMATOS_EM_VALIDACAO = ['story'];
 
+  // FORMATO STORY (15/set/2026, "Publicação de Stories — tipo de mídia ausente"): lista/função
+  // dedicada a responder só "isto é um Story?" — antes desta rodada não existia, e o publicador
+  // (api/cron.js) testava com regex local (mesmo padrão de bug que este arquivo existe pra evitar,
+  // ver cabeçalho). Hoje tem o MESMO valor de FORMATOS_EM_VALIDACAO (só 'story' nas duas), mas o
+  // significado é diferente — aquela é sobre quarentena de PRODUÇÃO AUTOMÁTICA, esta é sobre o
+  // formato em si (usada pelo publicador pra decidir media_type:'STORIES' na Meta, entre outros
+  // usos futuros). Não reaproveitar uma pela outra — os valores coincidem por acaso hoje, não por
+  // definição, e podem divergir se a quarentena ganhar mais formatos ou perder o 'story'.
+  var FORMATOS_STORY = ['story'];
+
   // PISO DA JANELA "SEMANA 1" (25/ago/2026): dias para trás, a partir de hoje, que ainda contam
   // como "semana atual" para fins de detalhamento/produção. Existia como literal duplicado em
   // dois lugares (aprovar.html, ao montar o card da Semana 1) e SÓ num deles (agente-chat.js,
@@ -151,6 +161,11 @@
   // Em quarentena de produção automática (ver FORMATOS_EM_VALIDACAO acima).
   function emValidacao(conteudoOuFormato) {
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_EM_VALIDACAO);
+  }
+
+  // É um Story? (ver FORMATOS_STORY acima — não confundir com emValidacao, que é outra pergunta).
+  function ehStory(conteudoOuFormato) {
+    return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_STORY);
   }
 
   function classificar(conteudoOuFormato) {
@@ -306,6 +321,7 @@
     FORMATOS_MATERIAL_USUARIO: FORMATOS_MATERIAL_USUARIO,
     FORMATOS_VERTICAL: FORMATOS_VERTICAL,
     FORMATOS_EM_VALIDACAO: FORMATOS_EM_VALIDACAO,
+    FORMATOS_STORY: FORMATOS_STORY,
     PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
     STATUS_AGUARDANDO_MATERIAL: STATUS_AGUARDANDO_MATERIAL,
     STATUS_EXPIRADO: STATUS_EXPIRADO,
@@ -324,6 +340,7 @@
     ehMaterialUsuario: ehMaterialUsuario,
     ehVertical: ehVertical,
     emValidacao: emValidacao,
+    ehStory: ehStory,
     classificar: classificar,
     janelasSemanas: janelasSemanas,
     semanaDoPost: semanaDoPost,
