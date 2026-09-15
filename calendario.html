@@ -90,7 +90,7 @@
     <div class="ed-tema">Nova publicação</div>
     <div class="ed-meta" id="criar-data-lbl"></div>
     <label class="ed-lbl">Formato</label>
-    <select class="ed-inp" id="criar-formato">
+    <select class="ed-inp" id="criar-formato" onchange="atualizarCampoCopyCriacao()">
       <option value="feed">Feed (imagem)</option>
       <option value="story">Story</option>
       <option value="reels">Reels (vídeo)</option>
@@ -99,8 +99,13 @@
     <input class="ed-inp" id="criar-hora" type="time" value="09:00">
     <label class="ed-lbl">Título (opcional)</label>
     <input class="ed-inp" id="criar-tema" type="text" placeholder="Ex.: Promoção de sexta">
-    <label class="ed-lbl">Copy / legenda (opcional)</label>
-    <textarea class="ed-ta" id="criar-copy" rows="4" placeholder="Deixe em branco se quiser publicar só a arte, sem legenda."></textarea>
+    <!-- STORY NÃO TEM LEGENDA (item 3, 15/set/2026): regra de plataforma, não preferência — some
+         pra este formato (ver atualizarCampoCopyCriacao). -->
+    <div id="criar-copy-wrap">
+      <label class="ed-lbl">Copy / legenda (opcional)</label>
+      <textarea class="ed-ta" id="criar-copy" rows="4" placeholder="Deixe em branco se quiser publicar só a arte, sem legenda."></textarea>
+    </div>
+    <div id="criar-copy-aviso-story" style="display:none;font-family:var(--M);font-size:11px;color:var(--t3);margin:14px 0 5px">📵 Stories não têm legenda no Instagram — o texto, se houver, vai na própria arte.</div>
     <label class="ed-lbl">Arquivo (opcional agora — pode enviar depois em Aprovações)</label>
     <input class="ed-inp" id="criar-arquivo" type="file" accept="image/*,video/*">
     <div class="ed-foot">
@@ -323,16 +328,26 @@ function abrirCriacao(d){
   document.getElementById('criar-copy').value='';
   const fi=document.getElementById('criar-arquivo'); if(fi)fi.value='';
   const btn=document.getElementById('criar-salvar'); if(btn){btn.disabled=false;btn.textContent='Criar publicação';}
+  atualizarCampoCopyCriacao();
   document.getElementById('criar-modal').style.display='flex';
 }
 function fecharCriacao(){document.getElementById('criar-modal').style.display='none';CRIAR_DIA=null;}
+// STORY NÃO TEM LEGENDA (item 3, 15/set/2026): esconde o campo de copy quando o formato é story
+// — regra de plataforma (Stories do Instagram não têm legenda como feed/reels), não preferência.
+function atualizarCampoCopyCriacao(){
+  const ehStory=(document.getElementById('criar-formato').value==='story');
+  const wrap=document.getElementById('criar-copy-wrap'), aviso=document.getElementById('criar-copy-aviso-story');
+  if(wrap)wrap.style.display=ehStory?'none':'';
+  if(aviso)aviso.style.display=ehStory?'':'none';
+}
 async function criarPublicacaoManual(){
   if(CRIAR_DIA==null||!CTX)return;
   const btn=document.getElementById('criar-salvar');
   const formato=document.getElementById('criar-formato').value||'feed';
+  const ehStory=(formato==='story');
   const hora=document.getElementById('criar-hora').value||'09:00';
   const tema=document.getElementById('criar-tema').value.trim()||null;
-  const copy=document.getElementById('criar-copy').value||'';
+  const copy=ehStory?'':(document.getElementById('criar-copy').value||'');
   const arquivo=(document.getElementById('criar-arquivo').files||[])[0];
   const dataISO=ANO+'-'+String(MES+1).padStart(2,'0')+'-'+String(CRIAR_DIA).padStart(2,'0');
   btn.disabled=true;btn.textContent='Criando...';

@@ -939,6 +939,24 @@ function abrirEdicao(id){
   const vencido=dtSug&&dtSug<hoje&&c.status!=='publicado';
   const diasAtras=vencido?Math.round((hoje-dtSug)/86400000):0;
   const hashtags=(String(c.copy||'').match(/#[\wÀ-ÿ]+/g)||[]);
+  // STORY NÃO TEM LEGENDA (item 3, 15/set/2026): regra de PLATAFORMA, não preferência — story do
+  // Instagram não tem campo de legenda como feed/reels, o texto vai na própria arte. O campo de
+  // copy e o botão de gerar copy com IA somem para este formato (o publicador também para de
+  // mandar copy pra Meta neste formato — ver api/cron.js, jobPublicar).
+  const ehStory=String(c.formato||'').toLowerCase().indexOf('story')>=0;
+  const temCopy=!!(c.copy&&String(c.copy).trim());
+  const blocoTexto=ehStory
+    ? `<div class="ec-cap">LEGENDA</div>
+       <div class="ec-box" style="padding:12px 14px;font-size:12px;color:var(--t2);line-height:1.5">📵 Stories não têm legenda no Instagram — o texto, se houver, vai na própria arte. Este campo não se aplica a este formato.</div>`
+    : `<div class="ec-cap ec-cap-row">EDITAR TEXTO DO POST <b id="ec-cnt">0/2200</b></div>
+       <div class="ec-sub">Legenda</div>
+       ${temCopy?'':`<div class="ec-imgacts" style="margin-bottom:8px"><button class="btn btn-g btn-sm" id="btn-gerar-copy" onclick="gerarCopyIA('${id}')">✨ Gerar copy com IA</button></div>`}
+       <div class="ec-box ec-edit">
+         <textarea id="edit-copy" rows="9" oninput="contarCopy()" placeholder="Escreva a legenda do post…">${JUMP.esc(c.copy||'')}</textarea>
+       </div>
+
+       <div class="ec-cap">HASHTAGS</div>
+       <div class="ec-box ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Escreva #assim na legenda para adicionar</span>'}</div>`;
 
   document.getElementById('edit-body').innerHTML=`
     <header class="ec-hd">
@@ -975,14 +993,7 @@ function abrirEdicao(id){
       </section>
 
       <section class="ec-pane">
-        <div class="ec-cap ec-cap-row">EDITAR TEXTO DO POST <b id="ec-cnt">0/2200</b></div>
-        <div class="ec-sub">Legenda</div>
-        <div class="ec-box ec-edit">
-          <textarea id="edit-copy" rows="9" oninput="contarCopy()" placeholder="Escreva a legenda do post…">${JUMP.esc(c.copy||'')}</textarea>
-        </div>
-
-        <div class="ec-cap">HASHTAGS</div>
-        <div class="ec-box ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Escreva #assim na legenda para adicionar</span>'}</div>
+        ${blocoTexto}
 
         <div class="ec-cap">CONFIGURAÇÕES</div>
         <div class="ec-set">
@@ -1068,6 +1079,41 @@ async function salvarData(id,val){
 function contarCopy(){
   const t=document.getElementById('edit-copy'),n=document.getElementById('ed-cont-n');
   if(t&&n){n.textContent=t.value.length+'/2200';n.style.color=t.value.length>2200?'#f87171':'';}
+}
+// GERAR COPY COM IA (item 2, 15/set/2026): chamada SÍNCRONA e direta ao mesmo endpoint de chat
+// que qualquer mensagem manual já usa — a Estratégia é quem escreve toda copy do sistema (mesmo
+// critério da 606), sem inventar cadeia nova (ordens_servico/worker): a única ordem existente com
+// este formato, 'copy_para_criativo', cria um <conteudo> NOVO (duplicaria este card) e hoje está
+// órfã — nenhum job do cron a processa desde que o dispatcher foi unificado (achado, reportado,
+// não corrigido aqui, fora deste escopo). Em vez de tag, pede só o TEXTO da legenda e grava com o
+// MESMO update() que salvarCopy() já usa — nenhum parsing novo no backend.
+async function gerarCopyIA(id){
+  const c=ITENS.find(x=>x.id===id); if(!c)return;
+  const btn=document.getElementById('btn-gerar-copy');
+  const old=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="ld-spin" style="width:12px;height:12px;display:inline-block;vertical-align:middle"></span> Gerando...';}
+  try{
+    const tp=JUMP.tipoPeca(c);
+    const pedido='Escreva SOMENTE a legenda (copy) completa para este post do Instagram, pronta para publicar — '+
+      'sem nenhum texto antes ou depois, sem aspas, sem explicações, sem markdown, só a legenda em si. '+
+      'Tema: '+(c.tema||'(sem tema definido — decida a partir da arte e do DNA da marca)')+'. Formato: '+(tp.label||'feed')+
+      (c.data_sugerida?('. Data prevista: '+new Date(c.data_sugerida).toLocaleDateString('pt-BR')):'')+'.';
+    const body={agente:'estrategia',mensagem:pedido,ver_id:CTX.viewId||null};
+    if(c.midia_url)body.imagem_url=c.midia_url; // Estratégia olha a arte real, se o mecanismo permitir (ver agente-chat.js)
+    const r=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Erro ao gerar copy');
+    let texto=String(d.resposta||'').trim();
+    // limpeza defensiva: o pedido instrui "só o texto", mas o agente pode ainda assim cercar
+    // com aspas/markdown — mesmo cuidado de sempre (nunca confiar 100% em instrução de prosa).
+    texto=texto.replace(/^["“”'*_\s]+|["“”'*_\s]+$/g,'').trim();
+    if(!texto){JUMP.toast('O agente não conseguiu gerar a copy agora. Tente de novo ou escreva manualmente.','err'); if(btn){btn.disabled=false;btn.innerHTML=old;} return;}
+    const{error}=await JUMP.sb.from('conteudos').update({copy:texto}).eq('id',id);
+    if(error)throw error;
+    c.copy=texto;
+    JUMP.toast('✓ Copy gerada pela Estratégia — revise e edite antes de aprovar.');
+    abrirEdicao(id); // reabre: some o botão (já tem copy) e reconstrói as hashtags
+  }catch(e){ JUMP.toast(e.message||'Erro ao gerar copy','err'); if(btn){btn.disabled=false;btn.innerHTML=old;} }
 }
 async function salvarHora(id,hora){
   // o publicador compara data_agendada (data+hora) — então o horário editado vale de verdade

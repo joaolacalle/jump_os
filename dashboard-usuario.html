@@ -424,11 +424,18 @@ const LV={basico:1,plus:2,pro:3};
       const{data:r}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('lido',false).neq('tipo','ordens').neq('tipo','trafego_sugestao').order('created_at',{ascending:false}).limit(8);
       recs=r||[];
     }catch(e){}
-    // 15/set/2026 ("Parte 1", item 1.1): recado "N conteúdo(s) aguardando aprovação" removido —
-    // duplicava, em vermelho/urgente, o que `proximo-passo` + o carrossel `aprovar-carrossel` já
-    // mostram no topo (com a peça à vista e o botão de aprovar ali mesmo). Aprovação pendente é
-    // trabalho normal, não alerta — "Recados e alertas" fica para o que exige atenção fora do
-    // fluxo normal (avisos de semana fechando e de exclusão automática, abaixo, continuam).
+    // 15/set/2026 ("Parte 1" → correção de rumo, mesmo dia): este recado tinha sido removido
+    // (achando que duplicava o `proximo-passo` de cima) e foi RESTAURADO — decisão invertida.
+    // "Recados e alertas" é o lugar consolidado, que já reúne os outros avisos (semana fechando,
+    // exclusão automática, abaixo) — o carrossel `aprovar-carrossel` continua mostrando a peça com
+    // botão de aprovar; quem saiu foi o `proximo-passo` acima dele (ver mais abaixo, "boasVindas"),
+    // que duplicava ESTE recado, não o contrário.
+    try{
+      const{data:venc}=await JUMP.sb.from('conteudos').select('id,tema').eq('user_id',uid).eq('status','aguardando_aprovacao').limit(20);
+      if(venc&&venc.length){
+        recs.unshift({tipo:'urgente',titulo:`${venc.length} conteúdo(s) aguardando aprovação`,mensagem:'Você tem artes prontas para revisar e aprovar.',_link:'aprovar.html'});
+      }
+    }catch(e){}
     // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), avisos obrigatórios
     // #2 e #3 (definidos e reportados, não decididos calados — ver JUMP_CLASS.DIAS_AVISO_* em
     // assets/classificacao.js, fonte única, mesma constante que api/cron.js usa pro job real):
@@ -500,9 +507,15 @@ const LV={basico:1,plus:2,pro:3};
       if(!ver)JUMPGUIA.boasVindas(!checkinFeito);
       if((window._apr||[]).length)JUMPGUIA.dica('tem_criativos','Seus criativos estão prontos. Aprove aqui e o Agente de Publicação posta na data agendada — depois de aprovado, o post não pode mais ser editado.','Criativos prontos');
       (function(){
-        var _ob=cliente.onboarding||{}, _tap=(window._apr||[]).length>0, e;
+        // 15/set/2026 ("Parte 1", item 1, correção de rumo): caso "tem criativos pra aprovar"
+        // removido daqui — duplicava o recado em "Recados e alertas" (restaurado acima) e o
+        // carrossel `aprovar-carrossel`, que já tem botão de aprovar em cada peça. Verificado
+        // antes: `proximo-passo` serve MAIS DOIS casos além deste (check-in pendente, conectar
+        // Instagram) e um caso de fallback ("você está no ar") — nenhum dos três foi tocado, só
+        // este caso saiu da cadeia if/else-if (os outros passam a decidir normalmente quando não
+        // há mais aprovação pendente disputando a vez).
+        var _ob=cliente.onboarding||{}, e;
         if(!_ob.checkin) e={ico:'👤',t:'Comece pelo check-in',b:'Conte sobre seu negócio uma vez com o Agente de Identidade — tudo parte daí.',cta:'Fazer check-in →',link:'agentes.html?agente=identidade'};
-        else if(_tap) e={ico:'✅',t:'Você tem criativos pra aprovar',b:'Revise e aprove — o Agente de Publicação posta na data agendada.',cta:'Aprovar agora →',link:'aprovar.html'};
         else if(!igOn) e={ico:'📸',t:'Conecte seu Instagram',b:'Libera a publicação automática e o diagnóstico real do perfil.',cta:'Conectar Instagram →',link:'conectar-conta.html'};
         else e={ico:'🚀',t:'Você está no ar!',b:'Peça um novo plano de conteúdo à Estratégia ou acompanhe seu desempenho abaixo.',cta:'Falar com a Estratégia →',link:'agentes.html?agente=estrategia'};
         var _pp=document.getElementById('proximo-passo');
