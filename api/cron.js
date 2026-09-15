@@ -935,19 +935,6 @@ async function jobOrdens() {
     }
   } catch (e) {}
 
-  // WATCHDOG: ordens presas em 'processando' (navegador fechou no meio da geração) voltam para
-  // 'pendente' — assim podem ser retomadas, em vez de ficarem travadas para sempre. A geração
-  // marca payload.batendo com um timestamp; sem sinal de vida há +8min, destravamos.
-  try {
-    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload&limit=100`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
-    const agora = Date.now();
-    for (const o of (Array.isArray(travadas) ? travadas : [])) {
-      const batendo = (o.payload && o.payload.batendo) ? new Date(o.payload.batendo).getTime() : 0;
-      if (!batendo || (agora - batendo) > 8*60*1000) {
-        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method:'PATCH', headers: SBH(), body: JSON.stringify({ status:'pendente' }) }).catch(()=>{});
-      }
-    }
-  } catch (e) {}
   // Lembrete barato (sem IA): avisa usuários com ordens pendentes + ativa recorrentes do dia
   // FILA TÉCNICA — item 3 (09/set/2026): eram `new Date()` crus (UTC). `hoje` trocado por
   // `JC.hojeISOBrasil()`; `diaDoMes`/`diaSemana` derivados do MESMO `hoje` (nunca recalculados
@@ -1077,43 +1064,6 @@ async function jobOrdens() {
   }
   } catch (e) { console.error('[jobOrdens] bloco 1.5 (drip semanal) falhou:', e.message); }
 
-  // 1.9) RESGATE DE ÓRFÃ — bug achado ao ler o schema, não o código.
-  //      `executarLoteCriativos` marca a ordem como 'processando'. Se o navegador fechar no
-  //      meio (ou a função estourar os 60s), ela fica 'processando' PARA SEMPRE: a fila busca
-  //      só 'pendente', então a ordem some da tela e nunca mais roda — em silêncio.
-  //      CRITÉRIO = payload.batendo (heartbeat), NUNCA created_at: created_at é a hora da
-  //      CRIAÇÃO. Uma ordem criada ontem e iniciada há 2min tem created_at antigo — por
-  //      created_at ela seria ressuscitada NO MEIO DO VOO e o lote rodaria DUAS VEZES,
-  //      queimando a cota em dobro. O heartbeat diz quando ela mexeu pela última vez.
-  //      progresso/total já existem no schema: a retomada continua de onde parou.
-  let orfas = 0;
-  const LIMITE_MS = 3600e3; // 1h sem bater o coração = morreu
-  try {
-    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload,created_at,progresso,total`, { headers: SBH() }).then(r => r.json());
-    for (const o of (Array.isArray(travadas) ? travadas : [])) {
-      // sem heartbeat = ordem antiga, de antes desta versão: cai no created_at como último recurso.
-      const marca = ((o.payload || {}).batendo) || o.created_at;
-      if (!marca || (Date.now() - new Date(marca).getTime()) < LIMITE_MS) continue; // ainda viva: não encosta
-      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
-        method: 'PATCH', headers: SBH(),
-        // mesma regra: ao devolver para a fila, o erro da tentativa anterior sai do estado ATIVO
-        // e é arquivado em 'historico' (auditoria preservada).
-        body: JSON.stringify({ status: 'pendente', payload: (() => {
-          const pl = { ...(o.payload || {}) };
-          if (Array.isArray(pl.erros) && pl.erros.length) {
-            const h = Array.isArray(pl.historico) ? pl.historico.slice(-9) : [];
-            h.push({ em: new Date().toISOString(), tentativa: Number(pl.tentativas || 0), erros: pl.erros });
-            pl.historico = h;
-          }
-          delete pl.erros;
-          return { ...pl, batendo: null, resgatada_em: new Date().toISOString() };
-        })() }),
-      }).catch(() => {});
-      orfas++;
-    }
-  } catch (e) { console.error('resgate de orfa:', e.message); }
-
-
   // 2) Lembrete: para cada usuário com ordens pendentes, cria 1 recado (anti-duplicata por dia)
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.pendente&select=user_id`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
   const porUser = {};
@@ -1150,7 +1100,74 @@ async function jobOrdens() {
     convertidos++;
   }
 
-  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, lotes_semana_consulta_falhou: lotesSemanaConsultaFalhou, orfas_resgatadas: orfas, lembretes, convertidos };
+  return { recorrentes_criadas: recCriadas, lotes_semana: lotesSemana, lotes_semana_consulta_falhou: lotesSemanaConsultaFalhou, lembretes, convertidos };
+}
+
+// FILA TÉCNICA — item 1 (15/set/2026): WATCHDOG e RESGATE DE ÓRFÃ viviam dentro de jobOrdens,
+// que só roda 1x/dia (vercel.json, 0 8 * * *) — um post preso em 'processando' logo depois desse
+// horário só era resgatado no dia seguinte, quase 24h depois, mesmo o próprio código já
+// considerando-o "morto" bem antes disso (8min/1h, ver limiares abaixo). Extraídos para uma
+// função própria, com cron DEDICADO e frequência intermediária (job=resgate, ver vercel.json) —
+// não junto de jobProduzir (a cada 5min) para não herdar, numa rota já afinada pra outra
+// responsabilidade, o custo de varrer 'processando' de TODOS os clientes 96x mais vezes por dia
+// (jobProduzir já é chamado com muito mais frequência por motivo diferente — produção, não
+// vigilância). LÓGICA INTERNA DOS DOIS BLOCOS — INTOCADA, só mudou de lugar: cada `try/catch`
+// abaixo é o texto exato que estava em jobOrdens, sem nenhuma linha de comportamento alterada.
+async function jobResgateOrfas() {
+  // WATCHDOG: ordens presas em 'processando' (navegador fechou no meio da geração) voltam para
+  // 'pendente' — assim podem ser retomadas, em vez de ficarem travadas para sempre. A geração
+  // marca payload.batendo com um timestamp; sem sinal de vida há +8min, destravamos.
+  try {
+    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload&limit=100`, { headers: SBH() }).then(r=>r.json()).catch(()=>[]);
+    const agora = Date.now();
+    for (const o of (Array.isArray(travadas) ? travadas : [])) {
+      const batendo = (o.payload && o.payload.batendo) ? new Date(o.payload.batendo).getTime() : 0;
+      if (!batendo || (agora - batendo) > 8*60*1000) {
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method:'PATCH', headers: SBH(), body: JSON.stringify({ status:'pendente' }) }).catch(()=>{});
+      }
+    }
+  } catch (e) {}
+
+  // 1.9) RESGATE DE ÓRFÃ — bug achado ao ler o schema, não o código.
+  //      `executarLoteCriativos` marca a ordem como 'processando'. Se o navegador fechar no
+  //      meio (ou a função estourar os 60s), ela fica 'processando' PARA SEMPRE: a fila busca
+  //      só 'pendente', então a ordem some da tela e nunca mais roda — em silêncio.
+  //      CRITÉRIO = payload.batendo (heartbeat), NUNCA created_at: created_at é a hora da
+  //      CRIAÇÃO. Uma ordem criada ontem e iniciada há 2min tem created_at antigo — por
+  //      created_at ela seria ressuscitada NO MEIO DO VOO e o lote rodaria DUAS VEZES,
+  //      queimando a cota em dobro. O heartbeat diz quando ela mexeu pela última vez.
+  //      progresso/total já existem no schema: a retomada continua de onde parou.
+  //      FILA (15/set/2026): esta consulta não tem `&limit=`, ao contrário do WATCHDOG acima
+  //      (limit=100) — risco de escala independente da frequência do job, não corrigido aqui
+  //      (fora do escopo pedido) — registrado na fila de limpeza futura (ver APRENDIZADOS.md).
+  let orfas = 0;
+  const LIMITE_MS = 3600e3; // 1h sem bater o coração = morreu
+  try {
+    const travadas = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?status=eq.processando&select=id,payload,created_at,progresso,total`, { headers: SBH() }).then(r => r.json());
+    for (const o of (Array.isArray(travadas) ? travadas : [])) {
+      // sem heartbeat = ordem antiga, de antes desta versão: cai no created_at como último recurso.
+      const marca = ((o.payload || {}).batendo) || o.created_at;
+      if (!marca || (Date.now() - new Date(marca).getTime()) < LIMITE_MS) continue; // ainda viva: não encosta
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+        method: 'PATCH', headers: SBH(),
+        // mesma regra: ao devolver para a fila, o erro da tentativa anterior sai do estado ATIVO
+        // e é arquivado em 'historico' (auditoria preservada).
+        body: JSON.stringify({ status: 'pendente', payload: (() => {
+          const pl = { ...(o.payload || {}) };
+          if (Array.isArray(pl.erros) && pl.erros.length) {
+            const h = Array.isArray(pl.historico) ? pl.historico.slice(-9) : [];
+            h.push({ em: new Date().toISOString(), tentativa: Number(pl.tentativas || 0), erros: pl.erros });
+            pl.historico = h;
+          }
+          delete pl.erros;
+          return { ...pl, batendo: null, resgatada_em: new Date().toISOString() };
+        })() }),
+      }).catch(() => {});
+      orfas++;
+    }
+  } catch (e) { console.error('resgate de orfa:', e.message); }
+
+  return { orfas_resgatadas: orfas };
 }
 
 async function jobExpiracaoSemana() {
@@ -1287,6 +1304,12 @@ async function jobLimpeza() {
       const r = await jobOrdens();
       return res.status(200).json({ ok: true, job, ...r });
     }
+    // FILA TÉCNICA — item 1 (15/set/2026): watchdog + resgate de órfã, extraídos de jobOrdens
+    // (que só roda 1x/dia) para cron próprio, frequência intermediária — ver jobResgateOrfas().
+    if (job === 'resgate') {
+      const r = await jobResgateOrfas();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
     if (job === 'publicar') {
       const r = await jobPublicar();
       return res.status(200).json({ ok: true, job, ...r });
@@ -1300,7 +1323,7 @@ async function jobLimpeza() {
       const r = await jobExpiracaoSemana();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, publicar, limpeza ou expiracao)' });
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, resgate, publicar, limpeza ou expiracao)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });

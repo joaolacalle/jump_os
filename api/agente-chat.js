@@ -22,7 +22,13 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-cadeia-copy-para-criativo-religada';
+// FILA TÉCNICA — item da rodada de 15/set (achado do João, 5ª/6ª rodada do dia): existiu OUTRA
+// rodada chamada "fila técnica" em 09/set/2026 (commit 3ef9773, VERSAO
+// '2026.09.09-fila-tecnica-cinco-correcoes') com numeração de itens própria e independente desta.
+// O nome repetido contribuiu pra uma checagem listar 2 itens (então numerados 2 e 3) como
+// pendentes sem confirmar que já tinham sido corrigidos há 6 dias. Carimbo abaixo leva "-ii" —
+// data OU número no nome da rodada evita a mesma confusão de novo.
+const VERSAO = '2026.09.15-fila-tecnica-ii-watchdog-cron-dedicado-detalhe-vazio-fato';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -762,6 +768,18 @@ const handler = async (req, res) => {
         copy_para_criativo_auth_interna_ampliada_no_mesmo_portao_sem_duplicar:true,
         copy_para_criativo_fechamento_por_criativo_url_nao_so_avulso:true,
         copy_para_criativo_removida_de_ehfluxosemanal_agentes_html:true,
+        // Marca de rastreio (15/set/2026, "Fila técnica — seis itens numa entrega", item 6) — não
+        // toca este arquivo, vive em calendario.html (editarConteudo/salvarConteudo/regerarImg
+        // removidas, código morto sem nenhum chamador no repo desde que o calendário virou
+        // visualização); registrada aqui pelo mesmo motivo das marcas de Parte 1/Parte 2 acima —
+        // manter o diagnóstico como painel único de "o que já subiu".
+        fila_tecnica_calendario_editarconteudo_salvarconteudo_regerarimg_removidas_codigo_morto:true,
+        // Marcas de rastreio (15/set/2026, itens 1 e 4 da fila técnica — autorizados pelo João
+        // após proposta reportada) — item 1 vive em api/cron.js e vercel.json (não toca este
+        // arquivo); item 4 vive aqui mesmo (bloco de fato explícito quando a lista de detalhar
+        // vem vazia). Registradas juntas pelo mesmo motivo de sempre — painel único.
+        fila_tecnica_watchdog_e_orfa_extraidos_pra_cron_dedicado_frequencia_intermediaria:true,
+        fila_tecnica_detalhe_lista_vazia_vira_fato_explicito_nao_instrucao:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1366,6 +1384,17 @@ const handler = async (req, res) => {
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
             wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
             '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
+        } else if(Array.isArray(wk)){
+          // FILA TÉCNICA — item 4 (15/set/2026, autorizado pelo João): antes, lista vazia deixava
+          // semanaTxt em '' — nenhum sinal no prompt de que não há candidato, e o agente já
+          // inventou conteúdo/id por cima desse silêncio (incidente de 08/09, PATCH recusado).
+          // Mesmo padrão de "SEU PLANO — AS 5 SEMANAS..." (dataTxt, acima) e "SITUAÇÃO REAL DA
+          // SUA FILA" (Criativo, abaixo): o estado real vira DADO explícito no contexto, nunca uma
+          // instrução de comportamento — o comentário da linha ~1297 já registra por que prosa
+          // pedindo bom comportamento sozinha falhou (3x dado real + inventou por cima, 4x
+          // escondido + inventou do mesmo jeito). Aqui não há nenhuma frase tipo "não invente" —
+          // só o fato: zero posts, zero ids disponíveis nesta resposta.
+          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), 0 post(s) ═══\n0 post(s) desta semana sem copy agora. Nenhum id de post está disponível neste contexto para a tag <detalhe>.';
         }
       }catch(e){}
     }
