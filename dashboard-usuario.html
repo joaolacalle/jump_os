@@ -152,7 +152,7 @@
   <div class="hd">
     <div>
       <div class="hd-hello" id="hd-hello">Bem-vindo</div>
-      <h1 class="hd-h">Seu sistema está<br><em id="hd-status">operando.</em></h1>
+      <h1 class="hd-h">Seu sistema está <em id="hd-status">operando.</em></h1>
     </div>
     <div class="pill pill-g" style="padding:10px 16px"><span class="dot"></span><span id="pp-plan">—</span></div>
   </div>
@@ -424,12 +424,11 @@ const LV={basico:1,plus:2,pro:3};
       const{data:r}=await JUMP.sb.from('recados').select('*').eq('user_id',uid).eq('lido',false).neq('tipo','ordens').neq('tipo','trafego_sugestao').order('created_at',{ascending:false}).limit(8);
       recs=r||[];
     }catch(e){}
-    try{
-      const{data:venc}=await JUMP.sb.from('conteudos').select('id,tema').eq('user_id',uid).eq('status','aguardando_aprovacao').limit(20);
-      if(venc&&venc.length){
-        recs.unshift({tipo:'urgente',titulo:`${venc.length} conteúdo(s) aguardando aprovação`,mensagem:'Você tem artes prontas para revisar e aprovar.',_link:'aprovar.html'});
-      }
-    }catch(e){}
+    // 15/set/2026 ("Parte 1", item 1.1): recado "N conteúdo(s) aguardando aprovação" removido —
+    // duplicava, em vermelho/urgente, o que `proximo-passo` + o carrossel `aprovar-carrossel` já
+    // mostram no topo (com a peça à vista e o botão de aprovar ali mesmo). Aprovação pendente é
+    // trabalho normal, não alerta — "Recados e alertas" fica para o que exige atenção fora do
+    // fluxo normal (avisos de semana fechando e de exclusão automática, abaixo, continuam).
     // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), avisos obrigatórios
     // #2 e #3 (definidos e reportados, não decididos calados — ver JUMP_CLASS.DIAS_AVISO_* em
     // assets/classificacao.js, fonte única, mesma constante que api/cron.js usa pro job real):

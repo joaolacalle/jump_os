@@ -32,6 +32,12 @@
 .ck-ok{background:rgba(52,211,153,.15);color:var(--g)}
 .ck-pub{background:rgba(139,92,246,.15);color:var(--lil,#C084FC)}
 .ck-vid{background:rgba(248,113,113,.13);color:var(--red,#f87171)}
+/* PUBLICAÇÃO MANUAL (Parte 2, 15/set/2026): "+" sempre visível (não só no hover) — em telas
+   de toque não existe hover, e o pedido foi "cada dia tem um sinal de mais". */
+.cal-add{position:absolute;top:2px;right:2px;width:15px;height:15px;line-height:14px;text-align:center;border-radius:50%;background:rgba(255,255,255,.07);color:var(--t3);font-size:11px;font-weight:700;cursor:pointer}
+.cal-add:hover{background:rgba(52,211,153,.22);color:var(--g)}
+.ev-del{background:transparent;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:4px 6px;line-height:1}
+.ev-del:hover{color:#f87171}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>/*polimento-jump*/.cal-day{border-radius:12px;transition:.15s}.cal-day:hover{border-color:rgba(var(--g-rgb),.4)}.cal-ev{border-radius:6px}.ed-card{border-radius:16px}.hd-hello{color:var(--g)}</style>
@@ -75,7 +81,37 @@
   </div>
 </div>
 
+<!-- PUBLICAÇÃO MANUAL (Parte 2, 15/set/2026): criação do zero, "+" em cada dia do calendário.
+     Reaproveita a infra de material do usuário da Etapa 2 (ver JS abaixo) — o arquivo pode ser
+     enviado agora ou depois em Aprovações, usando o MESMO modal de upload que já existe lá. -->
+<div class="ed-ov" id="criar-modal" style="display:none">
+  <div class="ed-card">
+    <button class="ed-x" onclick="fecharCriacao()">✕</button>
+    <div class="ed-tema">Nova publicação</div>
+    <div class="ed-meta" id="criar-data-lbl"></div>
+    <label class="ed-lbl">Formato</label>
+    <select class="ed-inp" id="criar-formato">
+      <option value="feed">Feed (imagem)</option>
+      <option value="story">Story</option>
+      <option value="reels">Reels (vídeo)</option>
+    </select>
+    <label class="ed-lbl">Horário</label>
+    <input class="ed-inp" id="criar-hora" type="time" value="09:00">
+    <label class="ed-lbl">Título (opcional)</label>
+    <input class="ed-inp" id="criar-tema" type="text" placeholder="Ex.: Promoção de sexta">
+    <label class="ed-lbl">Copy / legenda (opcional)</label>
+    <textarea class="ed-ta" id="criar-copy" rows="4" placeholder="Deixe em branco se quiser publicar só a arte, sem legenda."></textarea>
+    <label class="ed-lbl">Arquivo (opcional agora — pode enviar depois em Aprovações)</label>
+    <input class="ed-inp" id="criar-arquivo" type="file" accept="image/*,video/*">
+    <div class="ed-foot">
+      <button class="btn btn-o btn-sm" onclick="fecharCriacao()">Cancelar</button>
+      <button class="btn btn-g btn-sm" id="criar-salvar" onclick="criarPublicacaoManual()">Criar publicação</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/jump-core.js?v=6"></script>
+<script src="assets/classificacao.js?v=5"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
@@ -135,7 +171,7 @@ function render(){
     const evs=evDoDia(d);
     const isHoje=hoje.getFullYear()===ANO&&hoje.getMonth()===MES&&hoje.getDate()===d;
     const pend=evs.filter(e=>e.status==='aguardando_aprovacao').length;
-    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}${DIA_SEL===d?' sel':''}" onclick="verDia(${d})">${d}${evs.length?`<span class="cal-n${pend?' pend':''}">${evs.length}</span>`:''}</div>`;
+    h+=`<div class="cal-day${isHoje?' hoje':''}${evs.length?' tem':''}${DIA_SEL===d?' sel':''}" onclick="verDia(${d})"><span class="cal-add" title="Criar publicação" onclick="event.stopPropagation();abrirCriacao(${d})">+</span>${d}${evs.length?`<span class="cal-n${pend?' pend':''}">${evs.length}</span>`:''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML=h;
 }
@@ -147,10 +183,16 @@ function verDia(d){
   if(!evs.length){w.innerHTML='<div style="font-family:var(--M);font-size:12px;color:var(--t3)">Nenhum conteúdo neste dia. Peça ao Agente de Estratégia para preencher seu calendário.</div>';return}
   // FONTE ÚNICA DE EDIÇÃO: editar em dois lugares é como nascem divergências silenciosas.
   // O calendário passa a ser VISUALIZAÇÃO — o clique leva ao Aprovar com o card já aberto.
-  w.innerHTML=evs.map(e=>{const t=JUMP.tipoPeca(e);return `<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="abrirNoAprovar('${e.id}')">
+  w.innerHTML=evs.map(e=>{
+    const t=JUMP.tipoPeca(e);
+    // EXCLUIR NO CALENDÁRIO (Parte 2, 15/set/2026): mesma trava de editarConteudo — aprovado/
+    // publicado não sai daqui (já está na fila do Agente de Publicação ou já foi ao ar).
+    const podeExcluir=(e.status!=='aprovado'&&e.status!=='publicado');
+    return `<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="abrirNoAprovar('${e.id}')">
     <span style="font-size:17px">${t.ico}</span>
     <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(e.tema||'Conteúdo')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:3px">${JUMP.esc(t.label)} · <span class="ck ${checkin(e)[0]}">${checkin(e)[1]}</span> · <span style="color:var(--g)">abrir ✎</span></div></div>
     ${e.status==='aguardando_aprovacao'?'<span class="btn btn-g btn-sm">Aprovar →</span>':''}
+    ${podeExcluir?`<button class="ev-del" title="Excluir" onclick="event.stopPropagation();excluirDoCalendario('${e.id}')">🗑</button>`:''}
   </div>`}).join('');
 }
 // C3: leva ao Aprovar com o card aberto. Mantém o ?ver= (modo supervisor) para não
@@ -262,6 +304,84 @@ async function salvarConteudo(){
   }catch(e){ toast('Não foi possível salvar. Tente de novo.','err'); btn.disabled=false;btn.innerHTML=old; }
 }
 function mudaMes(n){MES+=n;if(MES<0){MES=11;ANO--}if(MES>11){MES=0;ANO++}render()}
+
+// ═══ PUBLICAÇÃO MANUAL (Parte 2, 15/set/2026) — usuário cria uma publicação do zero, como no
+// planner do Meta. Reaproveita 100% a infra de material do usuário da Etapa 2 (mesmo status
+// 'aguardando_material', mesmo bucket/caminho de Storage, mesmo bloqueio de aprovação até o
+// arquivo existir — ver aprovar.html abrirMaterial/enviarMaterial) — nenhum mecanismo novo
+// criado. Formatos oferecidos: feed, story, reels (arquivo único) — carrossel FICA DE FORA
+// desta entrega porque a infra reaproveitada só grava um midia_url por conteúdo (nem
+// aprovar.html sabe subir carrossel de material do usuário hoje); virar carrossel manual
+// exigiria upload múltiplo, mecanismo que não existe — reportado, não implementado calado.
+let CRIAR_DIA=null;
+function abrirCriacao(d){
+  CRIAR_DIA=d;
+  document.getElementById('criar-data-lbl').textContent=d+' de '+MESES[MES]+' de '+ANO;
+  document.getElementById('criar-formato').value='feed';
+  document.getElementById('criar-hora').value='09:00';
+  document.getElementById('criar-tema').value='';
+  document.getElementById('criar-copy').value='';
+  const fi=document.getElementById('criar-arquivo'); if(fi)fi.value='';
+  const btn=document.getElementById('criar-salvar'); if(btn){btn.disabled=false;btn.textContent='Criar publicação';}
+  document.getElementById('criar-modal').style.display='flex';
+}
+function fecharCriacao(){document.getElementById('criar-modal').style.display='none';CRIAR_DIA=null;}
+async function criarPublicacaoManual(){
+  if(CRIAR_DIA==null||!CTX)return;
+  const btn=document.getElementById('criar-salvar');
+  const formato=document.getElementById('criar-formato').value||'feed';
+  const hora=document.getElementById('criar-hora').value||'09:00';
+  const tema=document.getElementById('criar-tema').value.trim()||null;
+  const copy=document.getElementById('criar-copy').value||'';
+  const arquivo=(document.getElementById('criar-arquivo').files||[])[0];
+  const dataISO=ANO+'-'+String(MES+1).padStart(2,'0')+'-'+String(CRIAR_DIA).padStart(2,'0');
+  btn.disabled=true;btn.textContent='Criando...';
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    // Copy NÃO é obrigatória (confirmado em código: aprovar() nunca checa copy vazia antes de
+    // aprovar — só bloqueia se o status ainda for aguardando_material). "avulso": mesmo motivo
+    // de todo conteúdo fora do plano mensal — não concorre com a cota do plano, não entra na
+    // agregação da Semana 1 (ver classificacao.js/agente-chat.js, Falha 3).
+    const{data:ins,error}=await JUMP.sb.from('conteudos').insert({
+      user_id:uid, tema:tema, copy:copy,
+      formato:formato, status:JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL,
+      origem:'avulso', origem_agente:'usuario',
+      data_sugerida:dataISO, data_agendada:dataISO+'T'+hora+':00',
+      meta:{headline:tema||'', criado_manual:true}
+    }).select().single();
+    if(error)throw error;
+    if(arquivo){
+      btn.textContent='Enviando arquivo...';
+      // MESMO mecanismo de Storage que aprovar.html/enviarMaterial já usa — bucket
+      // 'user-uploads', vínculo direto no midia_url deste conteúdo, sem passar pela tabela
+      // 'uploads' (essa é de outro fluxo). Zero mudança no publicador: ele já lê midia_url
+      // genericamente, decidindo vídeo x imagem pelo formato/extensão do arquivo.
+      const path=uid+'/material_conteudo/'+ins.id+'-'+Date.now()+'-'+arquivo.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+      const{error:errUp}=await JUMP.sb.storage.from('user-uploads').upload(path,arquivo);
+      if(errUp)throw errUp;
+      const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
+      const{error:errSet}=await JUMP.sb.from('conteudos').update({midia_url:pub.publicUrl,status:'aguardando_aprovacao'}).eq('id',ins.id);
+      if(errSet)throw errSet;
+      ins.midia_url=pub.publicUrl; ins.status='aguardando_aprovacao';
+    }
+    EVENTOS.push(ins);
+    toast(arquivo?'✓ Publicação criada e enviada para Aprovações!':'✓ Publicação criada — envie o arquivo em Aprovações quando estiver pronto.');
+    fecharCriacao(); render(); if(DIA_SEL!=null)verDia(DIA_SEL);
+  }catch(e){ toast(e.message||'Erro ao criar publicação','err'); btn.disabled=false; btn.textContent='Criar publicação'; }
+}
+// EXCLUIR NO CALENDÁRIO (Parte 2, 15/set/2026): mesmo descarte da Etapa 1 (status='excluido',
+// soft-delete — nunca some do banco, só do que o cliente vê; calendario.html já filtrava
+// 'excluido' desde a Etapa 1, ver EVENTOS acima). Só ficava faltando o botão AQUI — antes só
+// dava pra excluir de dentro do modal de edição em aprovar.html.
+async function excluirDoCalendario(id){
+  if(!confirm('Excluir este post de vez? Esta ação não volta para o agente e não pode ser desfeita.'))return;
+  try{
+    await JUMP.sb.from('conteudos').update({status:'excluido'}).eq('id',id);
+    EVENTOS=EVENTOS.filter(e=>String(e.id)!==String(id));
+    toast('Post excluído.');
+    render(); if(DIA_SEL!=null)verDia(DIA_SEL);
+  }catch(e){ toast('Erro ao excluir','err'); }
+}
 </script>
 </body>
 </html>
