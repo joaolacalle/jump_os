@@ -22,7 +22,7 @@ const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
 const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
-const VERSAO = '2026.09.15-arte-criada-texto-honesto';
+const VERSAO = '2026.09.15-worker-direcao-avulsa-auth-interna';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -723,6 +723,9 @@ const handler = async (req, res) => {
         setimo_caso_trava_em_codigo_gerar_imagem_descartada_se_direcao_avulso_criativo:true,
         setimo_caso_descarte_avisa_cliente_e_loga_nunca_silencioso:true,
         arte_criada_descreve_conceito_pendente_nunca_producao_confirmada:true,
+        worker_direcao_avulsa_auth_interna_x_internal_secret:true,
+        worker_direcao_avulsa_auth_interna_escopada_so_estrategia_e_ordem_validada_no_banco:true,
+        worker_direcao_avulsa_auth_interna_falha_nunca_degrada_pra_jwt:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -752,29 +755,75 @@ const handler = async (req, res) => {
     // módulo sobreviveria entre chamadas e passaria a pular conteúdos para sempre.
     const atendidosNestaReq = new Set();
     // Auth
-    const jwt=(req.headers.authorization||'').replace('Bearer ','');
-    if(!jwt) return res.status(401).json({error:'Não autenticado'});
-    const uRes=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{'apikey':KEY(),'Authorization':`Bearer ${jwt}`}});
-    const user=await uRes.json();
-    if(!uRes.ok||!user.id) return res.status(401).json({error:'Sessão inválida'});
-
+    // ── VIA INTERNA (worker do cron, api/cron.js): fecha ordem de CADEIA sem navegador aberto,
+    //    autenticada por segredo de servidor — nunca exposto ao cliente. Mesmo padrão de
+    //    api/gerar-imagem.js:346-347, mas ESCOPO DELIBERADAMENTE MAIS ESTREITO (15/set/2026,
+    //    "Worker executa ordem pendente + correção do botão", autorizado pelo João como Opção A):
+    //    lá, o modo interno herda a MESMA liberdade do modo usuário (qualquer prompt de imagem).
+    //    Aqui NÃO pode — este endpoint atende chat livre (qualquer agente, qualquer mensagem,
+    //    ver_id de supervisor/admin) quando autenticado por JWT; o modo interno só pode fazer UMA
+    //    coisa: a Estratégia fechar uma ordem 'direcao_avulso_criativo' já existente e pendente/
+    //    processando. Três requisitos pedidos (reportados em APRENDIZADOS.md):
+    //    1) segredo nunca aparece em resposta, log de cliente ou mensagem de erro — abaixo só se
+    //       loga "presente e incorreto" + origem (x-forwarded-for); nunca o valor, tamanho ou
+    //       prefixo do segredo recebido (evita dar pista pra força bruta).
+    //    2) modo interno não alcança caminho de usuário — agente fixo 'estrategia', sem ver_id
+    //       (nunca impersona outra conta), e ordem_id+user_id são CONFIRMADOS no banco contra a
+    //       tarefa exata antes de prosseguir (não confia cegamente no que o chamador mandou —
+    //       mesma disciplina de "reject, don't silently correct" da Família 1, aplicada aqui à
+    //       autenticação).
+    //    3) falha de auth interna nunca degrada pro modo usuário — se o header veio e não bate,
+    //       PARA aqui (401) mesmo que por acaso exista um Authorization JWT válido no mesmo
+    //       request; sem isto o comportamento dependeria de qual bloco roda primeiro, um acidente
+    //       de ordem de código, não uma decisão.
     const { agente, mensagem, ver_id } = req.body||{};
     if(!agente||!PERSONAS[agente]) return res.status(400).json({error:'Agente inválido'});
     if(!mensagem||!mensagem.trim()) return res.status(400).json({error:'Mensagem vazia'});
     if(mensagem.length>4000) return res.status(400).json({error:'Mensagem muito longa'});
 
-    // Solicitante (logado) — pode ser supervisor/admin
-    const [requester]=await sbGet(`clientes?id=eq.${user.id}&select=id,role`);
-    if(!requester) return res.status(403).json({error:'Conta não encontrada'});
-    // ALVO: próprio por padrão; com ver_id e permissão, usa a conta visualizada
-    let targetId=user.id;
-    if(ver_id && ver_id!==user.id){
-      if(requester.role==='admin'){targetId=ver_id;}
-      else if(requester.role==='supervisor'){
-        const sup=await sbGet(`clientes?id=eq.${ver_id}&supervisor_id=eq.${user.id}&select=id`);
-        if(Array.isArray(sup)&&sup.length)targetId=ver_id;
-        else return res.status(403).json({error:'Sem permissão sobre esta conta'});
-      } else return res.status(403).json({error:'Sem permissão'});
+    const _int=req.headers['x-internal-secret'];
+    if(_int && (!process.env.CRON_SECRET || _int!==process.env.CRON_SECRET)){
+      console.error('[auth-interno] x-internal-secret presente e incorreto — origem='+String(req.headers['x-forwarded-for']||'desconhecida').slice(0,80));
+      return res.status(401).json({error:'Não autenticado'});
+    }
+    const _intOk=!!(_int && process.env.CRON_SECRET && _int===process.env.CRON_SECRET);
+
+    let user, requester, targetId;
+    if(_intOk){
+      const _ordemId=req.body && req.body.ordem_id;
+      const _uidReq=req.body && req.body.user_id;
+      if(agente!=='estrategia' || !_ordemId || !_uidReq){
+        console.error('[auth-interno] chamada fora do escopo permitido — agente='+agente+' ordem_id='+(_ordemId?'presente':'ausente')+' user_id='+(_uidReq?'presente':'ausente'));
+        return res.status(403).json({error:'Fora do escopo do modo interno'});
+      }
+      const [_ordem]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&para_agente=eq.estrategia&tarefa=eq.direcao_avulso_criativo&status=in.(pendente,processando)&select=id`);
+      if(!_ordem){
+        console.error('[auth-interno] ordem_id não corresponde a uma direcao_avulso_criativo pendente/processando deste user — ordem='+_ordemId);
+        return res.status(403).json({error:'Ordem inválida para o modo interno'});
+      }
+      user={id:_uidReq};
+      requester={id:_uidReq,role:'usuario'};
+      targetId=_uidReq; // modo interno nunca aceita ver_id — não impersona outra conta
+    } else {
+      const jwt=(req.headers.authorization||'').replace('Bearer ','');
+      if(!jwt) return res.status(401).json({error:'Não autenticado'});
+      const uRes=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{'apikey':KEY(),'Authorization':`Bearer ${jwt}`}});
+      user=await uRes.json();
+      if(!uRes.ok||!user.id) return res.status(401).json({error:'Sessão inválida'});
+
+      // Solicitante (logado) — pode ser supervisor/admin
+      ([requester]=await sbGet(`clientes?id=eq.${user.id}&select=id,role`));
+      if(!requester) return res.status(403).json({error:'Conta não encontrada'});
+      // ALVO: próprio por padrão; com ver_id e permissão, usa a conta visualizada
+      targetId=user.id;
+      if(ver_id && ver_id!==user.id){
+        if(requester.role==='admin'){targetId=ver_id;}
+        else if(requester.role==='supervisor'){
+          const sup=await sbGet(`clientes?id=eq.${ver_id}&supervisor_id=eq.${user.id}&select=id`);
+          if(Array.isArray(sup)&&sup.length)targetId=ver_id;
+          else return res.status(403).json({error:'Sem permissão sobre esta conta'});
+        } else return res.status(403).json({error:'Sem permissão'});
+      }
     }
 
     // Cliente ALVO + plano + limites (dono dos dados: memórias, uso, onboarding)

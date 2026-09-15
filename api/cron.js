@@ -599,7 +599,67 @@ async function jobProduzir(soUid) {
     delete pl.erros;
     return pl;
   };
-  let ordensFeitas = 0, artes = 0;
+  let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0;
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DIREÇÃO AVULSA — elo 0 da cadeia Designer→Estratégia→Criativo (15/set/2026, "Worker executa
+  // ordem pendente + correção do botão", autorizado pelo João, Opção A). Bloco PRÓPRIO, separado
+  // do loop de imagem abaixo: a forma da tarefa é outra (aciona a Estratégia via chat, não gera
+  // imagem, não tem posts/slides) — misturar as duas no mesmo loop obrigaria a espalhar ifs pela
+  // lógica de imagem só pra pular esta tarefa. Fica DENTRO de jobProduzir (mesmo "processamento
+  // de ordens pendentes" pedido), com seu próprio pequeno ciclo.
+  //
+  // SEM LOCK pendente→processando (diferente do loop de imagem, logo abaixo). Decisão de
+  // idempotência (pedida explicitamente: "decidir e reportar"): o bloco que fecha esta ordem
+  // continua em api/agente-chat.js (~linha 1907, "HANDOFF — CRIATIVO→ESTRATÉGIA") — não sai, e
+  // roda EXATAMENTE igual pro chamador interno (agente==='estrategia' vale pros dois). A proteção
+  // contra dupla execução concorrente já existe e é MAIS RÁPIDA que travar aqui: os três relógios
+  // de _cadeia-lib.js (verificarTimeoutCadeia, a cada 5min — watchdog de passagem 2min + prazo
+  // total) só enxergam ordem 'pendente' (nunca 'processando' — protegido, não alterado aqui). Se
+  // travássemos pra 'processando' como o loop de imagem faz, a ordem sumiria desse radar rápido e
+  // cairia só no watchdog genérico de jobOrdens (status=processando, 8min de heartbeat) — que
+  // RODA 1x por dia (vercel.json, job=ordens às 8h): uma chamada travada ficaria até ~24h sem
+  // erro visível, contra o combinado com o João ("os dois estouros de passagem já são a
+  // retentativa embutida"). Risco aceito do lado oposto, sem lock: duas execuções raramente
+  // concorrentes (só se a chamada anterior ainda não tiver fechado 'concluida' quando o próximo
+  // cron de 5min bater — janela estreita, response normal leva segundos) podem, em tese, chamar a
+  // Estratégia 2x pra mesma ordem. Já existe defesa contra o efeito colateral que importa:
+  // avancarCadeia (_cadeia-lib.js, protegido) só cria UM elo 1 por ordem_pai — idempotência por
+  // chave, não por ordem de execução. Na pior hipótese sobra um <conteudo> rascunho órfão
+  // (avulso:true, nunca produzido) — custo de cota de TEXTO, não de imagem; não duplica arte nem
+  // cobra o cliente 2x. Risco residual aceito e registrado, mesmo padrão já usado neste projeto
+  // pro reparo de segunda chamada (ver api/agente-chat.js, comentário "histórico de duplicação").
+  if (process.env.CRON_SECRET) {
+    const pendDirecao = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=eq.direcao_avulso_criativo&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const o of (Array.isArray(pendDirecao) ? pendDirecao : [])) {
+      try {
+        const pl = o.payload || {};
+        // MENSAGEM SINTÉTICA — montada do payload (tema quando houver, formato, slides), pedido
+        // explícito do João. Também deixa EXPLÍCITO que a confirmação já aconteceu (com o
+        // Designer, fora deste chat): a Estratégia tem uma regra própria e válida de "apresente,
+        // depois confirme, depois emita" (REGRAS_PEDIDO_AVULSO_ESTRATEGIA, protegida — não
+        // alterada aqui) pensada pra conversa ao vivo com o cliente; sem este sinal explícito,
+        // ela poderia tratar esta chamada como um pedido NOVO e ficar esperando uma confirmação
+        // que, vindo do worker, nunca chega. Não foi possível testar isto ao vivo contra o modelo
+        // real (sem ANTHROPIC_API_KEY neste ambiente, e nenhuma ordem deste tipo em produção
+        // chegou a fechar por este caminho até hoje — ver relato completo). Rede de segurança se
+        // a frase não bastar: a ordem continua 'pendente' (nada aqui trava pra 'processando'),
+        // então os dois estouros de passagem de _cadeia-lib.js seguem cobrindo — erro visível em
+        // poucos minutos, nunca preso em silêncio.
+        const temaTxt = pl.tema ? `tema "${String(pl.tema).slice(0, 200)}"` : 'sem tema definido pelo cliente — escolha um, coerente com o negócio dele, sem repetir temas recentes';
+        const fmtTxt = pl.formato === 'carrossel' ? `carrossel de ${pl.slides || '2 a 10'} slides` : 'peça única (feed)';
+        const mensagemSintetica = `Pedido avulso confirmado pelo cliente com o Designer — não é uma proposta nova aguardando aprovação sua, já foi aprovado lá. Produza agora a direção completa (headline, subheadline, prova, CTA e ${pl.tema ? 'use o' : 'escolha o'} tema) para: ${temaTxt}, ${fmtTxt}. Emita a tag <conteudo> completa (com "avulso":true) já nesta resposta — não apresente a proposta de novo nem pergunte se está bom, a confirmação já aconteceu.`;
+        const r = await fetch(`${base}/api/agente-chat`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+          body: JSON.stringify({ agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, mensagem: mensagemSintetica }),
+        });
+        const d = await r.json().catch(() => null);
+        LOG({ etapa: 'direcao-avulsa', orderId: o.id, userId: o.user_id, status: r.status, ok: !!(r.ok) });
+        if (r.ok) direcoesAvulsas++;
+        else console.error('[worker] direcao_avulso_criativo falhou — ordem=' + o.id + ' status=' + r.status + ' erro=' + String((d && d.error) || '').slice(0, 160));
+      } catch (e) { console.error('[worker] direcao_avulso_criativo — exceção — ordem=' + o.id + ' erro=' + (e && e.message)); }
+    }
+  }
 
   const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
 
@@ -773,7 +833,7 @@ async function jobProduzir(soUid) {
       } catch (e) { console.error('[cadeia-lib] avancarCadeia falhou (loop principal) — ordem=' + o.id + ' erro=' + (e && e.message)); }
     }
   }
-  return { ordens: ordensFeitas, artes };
+  return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas };
 }
 
 async function jobOrdens() {
