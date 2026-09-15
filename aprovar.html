@@ -1083,10 +1083,16 @@ function contarCopy(){
 // GERAR COPY COM IA (item 2, 15/set/2026): chamada SÍNCRONA e direta ao mesmo endpoint de chat
 // que qualquer mensagem manual já usa — a Estratégia é quem escreve toda copy do sistema (mesmo
 // critério da 606), sem inventar cadeia nova (ordens_servico/worker): a única ordem existente com
-// este formato, 'copy_para_criativo', cria um <conteudo> NOVO (duplicaria este card) e hoje está
-// órfã — nenhum job do cron a processa desde que o dispatcher foi unificado (achado, reportado,
-// não corrigido aqui, fora deste escopo). Em vez de tag, pede só o TEXTO da legenda e grava com o
-// MESMO update() que salvarCopy() já usa — nenhum parsing novo no backend.
+// este formato, 'copy_para_criativo', cria um <conteudo> NOVO (duplicaria este card) — ela nasce
+// de um fluxo DIFERENTE (agentes.html, "Enviar Conteúdo": o cliente sobe um criativo e um tema
+// NOVOS, sem card ainda existir) e continua sendo a ferramenta errada pra ESTE botão, que edita a
+// copy de um card JÁ existente. RESSALVA ATUALIZADA (15/set/2026, "Cadeia copy_para_criativo
+// órfã", mesmo dia — verificado se ainda vale, não deixado stale): a ordem deixou de estar órfã —
+// o worker do cron passou a processá-la (payload.cadeia de 1 elo, ver api/cron.js e
+// api/admin-users.js) — mas o motivo real de não usá-la AQUI nunca foi ela estar quebrada, foi
+// sempre criar conteúdo novo em vez de atualizar o existente; esse motivo não mudou e continua
+// valendo mesmo com o worker ligado. Em vez de tag, este botão pede só o TEXTO da legenda e grava
+// com o MESMO update() que salvarCopy() já usa — nenhum parsing novo no backend.
 async function gerarCopyIA(id){
   const c=ITENS.find(x=>x.id===id); if(!c)return;
   const btn=document.getElementById('btn-gerar-copy');

@@ -840,9 +840,16 @@ function naturezaDe(ag){return NATUREZA[ag]||'consultoria'}
 // é tratada como ordem DE CADEIA (ver `ehOrdemDeCadeia` em verificarOrdens, abaixo), que já
 // executa sozinha (worker automático) e por isso também não ganha botão nenhum — nem este, nem
 // o ▶ genérico.
+// 🔴 ERA (mesmo defeito, mesma data, "Cadeia copy_para_criativo órfã"): 'copy_para_criativo'
+// também entrava aqui, pelo MESMO motivo errado — impedir o ▶ genérico de mexer numa ordem que
+// ele não sabe tratar. Só que, órfã (sem worker nenhum processando), ela nunca chegava a produzir
+// nada mesmo com o botão — agora que o worker do cron a executa sozinha (payload.cadeia de 1 elo,
+// ver api/admin-users.js e api/cron.js), o mesmo raciocínio de direcao_avulso_criativo vale: sai
+// daqui, cai em `ehOrdemDeCadeia` (estrutural, por payload.cadeia — nenhuma lista de nomes pra
+// manter), sem botão nenhum, "execução automática em andamento".
 function ehFluxoSemanal(o){
   const t=String(o.tarefa||'').toLowerCase();
-  return t.indexOf('detalhar_semana')>=0||t.indexOf('copy_para_criativo')>=0;
+  return t.indexOf('detalhar_semana')>=0;
 }
 // Ordens DE CADEIA (payload.cadeia presente — ver api/_cadeia-lib.js, protegido): o worker do
 // servidor já executa sozinha, sem depender de nenhum clique (job=produzir, a cada 5min, mais o
