@@ -28,7 +28,11 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // O nome repetido contribuiu pra uma checagem listar 2 itens (então numerados 2 e 3) como
 // pendentes sem confirmar que já tinham sido corrigidos há 6 dias. Carimbo abaixo leva "-ii" —
 // data OU número no nome da rodada evita a mesma confusão de novo.
-const VERSAO = '2026.09.15-fila-tecnica-ii-watchdog-cron-dedicado-detalhe-vazio-fato';
+// POSTURA DOS AGENTES — ESTADO REAL E REGRA EM CÓDIGO (15/set/2026, sétima rodada do dia,
+// autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
+// Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
+// rodada.
+const VERSAO = '2026.09.15-postura-dos-agentes-paineis-cota-horario';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -80,6 +84,31 @@ function travaTrial(ct, cortesiaAteISO) {
   if (data > limite) {
     throw new Error('data ' + data + ' passa do fim do período de teste (' + limite + ') — assine para liberar o mês completo');
   }
+}
+
+// LIMITE DE AUTOMAÇÕES DE DM ATIVAS (POSTURA DOS AGENTES — PARTE 2, "cota inventada",
+// 15/set/2026, ver APRENDIZADOS.md): ÚNICO lugar que calcula "quantas automações de DM este
+// cliente pode ter ativas" — precedência individual (cli.limites.dm) > config do plano (tabela
+// `config`, chave 'planos') > fallback fixo (básico=3, plus=5, pro=8). Antes desta rodada, essa
+// conta só existia dentro do processamento da tag <automacao_dm> (depois da resposta pronta);
+// agora também alimenta o bloco de contexto da Publicação (dado real, antes de responder) —
+// mesma função nos dois pontos, nunca duas contas que podem divergir.
+async function limiteAtivoDm(cli, targetId, sbGet) {
+  const LIM_DM = { basico: 3, plus: 5, pro: 8 };
+  let maxDm = LIM_DM[(cli && cli.plano) || 'basico'] || 3;
+  try {
+    const pc = await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
+    if (Array.isArray(pc) && pc[0] && pc[0].valor && cli && pc[0].valor[cli.plano] && pc[0].valor[cli.plano].dm != null) {
+      maxDm = Number(pc[0].valor[cli.plano].dm);
+    }
+  } catch (e) {}
+  if (cli && cli.limites && cli.limites.dm != null) maxDm = Number(cli.limites.dm);
+  let atuais = 0;
+  try {
+    const rows = await sbGet(`automacoes_dm?user_id=eq.${targetId}&ativo=eq.true&select=id`);
+    atuais = Array.isArray(rows) ? rows.length : 0;
+  } catch (e) {}
+  return { max: maxDm, atuais };
 }
 
 // TETO DE IMAGENS DO PLANO (item 5 da rodada "Ancoragem das semanas", item 4 da rodada "Janela
@@ -500,7 +529,7 @@ VERACIDADE: use só dados reais do OS_DATA. NUNCA invente planos, ofertas, núme
 PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing de até 4 perguntas; não faz mais): se o cliente pedir uma arte fora do cronograma (ex: promoção), COM ou SEM tema, NÃO faça perguntas sobre objetivo, mensagem, tipo de visual ou oferta/prova — isso agora é decidido pela Estratégia a partir do DNA da marca, sem precisar perguntar de novo o que ela já sabe deduzir. Responda que já está providenciando, dizendo que a peça vai aparecer em Aprovações assim que estiver pronta e que o cliente não precisa esperar nem ficar na tela — o processo continua sozinho (15/set/2026: informação que faltava dizer ao cliente, não instrução de ação nova). NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto):
 <ordem_servico>{"para":"estrategia","tarefa":"direcao_avulso_criativo","detalhe":"resumo em 1 linha do pedido do cliente","tema":"o tema, EXATAMENTE como o cliente disse — omita este campo se o cliente não deu um tema","formato":"feed ou carrossel","slides":"número de 2 a 10, só quando formato=carrossel e o cliente disse o número"}</ordem_servico>
 FORMATO: se o cliente não especificar, é SEMPRE peça única (uma imagem) — nunca carrossel por padrão. Só é carrossel se o cliente pedir explicitamente E disser quantos slides (2 a 10). ÚNICA PERGUNTA AINDA PERMITIDA nesta situação: se o cliente disser "quero um carrossel" SEM dizer quantos slides, aí sim pergunte só isso ("quantos slides?") — nunca invente a quantidade (mesma regra de sempre: carrossel sem número declarado não é produzido).
-Artes avulsas consomem o SALDO EXTRA do plano (mesma cota usada para recriar imagens): básico=6, plus=9, pro=15 por mês. Avise o cliente quando o saldo extra estiver acabando.
+Artes avulsas consomem a MESMA cota de peças com arte do plano mensal (não existe um saldo separado). Use o bloco "SALDO DE ARTES DO PLANO" do contexto (dado pronto e real) para saber quanto já foi usado — NUNCA cite básico/plus/pro de cabeça nem invente um número — e avise o cliente quando estiver acabando.
 
 CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceituais mantendo a identidade.
 
@@ -516,7 +545,7 @@ Oriente sobre: melhor horário e frequência para o nicho/público do cliente (u
 
 ═══ AUTOMAÇÃO DE DM / PROMO (por palavra-chave) ═══
 Você também configura respostas automáticas no Direct: quando alguém comenta ou manda DM com uma PALAVRA-CHAVE (ex: "EU QUERO", "PREÇO") — em POSTS ORGÂNICOS ou em ANÚNCIOS — o sistema responde automaticamente com a mensagem/oferta definida (link, cupom, informação). A resposta em anúncios é poderosa para vendas ("comente X que te mando o link"). Ajude o cliente a criar essas automações: definir a palavra-chave, a mensagem de resposta e o objetivo (gerar lead, enviar link, qualificar).
-LIMITE de automações de DM ativas por plano: básico=3, plus=5, pro=8. Avise quando o limite for atingido.
+LIMITE de automações de DM ativas: use o bloco "AUTOMAÇÕES DE DM ATIVAS" do contexto (dado pronto e real — já é o número deste cliente, considerando qualquer ajuste individual; NUNCA cite básico=3/plus=5/pro=8 de cabeça, isso pode não ser o valor real dele). Avise o cliente quando o limite for atingido, usando exatamente os dois números do bloco.
 Para criar uma automação, emita:
 <automacao_dm>{"palavra_chave":"EU QUERO","mensagem":"resposta automática com link/oferta","objetivo":"lead|link|cupom|info","gatilho":"comentario|dm","origem":"organico|anuncio|ambos"}</automacao_dm>
 IMPORTANTE: a automação real de DM depende da aprovação do app na Meta (App Review). Enquanto não liberado, você ajuda a PLANEJAR e DEIXAR PRONTAS as automações (palavra-chave + mensagem), que entram em vigor assim que a integração for ativada. Seja transparente sobre isso com o cliente.
@@ -780,6 +809,17 @@ const handler = async (req, res) => {
         // vem vazia). Registradas juntas pelo mesmo motivo de sempre — painel único.
         fila_tecnica_watchdog_e_orfa_extraidos_pra_cron_dedicado_frequencia_intermediaria:true,
         fila_tecnica_detalhe_lista_vazia_vira_fato_explicito_nao_instrucao:true,
+        // Marcas de rastreio (15/set/2026, "Postura dos agentes — estado real e regra em
+        // código", sétima rodada do dia, autorizada pelo João) — Parte 1 (painéis) toca
+        // agentes.html (não este arquivo); Parte 2 (cota + horário) toca este arquivo e
+        // aprovar.html. Registradas juntas pelo mesmo padrão de painel único de sempre.
+        postura_agentes_parte1_painel_criativo_sua_fila_ordens_servico_por_status:true,
+        postura_agentes_parte1_painel_publicacao_suas_publicacoes_agendados_publicados_falhas:true,
+        postura_agentes_parte1_botao_criativos_pendentes_vira_painel_acao_move_pra_dentro:true,
+        postura_agentes_parte2_cota_criativo_recebe_saldo_real_sem_numeros_fixos_inventados:true,
+        postura_agentes_parte2_cota_publicacao_recebe_automacoes_dm_ativas_fonte_unica_limiteativodm:true,
+        postura_agentes_parte2_criativo_fila_vazia_vira_fato_explicito_mesmo_padrao_item4:true,
+        postura_agentes_parte2_horario_nao_definido_aprovar_seta_data_agendada_09h_padrao_sistema:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1274,6 +1314,39 @@ const handler = async (req, res) => {
           dataTxt+='\n\nAinda não há posts aprovados/agendados. Quando o cliente aprovar conteúdos na página Aprovar, eles aparecem aqui e publicam sozinhos \u2014 você NUNCA precisa de link do calendário.';
         }
       }catch(e){}
+      // POSTURA DOS AGENTES — PARTE 1, "PAINEL DA PUBLICAÇÃO" (15/set/2026, ver APRENDIZADOS.md):
+      // achado do levantamento — o bloco acima (herdado, não alterado por esta rodada) só cobre
+      // status agendado/aprovado. A Publicação também fala sobre o que JÁ publicou e o que FALHOU
+      // (persona: "publicado automaticamente... respeitando os limites da Meta"), mas não recebia
+      // nenhum dos dois. Mesmo padrão FATO NUNCA INSTRUÇÃO das demais rodadas: dois blocos novos,
+      // sempre presentes (mesmo vazios), nunca uma instrução de comportamento.
+      try{
+        const pub=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.publicado&order=publicado_em.desc&limit=10&select=formato,data_agendada,publicado_em,meta`);
+        if(Array.isArray(pub)&&pub.length){
+          const linhasPub=pub.map(c=>{const d=(c.publicado_em?String(c.publicado_em):c.data_agendada?String(c.data_agendada):'').slice(0,10)||'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t;}).join('\n');
+          dataTxt+='\n\nÚLTIMOS PUBLICADOS (mais recentes primeiro \u2014 dado pronto):\n'+linhasPub;
+        }else{
+          dataTxt+='\n\nAinda não há nenhum post publicado para este cliente.';
+        }
+      }catch(e){}
+      try{
+        const falhas=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.aprovado&erro_publicacao=not.is.null&order=data_agendada.asc&limit=15&select=formato,data_agendada,erro_publicacao,meta`);
+        if(Array.isArray(falhas)&&falhas.length){
+          const linhasFalha=falhas.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t+' \u00b7 erro: '+String(c.erro_publicacao||'').slice(0,120);}).join('\n');
+          dataTxt+='\n\nFALHAS DE PUBLICAÇÃO (ainda pendentes de resolver \u2014 dado pronto, NUNCA diga que publicou):\n'+linhasFalha;
+        }else{
+          dataTxt+='\n\nNenhuma falha de publicação pendente agora.';
+        }
+      }catch(e){}
+      // "Cota inventada" (Parte 2): a persona menciona limite de automações de DM (básico=3,
+      // plus=5, pro=8) mas até esta rodada nunca recebia o QUANTAS JÁ ESTÃO ATIVAS — o único lugar
+      // que sabia esse número era o code path que CRIA a automação (mais abaixo, no processamento
+      // de <automacao_dm>), depois da resposta já ter sido gerada. Mesmo cálculo, mesma função
+      // agora (limiteAtivoDm) — nenhuma regra duplicada.
+      try{
+        const dm=await limiteAtivoDm(cli,targetId,sbGet);
+        dataTxt+='\n\nAUTOMAÇÕES DE DM ATIVAS (dado pronto, NUNCA calcule nem estime): '+dm.atuais+' de '+dm.max+' no plano.';
+      }catch(e){}
     }
 
     // COTA DO PLANO (reescrito 28/ago/2026 — ver APRENDIZADOS.md, "JANELA DE PLANEJAMENTO",
@@ -1314,6 +1387,22 @@ const handler = async (req, res) => {
         '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
         '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
     }
+    // POSTURA DOS AGENTES — PARTE 2, "cota inventada" (15/set/2026, ver APRENDIZADOS.md): achado
+    // do levantamento — a persona do Criativo (linha ~503) fala de um "SALDO EXTRA" de artes
+    // avulsas com números fixos por plano (básico=6/plus=9/pro=15) que NÃO existem em nenhum
+    // lugar do código: avulso/recriação consomem o MESMO saldo único que a Estratégia já vê
+    // acima (limites.imagens/uso.imagens — ver tetoImagensPlano). Ou seja, o Criativo era
+    // instruído a "avisar quando o saldo extra estiver acabando" sem NUNCA ter recebido nenhum
+    // número — nem o inventado (básico=6 etc, que a persona citava de cabeça), nem o real. Mesma
+    // fonte que alimenta a Estratégia (limites.imagens/uso.imagens), mesmo padrão FATO NUNCA
+    // INSTRUÇÃO — sem repetir a lógica de tetoImagensPlano (que é só pra planejamento em lote, não
+    // se aplica a uma peça avulsa de cada vez).
+    if(agente==='criativo'){
+      const limImgC=Number((cli.limites||{}).imagens||0);
+      const usImgC=Number((cli.uso||{}).imagens||0);
+      cotaTxt='\n\n═══ SALDO DE ARTES DO PLANO (dado pronto, NUNCA calcule nem estime) ═══'+
+        (limImgC?('\nPeças com arte usadas no mês: '+usImgC+' de '+limImgC+' (saldo ÚNICO — soma plano mensal, avulsos e recriações; não existe um "saldo extra" separado). Use exatamente este número se o cliente perguntar quanto já gastou ou quanto sobra, e avise quando estiver perto do limite.'):'\nEste plano não tem cota de imagens configurada — avise o cliente antes de gerar qualquer arte avulsa.');
+    }
 
     // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
     let semanaTxt='';
@@ -1339,6 +1428,14 @@ const handler = async (req, res) => {
           if(nProp)semanaTxt+=`\n- ${nProp} post(s) PROPOSTOS pela Estratégia aguardando a APROVAÇÃO DO CLIENTE. Você não pode gerar as artes deles ainda — isso acontece na página Aprovações.`;
           if(semCopy.length)semanaTxt+=`\n- ${semCopy.length} post(s) aprovados mas SEM COPY/headline. A arte só sai depois do texto, que vem do Estrategista.`;
           if(comCopy.length)semanaTxt+=`\n- ${comCopy.length} post(s) PRONTOS para gerar a arte, quando fizer sentido na conversa: ${comCopy.slice(0,6).map(c=>`id:${c.id} · ${c.formato||'feed'} · ${c.tema}`).join(' | ')}.`;
+        } else {
+          // POSTURA DOS AGENTES — PARTE 2, "cota inventada"/mesmo princípio do item 4 da Fila
+          // Técnica II (15/set/2026): antes, fila vazia deixava semanaTxt em '' — o mesmo silêncio
+          // que, no bloco irmão da Estratégia, já tinha gerado o incidente de ids inventados
+          // (08/09). Aqui ainda não houve incidente registrado, mas é a mesma lacuna estrutural —
+          // corrigida por simetria, no mesmo padrão: FATO explícito (0 em cada categoria), nunca
+          // uma instrução de comportamento.
+          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (informação de fundo) ═══\n0 post(s) propostos aguardando aprovação, 0 post(s) aprovados sem copy, 0 post(s) prontos para gerar arte agora.';
         }
       }catch(e){}
     }
@@ -2338,19 +2435,10 @@ const handler = async (req, res) => {
     });
     if(automacoes.length){
       try{
-        // limite de DM: individual do usuário > config do plano > fallback (3/5/8)
-        const LIM_DM={basico:3,plus:5,pro:8};
-        let maxDm=LIM_DM[cli.plano]||3;
-        try{
-          const pc=await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
-          if(Array.isArray(pc)&&pc[0]&&pc[0].valor&&pc[0].valor[cli.plano]&&pc[0].valor[cli.plano].dm!=null){
-            maxDm=Number(pc[0].valor[cli.plano].dm);
-          }
-        }catch(e){}
-        // limite individual sobrescreve (se o admin definiu pra esse usuário)
-        if(cli.limites&&cli.limites.dm!=null)maxDm=Number(cli.limites.dm);
-        const atuais=await sbGet(`automacoes_dm?user_id=eq.${targetId}&ativo=eq.true&select=id`);
-        const jaTem=(Array.isArray(atuais)?atuais:[]).length;
+        // limite de DM: MESMA função de assets/agente-chat.js usada pra montar o bloco de
+        // contexto da Publicação (limiteAtivoDm, topo do arquivo) — nenhuma regra duplicada
+        // (POSTURA DOS AGENTES — PARTE 2, 15/set/2026).
+        const {max:maxDm, atuais:jaTem}=await limiteAtivoDm(cli,targetId,sbGet);
         const podem=Math.max(0,maxDm-jaTem);
         for(const a of automacoes.slice(0,podem)){
           await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm`,{
