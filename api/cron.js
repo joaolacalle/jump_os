@@ -783,10 +783,36 @@ async function jobProduzir(soUid) {
     if (soArquivo) {
       // gera a peça e registra na biblioteca; não cria conteúdo nem card de aprovação
       try {
+        // CONTEUDO_ID JÁ DECIDIU O TEXTO (16/set/2026, "unificação das arquiteturas de prompt" —
+        // ver o comentário em api/agente-chat.js, avanço da cadeia novo_criativo_ads): quando a
+        // ordem carrega payload.ids, a Estratégia JÁ gravou headline/subheadline/prova/cta_arte
+        // reais num <conteudo> antes deste elo nascer — busca esse registro e usa o texto real,
+        // em vez de mandar o brief cru e deixar o Diretor inventar uma headline por cima de uma
+        // decisão que já existe no banco (pior que ausência de headline: descarte de decisão).
+        // SEM ids (ficha_tecnica, substituir_criativo, ou uma ordem de antes desta correção):
+        // EXCEÇÃO NOMEADA — não há texto decidido em lugar nenhum para buscar; o Diretor segue
+        // escrevendo a headline a partir do brief cru, comportamento anterior, inalterado.
+        let corpoImg = { user_id: o.user_id, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
+          tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined };
+        if (ids && ids.length) {
+          try {
+            const cRows = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+            const c = Array.isArray(cRows) && cRows[0];
+            if (c) {
+              const meta = c.meta || {};
+              corpoImg = { user_id: o.user_id, prompt: c.tema || meta.headline || brief,
+                headline: meta.headline || '', subheadline: meta.subheadline || '', prova: meta.prova || '',
+                cta_arte: meta.cta_arte || '', copy: c.copy || '', oferta: meta.oferta || '', pilar: c.pilar || '',
+                formato: c.formato || 'feed', tipo: c.tipo_visual || 'conceitual',
+                tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5', engine: tf === 'ficha_tecnica' ? false : undefined };
+            } else {
+              console.error('[worker] soArquivo — payload.ids presente mas conteudo não encontrado (excluído/id inválido?), seguindo com brief — ordem=' + o.id);
+            }
+          } catch (e) { console.error('[worker] soArquivo — falha ao buscar conteudo real por ids, seguindo com brief — ordem=' + o.id + ' erro=' + (e && e.message)); }
+        }
         const r = await fetch(`${base}/api/gerar-imagem`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
-          body: JSON.stringify({ user_id: o.user_id, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
-            tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined }),
+          body: JSON.stringify(corpoImg),
         });
         const d = await r.json().catch(() => null);
         const ok = r.ok && d && d.url;
@@ -836,7 +862,7 @@ async function jobProduzir(soUid) {
       posts = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
     }
     posts = (Array.isArray(posts) ? posts : []).filter(c => {
-      const temCopy = (ehBrief || ehRecriacao) ? true : (c.copy && String(c.copy).trim() && ((c.meta || {}).headline || '').trim());
+      const temCopy = (ehBrief || ehRecriacao) ? true : JC.prontoParaArte(c);
       // já completo? (imagem única com arte, ou carrossel com todos os slides) → fora
       const pend = slidesFaltantes(c, (o.payload || {}).slide).faltam.length > 0;
       return temCopy && pend && !JC.ehMaterialUsuario(c);

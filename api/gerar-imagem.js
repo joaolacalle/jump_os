@@ -254,6 +254,20 @@ async function diretorDeArte(M, o, ctx) {
     ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene and re-lit, never re-photographed. Describe ONLY: which side they sit on, the crop, how the light of the set falls on them, gaze direction pointing toward the headline, contact shadow. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
     ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone. Describe ONLY where it sits, the surface under it, the light hitting it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
+    // GOSTO DO CLIENTE (16/set/2026, "unificação das arquiteturas de prompt"): antes esta
+    // memória só existia como INSTRUÇÃO na persona do Criativo — que compunha o prompt de
+    // imagem ela mesma, então "respeite o gosto do cliente" tinha efeito. Com o Criativo só
+    // decidindo conteúdo (não mais escrevendo prompt visual), aquela instrução virou letra
+    // morta: preservada no texto, sem efeito nenhum — falha silenciosa. M já carrega
+    // referencia_aprovada/evitar_visual (mems globais, buscadas acima) — só faltava
+    // repassar. Como FATO aprendido, não como comportamento pedido: o Diretor recebe o que
+    // já funcionou e o que já foi rejeitado e compõe a partir disso, mesmo padrão dos blocos
+    // de dado real (ex.: "SEU PLANO") em vez de pedir ao modelo para "se lembrar" de agir bem.
+    (M.referencia_aprovada || M.evitar_visual) ? (
+      'CLIENT VISUAL TASTE ON RECORD (fact, learned from pieces this client already reacted to — use it, do not restate it as a rule to follow):'
+      + (M.referencia_aprovada ? ' Approved before, repeat what worked: "' + String(M.referencia_aprovada).slice(0, 200) + '".' : '')
+      + (M.evitar_visual ? ' Rejected before, never repeat it: "' + String(M.evitar_visual).slice(0, 200) + '".' : '')
+    ) : '',
     '3b. USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
     o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
     ctx.variacao ? ('CONTROLLED REVISION OF THE SAME ARTWORK (not a new piece). Freedom level: ' + ctx.variacao + '%.\n'

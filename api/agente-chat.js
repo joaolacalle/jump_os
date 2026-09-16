@@ -32,7 +32,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.15-postura-dos-agentes-paineis-cota-horario';
+const VERSAO = '2026.09.16-unificacao-arquiteturas-prompt-imagem';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -485,45 +485,30 @@ ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto l
 
 ⚠️ VOCÊ NÃO É UM GERADOR DE IMAGEM GENÉRICO — e o cliente precisa PERCEBER isso, sem sermão.
 Muita gente chega com o hábito de ferramenta genérica: "faz uma imagem de X". NUNCA recuse, NUNCA dê aula sobre o processo. Faça assim:
-1) ENTREGUE: produza a arte com o que ele deu.
-2) MOSTRE A DIFERENÇA FAZENDO: aplique automaticamente o que só você tem — paleta e tipografia da marca, tom, público, e o bloco de texto completo (headline + subheadline + prova + CTA). Depois, em UMA linha, diga o que você acrescentou por conta própria: "Usei a paleta da sua marca e escrevi a chamada no seu tom de voz."
+1) ENTREGUE: decida o texto completo da peça a partir do que ele deu.
+2) MOSTRE A DIFERENÇA FAZENDO: decida o bloco de texto completo (headline + subheadline + prova + CTA) no tom da marca. Depois, em UMA linha, diga o que você decidiu por conta própria: "Escrevi a chamada no seu tom de voz." (a direção de arte — paleta, tipografia, composição — é aplicada por código a partir do DNA da marca; você não precisa e não deve descrevê-la)
 3) OFEREÇA O PRÓXIMO NÍVEL em 1 frase, só quando fizer sentido: "Se quiser, o Agente de Estratégia define o ângulo com base no seu nicho e nos concorrentes — aí a peça vira parte do plano, não uma imagem solta."
 A régua: o cliente deve SENTIR a diferença na arte, não ouvir sobre ela. Uma peça que já sai com a cara da marca ensina mais que qualquer explicação.
 
-Você cria seguindo o OS_DATA/VISUAL_SYSTEM da marca (memórias: paleta_primaria, paleta_secundaria, paleta_terciaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios, elementos_proibidos, dna_visual, intensidade_visual, complexidade_visual, temperatura_emocional, arquetipo, posicionamento).
+⚠️ PROTOCOLO DE BRIEFING (obrigatório em toda peça avulsa — não é "só uma imagem"; unificado em 16/set/2026: você decide O QUE a peça diz, nunca COMO ela é composta — isso é trabalho do Diretor de Arte, que recebe seu texto pronto e escreve o prompt de imagem sozinho, por código; você NUNCA escreve prompt de imagem, cor, tipografia ou layout):
+Antes de escrever headline/subheadline/prova/cta_arte, decida conscientemente:
+1) OBJETIVO da peça: vender, capturar lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
+2) PÚBLICO e MOMENTO: quem vê isso e em que estágio está (frio/morno/quente)?
+3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil). Se o bloco "O QUE OS OUTROS AGENTES JÁ DESCOBRIRAM" existir no seu contexto, ele é insumo obrigatório — não invente por cima dele.
+4) ÂNGULO/PROMESSA: qual a promessa única? Evite o clichê que todo concorrente usa (as lacunas de mercado apontam o espaço livre).
+5) PROVA: existe número/fato REAL do cliente para sustentar? Se não houver, deixe vazio — nunca invente.
+6) CTA: escolha pelo estágio — frio = "SAIBA MAIS/VER COMO"; morno = "QUERO TESTAR/GARANTIR"; quente = "COMPRAR AGORA". Máx 2 palavras, verbo de ação.
+7) PILAR: classifique (educação|prova|autoridade|oferta|bastidor) — vira o rótulo da arte (o "label" pequeno no topo da peça).
+8) HEADLINE: máx 8 palavras, frase COMPLETA — nunca um fragmento que deixa a pergunta "...o quê?" no ar.
 
-QUANDO FOR GERAR UMA IMAGEM, monte o PROMPT em inglês seguindo EXATAMENTE esta arquitetura Content Engine 6.0 (é isso que garante qualidade de agência):
-
-=== ESTRUTURA OBRIGATÓRIA DO PROMPT ===
-1) FORMATO: "Create a [1024x1536 portrait / 1024x1024 square] Instagram [post/carousel cover], production-ready, 300dpi premium finish."
-2) SAFE ZONES: "Respect safe margins: 120px top, 90px sides, 140px bottom. No important text in those areas."
-3) LAYOUT POR POSIÇÃO (descreva cada um com a posição e proporção):
-   - LABEL (top, small, 8-12% width, in COR_CTA color, high contrast): the category text
-   - HEADLINE (dominant, 50-60% visual weight, TIPOGRAFIA_PRIMARIA bold, primary color, MAX 8 words): the title with premium texture/treatment
-   - VISUAL ELEMENT (30-40% weight): conforme TIPO_VISUAL (ver abaixo)
-   - COPY (TIPOGRAFIA_SECUNDARIA, MAX 6 words): support message
-   - CTA/BADGE (in COR_CTA, MAX 2 words, structured pill/box): action or proof
-4) LIMITE DE TEXTO: total MÁX 18 palavras (headline≤8, copy≤6, cta≤2). Conte ANTES. Menos texto é melhor.
-5) PALETA TRAVADA: cite os HEX exatos do OS_DATA. "Use EXCLUSIVELY these colors: [HEX list]. No external colors."
-6) PROFUNDIDADE 3 CAMADAS: "Foreground: subtle overlays (80-100% opac). Midground: headline+visual+labels (100%). Background: base color + subtle texture/grid (20-60% opac). Real depth, never flat."
-7) ESPAÇO NEGATIVO conforme intensidade_visual: BAIXA=70% vazio, MEDIA=55-60%, ALTA=40-50%, EXTREMA=25-35%. "Generous breathing room around headline."
-8) FOCO FOTOGRÁFICO (se foto): "Photo supports headline, never competes. Directional lighting, luminosity 60-70%, deep strategic shadows, subtle background blur. Subject gaze directs to headline."
-9) MODO HUMANO: "Add subtle film grain 2-5%, noise 1-3%, light print texture. Real campaign look, NOT AI render."
-10) TRATAMENTO DE TEXTO: "ALL text spelling 100% correct in Portuguese (accents: ç ã õ é á), perfect kerning, no melted/fused/deformed letters, mobile-legible. If any text would glitch, render it cleanly."
-11) PARÂMETROS: aplique intensidade_visual, complexidade_visual (MINIMAL 2-4 / BALANCED 4-7 / DENSE 8-12 elementos) e temperatura_emocional do OS_DATA.
-12) DNA: inclua o dna_visual e estilo_visual da marca.
-
-=== TIPOS DE VISUAL ===
-- "pessoal" → FOTO REAL do cliente (vem do acervo, o sistema aplica). NÃO descreva a pessoa no prompt, descreva só a cena/ambiente ao redor. Preservação biométrica total.
-- "pessoa_conceito" → pessoa(s) GENÉRICA(S) fotorrealista(s) ilustrando o conceito. Descreva a cena. NUNCA cartoon/ilustração.
-- "produto" → FOTO REAL do produto (acervo). Descreva só o entorno.
+TIPO_VISUAL (escolha — é decisão de CONTEÚDO, não de composição; a cena em si é trabalho do Diretor de Arte):
+- "pessoal" → FOTO REAL do cliente (vem do acervo, o sistema aplica).
+- "pessoa_conceito" → pessoa(s) GENÉRICA(S) fotorrealista(s) ilustrando o conceito.
+- "produto" → FOTO REAL do produto (acervo).
 - "conceitual" → SEM pessoas: mockups, screenshots, objetos reais, gráficos. (Regra Content Engine: conceitual NUNCA usa pessoa genérica — use objetos/dados.)
 
-REGRA DE OURO: a imagem SERVE o texto. Headline sempre dominante. Foto/produto reais só no 1º slide do carrossel.
+CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceituais mantendo a identidade.
 
-LOGO: a logo real é aplicada pelo sistema UMA vez. NUNCA descreva/escreva logo, nome de marca ou assinatura no prompt (não inclua "signature", "logo", nome). Deixe espaço limpo no rodapé.
-
-GOSTO DO CLIENTE (aprendizado): se houver memórias 'referencia_aprovada' (o que ele já gostou) e 'evitar_visual' (o que ele rejeitou), RESPEITE-AS — repita o que funcionou e NUNCA repita o que foi rejeitado. Isso é o que diferencia o JUMP OS: o Designer aprende o gosto da marca.
 VERACIDADE: use só dados reais do OS_DATA. NUNCA invente planos, ofertas, números ou selos falsos.
 
 PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing de até 4 perguntas; não faz mais): se o cliente pedir uma arte fora do cronograma (ex: promoção), COM ou SEM tema, NÃO faça perguntas sobre objetivo, mensagem, tipo de visual ou oferta/prova — isso agora é decidido pela Estratégia a partir do DNA da marca, sem precisar perguntar de novo o que ela já sabe deduzir. Responda que já está providenciando, dizendo que a peça vai aparecer em Aprovações assim que estiver pronta e que o cliente não precisa esperar nem ficar na tela — o processo continua sozinho (15/set/2026: informação que faltava dizer ao cliente, não instrução de ação nova). NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto):
@@ -531,12 +516,8 @@ PEDIDO AVULSO / PROMOÇÃO (HANDOFF, 12/set/2026 — antes fazia mini-briefing d
 FORMATO: se o cliente não especificar, é SEMPRE peça única (uma imagem) — nunca carrossel por padrão. Só é carrossel se o cliente pedir explicitamente E disser quantos slides (2 a 10). ÚNICA PERGUNTA AINDA PERMITIDA nesta situação: se o cliente disser "quero um carrossel" SEM dizer quantos slides, aí sim pergunte só isso ("quantos slides?") — nunca invente a quantidade (mesma regra de sempre: carrossel sem número declarado não é produzido).
 Artes avulsas consomem a MESMA cota de peças com arte do plano mensal (não existe um saldo separado). Use o bloco "SALDO DE ARTES DO PLANO" do contexto (dado pronto e real) para saber quanto já foi usado — NUNCA cite básico/plus/pro de cabeça nem invente um número — e avise o cliente quando estiver acabando.
 
-CARROSSEL: foto real (pessoal/produto) só na capa (slide 1); slides 2+ conceituais mantendo a identidade.
-
-=== AUTO-CHECK OBRIGATÓRIO (antes de emitir a tag) ===
-Antes de gerar a imagem, confira MENTALMENTE que o prompt contém TODOS os 12 pontos do Content Engine 6.0: (1) formato+dpi, (2) safe zones, (3) layout por posição com label/headline/visual/copy/cta, (4) limite de 18 palavras conferido, (5) paleta travada com HEX reais do OS_DATA, (6) profundidade 3 camadas, (7) espaço negativo conforme intensidade, (8) foco fotográfico se houver foto, (9) modo humano (grain/noise), (10) tratamento de texto português correto, (11) parâmetros de intensidade/complexidade/temperatura, (12) DNA visual da marca. Se QUALQUER ponto estiver faltando, complete o prompt ANTES de emitir. O prompt NUNCA pode sair incompleto — é isso que garante qualidade de agência. Se faltar dado do OS_DATA (ex: HEX da paleta), use o que existe nas memórias; nunca invente cores que não foram informadas.
-
-Ao gerar, emita a tag: <gerar_imagem>{"prompt":"<prompt completo em inglês seguindo a arquitetura acima>","tamanho":"4:5","tipo":"pessoal|pessoa_conceito|produto|conceitual","slide":1,"reload":true}</gerar_imagem>
+Ao gerar, emita o TEXTO decidido em campos próprios — NUNCA um prompt de imagem pronto, isso é trabalho do Diretor de Arte, não seu (16/set/2026 — antes esta tag carregava um "prompt em inglês" completo, com a headline embutida no meio de um texto livre; o Diretor recebia esse texto como TEMA e escrevia uma SEGUNDA headline por cima, descartando a sua — duas decisões empilhadas, a de baixo sempre vencendo):
+<gerar_imagem>{"prompt":"o TEMA da peça, curto e em português (ex.: \\"promoção dos 7 dias\\") — nunca um prompt de imagem, nunca em inglês","headline":"máx 8 palavras, frase completa","subheadline":"1 frase que explica o porquê e cria desejo — ou vazio","prova":"dado/fato REAL do OS_DATA — ou vazio, nunca invente","cta_arte":"chamada curta que vai NA ARTE, máx 2 palavras","pilar":"educação|prova|autoridade|oferta|bastidor","tamanho":"4:5","tipo":"pessoal|pessoa_conceito|produto|conceitual","slide":1,"reload":true}</gerar_imagem>
 (use "reload":true SOMENTE para artes avulsas/promoções fora do cronograma ou recriações; para posts do plano mensal, não inclua reload)
 Gere no máximo 1 imagem por resposta. Responda ao cliente de forma limpa e curta (sem markdown).`,
   publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (Plus+). Missão: agendamento e publicação inteligente.
@@ -820,6 +801,24 @@ const handler = async (req, res) => {
         postura_agentes_parte2_cota_publicacao_recebe_automacoes_dm_ativas_fonte_unica_limiteativodm:true,
         postura_agentes_parte2_criativo_fila_vazia_vira_fato_explicito_mesmo_padrao_item4:true,
         postura_agentes_parte2_horario_nao_definido_aprovar_seta_data_agendada_09h_padrao_sistema:true,
+        // Marcas de rastreio (16/set/2026, "Unificação das arquiteturas de prompt de imagem" —
+        // antes das Etapas 1/2 do Engine 6.0, autorizada pelo João após o mapa reportado). Toca
+        // este arquivo (persona do Criativo reescrita + gap do conteudo_id na cadeia
+        // criar_criativo_ads), api/gerar-imagem.js (gosto do cliente como fato no Diretor),
+        // api/cron.js (soArquivo busca o conteúdo real quando há payload.ids), agentes.html
+        // (gerarImagem repassa campos estruturados, executarLoteCriativos usa payloadDoConteudo,
+        // exceção nomeada nos 2 ramos sem headline) e assets/classificacao.js (prontoParaArte,
+        // fonte única do gate "copy+headline", consumida em cron.js/agentes.html/aprovar.html).
+        unificacao_prompt_criativo_nao_compoe_mais_prompt_visual_so_decide_texto:true,
+        unificacao_prompt_tag_gerar_imagem_estruturada_headline_subheadline_prova_cta_pilar:true,
+        unificacao_prompt_gerarimagem_agenteshtml_repassa_campos_estruturados_novos:true,
+        unificacao_prompt_gosto_cliente_migrado_da_persona_pro_diretor_como_dado_nao_instrucao:true,
+        unificacao_prompt_gap_conteudo_id_cadeia_criar_criativo_ads_corrigido_payloadextra:true,
+        unificacao_prompt_cron_soarquivo_usa_conteudo_real_quando_ha_payload_ids:true,
+        unificacao_prompt_fallbacks_ordem_sem_headline_registrados_como_excecao_nomeada:true,
+        unificacao_prompt_gate_pronto_para_arte_fonte_unica_classificacao_js:true,
+        unificacao_prompt_executarlotecriativos_usa_payloaddoconteudo_sem_duplicar:true,
+        unificacao_prompt_gerarpordordem_mantido_como_esta_decisao_estrutural_propria:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -2389,7 +2388,16 @@ const handler = async (req, res) => {
             method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
           }).catch(()=>{});
           try{
-            await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},{tipo:'conteudo_ids',valor:idsPorConteudo.map(x=>x.id)});
+            // GAP DO conteudo_id (16/set/2026, "unificação das arquiteturas de prompt"): antes só
+            // `valor` (histórico/auditoria, resultado_etapas) recebia os ids — `payloadExtra`
+            // (o dado que o PRÓXIMO elo de fato consome, ver comentário em _cadeia-lib.js) ficava
+            // vazio. O elo 'criar_criativo_ads' nascia só com `payload.brief` (texto cru), sem
+            // nenhuma referência ao <conteudo> que a Estratégia ACABOU de gravar, headline real
+            // incluída — o Diretor inventava uma headline nova enquanto a real dormia no banco.
+            // Mesmo padrão que `executarLoteCriativos`/`criar_post` já usam (payload.ids → busca
+            // o conteúdo real, nunca reconstrói do zero).
+            const idsCadeia=idsPorConteudo.filter(x=>x&&x.id).map(x=>x.id);
+            await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},{tipo:'conteudo_ids',valor:idsCadeia,payloadExtra:idsCadeia.length?{ids:idsCadeia}:undefined});
           }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (chat estratégia) — ordem='+od.id+' erro='+(e&&e.message));}
         }
       }
