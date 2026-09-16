@@ -172,6 +172,17 @@
     return ehMaterialUsuario(conteudoOuFormato) ? CATEGORIA.MATERIAL_USUARIO : CATEGORIA.PRODUCAO_IMAGEM;
   }
 
+  // A ARTE VEM DEPOIS DA COPY (16/set/2026, "unificação das arquiteturas de prompt" — Portão
+  // "nenhuma regra duplicada"): "este conteúdo tem copy E headline, pode virar arte" era escrito
+  // TRÊS vezes, cada uma por conta própria (api/cron.js, agentes.html, aprovar.html) — mesma regra,
+  // três implementações que podiam divergir sem ninguém perceber (mesmo padrão de risco que este
+  // arquivo existe pra evitar, ver cabeçalho). Fonte única a partir de agora.
+  function prontoParaArte(conteudo) {
+    var c = conteudo || {};
+    var meta = c.meta || {};
+    return !!(c.copy && String(c.copy).trim() && meta.headline && String(meta.headline).trim());
+  }
+
   // ═══ ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md, "ANCORAGEM DAS SEMANAS") ═══
   // POR QUE ESTAS TRÊS FUNÇÕES EXISTEM: um plano mensal aprovado em 27/ago devolveu posts
   // datados 10, 12 e 14/set — fora da janela simétrica ±7 dias que várias partes do código
@@ -342,6 +353,7 @@
     emValidacao: emValidacao,
     ehStory: ehStory,
     classificar: classificar,
+    prontoParaArte: prontoParaArte,
     janelasSemanas: janelasSemanas,
     semanaDoPost: semanaDoPost,
     horizonteDoPlano: horizonteDoPlano,
