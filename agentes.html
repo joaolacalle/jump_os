@@ -461,8 +461,8 @@ const AGS=[
   {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
   {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Seu plano',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
-  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Criativos pendentes',fn:'cmdCriativosPend'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
-  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Sua fila',fn:'abrirPainelCriativo'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
+  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📊',t:'Suas publicações',fn:'abrirPainelPublicacao'},{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
   {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
@@ -632,6 +632,8 @@ async function selecionar(id){
   // via nada. Agora TODO agente mostra o que tem para fazer.
   verificarOrdens(id);
   if(id==='estrategia')atualizarEstadoEstrategia();
+  else if(id==='criativo')atualizarEstadoCriativo();
+  else if(id==='publicacao')atualizarEstadoPublicacao();
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
@@ -1893,13 +1895,113 @@ async function abrirPainelEstrategia(){
 }
 function fecharPainelEstado(){
   document.getElementById('estado-overlay').style.display='none';
-  PAINEL_ESTRATEGIA_ABERTO=false;
+  PAINEL_ESTRATEGIA_ABERTO=false; PAINEL_CRIATIVO_ABERTO=false; PAINEL_PUBLICACAO_ABERTO=false;
 }
-function cmdCriativosPend(){
+function irParaFila(){
   // AÇÃO REAL (não mensagem de chat): leva à Fila — a fonte única do que precisa ser executado,
-  // onde o usuário vê estado, motivo de falha e pode repetir/cancelar de verdade.
+  // onde o usuário vê estado, motivo de falha e pode repetir/cancelar de verdade. Era o que o
+  // botão do cabeçalho fazia direto (cmdCriativosPend); agora é a ação DENTRO do painel "Sua
+  // fila" (POSTURA DOS AGENTES — PARTE 1, 15/set/2026, mesma transformação já feita com
+  // "Estratégia da semana" → "Seu plano": o botão do cabeçalho mostra o estado real primeiro).
   try{JUMP.toast('Abrindo a fila de produção…')}catch(e){}
+  fecharPainelEstado();
   location.href='ordens.html?f=fila';
+}
+
+// PAINEL "SUA FILA" (Criativo) — POSTURA DOS AGENTES, PARTE 1 (15/set/2026, ver
+// APRENDIZADOS.md): MESMO padrão genérico do painel da Estratégia (overlay único, dois
+// gatilhos de atualização — seleção do agente e após cada resposta). Conta ordens_servico REAIS
+// endereçadas ao Criativo (para_agente='criativo') por status — pendente/processando/erro — o
+// que o João pediu explicitamente ("quantas ordens pendentes, em processamento, com erro"),
+// nunca perguntado ao agente em chat (que não tem acesso a ordens_servico).
+let PAINEL_CRIATIVO_ABERTO=false;
+async function atualizarEstadoCriativo(){
+  const uid=CTX.viewId||CTX.user.id;
+  let estadoHtml=null, dotAtivo=false;
+  try{
+    const{data:ord}=await JUMP.sb.from('ordens_servico').select('status').eq('user_id',uid).eq('para_agente','criativo')
+      .in('status',['pendente','processando','erro']);
+    const lista=ord||[];
+    const nPend=lista.filter(o=>o.status==='pendente').length;
+    const nProc=lista.filter(o=>o.status==='processando').length;
+    const nErro=lista.filter(o=>o.status==='erro').length;
+    estadoHtml='<div class="estado-linha"><b>Pendentes</b> — '+nPend+' ordem(ns) na fila, ainda não começaram.</div>'+
+      '<div class="estado-linha"><b>Em processamento</b> — '+nProc+' ordem(ns) sendo produzida(s) agora.</div>'+
+      '<div class="estado-linha"><b>Com erro</b> — '+nErro+(nErro?' ordem(ns) — revise na fila para ver o motivo e repetir.':' ordem(ns).')+'</div>';
+    dotAtivo=nErro>0;
+  }catch(e){
+    estadoHtml='<div style="padding:16px 0;color:var(--t3);font-size:13px">Não consegui carregar o estado agora.</div>';
+  }
+  const btn=document.getElementById('btn-abrirPainelCriativo');
+  if(btn){
+    const dotExistente=btn.querySelector('.ag-dot');
+    if(dotAtivo&&!dotExistente)btn.insertAdjacentHTML('afterbegin','<span class="ag-dot"></span>');
+    else if(!dotAtivo&&dotExistente)dotExistente.remove();
+  }
+  if(PAINEL_CRIATIVO_ABERTO)renderPainelCriativo(estadoHtml);
+}
+function renderPainelCriativo(estadoHtml){
+  document.getElementById('estado-corpo').innerHTML=estadoHtml||'';
+  document.getElementById('estado-acao').innerHTML=
+    '<div style="display:flex;gap:8px;margin-top:16px;align-items:stretch">'+
+      '<button class="btn btn-o btn-sm" onclick="atualizarEstadoCriativo()" title="Atualizar">🔄</button>'+
+      '<div style="flex:1"><button class="btn btn-g" style="width:100%" onclick="irParaFila()">📋 Ver fila de produção</button></div>'+
+    '</div>';
+}
+async function abrirPainelCriativo(){
+  document.getElementById('estado-titulo').textContent='🖼 Sua fila';
+  document.getElementById('estado-corpo').innerHTML='<div style="text-align:center;padding:24px 0;color:var(--t3);font-size:13px">Carregando...</div>';
+  document.getElementById('estado-acao').innerHTML='';
+  document.getElementById('estado-overlay').style.display='flex';
+  PAINEL_CRIATIVO_ABERTO=true;
+  await atualizarEstadoCriativo();
+}
+
+// PAINEL "SUAS PUBLICAÇÕES" (Publicação) — POSTURA DOS AGENTES, PARTE 1 (15/set/2026, ver
+// APRENDIZADOS.md): mesmo padrão genérico. Verifica agendados/aprovados, publicados recentes e
+// falhas — a MESMA leitura que alimenta o bloco de contexto do prompt em api/agente-chat.js
+// (agente==='publicacao'), só que aqui é o cliente vendo direto na tela, sem precisar perguntar.
+let PAINEL_PUBLICACAO_ABERTO=false;
+async function atualizarEstadoPublicacao(){
+  const uid=CTX.viewId||CTX.user.id;
+  let estadoHtml=null, dotAtivo=false;
+  try{
+    const[{data:agd},{data:pub},{data:falhas}]=await Promise.all([
+      JUMP.sb.from('conteudos').select('id').eq('user_id',uid).in('status',['aprovado','agendado']),
+      JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','publicado').gte('publicado_em',new Date(Date.now()-30*864e5).toISOString()),
+      JUMP.sb.from('conteudos').select('id').eq('user_id',uid).eq('status','aprovado').not('erro_publicacao','is',null),
+    ]);
+    const nAgd=(agd||[]).length, nPub=(pub||[]).length, nFalha=(falhas||[]).length;
+    estadoHtml='<div class="estado-linha"><b>Agendados/aprovados</b> — '+nAgd+' post(s) aguardando a data para publicar sozinhos.</div>'+
+      '<div class="estado-linha"><b>Publicados</b> — '+nPub+' post(s) nos últimos 30 dias.</div>'+
+      '<div class="estado-linha"><b>Com falha</b> — '+nFalha+(nFalha?' post(s) — revise em Aprovações para ver o motivo.':' post(s).')+'</div>';
+    dotAtivo=nFalha>0;
+  }catch(e){
+    estadoHtml='<div style="padding:16px 0;color:var(--t3);font-size:13px">Não consegui carregar o estado agora.</div>';
+  }
+  const btn=document.getElementById('btn-abrirPainelPublicacao');
+  if(btn){
+    const dotExistente=btn.querySelector('.ag-dot');
+    if(dotAtivo&&!dotExistente)btn.insertAdjacentHTML('afterbegin','<span class="ag-dot"></span>');
+    else if(!dotAtivo&&dotExistente)dotExistente.remove();
+  }
+  if(PAINEL_PUBLICACAO_ABERTO)renderPainelPublicacao(estadoHtml);
+}
+function renderPainelPublicacao(estadoHtml){
+  document.getElementById('estado-corpo').innerHTML=estadoHtml||'';
+  document.getElementById('estado-acao').innerHTML=
+    '<div style="display:flex;gap:8px;margin-top:16px;align-items:stretch">'+
+      '<button class="btn btn-o btn-sm" onclick="atualizarEstadoPublicacao()" title="Atualizar">🔄</button>'+
+      '<div style="flex:1"><button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();location.href=\'aprovar.html\'">✅ Ver em Aprovações</button></div>'+
+    '</div>';
+}
+async function abrirPainelPublicacao(){
+  document.getElementById('estado-titulo').textContent='📊 Suas publicações';
+  document.getElementById('estado-corpo').innerHTML='<div style="text-align:center;padding:24px 0;color:var(--t3);font-size:13px">Carregando...</div>';
+  document.getElementById('estado-acao').innerHTML='';
+  document.getElementById('estado-overlay').style.display='flex';
+  PAINEL_PUBLICACAO_ABERTO=true;
+  await atualizarEstadoPublicacao();
 }
 function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tráfego e o que precisa de ajuste agora.');}
 
@@ -2008,6 +2110,8 @@ async function enviarTexto(txt){
         try{JUMPGUIA.dica('estrategia_criada','A estratégia foi criada, mas ainda <b>não está no calendário</b>. Vá em <b>Tarefas de serviço</b> e clique em <b>Aprovar estratégia</b> — só então o Designer começa as artes.','Estratégia gerada')}catch(e){}
       }
       if(AG==='estrategia')atualizarEstadoEstrategia();
+      else if(AG==='criativo')atualizarEstadoCriativo();
+      else if(AG==='publicacao')atualizarEstadoPublicacao();
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
