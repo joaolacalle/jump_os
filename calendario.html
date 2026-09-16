@@ -116,7 +116,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=6"></script>
+<script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
@@ -209,27 +209,14 @@ function abrirNoAprovar(id){
 let EDIT=null,PREVIEW=null;
 function toast(m,t){ if(window.JUMP&&JUMP.toast)JUMP.toast(m,t); else alert(m); }
 function fmtDataInput(iso){ if(!iso)return''; try{const d=new Date(iso);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}catch(e){return''} }
-function editarConteudo(id){
-  EDIT=EVENTOS.find(e=>String(e.id)===String(id)); PREVIEW=null;
-  if(!EDIT)return;
-  // TRAVA: aprovado/publicado não pode mais ser editado (já está na fila do Agente de Publicação).
-  const travado=(EDIT.status==='aprovado'||EDIT.status==='publicado');
-  document.getElementById('ed-tema').textContent=EDIT.tema||'Conteúdo';
-  document.getElementById('ed-meta').innerHTML=JUMP.esc(EDIT.formato||'post')+' · <span class="ck '+checkin(EDIT)[0]+'">'+checkin(EDIT)[1]+'</span>';
-  document.getElementById('ed-copy').value=EDIT.copy||'';
-  document.getElementById('ed-data').value=fmtDataInput(EDIT.data_agendada||EDIT.data_sugerida);
-  renderImgAtual();
-  const av=document.getElementById('ed-trava');
-  document.getElementById('ed-copy').disabled=travado;
-  document.getElementById('ed-data').disabled=travado;
-  document.getElementById('ed-salvar').style.display=travado?'none':'';
-  document.getElementById('ed-actsi').style.display=travado?'none':'';
-  if(av)av.style.display=travado?'block':'none';
-  if(av&&travado)av.innerHTML=EDIT.status==='publicado'
-    ? '🔒 <b>Publicado.</b> Este post já foi ao ar e não pode ser alterado.'
-    : '🔒 <b>Aprovado e na fila de publicação.</b> Para preservar o que foi aprovado, não é possível editar. Recuse o post em Aprovações se precisar mudar algo.';
-  document.getElementById('ed-modal').style.display='flex';
-}
+// FILA TÉCNICA — item 6 (15/set/2026): editarConteudo() (abria o modal ed-modal) foi removida —
+// zero chamadores em todo o repo (confirmado por grep) e nenhum outro ponto de calendario.html a
+// invocava; o calendário virou visualização (clique leva a aprovar.html, ver abrirNoAprovar acima)
+// desde que a edição passou a ser feita só em Aprovar. renderImgAtual/fecharEd/promptDoConteudo/
+// renderPreviewCal/aceitarCal/recusarCal/abrirVariacao (abaixo) só eram alcançados a partir desta
+// função ou de salvarConteudo/regerarImg (também removidas nesta rodada) — ficam órfãos do mesmo
+// jeito, mas fora do escopo pedido (só estas três foram nomeadas); reportado à parte, não removido
+// aqui. O marcador #ed-modal em si (HTML) também não tem mais nenhum caminho que o abra.
 function renderImgAtual(){
   document.getElementById('ed-img').innerHTML=EDIT.midia_url?`<img src="${EDIT.midia_url}" alt="">`:'<div class="ph">Sem arte ainda</div>';
   document.getElementById('ed-actsi').innerHTML='<button class="btn btn-o btn-sm" onclick="regerarImg(this)">🎨 '+(EDIT.midia_url?'Regerar imagem':'Gerar imagem')+' (gasta 1 token)</button>';
@@ -240,21 +227,6 @@ function promptDoConteudo(c){
   return `Instagram ${c.formato||'feed'} post. Headline: "${meta.headline||c.tema}". `+
     `Support copy: "${(c.copy||'').slice(0,80)}". ${meta.oferta?('Offer badge: "'+meta.oferta+'". '):''}`+
     `Follow the brand visual identity (colors, fonts, style). Agency-grade, layered depth, top label, dominant headline, generous negative space. Portuguese text 100% correct.`;
-}
-async function regerarImg(btn,variacao){
-  if(!EDIT)return;
-  const aj=(document.getElementById('ed-ajuste')||{}).value||'';
-  const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="ld-spin" style="width:13px;height:13px;display:inline-block;vertical-align:middle"></span> Gerando (15-40s)…';
-  try{
-    const r=await fetch('/api/gerar-imagem',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-      body:JSON.stringify({prompt:EDIT.tema||'',headline:(EDIT.meta&&EDIT.meta.headline)||EDIT.tema||'',copy:EDIT.copy||'',oferta:(EDIT.meta&&EDIT.meta.oferta)||'',formato:EDIT.formato||'feed',pilar:EDIT.pilar||'',total:1,variacao:variacao||0,ajuste:aj,
-        tamanho:(EDIT.formato&&EDIT.formato.includes('reel'))?'9:16':'4:5',tipo:EDIT.tipo_visual||'conceitual',slide:1,registrar:false,ver_id:CTX.viewId||null})
-    });
-    const d=await r.json();
-    if(!r.ok){ toast((d&&d.error)||'Erro ao gerar','err'); btn.disabled=false;btn.innerHTML=old; return; }
-    PREVIEW=d; renderPreviewCal(d);
-  }catch(e){ toast('A geração demorou. Tente de novo.','err'); btn.disabled=false;btn.innerHTML=old; }
 }
 function renderPreviewCal(d){
   document.getElementById('ed-img').innerHTML=`<img src="${d.url}" alt="">`;
@@ -292,21 +264,6 @@ function abrirVariacao(){
     '</div>'+
     '<input class="ed-inp" id="ed-ajuste" placeholder="O que mudar? (opcional: mais escuro, sem foto, foco no produto…)">'+
     '<button class="btn btn-o btn-sm" style="margin-top:7px" onclick="renderPreviewCal(PREVIEW)">← Voltar</button></div>';
-}
-async function salvarConteudo(){
-  if(!EDIT)return;
-  const btn=document.getElementById('ed-salvar'); const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='Salvando…';
-  const copy=document.getElementById('ed-copy').value;
-  const dataStr=document.getElementById('ed-data').value;
-  const patch={copy:copy};
-  if(dataStr)patch.data_agendada=dataStr;
-  try{
-    const{error}=await JUMP.sb.from('conteudos').update(patch).eq('id',EDIT.id);
-    if(error)throw error;
-    const ev=EVENTOS.find(e=>String(e.id)===String(EDIT.id)); if(ev){ev.copy=copy; if(dataStr)ev.data_agendada=dataStr;}
-    toast('✓ Alterações salvas!');
-    fecharEd(); render();
-  }catch(e){ toast('Não foi possível salvar. Tente de novo.','err'); btn.disabled=false;btn.innerHTML=old; }
 }
 function mudaMes(n){MES+=n;if(MES<0){MES=11;ANO--}if(MES>11){MES=0;ANO++}render()}
 

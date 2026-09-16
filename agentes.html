@@ -451,7 +451,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=6"></script>
+<script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -955,6 +955,12 @@ async function _executarOrdensLegado(btn,soId){
       }else if(tarefa.indexOf('criar_avulso')>=0){
         // 'criar_avulso' SEM itens = a Estratégia emitiu a tag errada (versão antiga do prompt).
         // Cai no briefing cru em vez de virar ordem-zumbi no lote.
+        // EXCEÇÃO NOMEADA (16/set/2026, "unificação das arquiteturas de prompt"): não há nenhum
+        // agente decidindo headline/subheadline/prova/cta_arte a partir deste `brief` antes de
+        // chegar na arte — resolver de verdade exigiria uma chamada extra a um agente pra decidir
+        // o texto (construir, não adaptar; fora do escopo desta entrega, autorizado como registro
+        // por enquanto). O Diretor de Arte inventa a headline (máx 8 palavras) a partir do tema
+        // cru — comportamento assumido aqui, não padrão silencioso.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
         await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
@@ -968,6 +974,12 @@ async function _executarOrdensLegado(btn,soId){
       }else{
         // ORDEM AVULSA: manda o briefing CRU como tema — o Diretor de Arte escreve a headline
         // (máx 8 palavras) e a cena. Antes o briefing inteiro virava a headline.
+        // EXCEÇÃO NOMEADA (16/set/2026, "unificação das arquiteturas de prompt"): catch-all de
+        // ordens não classificadas nos ramos acima — mesmo caso do 'criar_avulso' sem itens logo
+        // acima: nenhum agente decide o texto antes daqui, e resolver isso é construir um passo
+        // novo (chamada extra a um agente), não adaptar o que já existe. Fica registrado como
+        // exceção deliberada — o Diretor inventa a headline a partir do tema cru — não como
+        // comportamento padrão do pipeline.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
         await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
@@ -1031,8 +1043,10 @@ async function executarLoteCriativos(uid,ordem){
   // Fonte única (assets/classificacao.js) — Fase 1, 25/ago/2026.
   pend=(pend||[]).filter(c=>!JUMP_CLASS.ehMaterialUsuario(c));
   // A ARTE VEM DEPOIS DA COPY: sem headline/copy a arte sai vazia (o tema inteiro viraria a headline).
-  const semCopy=pend.filter(c=>!(c.copy&&String(c.copy).trim())||!((c.meta&&c.meta.headline)||'').trim());
-  pend=pend.filter(c=>(c.copy&&String(c.copy).trim())&&((c.meta&&c.meta.headline)||'').trim());
+  // Fonte única (assets/classificacao.js) — antes esta regra era escrita aqui, em aprovar.html e
+  // em api/cron.js, cada uma por conta própria (16/set/2026, "unificação das arquiteturas de prompt").
+  const semCopy=pend.filter(c=>!JUMP_CLASS.prontoParaArte(c));
+  pend=pend.filter(c=>JUMP_CLASS.prontoParaArte(c));
   if(semCopy.length){
     // PENDÊNCIA VISÍVEL, NÃO RECADO. Antes isto era só um texto: "peça ao Estrategista" e a
     // ordem sumia de cena, pendente em silêncio. Recado não resolve — botão resolve.
@@ -1051,7 +1065,7 @@ async function executarLoteCriativos(uid,ordem){
       const t=tudo||[];
       const prop=t.filter(c=>c.status==='proposto').length;
       const rasc=t.filter(c=>c.status==='rascunho'&&!c.midia_url);
-      const semC=rasc.filter(c=>!(c.copy&&String(c.copy).trim())||!(((c.meta||{}).headline||'').trim())).length;
+      const semC=rasc.filter(c=>!JUMP_CLASS.prontoParaArte(c)).length;
       const fora=rasc.filter(c=>c.data_sugerida&&new Date(c.data_sugerida).getTime()>Date.now()+7*864e5);
       const prox=fora.map(c=>String(c.data_sugerida).slice(0,10)).sort()[0];
       const jaTem=t.filter(c=>c.midia_url).length;
@@ -1125,10 +1139,13 @@ async function executarLoteCriativos(uid,ordem){
         if(PARAR){break}
         lbl.innerHTML='🎠 <b>'+JUMP.esc(c.tema||'Arte')+'</b> — carrossel, slide '+s+'/'+_n+'...';
         try{
+          // Fonte única (assets/jump-core.js, payloadDoConteudo) — 16/set/2026, "unificação das
+          // arquiteturas de prompt": antes este corpo era montado à mão aqui, duplicando (com
+          // divergência sutil de default) a mesma lógica que aprovar.html/dashboard-usuario.html
+          // já centralizaram desde a correção da "sopa" (ver o comentário em jump-core.js).
           const rr=await fetch('/api/gerar-imagem',{
             method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-            body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'carrossel',pilar:meta.pilar||c.pilar||'',total:_n,
-              tamanho:'4:5',tipo:c.tipo_visual||'conceitual',slide:s,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:(s>1?true:_semFP)})
+            body:JSON.stringify(Object.assign(JUMP.payloadDoConteudo(c,{tamanho:'4:5',slide:s,total:_n,ver_id:CTX.viewId||null,origem:'lote'}),{sem_foto_pessoa:(s>1?true:_semFP)}))
           });
           const rawc=await rr.text();let dd;try{dd=JSON.parse(rawc)}catch(_){dd=null}
           if(dd&&dd.limite){lbl.innerHTML='🚦 '+(dd.error||'Limite de imagens atingido.')+' (carrossel parou no slide '+s+'/'+_n+').';_cotaFim=true;break}
@@ -1154,12 +1171,11 @@ async function executarLoteCriativos(uid,ordem){
       continue;
     }
     try{
+      // Fonte única (assets/jump-core.js, payloadDoConteudo) — 16/set/2026, "unificação das
+      // arquiteturas de prompt": mesma duplicação do ramo de carrossel acima, corrigida junto.
       const r=await fetch('/api/gerar-imagem',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-        // subheadline/prova/cta_arte JÁ EXISTIAM no meta do conteúdo, mas não eram enviados —
-        // a arte saía só com a headline, que a própria Engine classifica como falha.
-        body:JSON.stringify({prompt:c.tema||'',headline:meta.headline||c.tema||'',subheadline:meta.subheadline||'',prova:meta.prova||'',cta_arte:meta.cta_arte||'',copy:c.copy||'',oferta:meta.oferta||'',formato:c.formato||'feed',pilar:meta.pilar||c.pilar||'',total:1,
-          tamanho:String(c.formato||'').indexOf('reel')>=0?'9:16':'4:5',tipo:c.tipo_visual||'conceitual',slide:1,conteudo_id:c.id,ver_id:CTX.viewId||null,origem:'lote',sem_foto_pessoa:_semFP})
+        body:JSON.stringify(Object.assign(JUMP.payloadDoConteudo(c,{ver_id:CTX.viewId||null,origem:'lote'}),{sem_foto_pessoa:_semFP}))
       });
       const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){d=null}
       if(d&&d.limite){lbl.innerHTML='🚦 '+(d.error||'Limite de imagens do plano atingido.')+' As artes restantes ficam pendentes.';if(stop.parentElement)stop.remove();return false}
@@ -2162,7 +2178,11 @@ async function gerarImagem(req,btn,ehRecriar){
     const r=await fetch('/api/gerar-imagem',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-      body:JSON.stringify({prompt:req.prompt,tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
+      // headline/subheadline/prova/cta_arte/pilar (16/set/2026, "unificação das arquiteturas de
+      // prompt"): antes só `prompt` viajava — a tag <gerar_imagem> do Criativo hoje entrega o
+      // texto pronto em campos próprios (não mais um prompt de imagem embutido em texto livre);
+      // sem repassar isso aqui, os campos morrem no meio do caminho e o Diretor volta a inventar.
+      body:JSON.stringify({prompt:req.prompt,headline:req.headline||'',subheadline:req.subheadline||'',prova:req.prova||'',cta_arte:req.cta_arte||'',pilar:req.pilar||'',tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
     });
     const raw=await r.text();let d;
     try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}

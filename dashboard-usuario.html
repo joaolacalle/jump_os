@@ -179,7 +179,7 @@
         <div style="font-weight:800;font-size:14px;color:var(--t1)" id="trial-titulo">Período de teste</div>
         <div style="font-size:12px;color:var(--t2);font-family:var(--M)" id="trial-sub">Aproveite os agentes no seu teste gratuito.</div>
       </div>
-      <a href="configuracoes.html#assinatura" class="btn btn-g btn-sm" style="white-space:nowrap">Ativar assinatura →</a>
+      <a href="checkout.html?plano=basico&motivo=trial" id="trial-cta" class="btn btn-g btn-sm" style="white-space:nowrap">Ativar assinatura →</a>
     </div>
   </div>
 
@@ -243,7 +243,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=6"></script>
-<script src="assets/classificacao.js?v=6"></script>
+<script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
@@ -313,6 +313,12 @@ const LV={basico:1,plus:2,pro:3};
           // 15/set/2026: absorveu o único dado que o banner removido tinha e este não — o aviso
           // de cota reduzida durante o teste.
           document.getElementById('trial-sub').textContent='Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+' — sua cota de geração é reduzida durante o teste. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
+          // BOTÃO DE ASSINAR (16/set/2026): apontava para configuracoes.html#assinatura — o
+          // cliente caía numa tela de configurações, não numa ação. checkout.html já existe,
+          // aceita o plano por parâmetro e aciona o PayPal direto. Usa o plano REAL da conta
+          // (mesmo campo que o resto do sistema lê — cliente.plano), nunca um valor fixo.
+          const cta=document.getElementById('trial-cta');
+          if(cta)cta.href='checkout.html?plano='+encodeURIComponent(plano)+'&motivo=trial';
         }
       }
     }catch(e){}
