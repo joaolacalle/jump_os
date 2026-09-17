@@ -32,7 +32,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.16-etapas-1-2-texto-validado-em-codigo';
+const VERSAO = '2026.09.17-diagnostico-diretor-e-prova-cortarfrase';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -832,6 +832,15 @@ const handler = async (req, res) => {
         etapa2_diretor_invencao_de_headline_condicionada_a_permitir_invencao_headline:true,
         etapa2_excecao_nomeada_permitir_invencao_headline_so_dois_ramos_agenteshtml_e_cron_soarquivo:true,
         etapa2_diretor_recebe_lista_de_texto_fechada_proibido_alterar_caractere:true,
+        // Marcas de rastreio (17/set/2026, "qualidade da arte — diagnóstico", rodada 2 —
+        // investigação da falha do Diretor em produção, confirmada via ?diag=1 real).
+        diagnostico_qualidade_diag_reporta_error_type_da_anthropic_nao_so_message:true,
+        diagnostico_qualidade_diretordearte_loga_type_e_message_sem_engolir_motivo:true,
+        diagnostico_qualidade_model_diretor_e_chamada_nao_alterados_so_instrumentacao:true,
+        // Autorizado pelo João nesta mesma rodada: PROOF POINT do engine6() cortava no meio da
+        // palavra (String(o.prova).slice(0,90), cru) — agora usa cortarFrase(o.prova,90), o mesmo
+        // helper com corte por limite de frase/palavra que a copy já usava. Padrão unificado.
+        diagnostico_qualidade_prova_usa_cortarfrase_como_copy_nao_slice_cru:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

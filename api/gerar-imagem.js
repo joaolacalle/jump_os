@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.16-etapas-1-2-texto-validado-em-codigo';
+const VERSAO = '2026.09.17-diagnostico-diretor-e-prova-cortarfrase';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -203,7 +203,7 @@ function engine6(M, o) {
       : 'LABEL: derive a SHORT category word (1-2 words, uppercase) from the theme itself — it must describe the CONTENT (e.g. "MÉTODO", "BASTIDORES", "RESULTADO"). Never write the name of any software, tool or platform that is not this client\'s own brand.',
     'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
     o.subheadline ? ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"') : '',
-    o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + String(o.prova).slice(0, 90) + '"') : '',
+    o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
     o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
     (o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : ''),
     o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
@@ -358,7 +358,19 @@ async function diretorDeArte(M, o, ctx) {
       headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: user }] }),
     });
-    if (!r.ok) { console.error('diretor:', (await r.text()).slice(0, 160)); return null; }
+    // NADA FALHA EM SILÊNCIO (17/set/2026, "qualidade da arte — diagnóstico"): antes só o texto
+    // cru da resposta (truncado em 160 chars) ia pro log — se a mensagem de erro fosse longa,
+    // `error.type` (a classificação real: not_found_error, permission_error, invalid_request_error...)
+    // podia ficar de fora do corte. Agora tenta o JSON primeiro e loga tipo+mensagem sem ambiguidade;
+    // só cai pro texto cru se o corpo não for JSON válido.
+    if (!r.ok) {
+      const corpoErro = await r.text();
+      try {
+        const j = JSON.parse(corpoErro);
+        console.error('diretor:', MODEL_DIRETOR(), (j.error && j.error.type) || '(sem type)', '—', (j.error && j.error.message) || '(sem message)');
+      } catch (e2) { console.error('diretor:', MODEL_DIRETOR(), 'corpo não-JSON:', corpoErro.slice(0, 160)); }
+      return null;
+    }
     const d = await r.json();
     const t = (d.content || []).map(c => c.text || '').join('').trim();
     return t.length > 120 ? t : null; // resposta curta demais = não confiável
@@ -392,7 +404,12 @@ module.exports = async (req, res) => {
           body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 4, messages: [{ role: 'user', content: 'oi' }] }),
         });
         if (t.ok) diretor = MODEL_DIRETOR() + ' ACESSÍVEL ✅';
-        else { const j = await t.json().catch(() => ({})); diretor = 'FALHOU ❌ ' + String((j.error && j.error.message) || t.status).slice(0, 110); }
+        // NADA FALHA EM SILÊNCIO (17/set/2026): antes só `error.message` ia pro diagnóstico —
+        // "model: X" sozinho não diz se é modelo inexistente, sem acesso na conta, ou outra causa.
+        // `error.type` (not_found_error/permission_error/invalid_request_error/...) é a
+        // classificação real que a Anthropic manda; sem ela o diagnóstico via ?diag=1 fica cego
+        // sobre O PORQUÊ, só sabe QUE falhou.
+        else { const j = await t.json().catch(() => ({})); diretor = 'FALHOU ❌ [' + String((j.error && j.error.type) || 'sem-type') + '] ' + String((j.error && j.error.message) || t.status).slice(0, 110); }
       } catch (e) { diretor = 'erro: ' + e.message; }
     }
     return res.status(200).json({
