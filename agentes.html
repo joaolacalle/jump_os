@@ -963,7 +963,11 @@ async function _executarOrdensLegado(btn,soId){
         // cru — comportamento assumido aqui, não padrão silencioso.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
-        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
+        // ETAPA 2 (16/set/2026, "Engine — Etapas 1 e 2"): permitir_invencao_headline:true SÓ
+        // aqui e no outro ramo-espelho abaixo — é o que autoriza o Diretor de Arte a escrever a
+        // headline a partir do tema cru (gerar-imagem.js recusaria headline vazia em qualquer
+        // outro caminho, ver validarTextoDaPeca). Sem este campo o pedido nem chegaria à OpenAI.
+        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,{permitir_invencao_headline:true},{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
       }else if(o.de_agente==='estrategia'&&(tarefa.indexOf('criar_post')>=0||tarefa.indexOf('lote')>=0)){
         const ok=await executarLoteCriativos(uid,o);
         // FALHA ISOLADA: antes era `return` — UMA ordem travada abortava a fila INTEIRA e o
@@ -982,7 +986,11 @@ async function _executarOrdensLegado(btn,soId){
         // comportamento padrão do pipeline.
         const brief=o.detalhe||o.tarefa||'post';
         addMsg('a','🎨 Ordem avulsa: "'+JUMP.esc(brief)+'". Vou criar a arte a partir desse briefing.');
-        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,'',{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
+        // ETAPA 2 (16/set/2026, "Engine — Etapas 1 e 2"): permitir_invencao_headline:true SÓ
+        // aqui e no outro ramo-espelho abaixo — é o que autoriza o Diretor de Arte a escrever a
+        // headline a partir do tema cru (gerar-imagem.js recusaria headline vazia em qualquer
+        // outro caminho, ver validarTextoDaPeca). Sem este campo o pedido nem chegaria à OpenAI.
+        await gerarPorOrdem(brief,'4:5','conceitual',brief,false,{permitir_invencao_headline:true},{tema:brief,formato:'feed',tipo_visual:'conceitual',ordem_id:o.id});
       }
       const{error:eUpd}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',o.id);
       if(eUpd)console.error('update ordem falhou:',eUpd.message);
