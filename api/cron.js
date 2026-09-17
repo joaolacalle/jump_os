@@ -792,15 +792,23 @@ async function jobProduzir(soUid) {
         // SEM ids (ficha_tecnica, substituir_criativo, ou uma ordem de antes desta correção):
         // EXCEÇÃO NOMEADA — não há texto decidido em lugar nenhum para buscar; o Diretor segue
         // escrevendo a headline a partir do brief cru, comportamento anterior, inalterado.
+        // permitir_invencao_headline:true (Etapa 1, 16/set/2026): sem ids (ou fetch abaixo falha),
+        // este corpoImg não carrega headline nenhum — gerar-imagem.js agora recusa headline vazia
+        // por padrão (validarTextoDaPeca); esta é uma das exceções nomeadas que autorizam o
+        // Diretor a inventar, mesma categoria dos dois ramos de agentes.html.
         let corpoImg = { user_id: o.user_id, prompt: brief, tamanho: tf === 'ficha_tecnica' ? '1:1' : '4:5',
-          tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined };
+          tipo: 'conceitual', engine: tf === 'ficha_tecnica' ? false : undefined, permitir_invencao_headline: true };
         if (ids && ids.length) {
           try {
             const cRows = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: SBH() }).then(r => r.json()).catch(() => []);
             const c = Array.isArray(cRows) && cRows[0];
             if (c) {
               const meta = c.meta || {};
-              corpoImg = { user_id: o.user_id, prompt: c.tema || meta.headline || brief,
+              // PRECEDÊNCIA (Etapa 1, 16/set/2026): headline é o texto DECIDIDO pela Estratégia;
+              // tema é rótulo interno curto (ex.: "promo"). Headline primeiro, tema só de
+              // fallback — e SEM permitir_invencao_headline aqui: se a Estratégia gravou o
+              // conteúdo sem headline, é falha do caminho anterior, não exceção deste worker.
+              corpoImg = { user_id: o.user_id, prompt: meta.headline || c.tema || brief,
                 headline: meta.headline || '', subheadline: meta.subheadline || '', prova: meta.prova || '',
                 cta_arte: meta.cta_arte || '', copy: c.copy || '', oferta: meta.oferta || '', pilar: c.pilar || '',
                 formato: c.formato || 'feed', tipo: c.tipo_visual || 'conceitual',
@@ -884,7 +892,15 @@ async function jobProduzir(soUid) {
           headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
           body: JSON.stringify({
             user_id: o.user_id, conteudo_id: c.id,
-            prompt: c.tema || m.headline || 'post', tamanho: '4:5',
+            // PRECEDÊNCIA (Etapa 1, 16/set/2026, "Engine — Etapas 1 e 2"): antes era
+            // `c.tema || m.headline || 'post'` — o tema (rótulo interno, ex.: "promo", 5
+            // caracteres) tinha prioridade sobre a headline de verdade (o texto decidido), e um
+            // conteúdo sem tema nem headline ainda passava como o placeholder 'post'. Headline é
+            // o texto decidido — vem primeiro; tema é só rótulo interno, fica de fallback; sem
+            // nenhum dos dois, o campo fica vazio de propósito e a peça é recusada mais abaixo
+            // (o gate de "Prompt inválido" já existente, ou validarTextoDaPeca em
+            // gerar-imagem.js) — erro explícito, nunca mais um placeholder silencioso.
+            prompt: m.headline || c.tema || '', tamanho: '4:5',
             tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
             headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
             cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',

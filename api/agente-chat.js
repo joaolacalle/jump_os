@@ -32,7 +32,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.16-unificacao-arquiteturas-prompt-imagem';
+const VERSAO = '2026.09.16-etapas-1-2-texto-validado-em-codigo';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -819,6 +819,19 @@ const handler = async (req, res) => {
         unificacao_prompt_gate_pronto_para_arte_fonte_unica_classificacao_js:true,
         unificacao_prompt_executarlotecriativos_usa_payloaddoconteudo_sem_duplicar:true,
         unificacao_prompt_gerarpordordem_mantido_como_esta_decisao_estrutural_propria:true,
+        // Marcas de rastreio (16/set/2026, "Engine — Etapas 1 e 2, sobre pipeline único") —
+        // Etapa 1 e 2 tocam só api/gerar-imagem.js, api/cron.js e agentes.html; registradas aqui
+        // pelo mesmo motivo das marcas anteriores: manter o diagnóstico como painel único.
+        etapa1_gerarimagem_valida_palavras_headline_subheadline_cta_em_codigo:true,
+        etapa1_headline_obrigatoria_recusa_peca_inteira_nunca_so_campo:true,
+        etapa1_prova_sem_limite_de_palavras_por_nao_existir_no_engine:true,
+        etapa1_cron_soarquivo_precedencia_headline_antes_de_tema_linha803:true,
+        etapa1_cron_loteprincipal_precedencia_headline_antes_de_tema_linha887:true,
+        etapa1_cron_placeholder_post_removido_sem_texto_e_erro_nao_placeholder:true,
+        etapa2_diretor_perde_reescrita_por_excesso_de_palavras_codigo_ja_garante:true,
+        etapa2_diretor_invencao_de_headline_condicionada_a_permitir_invencao_headline:true,
+        etapa2_excecao_nomeada_permitir_invencao_headline_so_dois_ramos_agenteshtml_e_cron_soarquivo:true,
+        etapa2_diretor_recebe_lista_de_texto_fechada_proibido_alterar_caractere:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.07.17-pacote-1';
+const VERSAO = '2026.09.16-etapas-1-2-texto-validado-em-codigo';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -57,6 +57,47 @@ function cortarFrase(s, max) {
   return (e > 0 ? c.slice(0, e) : c).trim();
 }
 
+// ── ETAPA 1 — TEXTO VALIDADO EM CÓDIGO (16/set/2026, "Engine — Etapas 1 e 2") ──
+// Antes o limite de palavras só existia como PROSA dentro do prompt do Diretor de Arte
+// ("se a headline exceder 8 palavras, reescreva") — nenhuma contagem real acontecia em
+// código; um headline de 20 palavras passava batido até a arte sair errada, e o Diretor
+// (um modelo de texto) tinha que decidir o que aparecia na peça, o que não é trabalho dele.
+// MESMO PADRÃO de cardinalidade() (api/agente-chat.js): lança Error controlado, a chamadora
+// nunca corrige/trunca/reescreve em silêncio — recusa e avisa, com o campo e a contagem na
+// mensagem. Este arquivo é o ÚNICO funil por onde toda geração de imagem passa (chat avulso,
+// ordem de serviço, worker do cron, ordem do Tráfego) — validar aqui cobre TODO caminho de
+// uma vez, incluindo o gap do itens[] (agentes.html manda it.headline||'' sem checar nada).
+// LIMITES: vêm do próprio engine6() (seção "=== 2. WORD LIMIT ==="), nunca reinventados aqui:
+// headline máx 8 palavras, subheadline (= SUPPORT COPY do Engine) máx 6, cta_arte (= CTA) máx 2.
+// PROVA não tem limite de palavras em lugar nenhum do Engine — só um corte de 90 caracteres na
+// montagem do prompt (linha do PROOF POINT, função engine6) — por isso NÃO valida contagem de
+// palavras de prova: inventar um limite que a lei do Engine não define seria a mesma falha que
+// esta etapa está corrigindo (regra nova sem fonte). HEADLINE é sempre obrigatória (é o elemento
+// dominante da peça, nunca pode faltar) — vazia é recusada como qualquer estouro de limite,
+// EXCETO na exceção nomeada dos dois ramos de fallback do laço de ordens em agentes.html (ver
+// permitirInvencaoHeadline nos dois pontos onde diretorDeArte é chamado, mais abaixo): ali não
+// existe nenhum agente decidindo o texto antes de chegar aqui, e o próprio Diretor escreve a
+// headline a partir do tema cru — comportamento assumido, registrado, nunca o padrão geral.
+function contarPalavras(s) {
+  return String(s || '').trim().split(/\s+/).filter(Boolean).length;
+}
+function validarTextoDaPeca(o, permitirHeadlineVazia) {
+  const h = String(o.headline || '').trim();
+  if (!h) {
+    if (permitirHeadlineVazia) return; // exceção nomeada: o Diretor escreve a headline
+    throw new Error('headline vazia — este é o elemento de texto dominante da peça (campo obrigatório do Engine 6.0).');
+  }
+  const nH = contarPalavras(h);
+  if (nH > 8) throw new Error('headline com ' + nH + ' palavras (limite do Engine: 8) — "' + h + '"');
+  if (o.subheadline) {
+    const nS = contarPalavras(o.subheadline);
+    if (nS > 6) throw new Error('subheadline com ' + nS + ' palavras (limite do Engine: 6) — "' + o.subheadline + '"');
+  }
+  if (o.cta_arte) {
+    const nC = contarPalavras(o.cta_arte);
+    if (nC > 2) throw new Error('cta_arte com ' + nC + ' palavras (limite do Engine: 2) — "' + o.cta_arte + '"');
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // JUMP OS — CONTENT ENGINE 6.0 VISUAL (BLOCO IMUTÁVEL)
@@ -243,12 +284,21 @@ async function diretorDeArte(M, o, ctx) {
     '=== HOW TO WRITE IT (both modes) ===',
     '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',
     '2. DOMINANCE IS WON BY LIGHT AND CONTRAST — NEVER BY SIZE. The headline is the brightest, highest-contrast thing in the frame while everything else sits in shadow or low contrast. It occupies AT MOST 30% of the canvas area (cap-height 8-14% of canvas height). A headline that fills half the canvas is a slide deck, not a campaign: FAILURE.',
-    '3. LENGTH IS YOUR RESPONSIBILITY — BUT MEANING OUTRANKS LENGTH. If the headline exceeds 8 words, REWRITE it into a COMPLETE, SELF-CONTAINED statement of 8 words or fewer. Do NOT truncate, do NOT trim words off the end: rewrite. A fragment that leaves the reader asking "...what?" is a FAILURE worse than a long headline — "POR QUE AGENTE DE IA VAI MUDAR" (change WHAT?) is broken; "SEU CONCORRENTE JÁ AUTOMATIZOU" is complete. Read your headline back and ask: does this stand alone and land? If not, rewrite it again. Same for support copy: rewrite to 6 words maximum, always a complete thought. NEVER render a sentence cut off mid-thought.',
-    '4. TYPOGRAPHY: never name a font. Describe weight, width, stroke contrast, terminals, corner treatment, tracking, case, line-height. Mixing weight or colour inside the headline is allowed ONLY per whole line (line 1 neutral, line 2 accent) — never per random word.',
-    '5. ACCENT DISCIPLINE: the accent colour appears in exactly 3-4 places and they are STRUCTURAL (label pill, thin rule, CTA pill, the thematic graphic, icon strokes) or, in CENA mode, physical light. STRICTLY FORBIDDEN: underlining words, highlighting or colouring isolated words inside the headline. That is a marker pen, not art direction.',
-    '6. NEGATIVE SPACE IS ATMOSPHERE, NOT BLANK. The empty percentage the design system asks for means "no elements there" — that area must still be full of matter: textured surface, light falloff, gradient, grain, dust in the light beam. A flat empty area is a FAILURE.',
-    '7. HUMAN MODE: visible film grain 3-5% across the ENTIRE frame, micro-wear, real optics and real shadows. Goal: a photograph of a real campaign, not an AI render.',
-    '8. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
+    // ETAPA 2 (16/set/2026, "Engine — Etapas 1 e 2"): removido o item que antes era "3. LENGTH IS
+    // YOUR RESPONSIBILITY... REWRITE it..." — pedia para VOCÊ (o Diretor) reescrever a headline se
+    // ela excedesse 8 palavras. O código agora garante o limite ANTES de chegar aqui
+    // (validarTextoDaPeca, no topo deste arquivo): se o texto chegou até esta função, já passou
+    // pela validação — está dentro do limite, por construção. Reescrever aqui seria uma SEGUNDA
+    // decisão de texto por cima da primeira, a mesma falha que a unificação das arquiteturas
+    // corrigiu para o Criativo. Você recebe a lista de texto fechada — não é permitido alterar
+    // nenhum caractere dela. Decide-se ONDE o texto fica, com que peso, em que material, sob que
+    // luz — nunca O QUE ele diz.
+    '3. TYPOGRAPHY: never name a font. Describe weight, width, stroke contrast, terminals, corner treatment, tracking, case, line-height. Mixing weight or colour inside the headline is allowed ONLY per whole line (line 1 neutral, line 2 accent) — never per random word.',
+    '4. ACCENT DISCIPLINE: the accent colour appears in exactly 3-4 places and they are STRUCTURAL (label pill, thin rule, CTA pill, the thematic graphic, icon strokes) or, in CENA mode, physical light. STRICTLY FORBIDDEN: underlining words, highlighting or colouring isolated words inside the headline. That is a marker pen, not art direction.',
+    '5. NEGATIVE SPACE IS ATMOSPHERE, NOT BLANK. The empty percentage the design system asks for means "no elements there" — that area must still be full of matter: textured surface, light falloff, gradient, grain, dust in the light beam. A flat empty area is a FAILURE.',
+    '6. HUMAN MODE: visible film grain 3-5% across the ENTIRE frame, micro-wear, real optics and real shadows. Goal: a photograph of a real campaign, not an AI render.',
+    '7. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
+    'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤6, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
     '',
     '=== SPECIFICS ===',
     ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene and re-lit, never re-photographed. Describe ONLY: which side they sit on, the crop, how the light of the set falls on them, gaze direction pointing toward the headline, contact shadow. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
@@ -268,8 +318,16 @@ async function diretorDeArte(M, o, ctx) {
       + (M.referencia_aprovada ? ' Approved before, repeat what worked: "' + String(M.referencia_aprovada).slice(0, 200) + '".' : '')
       + (M.evitar_visual ? ' Rejected before, never repeat it: "' + String(M.evitar_visual).slice(0, 200) + '".' : '')
     ) : '',
-    '3b. USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
-    o.headline ? '' : 'NO HEADLINE WAS PROVIDED (free-form request): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.',
+    'TEXT HIERARCHY — USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
+    // ETAPA 2 (16/set/2026): esta linha antes disparava sempre que o headline chegasse vazio —
+    // "NO HEADLINE WAS PROVIDED: write the headline yourself". Depois da Etapa 1 (validação em
+    // código, ver validarTextoDaPeca no topo do arquivo), headline vazia é RECUSADA antes de
+    // chegar aqui — se chegou até este ponto vazia, é porque a chamadora pediu explicitamente a
+    // exceção nomeada (ctx.permitirInvencaoHeadline), os dois ramos de fallback do laço de ordens
+    // em agentes.html ('criar_avulso' sem itens e o catch-all genérico), já registrados com
+    // comentário explícito nesse arquivo. Fora dessa exceção, headline vazia nunca chega aqui —
+    // a invenção deixa de ser comportamento geral e vira exclusiva desse caminho, condicionada.
+    (!o.headline && ctx.permitirInvencaoHeadline) ? 'NO HEADLINE WAS PROVIDED (named exception — an internal order-queue fallback path with no upstream agent deciding text yet, logged as a deliberate exception, never the default behaviour): write the headline yourself from the theme — maximum 8 words, punchy, in Portuguese. Never dump the whole briefing as the headline.' : '',
     ctx.variacao ? ('CONTROLLED REVISION OF THE SAME ARTWORK (not a new piece). Freedom level: ' + ctx.variacao + '%.\n'
       + ({10:'10% = pointwise: keep composition, copy, style, palette and layout practically identical — touch ONLY what the client asked.',
           30:'30% = light: keep the structure, style and copy; adjust the requested element and what is strictly needed around it.',
@@ -416,7 +474,9 @@ module.exports = async (req, res) => {
     let uso = cli.uso || {};
     if (uso.mes !== mes) { uso = { tokens: 0, imagens: 0, reloads: 0, videos: 0, mes }; }
     let lim = cli.limites || {};
-    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem, sem_foto_pessoa } = req.body || {};
+    // permitir_invencao_headline: SÓ os dois ramos de fallback nomeados do laço de ordens
+    // (agentes.html) mandam este campo — ver validarTextoDaPeca e o comentário em diretorDeArte.
+    const { prompt, tamanho, tipo, slide, conteudo_id, reload, registrar, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, total, engine, variacao, ajuste, modo, origem, sem_foto_pessoa, permitir_invencao_headline } = req.body || {};
 
     // ── COTA DE TRIAL ──
     // Se o cliente está dentro do período de teste (cortesia_ate no futuro),
@@ -478,6 +538,19 @@ module.exports = async (req, res) => {
     }
 
     if (!prompt || prompt.length < 10) return res.status(400).json({ error: 'Prompt inválido' });
+    // ETAPA 1 — TEXTO VALIDADO EM CÓDIGO (16/set/2026): engine===false é a ficha técnica (brand
+    // board) — não é post de Instagram, não carrega headline/subheadline/cta_arte nenhum (ver
+    // agentes.html, gerarFichaTecnica: txt vem vazio de propósito) — fora do escopo desta
+    // validação, que é sobre TEXTO DE PEÇA. Recusa a PEÇA INTEIRA (não só o campo): mesmo
+    // contrato do gate de prompt logo acima e de cardinalidade() em agente-chat.js — nenhuma
+    // imagem é gerada, nenhum crédito de cota é gasto, o erro nomeia o campo e a contagem.
+    if (engine !== false) {
+      try {
+        validarTextoDaPeca({ headline, subheadline, cta_arte }, !!permitir_invencao_headline);
+      } catch (e) {
+        return res.status(400).json({ error: e.message });
+      }
+    }
     // gpt-image-1 só aceita: 1024x1024 (1:1), 1024x1536 (retrato 2:3), 1536x1024 (paisagem 3:2).
     // '9:16' NÃO existe aqui — antes caía no else e virava QUADRADO (reels saía cortado).
     // Proporção derivada do FORMATO (fonte da verdade), nunca cai em quadrado por engano:
@@ -597,7 +670,7 @@ module.exports = async (req, res) => {
 
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
-      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste });
+      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
         : (engine6(M6, oArte)
@@ -630,7 +703,7 @@ module.exports = async (req, res) => {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
       const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
-      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste });
+      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
            + (dirTxt2 ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt2 : '')))
