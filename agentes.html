@@ -618,15 +618,10 @@ async function selecionar(id){
   }catch(e){}
   w.scrollTop=w.scrollHeight;
   document.getElementById('inp').focus();
-  // A3: retomada de progresso não concluído (conceito/preview de imagem)
-  try{
-    const p=loadPend(id);
-    if(p){
-      const ec=w.querySelector('.empty-chat');if(ec)ec.remove();
-      if(p.tipo==='conceito'&&p.req)mostrarBotaoImagem(p.req,true);
-      else if(p.tipo==='preview'&&p.d)renderPreview(p.d,p.req);
-    }
-  }catch(e){}
+  // A3 removida (18/set/2026, "pedido avulso sempre passa pela Estratégia"): o botão manual de
+  // gerar imagem no chat do Criativo (e a retomada de progresso 'conceito'/'preview' dele) não
+  // existe mais — o Criativo nunca decide texto nem oferece botão, sempre delega pra Estratégia
+  // via direcao_avulso_criativo. Ver mostrarBotaoImagem/gerarImagem/renderPreview removidos abaixo.
   // 🔴 ERA `if(id==='criativo'||id==='estrategia')`: os outros 5 agentes NUNCA mostravam
   // suas ordens pendentes. O usuário criava tarefa para o Mercado, abria o Mercado e não
   // via nada. Agora TODO agente mostra o que tem para fazer.
@@ -2141,7 +2136,8 @@ async function enviarTexto(txt){
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
       }
       if(d.tokens!==undefined)atualizarUso(d.tokens);
-      if(d.gerar_imagem)mostrarBotaoImagem(d.gerar_imagem);
+      // gatilho do botão manual removido (18/set/2026) — o Criativo não emite mais <gerar_imagem>,
+      // ver PERSONAS.criativo em api/agente-chat.js e mostrarBotaoImagem removida abaixo.
       if(d.aplicar_tema){try{JUMP.applyTheme(Object.assign({bg:'escuro'},d.aplicar_tema));JUMP.toast('🎨 Dashboard personalizada com as cores da sua marca!')}catch(e){}}
       // botões de escolha quando o Identidade oferece manter/sugerir
       if(AG==='identidade' && /manter identidade|sugerir nova|dois caminhos|preservar.*marca|evoluir/i.test(d.resposta||'') && !document.querySelector('.id-choice')){
@@ -2164,110 +2160,15 @@ async function enviarTexto(txt){
   }
   BUSY=false;document.getElementById('send').disabled=false;inp.focus();
 }
-// ── A3: persistência de progresso (conceito/preview) por usuário+agente ──
-function pendKey(ag){return 'jump_pend_'+((CTX&&(CTX.viewId||CTX.user.id))||'x')+'_'+(ag||AG)}
-function savePend(ag,obj){try{const k=pendKey(ag);if(obj)localStorage.setItem(k,JSON.stringify(obj));else localStorage.removeItem(k)}catch(e){}}
-function loadPend(ag){try{const s=localStorage.getItem(pendKey(ag));return s?JSON.parse(s):null}catch(e){return null}}
-
-async function mostrarBotaoImagem(req,skipSave){
-  if(!skipSave)savePend(AG,{tipo:'conceito',req});
-  const w=document.getElementById('msgs');
-  const d=document.createElement('div');d.className='msg a';
-  d.innerHTML='🎨 <b>Conceito pronto para gerar.</b><div style="font-size:11px;color:var(--t3);margin:6px 0;font-family:var(--M)">A imagem será criada a partir do conceito.</div><button class="btn btn-g btn-sm" style="margin-top:6px">✨ Gerar imagem</button>';
-  const btn=d.querySelector('button');
-  btn.onclick=()=>gerarImagem(req,btn);
-  w.appendChild(d);w.scrollTop=w.scrollHeight;
-}
-// Gera em modo PREVIEW (registrar:false → não salva ainda). ehRecriar=true consome 1 reload.
-async function gerarImagem(req,btn,ehRecriar){
-  const host=btn?btn.parentElement:null;
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> '+(ehRecriar?'Recriando':'Gerando sua arte')+' (15-40s)...';}
-  try{
-    const r=await fetch('/api/gerar-imagem',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-      // headline/subheadline/prova/cta_arte/pilar (16/set/2026, "unificação das arquiteturas de
-      // prompt"): antes só `prompt` viajava — a tag <gerar_imagem> do Criativo hoje entrega o
-      // texto pronto em campos próprios (não mais um prompt de imagem embutido em texto livre);
-      // sem repassar isso aqui, os campos morrem no meio do caminho e o Diretor volta a inventar.
-      body:JSON.stringify({prompt:req.prompt,headline:req.headline||'',subheadline:req.subheadline||'',prova:req.prova||'',cta_arte:req.cta_arte||'',pilar:req.pilar||'',tamanho:req.tamanho||'4:5',tipo:req.tipo||'conceitual',slide:req.slide||1,reload:!!ehRecriar,registrar:false,variacao:ehRecriar?(req._variacao||50):0,ajuste:req._ajuste||'',ver_id:CTX.viewId||null})
-    });
-    const raw=await r.text();let d;
-    try{d=JSON.parse(raw)}catch(_){throw new Error('A geração demorou demais. Tente novamente.')}
-    if(!r.ok){
-      if(d&&d.limite){if(host)host.innerHTML='🚦 '+(d.error||'Limite de imagens atingido. Fale com seu gestor.');else JUMP.toast(d.error||'Limite atingido','err');savePend(AG,null);return}
-      throw new Error((d.error||'Erro ao gerar')+(d.detalhe?(' — '+d.detalhe):''));
-    }
-    if(host)host.remove();
-    const d2=await comporLogoNaArte(d); // sobrepõe a logo real (sem alterar); sem logo/erro → mantém a arte
-    renderPreview(d2,req);
-  }catch(e){
-    if(btn){btn.disabled=false;btn.innerHTML=ehRecriar?'🔄 Recriar':'✨ Gerar imagem';}
-    JUMP.toast(e.message,'err');
-  }
-}
-// Card de preview com Aceitar / Recriar / Recusar / Baixar + cota restante
-function renderPreview(d,req){
-  savePend(AG,{tipo:'preview',d,req});
-  const w=document.getElementById('msgs');
-  const restImg=(d.limite||0)-(d.usadas||0);
-  const restRel=(d.reloads_limite||0)-(d.reloads_usados||0);
-  const cotaImg=d.limite?('Imagens restantes: <b>'+Math.max(0,restImg)+'</b>'):('Imagens usadas: '+(d.usadas||0));
-  const cotaRel=d.reloads_limite?(' · Recriações restantes: <b>'+Math.max(0,restRel)+'</b>'):'';
-  const semRel=!!(d.reloads_limite&&restRel<=0);
-  const card=document.createElement('div');card.className='msg a img-card';
-  card.innerHTML='<img src="'+d.url+'" alt="criativo gerado">'
-    +'<div class="img-cota">'+cotaImg+cotaRel+'</div>'
-    +'<div class="img-acts">'
-    +'<button class="btn btn-g btn-sm b-aceitar">✓ Aceitar</button>'
-    +'<button class="btn btn-o btn-sm b-recriar"'+(semRel?' disabled title="Sem recriações disponíveis"':'')+'>🔄 Recriar</button>'
-    +'<button class="btn btn-o btn-sm b-recusar">✕ Recusar</button>'
-    +'<button class="btn btn-o btn-sm b-baixar">⬇ Baixar</button>'
-    +'</div>';
-  card.querySelector('.b-aceitar').onclick=()=>aceitarImg(d,req,card);
-  card.querySelector('.b-recusar').onclick=()=>recusarImg(card);
-  card.querySelector('.b-baixar').onclick=e=>baixarImg(d.url,e.currentTarget);
-  const br=card.querySelector('.b-recriar');
-  if(br&&!semRel)br.onclick=()=>{
-    const v=prompt('O quanto mudar? Digite 25 (leve), 50 (outra composição) ou 100 (conceito novo).\n\nDepois, se quiser, descreva o que mudar na próxima pergunta.','50');
-    if(v===null)return;
-    const aj=prompt('O que mudar? (opcional — ex.: mais escuro, sem foto, foco no produto)','')||'';
-    req._variacao=Number(v)||50; req._ajuste=aj;
-    savePend(AG,null);
-    const holder=document.createElement('div');holder.className='msg a';
-    holder.innerHTML='<button class="btn btn-o btn-sm" disabled><span class="spin-i"></span> Recriando (15-40s)...</button>';
-    card.replaceWith(holder);
-    gerarImagem(req,holder.querySelector('button'),true);
-  };
-  w.appendChild(card);w.scrollTop=w.scrollHeight;
-}
-async function aceitarImg(d,req,card){
-  const b=card.querySelector('.b-aceitar');if(b){b.disabled=true;b.innerHTML='<span class="spin-i"></span> Salvando...'}
-  try{
-    const r=await fetch('/api/gerar-imagem',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
-      body:JSON.stringify({acao:'registrar',url:d.url,path:d.path||null,nome:'Arte IA',conteudo_id:(req&&req.conteudo_id)||null,ver_id:CTX.viewId||null})
-    });
-    const raw=await r.text();let j;try{j=JSON.parse(raw)}catch(_){j={}}
-    if(!r.ok||!j.ok)throw new Error(j.error||'Falha ao salvar');
-    savePend(AG,null);
-    const acts=card.querySelector('.img-acts');
-    if(acts){acts.innerHTML='';const ok=document.createElement('span');ok.style.cssText='font-family:var(--M);font-size:10px;color:var(--g)';ok.textContent='✓ Salvo em Meus Arquivos';const bd=document.createElement('button');bd.className='btn btn-o btn-sm';bd.textContent='⬇ Baixar';bd.onclick=e=>baixarImg(d.url,e.currentTarget);acts.appendChild(ok);acts.appendChild(bd);}
-    JUMP.toast('✓ Imagem salva em Meus Arquivos!');
-    await logChat('user','[Aceitei a imagem gerada]',AG);
-    await logChat('assistant','Imagem aceita e salva em Meus Arquivos. Você já pode usá-la nos seus conteúdos.',AG);
-  }catch(e){
-    if(b){b.disabled=false;b.innerHTML='✓ Aceitar'}
-    JUMP.toast(e.message||'Erro ao salvar','err');
-  }
-}
-async function recusarImg(card){
-  savePend(AG,null);
-  card.remove();
-  JUMP.toast('Imagem descartada.');
-  await logChat('user','[Recusei a imagem gerada]',AG);
-  await logChat('assistant','Sem problema — descartei essa arte. Me diga o que ajustar (cor, estilo, elemento) e eu gero outra.',AG);
-}
+// pendKey/savePend/loadPend/mostrarBotaoImagem/gerarImagem/renderPreview/aceitarImg/recusarImg
+// REMOVIDAS (18/set/2026, "pedido avulso sempre passa pela Estratégia" — autorizado pelo João):
+// era o subsistema inteiro (botão manual "Gerar imagem" + card de preview com Aceitar/Recriar/
+// Recusar/Baixar + persistência de progresso em localStorage) que existia SÓ para sustentar a tag
+// <gerar_imagem> do Criativo, agora removida do prompt (ver PERSONAS.criativo em
+// api/agente-chat.js). Confirmado por grep, antes de remover: nenhum outro agente ou fluxo emitia
+// essa tag; nenhuma dessas funções era chamada de fora deste bloco. gerarPorOrdem() (acima) é o
+// caminho vivo e automático — gera, vincula a conteúdos/Aprovações e mostra só um botão Baixar,
+// sem decisão manual nenhuma; baixarImg() (abaixo) é compartilhada com ele e continua existindo.
 function escolhaId(txt,btn){
   document.querySelectorAll('.id-choice').forEach(e=>e.remove());
   document.getElementById('inp').value=txt;enviar();
