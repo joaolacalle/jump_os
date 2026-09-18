@@ -17,10 +17,19 @@ function cardinalidade(ct){
   return Math.floor(n);
 }
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
-const MODEL = () => process.env.AGENT_MODEL || 'claude-haiku-4-5';
+// CAUSA RAIZ DE DOIS MESES DE FALHA (18/set/2026, "qualidade da arte — diagnóstico", rodada 6):
+// AGENT_MODEL_DIRETOR estava configurada na Vercel com espaço à direita — a Anthropic ecoava o
+// nome recebido com o espaço junto ("model: claude-sonnet-5 ", not_found_error), e como o mesmo
+// nome VISÍVEL é usado em vários lugares, o mesmo bug pode existir aqui sem nunca ter sido notado
+// (este arquivo tem o teste de diagnóstico que passou — mas só porque a variável aqui,
+// AGENT_MODEL_ESTRATEGIA, por acaso não tem o espaço). trimEnv() é a defesa: nunca deixa um
+// espaço invisível de configuração virar "modelo não encontrado" de novo, em nenhuma variável de
+// nome de modelo. Autorizado pelo João.
+const trimEnv = (v) => String(v || '').trim();
+const MODEL = () => trimEnv(process.env.AGENT_MODEL) || 'claude-haiku-4-5';
 // A Estratégia é a tarefa mais complexa do sistema: pode usar um modelo mais forte.
 // Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
-const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGIA) ? process.env.AGENT_MODEL_ESTRATEGIA : MODEL();
+const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_ESTRATEGIA)) ? trimEnv(process.env.AGENT_MODEL_ESTRATEGIA) : MODEL();
 // Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
 // FILA TÉCNICA — item da rodada de 15/set (achado do João, 5ª/6ª rodada do dia): existiu OUTRA
 // rodada chamada "fila técnica" em 09/set/2026 (commit 3ef9773, VERSAO
@@ -32,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.18-diretor-output-config-com-retry';
+const VERSAO = '2026.09.18-trim-env-nome-de-modelo';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -847,6 +856,12 @@ const handler = async (req, res) => {
         diagnostico_qualidade_diretordearte_manda_output_config_e_repete_sem_ele_se_recusado:true,
         diagnostico_qualidade_diag_diretor_reporta_3_estados_direto_repeticao_ou_falhou:true,
         diagnostico_qualidade_literal_do_modelo_nao_alterado_autorizacao_foi_so_output_config:true,
+        // Marca de rastreio (18/set/2026, rodada 6) — causa raiz REAL era configuração, não
+        // código: AGENT_MODEL_DIRETOR na Vercel tinha espaço à direita. trimEnv() defende as
+        // duas variáveis deste arquivo (AGENT_MODEL, AGENT_MODEL_ESTRATEGIA) e a de gerar-imagem.js
+        // (AGENT_MODEL_DIRETOR) do mesmo bug — espaço invisível de configuração nunca mais vira
+        // "modelo não encontrado" em silêncio.
+        diagnostico_qualidade_trimenv_nas_variaveis_de_nome_de_modelo_causa_raiz_era_espaco_na_vercel:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

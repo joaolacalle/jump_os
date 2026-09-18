@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.18-diretor-output-config-com-retry';
+const VERSAO = '2026.09.18-trim-env-nome-de-modelo';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -225,7 +225,14 @@ function engine6(M, o) {
 // ele procura um exemplo para copiar e a arte sai genérica. O fallback era 'claude-haiku-4-5':
 // se a env var sumisse (troca de projeto, deploy novo, erro de digitação), a qualidade caía
 // em SILÊNCIO, sem erro nenhum. O padrão agora é o modelo que sabemos que funciona.
-const MODEL_DIRETOR = () => process.env.AGENT_MODEL_DIRETOR || 'claude-sonnet-5';
+// CAUSA RAIZ CONFIRMADA (18/set/2026, "qualidade da arte — diagnóstico", rodada 6): a causa real
+// dos dois meses de falha não era código — era AGENT_MODEL_DIRETOR configurada na Vercel com um
+// espaço à direita. A Anthropic ecoava o nome recebido COM o espaço ("model: claude-sonnet-5 ",
+// not_found_error) — o mesmo nome visível funcionava em api/agente-chat.js porque a variável de
+// lá, por acaso, não tinha o espaço. trimEnv() é a defesa: espaço invisível de configuração nunca
+// mais vira "modelo não encontrado" em silêncio. Autorizado pelo João.
+const trimEnv = (v) => String(v || '').trim();
+const MODEL_DIRETOR = () => trimEnv(process.env.AGENT_MODEL_DIRETOR) || 'claude-sonnet-5';
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
