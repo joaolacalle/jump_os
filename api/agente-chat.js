@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.18-pedido-avulso-sempre-passa-pela-estrategia';
+const VERSAO = '2026.09.18-reparo-segunda-chamada-restrito-a-estrategia';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -851,6 +851,18 @@ const handler = async (req, res) => {
         // JSON de resposta continuam no código (não removidos) — defesa contra deriva de prompt ou
         // alucinação do modelo reintroduzindo a tag; hoje ficam inertes por não haver mais emissor.
         pedido_avulso_sempre_passa_pela_estrategia_tag_gerar_imagem_removida_do_designer:true,
+        // Marca de rastreio (18/set/2026) — "duplicação — ordem de produção fora da cadeia":
+        // o REPARO DE SEGUNDA CHAMADA (avulso) — a chamada que inventa e grava um <conteudo> na
+        // hora quando o texto "declara uma ação" sem tag — era agnóstico de agente por decisão
+        // antiga (01/set). Isso fazia toda delegação do Designer (que diz "vai aparecer em
+        // Aprovações" e nunca emite <conteudo>, de propósito) acionar uma SEGUNDA chamada pedindo
+        // pro próprio Designer inventar o texto da peça — criando um <conteudo> órfão que o
+        // backstop genérico encontrava e tentava produzir, duplicando a peça que a cadeia real ia
+        // produzir segundos depois com o texto de verdade da Estratégia. Mesmo bug, mesma
+        // correção, pro Editor de Vídeo (também "declara ação" sem <conteudo>, nunca precisou
+        // deste reparo). Agora a segunda chamada só roda para agente==='estrategia' — o único
+        // cenário (confirmação de proposta avulsa, TURNO 1/TURNO 2) para o qual foi desenhada.
+        duplicacao_reparo_segunda_chamada_avulso_restrito_a_estrategia_causa_raiz_era_agnostico_de_agente:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1779,15 +1791,44 @@ const handler = async (req, res) => {
     // em Aprovações"...) sem que NENHUMA tag <conteudo> tenha sido emitida — exatamente o bug de
     // prioridade absoluta deste lote (a instrução de confirmação em REGRAS_GERAIS proibia disparar
     // cedo demais, mas nunca obrigava disparar no turno certo; ver a reescrita acima). Esta
-    // checagem é o SEGUNDO backstop, agora agnóstico de agente/gatilho (cobre também o caso do
-    // avulso, que o auto-reparo acima propositalmente NÃO cobre — ver 'pedidoAvulso'). NÃO tenta
-    // corrigir sozinho (isso seria reintroduzir o auto-reparo pro avulso, que já causou
-    // duplicação) — só detecta, loga com o texto completo (auditoria) e avisa o cliente.
-    // Regra em si (calibração plural/voz-passiva + filtro de menção retrospectiva) mora em
-    // `declarouAcaoSemRegistro()`, escopo do módulo — ver comentário lá (REPARO AVULSO FRENTE B).
+    // checagem é o SEGUNDO backstop — cobre também o caso do avulso, que o auto-reparo acima
+    // propositalmente NÃO cobre (ver 'pedidoAvulso'). NÃO tenta corrigir sozinho por padrão (isso
+    // seria reintroduzir o auto-reparo pro avulso, que já causou duplicação) — só detecta, loga
+    // com o texto completo (auditoria) e avisa o cliente. A ÚNICA exceção — a SEGUNDA chamada de
+    // recuperação logo abaixo — é escopada a `agente==='estrategia'` (ver correção 18/set/2026
+    // abaixo). Regra em si (calibração plural/voz-passiva + filtro de menção retrospectiva) mora
+    // em `declarouAcaoSemRegistro()`, escopo do módulo — ver comentário lá (REPARO AVULSO FRENTE B).
+    //
+    // 🔴 REGRESSÃO CORRIGIDA (18/set/2026, "duplicação — ordem de produção fora da cadeia"): até
+    // aqui, o `if` abaixo era "agnóstico de agente/gatilho" DE PROPÓSITO (decisão de 01/set,
+    // pensada pro padrão TURNO 1/TURNO 2 da Estratégia: cliente confirma uma proposta, o agente
+    // "acha" que já registrou e não emite a tag). Só que o Designer, ao delegar um pedido avulso
+    // (<ordem_servico>direcao_avulso_criativo), é INSTRUÍDO a dizer "a peça vai aparecer em
+    // Aprovações" — bate literalmente no regex de `declarouAcaoSemRegistro` — e NUNCA emite
+    // <conteudo> nesse fluxo (não é o trabalho dele: quem grava é a Estratégia, depois, na
+    // cadeia). Toda delegação acionava esta checagem, que mandava uma SEGUNDA chamada à Anthropic
+    // pedindo pro PRÓPRIO Designer inventar headline/subheadline/prova/cta/copy na hora — sem o
+    // preparo da Estratégia — criando um <conteudo> órfão (status 'rascunho', sem imagem) que o
+    // backstop genérico (mais abaixo) encontrava pronto e tentava produzir, duplicando a peça que
+    // a cadeia real (direcao_avulso_criativo→criar_avulso) ia produzir corretamente segundos
+    // depois. Caso real, rastreado por completo no banco (18/set/2026, 20:25 UTC): conteúdo órfão
+    // `603689c8` (origem_agente:'criativo', criado pela segunda chamada) vs. conteúdo correto
+    // `0a5e0302` (origem_agente:'estrategia', criado pela cadeia) — mesmo tema, 34s de diferença,
+    // o órfão com subheadline de 15 palavras (o Designer não tem noção dos limites do Engine) que
+    // a validação recusou nas duas tentativas do worker. Mesma varredura encontrou um SEGUNDO
+    // falso positivo, menos visível: o Editor de Vídeo também é instruído a dizer que "o vídeo
+    // está sendo processado" (bate em `(est[áa]|est[ãa]o) (sendo|...)`) e também nunca emite
+    // <conteudo> — mesma classe de bug, mesma correção. Nenhum outro agente (identidade, mercado,
+    // diagnóstico, publicação, tráfego) bate no regex hoje (varredura confirmada nas 7 personas).
+    // Correção: a SEGUNDA chamada (a que inventa e grava o <conteudo>) passa a rodar só quando
+    // `agente==='estrategia'` — o único cenário para o qual foi desenhada (o padrão TURNO 1/TURNO
+    // 2 é exclusivo da persona da Estratégia). Para os demais agentes, `conteudos.length===0`
+    // depois de um turno que "declarou uma ação" NÃO é falha — é o estado normal (Designer
+    // delega, não grava; Editor de Vídeo edita, não grava) — então nem o reparo nem o aviso
+    // "nada foi salvo" fazem sentido para eles, e os dois ficam de fora, não só o reparo.
     let avisoNadaRegistrado=null;
     const _declarouAcao=declarouAcaoSemRegistro(texto);
-    if(_declarouAcao && conteudos.length===0){
+    if(agente==='estrategia' && _declarouAcao && conteudos.length===0){
       // REPARO DE SEGUNDA CHAMADA — AVULSO (03/set/2026, autorizado após confirmação em produção
       // de que as duas condições abaixo — conteudos.length===0 e declarouAcaoSemRegistro — são
       // exatamente o sinal certo): a causa raiz comprovada NÃO é o agente desobedecendo a
