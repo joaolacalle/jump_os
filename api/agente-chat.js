@@ -32,7 +32,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && process.env.AGENT_MODEL_ESTRATEGI
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.17-diagnostico-diretor-e-prova-cortarfrase';
+const VERSAO = '2026.09.18-diretor-output-config-com-retry';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -841,6 +841,12 @@ const handler = async (req, res) => {
         // palavra (String(o.prova).slice(0,90), cru) — agora usa cortarFrase(o.prova,90), o mesmo
         // helper com corte por limite de frase/palavra que a copy já usava. Padrão unificado.
         diagnostico_qualidade_prova_usa_cortarfrase_como_copy_nao_slice_cru:true,
+        // Marcas de rastreio (18/set/2026, "qualidade da arte — diagnóstico", rodada 4 — causa
+        // real confirmada ao vivo: o literal do modelo já era válido, faltava output_config).
+        diagnostico_qualidade_causa_real_nao_e_nome_do_modelo_e_sim_output_config_ausente:true,
+        diagnostico_qualidade_diretordearte_manda_output_config_e_repete_sem_ele_se_recusado:true,
+        diagnostico_qualidade_diag_diretor_reporta_3_estados_direto_repeticao_ou_falhou:true,
+        diagnostico_qualidade_literal_do_modelo_nao_alterado_autorizacao_foi_so_output_config:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

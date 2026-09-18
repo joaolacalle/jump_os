@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.17-diagnostico-diretor-e-prova-cortarfrase';
+const VERSAO = '2026.09.18-diretor-output-config-com-retry';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -353,11 +353,30 @@ async function diretorDeArte(M, o, ctx) {
 
   const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    // CAUSA REAL CONFIRMADA (17-18/set/2026, "qualidade da arte — diagnóstico", rodada 4): o
+    // literal de MODEL_DIRETOR() já é válido — o MESMO texto funciona ao vivo em
+    // api/agente-chat.js. A diferença real é que aquele arquivo manda
+    // output_config:{effort:'low'} quando usa um modelo forte (comentário de lá: "modelos novos
+    // — Sonnet 5/Opus — vêm com raciocínio 'high' por padrão"); esta chamada nunca mandou esse
+    // parâmetro. Corrigido: manda output_config primeiro; se a Anthropic recusar, repete SEM ele
+    // antes de desistir — a mesma defesa de duas tentativas que agente-chat.js já tem (linhas
+    // 1539-1557), pra uma rejeição de parâmetro não derrubar o Diretor inteiro sem 2ª chance.
+    let r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: user }], output_config: { effort: 'low' } }),
     });
+    let tentativa = 'direto (com output_config)';
+    if (!r.ok) {
+      const corpoErro1 = await r.text();
+      console.error('diretor: 1ª tentativa (com output_config) recusada, repetindo sem ele —', corpoErro1.slice(0, 160));
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: user }] }),
+      });
+      tentativa = 'repetição (sem output_config)';
+    }
     // NADA FALHA EM SILÊNCIO (17/set/2026, "qualidade da arte — diagnóstico"): antes só o texto
     // cru da resposta (truncado em 160 chars) ia pro log — se a mensagem de erro fosse longa,
     // `error.type` (a classificação real: not_found_error, permission_error, invalid_request_error...)
@@ -367,10 +386,11 @@ async function diretorDeArte(M, o, ctx) {
       const corpoErro = await r.text();
       try {
         const j = JSON.parse(corpoErro);
-        console.error('diretor:', MODEL_DIRETOR(), (j.error && j.error.type) || '(sem type)', '—', (j.error && j.error.message) || '(sem message)');
-      } catch (e2) { console.error('diretor:', MODEL_DIRETOR(), 'corpo não-JSON:', corpoErro.slice(0, 160)); }
+        console.error('diretor: falhou nas duas tentativas —', MODEL_DIRETOR(), (j.error && j.error.type) || '(sem type)', '—', (j.error && j.error.message) || '(sem message)');
+      } catch (e2) { console.error('diretor: falhou nas duas tentativas —', MODEL_DIRETOR(), 'corpo não-JSON:', corpoErro.slice(0, 160)); }
       return null;
     }
+    if (tentativa === 'repetição (sem output_config)') console.error('diretor: funcionou na repetição, sem output_config —', MODEL_DIRETOR());
     const d = await r.json();
     const t = (d.content || []).map(c => c.text || '').join('').trim();
     return t.length > 120 ? t : null; // resposta curta demais = não confiável
@@ -398,18 +418,30 @@ module.exports = async (req, res) => {
     let diretor = 'sem ANTHROPIC_API_KEY ❌';
     if (process.env.ANTHROPIC_API_KEY) {
       try {
-        const t = await fetch('https://api.anthropic.com/v1/messages', {
+        // Mesma defesa de duas tentativas de diretorDeArte() (18/set/2026, causa real confirmada:
+        // faltava output_config:{effort:'low'} — o literal do modelo já era válido). O diagnóstico
+        // agora distingue os três estados possíveis: funcionou direto, funcionou só na repetição
+        // (sinal de que o output_config é mesmo o fator), ou falhou nas duas.
+        let t = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 4, messages: [{ role: 'user', content: 'oi' }] }),
+          body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 4, messages: [{ role: 'user', content: 'oi' }], output_config: { effort: 'low' } }),
         });
-        if (t.ok) diretor = MODEL_DIRETOR() + ' ACESSÍVEL ✅';
-        // NADA FALHA EM SILÊNCIO (17/set/2026): antes só `error.message` ia pro diagnóstico —
-        // "model: X" sozinho não diz se é modelo inexistente, sem acesso na conta, ou outra causa.
-        // `error.type` (not_found_error/permission_error/invalid_request_error/...) é a
-        // classificação real que a Anthropic manda; sem ela o diagnóstico via ?diag=1 fica cego
-        // sobre O PORQUÊ, só sabe QUE falhou.
-        else { const j = await t.json().catch(() => ({})); diretor = 'FALHOU ❌ [' + String((j.error && j.error.type) || 'sem-type') + '] ' + String((j.error && j.error.message) || t.status).slice(0, 110); }
+        if (t.ok) { diretor = MODEL_DIRETOR() + ' ACESSÍVEL ✅ (direto, com output_config)'; }
+        else {
+          t = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: MODEL_DIRETOR(), max_tokens: 4, messages: [{ role: 'user', content: 'oi' }] }),
+          });
+          if (t.ok) { diretor = MODEL_DIRETOR() + ' ACESSÍVEL ✅ (na repetição, sem output_config)'; }
+          // NADA FALHA EM SILÊNCIO (17/set/2026): antes só `error.message` ia pro diagnóstico —
+          // "model: X" sozinho não diz se é modelo inexistente, sem acesso na conta, ou outra causa.
+          // `error.type` (not_found_error/permission_error/invalid_request_error/...) é a
+          // classificação real que a Anthropic manda; sem ela o diagnóstico via ?diag=1 fica cego
+          // sobre O PORQUÊ, só sabe QUE falhou.
+          else { const j = await t.json().catch(() => ({})); diretor = 'FALHOU ❌ nas duas tentativas [' + String((j.error && j.error.type) || 'sem-type') + '] ' + String((j.error && j.error.message) || t.status).slice(0, 110); }
+        }
       } catch (e) { diretor = 'erro: ' + e.message; }
     }
     return res.status(200).json({
