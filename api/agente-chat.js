@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.18-reparo-segunda-chamada-restrito-a-estrategia';
+const VERSAO = '2026.09.19-recusa-por-excesso-de-palavras-reescrita-unica';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -863,6 +863,16 @@ const handler = async (req, res) => {
         // deste reparo). Agora a segunda chamada só roda para agente==='estrategia' — o único
         // cenário (confirmação de proposta avulsa, TURNO 1/TURNO 2) para o qual foi desenhada.
         duplicacao_reparo_segunda_chamada_avulso_restrito_a_estrategia_causa_raiz_era_agnostico_de_agente:true,
+        // RECUSA POR EXCESSO DE PALAVRAS — REESCRITA ÚNICA (19/set/2026): validarTextoDaPeca
+        // (gerar-imagem.js, intocada) recusava a peça inteira por um campo passar do limite, e o
+        // retry genérico do worker (cron.js) reenviava o MESMO texto até esgotar as 3 tentativas —
+        // o pedido morria sem o cliente receber nada. Agora, só para este formato de erro, o
+        // worker pede à Estratégia (chamada interna, mesmo mecanismo de direcao_avulso_criativo)
+        // uma reescrita única do campo específico, via nova tag <correcao_texto> (canal próprio,
+        // separado de <detalhe> — que tem travas incompatíveis com este caso e não podem ser
+        // tocadas), e tenta de novo. Se a reescrita também estourar, recusa de verdade, motivo
+        // visível. Não consome cota de imagem (chamada de texto, sem gerar-imagem).
+        recusa_por_excesso_de_palavras_reescrita_unica_via_correcao_texto:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -2064,6 +2074,47 @@ const handler = async (req, res) => {
       }
     }
 
+    // CORREÇÃO DE TEXTO POR LIMITE DE PALAVRAS (19/set/2026, "recusa por excesso de palavras
+    // desperdiça o pedido inteiro", autorizado pelo João, item 3) — canal PRÓPRIO, separado de
+    // <detalhe> (acima) DE PROPÓSITO: <detalhe> tem duas travas que engoliriam esta correção em
+    // silêncio — (1) só grava se `copy` ainda estiver vazio (a peça que falhou em
+    // validarTextoDaPeca JÁ tem copy, senão nunca teria chegado a /api/gerar-imagem) e (2) só
+    // aceita a semana ATUAL do plano (peça avulsa não tem semana) — nenhuma das duas se aplica
+    // aqui, e nenhuma das duas pode ser tocada (protegem a trava de duplicidade e o gate da
+    // aprovação semanal). Reaproveita o MECANISMO — worker chama este endpoint internamente via
+    // x-internal-secret, mesmo padrão de direcao_avulso_criativo/copy_para_criativo em cron.js —
+    // com tag e handler PRÓPRIOS: corrige só o campo indicado, em qualquer conteúdo do cliente,
+    // sem nenhuma das travas de <detalhe>. O limite de palavras em si NÃO é recalculado aqui —
+    // nenhuma regra duplicada: quem valida de verdade é validarTextoDaPeca (gerar-imagem.js,
+    // intocada); esta correção só grava o texto novo — a peça volta a passar pela MESMA validação
+    // na retentativa (ver cron.js, bloco "RECUSA POR EXCESSO DE PALAVRAS"). Restrito a
+    // agente==='estrategia' por defesa em profundidade (mesma lição do reparo de segunda chamada,
+    // 18/set/2026): só a Estratégia escreve headline/subheadline/cta_arte de peça avulsa; nenhum
+    // outro agente tem motivo pra emitir esta tag hoje.
+    const correcoesTexto=[];
+    texto=texto.replace(/<correcao_texto>([\s\S]*?)<\/correcao_texto>/g,(_,j)=>{
+      try{
+        const o=JSON.parse(j.trim());
+        if(o&&o.id&&/^(headline|subheadline|cta_arte)$/.test(String(o.campo||''))&&String(o.valor||'').trim()){
+          correcoesTexto.push({id:String(o.id),campo:String(o.campo),valor:String(o.valor).trim()});
+        }
+      }catch(e){}
+      return '';
+    });
+    if(agente==='estrategia' && correcoesTexto.length){
+      for(const ct of correcoesTexto){
+        try{
+          const [atualCT]=await sbGet(`conteudos?id=eq.${ct.id}&user_id=eq.${targetId}&select=meta`);
+          if(!atualCT){ console.error('[correcao_texto] id não encontrado ou não é deste cliente — id='+ct.id+' user='+targetId); continue; }
+          const metaCT={...(atualCT.meta||{}),[ct.campo]:ct.valor};
+          const rCT=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${ct.id}&user_id=eq.${targetId}`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({meta:metaCT}),
+          });
+          if(!rCT.ok) console.error('[correcao_texto] PATCH recusado pelo banco — id='+ct.id+' campo='+ct.campo);
+        }catch(e){ console.error('[correcao_texto] falhou (exceção) — id='+ct.id+':', e&&e.message); }
+      }
+    }
+
     let erroGravacao=null;
     // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026) — preenchido mais
     // abaixo, no momento em que o card "aprovar_estrategia" nasce (só a primeira resposta que
@@ -2722,7 +2773,7 @@ const handler = async (req, res) => {
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

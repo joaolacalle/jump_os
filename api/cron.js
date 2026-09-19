@@ -887,31 +887,89 @@ async function jobProduzir(soUid) {
       const alvo = slidesFaltantes(c, (o.payload || {}).slide);
       for (const nSlide of alvo.faltam) {    // carrossel: 1..N | ajuste: só o slide pedido
       try {
-        const r = await fetch(`${base}/api/gerar-imagem`, {
+        // TEXTO EM VARIÁVEL PRÓPRIA (19/set/2026, "recusa por excesso de palavras desperdiça o
+        // pedido inteiro"): antes eram literais direto no corpo do fetch. Precisam ser mutáveis
+        // porque a correção abaixo substitui SÓ o campo que estourou o limite, antes da
+        // retentativa — o resto do corpo (prompt, tipo, formato, slide etc.) nunca muda.
+        let _headline = m.headline || '', _subheadline = m.subheadline || '', _cta_arte = m.cta_arte || '';
+        const corpoGerarImagem = () => ({
+          user_id: o.user_id, conteudo_id: c.id,
+          // PRECEDÊNCIA (Etapa 1, 16/set/2026, "Engine — Etapas 1 e 2"): antes era
+          // `c.tema || m.headline || 'post'` — o tema (rótulo interno, ex.: "promo", 5
+          // caracteres) tinha prioridade sobre a headline de verdade (o texto decidido), e um
+          // conteúdo sem tema nem headline ainda passava como o placeholder 'post'. Headline é
+          // o texto decidido — vem primeiro; tema é só rótulo interno, fica de fallback; sem
+          // nenhum dos dois, o campo fica vazio de propósito e a peça é recusada mais abaixo
+          // (o gate de "Prompt inválido" já existente, ou validarTextoDaPeca em
+          // gerar-imagem.js) — erro explícito, nunca mais um placeholder silencioso.
+          prompt: _headline || c.tema || '', tamanho: '4:5',
+          tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
+          headline: _headline, subheadline: _subheadline, prova: m.prova || '',
+          cta_arte: _cta_arte, oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
+          // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
+          // cada geração carrega o slide e o total — gravarSlide monta meta.slides[] com isso
+          slide: nSlide, total: alvo.tot,
+          ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: Number(o.payload.variacao || 30), reload: true } : {}),
+        });
+        let r = await fetch(`${base}/api/gerar-imagem`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
-          body: JSON.stringify({
-            user_id: o.user_id, conteudo_id: c.id,
-            // PRECEDÊNCIA (Etapa 1, 16/set/2026, "Engine — Etapas 1 e 2"): antes era
-            // `c.tema || m.headline || 'post'` — o tema (rótulo interno, ex.: "promo", 5
-            // caracteres) tinha prioridade sobre a headline de verdade (o texto decidido), e um
-            // conteúdo sem tema nem headline ainda passava como o placeholder 'post'. Headline é
-            // o texto decidido — vem primeiro; tema é só rótulo interno, fica de fallback; sem
-            // nenhum dos dois, o campo fica vazio de propósito e a peça é recusada mais abaixo
-            // (o gate de "Prompt inválido" já existente, ou validarTextoDaPeca em
-            // gerar-imagem.js) — erro explícito, nunca mais um placeholder silencioso.
-            prompt: m.headline || c.tema || '', tamanho: '4:5',
-            tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
-            headline: m.headline || '', subheadline: m.subheadline || '', prova: m.prova || '',
-            cta_arte: m.cta_arte || '', oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
-            // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
-            // cada geração carrega o slide e o total — gravarSlide monta meta.slides[] com isso
-            slide: nSlide, total: alvo.tot,
-            ...((o.payload && o.payload.ajuste) ? { ajuste: o.payload.ajuste, variacao: Number(o.payload.variacao || 30), reload: true } : {}),
-          }),
+          body: JSON.stringify(corpoGerarImagem()),
         });
-        const d = await r.json().catch(() => null);
+        let d = await r.json().catch(() => null);
         LOG({ etapa: 'gerar-imagem', orderId: o.id, conteudoId: c.id, endpoint: '/api/gerar-imagem', status: r.status, ok: !!(d && (d.url || d.midia_url)) });
+
+        // RECUSA POR EXCESSO DE PALAVRAS — REESCRITA ÚNICA (19/set/2026, autorizado pelo João,
+        // item 3 da rodada "rosto/pessoa_conceito/reescrita/órfãos"): validarTextoDaPeca
+        // (gerar-imagem.js, intocada — a validação em si não muda aqui) recusa a PEÇA INTEIRA
+        // quando um campo passa do limite. Sem esta correção, o retry genérico abaixo
+        // ('tentativas'/'erro', também intocado) só reenviava o MESMO texto inválido até esgotar
+        // as 3 tentativas — o pedido morria sem o cliente nunca receber nada (caso real: subheadline
+        // de 7 palavras, limite 6). Só este formato de mensagem — o que validarTextoDaPeca emite —
+        // aciona a correção; qualquer outro erro (OpenAI fora do ar, rede, moderação) cai direto
+        // no caminho de sempre, sem tocar nisto. UMA tentativa: se a reescrita também estourar, ou
+        // o agente não responder com a tag, vira recusa de verdade daqui a duas linhas, motivo
+        // visível — quem decide depois é o retry genérico de sempre, nunca esta correção de novo.
+        // NÃO consome cota de imagem: a correção é uma chamada de TEXTO a /api/agente-chat (mesmo
+        // mecanismo — x-internal-secret — de direcao_avulso_criativo/copy_para_criativo, acima
+        // neste arquivo); a cota de imagem só é debitada dentro de gerar-imagem.js DEPOIS que a
+        // imagem sai da OpenAI (uso.imagens++, bem no fim da função, intocado) — nunca chega lá
+        // enquanto a validação recusa. NENHUMA REGRA DUPLICADA: o limite de palavras não é
+        // reconferido aqui — quem valida de novo é a PRÓPRIA validarTextoDaPeca, na retentativa a
+        // /api/gerar-imagem, exatamente como validaria qualquer chamada normal. Handler da tag
+        // <correcao_texto> em api/agente-chat.js — canal próprio, separado de <detalhe> de
+        // propósito (ver comentário lá: <detalhe> tem duas travas que engoliriam esta correção em
+        // silêncio e não podem ser alteradas).
+        const _erroTxt = !r.ok ? String((d && (d.error && (d.error.message || d.error.error || d.error))) || '') : '';
+        const _matchLimite = _erroTxt.match(/^(headline|subheadline|cta_arte) com \d+ palavras \(limite do Engine: (\d+)\)/);
+        if (!r.ok && _matchLimite && process.env.CRON_SECRET) {
+          const _campo = _matchLimite[1];
+          const _limite = _matchLimite[2];
+          const _textoAtual = _campo === 'headline' ? _headline : _campo === 'subheadline' ? _subheadline : _cta_arte;
+          try {
+            const mensagemCorrecao = `A peça (conteúdo id=${c.id}) foi recusada pela validação de texto: "${_erroTxt}". Reescreva SOMENTE o campo "${_campo}", mantendo o sentido, em até ${_limite} palavras. Texto atual: "${_textoAtual}". Responda emitindo exatamente esta tag, sem nenhum outro texto na resposta: <correcao_texto>{"id":"${c.id}","campo":"${_campo}","valor":"TEXTO NOVO AQUI"}</correcao_texto>`;
+            const rCorr = await fetch(`${base}/api/agente-chat`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+              body: JSON.stringify({ agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, mensagem: mensagemCorrecao }),
+            });
+            const dCorr = await rCorr.json().catch(() => null);
+            const _corr = (dCorr && Array.isArray(dCorr.correcoes_texto)) ? dCorr.correcoes_texto.find(x => String(x.id) === String(c.id) && x.campo === _campo) : null;
+            LOG({ etapa: 'correcao-texto', orderId: o.id, conteudoId: c.id, campo: _campo, status: rCorr.status, ok: !!_corr });
+            if (_corr && String(_corr.valor || '').trim()) {
+              if (_campo === 'headline') _headline = String(_corr.valor).trim();
+              else if (_campo === 'subheadline') _subheadline = String(_corr.valor).trim();
+              else _cta_arte = String(_corr.valor).trim();
+              r = await fetch(`${base}/api/gerar-imagem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+                body: JSON.stringify(corpoGerarImagem()),
+              });
+              d = await r.json().catch(() => null);
+              LOG({ etapa: 'gerar-imagem-apos-correcao', orderId: o.id, conteudoId: c.id, status: r.status, ok: !!(d && (d.url || d.midia_url)) });
+            }
+          } catch (e) { console.error('[worker] correcao-texto — exceção — ordem=' + o.id + ' conteudo=' + c.id + ' erro=' + (e && e.message)); }
+        }
+
         if (!r.ok || !d || !(d.url || d.midia_url)) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
