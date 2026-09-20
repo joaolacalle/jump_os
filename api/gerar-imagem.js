@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.18-trim-env-nome-de-modelo';
+const VERSAO = '2026.09.20-pessoa-conceito-nunca-usa-foto-real';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -654,7 +654,21 @@ module.exports = async (req, res) => {
       // TIPO 'pessoal' = FOTO REAL do cliente (preservação). Só no 1º slide.
       // TETO 40%: o lote conta quantas artes já usaram a pessoa e manda sem_foto_pessoa quando estoura
       // (Engine 6.0: "foto pessoa = 2 slides max em 5"). Aí a peça vira conceitual em vez de saturar.
-      if ((tipo === 'pessoal' || tipo === 'pessoa_conceito') && primeiroSlide && !sem_foto_pessoa) {
+      // BUG CORRIGIDO (20/set/2026, "preservação de material real", autorizado pelo João): até aqui
+      // esta condição também incluía 'pessoa_conceito' — o comentário duas seções abaixo ("TIPO
+      // 'pessoa_conceito'... NÃO usa foto real") já documentava o comportamento PRETENDIDO desde
+      // antes, mas o código nunca cumpriu — pessoa_conceito puxava a foto real do cliente sempre
+      // que ela existia, exatamente o oposto do que o nome promete (pessoa GENÉRICA de IA). Nenhum
+      // ponto do sistema depende do comportamento antigo: a persona da Estratégia (PERSONAS.
+      // estrategia, "SEM foto pessoal... use pessoa_conceito") já instrui usá-lo como alternativa
+      // SEM foto, nunca como sinônimo de 'pessoal' com foto; e o comentário logo abaixo já
+      // declarava a intenção. Quem quiser a foto real escolhe 'pessoal' — sem campo novo. Efeito
+      // colateral encontrado e NÃO corrigido aqui (fora do escopo pedido, arquivo diferente): o
+      // teto de 40% do lote (agentes.html, `_querPessoa`) ainda conta 'pessoa_conceito' junto com
+      // 'pessoal' para o mesmo teto — agora que pessoa_conceito nunca usa foto real, isso deixa o
+      // teto mais apertado do que precisa para 'pessoal' (conta uma peça que nunca gastava foto
+      // real contra a cota de quem gasta). Reportado ao cliente, decisão própria dele.
+      if (tipo === 'pessoal' && primeiroSlide && !sem_foto_pessoa) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
         // PERMUTAÇÃO: alterna entre as fotos da pasta (nunca repete a mesma) — usa as mais recentes.
         if (Array.isArray(fotos) && fotos.length) {
@@ -671,7 +685,8 @@ module.exports = async (req, res) => {
           const im = await baixarImg(esc.url); if (im) baseImgs.push({ ...im, tag: 'produto' });
         }
       }
-      // TIPO 'pessoa_conceito' = pessoa GENÉRICA criada pela IA (família, dormindo, equipe) → NÃO usa foto real (text-to-image livre).
+      // TIPO 'pessoa_conceito' = pessoa GENÉRICA criada pela IA (família, dormindo, equipe) → NÃO usa foto real
+      // (text-to-image livre) — SEMPRE agora, mesmo quando existe foto real do cliente (correção 20/set/2026 acima).
       // TIPO 'conceitual' = sem pessoa → também text-to-image livre.
       // (ambos caem no else de text-to-image; a logo ainda é aplicada se houver)
     } catch (e) { console.error('acervo:', e.message); }

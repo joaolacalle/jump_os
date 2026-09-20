@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.19-recusa-por-excesso-de-palavras-reescrita-unica';
+const VERSAO = '2026.09.20-pessoa-conceito-nunca-usa-foto-real';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -873,6 +873,16 @@ const handler = async (req, res) => {
         // tocadas), e tenta de novo. Se a reescrita também estourar, recusa de verdade, motivo
         // visível. Não consome cota de imagem (chamada de texto, sem gerar-imagem).
         recusa_por_excesso_de_palavras_reescrita_unica_via_correcao_texto:true,
+        // PRESERVAÇÃO DE MATERIAL REAL (20/set/2026, item 2 da rodada, autorizado pelo João):
+        // 'pessoa_conceito' (gerar-imagem.js) puxava a foto real do cliente sempre que ela
+        // existia, o mesmo comportamento de 'pessoal' — o nome promete pessoa GENÉRICA de IA,
+        // nunca uma foto real. Corrigido: 'pessoa_conceito' agora nunca puxa foto real (sempre
+        // gente genérica, mesmo com foto disponível); quem quiser a foto real usa 'pessoal', sem
+        // campo novo. Nenhum ponto do sistema dependia do comportamento antigo (a própria persona
+        // da Estratégia já instruía usar pessoa_conceito só como alternativa SEM foto). Efeito
+        // colateral reportado, não corrigido: o teto de 40% do lote (agentes.html) ainda conta
+        // pessoa_conceito junto com pessoal para o mesmo teto, mais apertado que precisa agora.
+        pessoa_conceito_nunca_usa_foto_real:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
