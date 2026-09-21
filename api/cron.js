@@ -950,7 +950,12 @@ async function jobProduzir(soUid) {
             const mensagemCorrecao = `A peça (conteúdo id=${c.id}) foi recusada pela validação de texto: "${_erroTxt}". Reescreva SOMENTE o campo "${_campo}", mantendo o sentido, em até ${_limite} palavras. Texto atual: "${_textoAtual}". Responda emitindo exatamente esta tag, sem nenhum outro texto na resposta: <correcao_texto>{"id":"${c.id}","campo":"${_campo}","valor":"TEXTO NOVO AQUI"}</correcao_texto>`;
             const rCorr = await fetch(`${base}/api/agente-chat`, {
               method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
-              body: JSON.stringify({ agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, mensagem: mensagemCorrecao }),
+              // conteudo_id (20/set/2026, "worker parado — reescrita não persiste", opção 3 do
+              // João): o dado que esta chamada de fato toca é o CONTEÚDO cujo texto vai ser
+              // reescrito, não a ordem de produção que falhou — o gate de autenticação interna em
+              // agente-chat.js agora valida por este campo (posse do dado, não rótulo de tarefa).
+              // ordem_id continua enviado por rastreio/log; o gate usa conteudo_id quando presente.
+              body: JSON.stringify({ agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, conteudo_id: c.id, mensagem: mensagemCorrecao }),
             });
             const dCorr = await rCorr.json().catch(() => null);
             const _corr = (dCorr && Array.isArray(dCorr.correcoes_texto)) ? dCorr.correcoes_texto.find(x => String(x.id) === String(c.id) && x.campo === _campo) : null;

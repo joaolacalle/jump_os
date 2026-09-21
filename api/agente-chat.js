@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.20-reescrita-unica-persiste-em-conteudos-antes-da-retentativa';
+const VERSAO = '2026.09.20-autenticacao-interna-valida-posse-do-dado-nao-rotulo-de-tarefa';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -905,16 +905,30 @@ const handler = async (req, res) => {
         // ANTIGO de volta do banco e repetia a mesma recusa indefinidamente (caso real: conteúdo
         // f74ab3b4, mesmo erro em 3 ordens distintas recriadas pelo backstop). Corrigido em
         // cron.js: o campo aceito é gravado em conteudos.meta antes da retentativa de imagem.
-        // ACHADO SEPARADO, NÃO CORRIGIDO NESTA RODADA (autenticação interna está no "não alterar"
-        // deste pedido — aguardando autorização): a causa mais funda de o campo nunca ter sido
-        // corrigido de fato é anterior a esta — a chamada de <correcao_texto> passa `ordem_id` de
-        // uma ordem de produção (criar_post/criar_avulso — para_agente:'criativo'), mas o gate de
-        // autenticação interna (linha ~982) só aceita ordem_id de tarefa IN
-        // (direcao_avulso_criativo, copy_para_criativo) com para_agente='estrategia' — confirmado
-        // por consulta direta ao banco que o filtro nunca casa para este caminho. Toda chamada de
-        // correcao_texto recebe 403 antes de chegar ao modelo; esta correção de persistência é
-        // necessária mas não suficiente sozinha — reportado, decisão pendente do João.
+        // ACHADO SEPARADO, CORRIGIDO EM COMMIT PRÓPRIO NA MESMA RODADA: a causa mais funda de o
+        // campo nunca ter sido corrigido de fato era anterior a esta — a chamada de
+        // <correcao_texto> passa `ordem_id` de uma ordem de produção (criar_post/criar_avulso —
+        // para_agente:'criativo'), mas o gate de autenticação interna só aceitava ordem_id de
+        // tarefa IN (direcao_avulso_criativo, copy_para_criativo) com para_agente='estrategia' —
+        // confirmado por consulta direta ao banco que o filtro nunca casava para este caminho.
+        // Toda chamada de correcao_texto recebia 403 antes de chegar ao modelo.
         reescrita_unica_persiste_em_conteudos_meta_antes_da_retentativa:true,
+        // AUTENTICAÇÃO INTERNA — VALIDA POSSE DO DADO, NÃO RÓTULO DE TAREFA (20/set/2026,
+        // autorizado pelo João depois do achado acima ser reportado — opção 3, "validar o
+        // conteúdo, não a ordem": "a lista protege o desenho, não impede corrigir o que o
+        // desenho não previu"). O gate deixou de validar `ordem_id` contra uma lista fixa de
+        // tarefas (direcao_avulso_criativo, copy_para_criativo) e passou a validar POSSE do dado
+        // que a chamada de fato toca: `conteudo_id` (quando presente — caso da reescrita única,
+        // que corrige `conteudos.meta`) confirmado contra `user_id`, sem filtro de tarefa; senão
+        // `ordem_id` confirmado contra `user_id` + status pendente/processando, também sem
+        // filtro de tarefa. Motivo do João, registrado: uma lista de tarefas aceitas quebra a
+        // cada caminho interno novo — a pergunta certa de segurança é "este dado é deste
+        // cliente", não "que tarefa é esta ordem". Não afrouxa nada (ainda exige match exato de
+        // id+user_id, e ordem ainda precisa estar ativa) — só deixou de exigir um rótulo que
+        // nunca devia ter sido a garantia. Modo interno continua restrito ao agente Estratégia,
+        // sem impersonação (targetId só vem do user_id do chamador, nunca de ver_id); falha de
+        // posse loga a origem com [auth-interno] e responde 403, sem degradar para outro modo.
+        autenticacao_interna_valida_posse_do_dado_nao_lista_de_tarefas:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -985,21 +999,50 @@ const handler = async (req, res) => {
     let user, requester, targetId;
     if(_intOk){
       const _ordemId=req.body && req.body.ordem_id;
+      const _conteudoId=req.body && req.body.conteudo_id;
       const _uidReq=req.body && req.body.user_id;
-      if(agente!=='estrategia' || !_ordemId || !_uidReq){
-        console.error('[auth-interno] chamada fora do escopo permitido — agente='+agente+' ordem_id='+(_ordemId?'presente':'ausente')+' user_id='+(_uidReq?'presente':'ausente'));
+      if(agente!=='estrategia' || !_uidReq || (!_ordemId && !_conteudoId)){
+        console.error('[auth-interno] chamada fora do escopo permitido — agente='+agente+' ordem_id='+(_ordemId?'presente':'ausente')+' conteudo_id='+(_conteudoId?'presente':'ausente')+' user_id='+(_uidReq?'presente':'ausente'));
         return res.status(403).json({error:'Fora do escopo do modo interno'});
       }
-      // TAREFA AMPLIADA (15/set/2026, "Cadeia copy_para_criativo órfã"): era `tarefa=eq.
-      // direcao_avulso_criativo` sozinho; agora aceita as duas tarefas de cadeia de elo único que
-      // partem da Estratégia por este caminho — mesmo `IN`, mesmo `select=id` (nunca devolve mais
-      // que o id, nunca vaza payload/detalhe pra fora do escopo já checado acima). Ampliar a lista
-      // não afrouxa nenhuma garantia: ainda precisa ser uma ordem REAL, deste user, pendente ou
-      // processando, para=estrategia — só o nome da tarefa aceita duas opções em vez de uma.
-      const [_ordem]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&para_agente=eq.estrategia&tarefa=in.(direcao_avulso_criativo,copy_para_criativo)&status=in.(pendente,processando)&select=id`);
-      if(!_ordem){
-        console.error('[auth-interno] ordem_id não corresponde a uma direcao_avulso_criativo/copy_para_criativo pendente/processando deste user — ordem='+_ordemId);
-        return res.status(403).json({error:'Ordem inválida para o modo interno'});
+      // VALIDA O DADO, NÃO O RÓTULO DE TAREFA (20/set/2026, "worker parado — reescrita não
+      // persiste", autorizado pelo João, opção 3 — troca a validação anterior, não a
+      // complementa): até aqui, este gate confirmava `ordem_id` contra `tarefa=in.
+      // (direcao_avulso_criativo,copy_para_criativo)&para_agente=eq.estrategia` — uma lista
+      // escrita pros dois usos que existiam em 15/set. A reescrita única (19/set) precisou do
+      // MESMO modo interno pra corrigir texto de uma peça de PRODUÇÃO (criar_post/criar_avulso,
+      // para_agente='criativo') — nunca casava nessa lista, e a chamada recebia 403 antes de
+      // chegar ao modelo (achado confirmado por consulta direta ao banco: a ordem real usada no
+      // teste do João tinha para_agente='criativo', tarefa='criar_post'). Uma lista de tarefas
+      // aceitas quebra a cada caminho novo — ampliar de novo seria reintroduzir o mesmo defeito
+      // sob outra forma. A pergunta certa de segurança não é "que tarefa é esta ordem", é "este
+      // dado pertence a este cliente": valida a PROPRIEDADE do recurso que a chamada de fato
+      // toca, pelo `user_id` informado, sem presumir nada do que o chamador mandou.
+      //   - Se veio `conteudo_id` (caso da reescrita única — o dado tocado é o CONTEÚDO, cujo
+      //     `meta` a correção reescreve): confirma que este `conteudo_id` pertence a este
+      //     `user_id`. Nenhuma restrição de tarefa/status — o conteúdo não tem "tarefa".
+      //   - Senão, se veio `ordem_id` (caso de direcao_avulso_criativo/copy_para_criativo — ainda
+      //     não existe conteúdo, o recurso em jogo é a ORDEM que vai criar um): confirma que esta
+      //     `ordem_id` pertence a este `user_id` e está pendente/processando (ordem concluída,
+      //     cancelada, de outro user, ou inexistente nunca autentica). SEM filtro de tarefa nem
+      //     de para_agente — qualquer tarefa futura que precisar deste modo interno passa a
+      //     funcionar sem precisar voltar aqui pra abrir mais uma exceção.
+      // Não afrouxa nada: troca uma lista de rótulos por uma checagem de posse real do dado —
+      // mais restrito no que importa (o dado é mesmo deste cliente), mais permissivo apenas no
+      // que nunca devia ter sido restrito (o nome da tarefa).
+      let _dadoValido=false, _motivoInvalido='';
+      if(_conteudoId){
+        const [_ct]=await sbGet(`conteudos?id=eq.${_conteudoId}&user_id=eq.${_uidReq}&select=id`);
+        _dadoValido=!!_ct;
+        if(!_dadoValido) _motivoInvalido='conteudo_id não pertence a este user_id — conteudo='+_conteudoId+' user='+_uidReq;
+      } else {
+        const [_ord]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&status=in.(pendente,processando)&select=id`);
+        _dadoValido=!!_ord;
+        if(!_dadoValido) _motivoInvalido='ordem_id não pertence a este user_id, ou não está pendente/processando — ordem='+_ordemId+' user='+_uidReq;
+      }
+      if(!_dadoValido){
+        console.error('[auth-interno] '+_motivoInvalido);
+        return res.status(403).json({error:'Ordem/conteúdo inválido para o modo interno'});
       }
       user={id:_uidReq};
       requester={id:_uidReq,role:'usuario'};

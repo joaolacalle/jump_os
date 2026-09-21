@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.20-reescrita-unica-persiste-em-conteudos-antes-da-retentativa';
+const VERSAO = '2026.09.20-autenticacao-interna-valida-posse-do-dado-nao-rotulo-de-tarefa';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
