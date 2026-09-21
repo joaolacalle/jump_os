@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.20-pessoa-conceito-nunca-usa-foto-real';
+const VERSAO = '2026.09.20-reescrita-unica-persiste-em-conteudos-antes-da-retentativa';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -263,6 +263,33 @@ const BLOCO_CENA = [
   'S6. EVERY SINGLE PIECE OF TEXT IS PHYSICAL MATTER — not only the headline. The label, the support copy and the CTA are engraved plaques, lit signage, printed cards, embossed panels or cut vinyl EXISTING IN THE SET, each catching the light and casting its own small shadow. Small painted lettering is where this model hallucinates (it rendered "SAIBA MAIS" as "SMEA MAS"): text made of matter does not hallucinate. They stay small and quiet — the scene carries the weight — but they are objects.',
 ].join('\n');
 
+// DOUTRINA CURTA PARA MATERIAL REAL PRESERVADO (20/set/2026, "preservação de material real",
+// desenho aprovado pelo João com uma alteração — ver histórico completo em APRENDIZADOS.md).
+// Substitui BLOCO_CENA (nunca BLOCO_EDITORIAL, que fica de fora desta correção — investigação
+// própria, ainda sem decisão, registrada separadamente) sempre que há pessoa OU produto real
+// preservado (ctx.temFoto || ctx.temProduto) E o modo escolhido é 'cena'. Motivo da existência:
+// BLOCO_CENA manda "deduzir um lugar físico novo a partir do tema e construir tudo" (S1-S6, ~400
+// palavras) — essa ordem competia com o contrato de preservação (S1c, a única linha que
+// mencionava foto anexada, enterrada no meio de S1/S1b) e causava a distorção de rosto relatada
+// mesmo com o contrato ativo. Aqui a lógica se INVERTE: a doutrina PARTE do material preservado
+// como fato consumado, nunca deduz um lugar concorrente. ALTERAÇÃO PEDIDA PELO JOÃO no desenho
+// original: a instrução de tratar TODO texto renderizado como matéria física do ambiente (placas
+// gravadas, letreiros, vinil — o R5 original, mesma lógica de S2/S6 do BLOCO_CENA) foi REMOVIDA e
+// substituída pelo oposto — texto sempre CHAPADO, sem perspectiva/relevo. Motivo apontado por ele,
+// com evidência de teste real: texto como objeto tridimensional ganha perspectiva e relevo, e é
+// onde as letras mais derretem — a headline chapada da peça de 19/set saiu perfeita; a
+// subheadline dentro de um "balão" com volume derreteu com só 4 palavras.
+const BLOCO_CENA_MATERIAL_REAL = [
+  '=== MODE OF THIS PIECE: CENA — REAL MATERIAL PRESERVED (extend the photograph, do not rebuild it) ===',
+  'A real photo is attached and is preserved elsewhere in this prompt (see the preservation contract) — you are not deducing a brand-new physical place from the theme and fitting the subject into it afterwards. You are extending the world the attached photo already exists in.',
+  'R1. GROUND THE ENVIRONMENT IN THE PHOTO, NOT IN THE THEME: describe only the surface, space and objects immediately around the preserved subject — real materials, real texture, real depth — growing out of what the photo already shows, never a separately-deduced set that competes with it.',
+  'R2. PRACTICAL LIGHT IN FRAME: one visible light source (window, lamp, screen glow, neon, golden hour) — describe the cone, the hotspot and the falloff. Flat, even lighting is a FAILURE.',
+  'R3. CAMERA: state focal length, camera height, distance and depth of field.',
+  'R4. ACCENT AS LIGHT: the accent colour enters as a physical light source in the environment, plus the label and CTA.',
+  'R5. ALL RENDERED TEXT IS FLAT, NOT PHYSICAL: the label, headline, subheadline and CTA are applied FLAT over the image — no perspective, no relief, no physical integration into the scene (no engraved plaques, no lit signage, no cut vinyl here). Text rendered as a 3D object with volume is exactly where letters melt; keep every text element flat and legible.',
+  'You are FORBIDDEN from describing, redesigning or reinterpreting the preserved subject itself in any of the above — that is governed entirely by the preservation contract and the SPECIFICS section elsewhere in this prompt.',
+].join('\n');
+
 const BLOCO_EDITORIAL = [
   '=== MODE OF THIS PIECE: EDITORIAL (flat, agency-grade) ===',
   'The canvas is split into ZONES. Build it in this order and state each step explicitly in the prompt:',
@@ -278,6 +305,14 @@ async function diretorDeArte(M, o, ctx) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const engine = engine6(M, o);
   const modo = escolherModo(o, ctx);
+  // MATERIAL REAL PRESERVADO (20/set/2026): condicionado à EXISTÊNCIA do material (temFoto ou
+  // temProduto), nunca ao modo escolhido — pedido explícito do João, com prova própria: a
+  // recriação radical (variacao===100, ver escolherModo acima) INVERTE cena↔editorial, então um
+  // produto real pode cair em modo 'cena' mesmo sendo produto (o caminho que hoje só evita
+  // BLOCO_CENA por CONSEQUÊNCIA do roteamento de escolherModo, não por regra própria). Checar
+  // temFoto||temProduto direto, e não confiar no modo para proteger, é o que cobre esse caso.
+  // BLOCO_EDITORIAL fica de fora por ora — investigação própria, registrada, sem decisão ainda.
+  const materialRealPreservado = !!(ctx.temFoto || ctx.temProduto);
   const sys = [
     'You are an award-winning art director for premium Brazilian Instagram brands.',
     'You receive a DESIGN SYSTEM (it is LAW — never violate, never omit) and a content brief.',
@@ -286,7 +321,7 @@ async function diretorDeArte(M, o, ctx) {
     '=== LAW 0 — THERE IS ALWAYS A REAL PHOTOGRAPHIC LAYER (absolute) ===',
     'Every reference-grade piece is built on real photographic matter. Text floating on an empty coloured background, decorated with a few outlined shapes, is an AMATEUR FAILURE and is forbidden. Whatever the mode: real surfaces, real objects, real light, real depth, real grain.',
     '',
-    modo === 'cena' ? BLOCO_CENA : BLOCO_EDITORIAL,
+    modo === 'cena' ? (materialRealPreservado ? BLOCO_CENA_MATERIAL_REAL : BLOCO_CENA) : BLOCO_EDITORIAL,
     '',
     '=== HOW TO WRITE IT (both modes) ===',
     '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',

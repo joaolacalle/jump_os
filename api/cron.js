@@ -956,9 +956,34 @@ async function jobProduzir(soUid) {
             const _corr = (dCorr && Array.isArray(dCorr.correcoes_texto)) ? dCorr.correcoes_texto.find(x => String(x.id) === String(c.id) && x.campo === _campo) : null;
             LOG({ etapa: 'correcao-texto', orderId: o.id, conteudoId: c.id, campo: _campo, status: rCorr.status, ok: !!_corr });
             if (_corr && String(_corr.valor || '').trim()) {
-              if (_campo === 'headline') _headline = String(_corr.valor).trim();
-              else if (_campo === 'subheadline') _subheadline = String(_corr.valor).trim();
-              else _cta_arte = String(_corr.valor).trim();
+              const _valorCorrigido = String(_corr.valor).trim();
+              if (_campo === 'headline') _headline = _valorCorrigido;
+              else if (_campo === 'subheadline') _subheadline = _valorCorrigido;
+              else _cta_arte = _valorCorrigido;
+              // PERSISTÊNCIA DA CORREÇÃO ACEITA (20/set/2026, "reescrita não persiste — regressão
+              // do worker", achado do João: confirmado no código, não em log): até aqui a correção
+              // vivia SÓ nestas variáveis locais (_headline/_subheadline/_cta_arte) — nada gravava
+              // em conteudos.meta. Se a retentativa de imagem abaixo falhasse por QUALQUER outro
+              // motivo (rede, moderação, OpenAI fora do ar — não só o limite de palavras), o
+              // progresso desta correção se perdia: o próximo ciclo do worker lê meta.headline/
+              // subheadline/cta_arte de novo do banco, ainda com o texto ANTIGO, pede reescrita de
+              // novo, e repete — indefinidamente, a cada tentativa, a cada ordem nova que o
+              // backstop recriar para o mesmo conteúdo. Corrige gravando o campo aceito em
+              // conteudos.meta ANTES de seguir para a geração — o texto novo sobrevive mesmo se
+              // esta tentativa de imagem falhar. Também atualiza `m` em memória (mesmo objeto lido
+              // no início do processamento deste conteúdo) para que, num carrossel com mais de um
+              // slide faltante na MESMA rodada, os slides seguintes já usem o texto corrigido em
+              // vez de recair no antigo. NENHUMA REGRA DUPLICADA: quem decide se o texto está
+              // dentro do limite continua sendo só validarTextoDaPeca, na retentativa a seguir —
+              // esta gravação não valida nada, só não deixa a correção já aceita se perder.
+              try {
+                m[_campo] = _valorCorrigido;
+                const rPersistCorr = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
+                  method: 'PATCH', headers: SBH(), body: JSON.stringify({ meta: m }),
+                });
+                LOG({ etapa: 'correcao-texto-persistida', orderId: o.id, conteudoId: c.id, campo: _campo, ok: rPersistCorr.ok });
+                if (!rPersistCorr.ok) console.error('[worker] correcao-texto — PATCH em conteudos recusado (correção pode se perder se a imagem falhar de novo) — ordem=' + o.id + ' conteudo=' + c.id + ' campo=' + _campo);
+              } catch (e) { console.error('[worker] correcao-texto-persistencia — exceção — ordem=' + o.id + ' conteudo=' + c.id + ' erro=' + (e && e.message)); }
               r = await fetch(`${base}/api/gerar-imagem`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },

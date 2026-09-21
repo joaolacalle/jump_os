@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.20-pessoa-conceito-nunca-usa-foto-real';
+const VERSAO = '2026.09.20-reescrita-unica-persiste-em-conteudos-antes-da-retentativa';
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -883,6 +883,38 @@ const handler = async (req, res) => {
         // colateral reportado, não corrigido: o teto de 40% do lote (agentes.html) ainda conta
         // pessoa_conceito junto com pessoal para o mesmo teto, mais apertado que precisa agora.
         pessoa_conceito_nunca_usa_foto_real:true,
+        // PRESERVAÇÃO DE MATERIAL REAL — DOUTRINA DE CENA SUPRIMIDA (20/set/2026, desenho
+        // aprovado pelo João, com alteração — texto final em APRENDIZADOS.md): BLOCO_CENA
+        // (gerar-imagem.js) mandava deduzir e construir um lugar físico novo do zero — competia
+        // com o contrato de preservação e causava distorção mesmo com foto real ativa. Agora,
+        // sempre que há pessoa OU produto real preservado (ctx.temFoto||ctx.temProduto) e o modo
+        // é 'cena', uma doutrina curta substitui BLOCO_CENA: o ambiente cresce a partir da foto
+        // já existente, nunca de um lugar deduzido concorrente; luz prática, câmera e cor de
+        // destaque continuam orientando a composição; todo texto renderizado passa a ser CHAPADO
+        // (sem perspectiva/relevo/integração física — alteração pedida pelo João: texto com
+        // volume 3D é onde as letras mais derretem, confirmado em teste real). Condicionado à
+        // EXISTÊNCIA do material (temFoto||temProduto), não ao modo escolhido — cobre também o
+        // caso raro de recriação radical (variacao 100%) que inverte cena↔editorial. BLOCO_EDITORIAL
+        // fica de fora desta correção — investigação própria (E3 tem o mesmo padrão de instrução
+        // concorrente para produto), registrada, decisão pendente.
+        preservacao_material_real_doutrina_de_cena_suprimida_quando_ha_pessoa_ou_produto:true,
+        // WORKER PARADO — REGRESSÃO (20/set/2026, achado do João: "reescrita não persiste"): a
+        // correção de texto aceita (ver <correcao_texto> acima) vivia só nas variáveis locais do
+        // loop de slides em cron.js — nada gravava em conteudos.meta. Se a retentativa de imagem
+        // falhasse por qualquer motivo alheio à validação de palavras, o próximo ciclo lia o texto
+        // ANTIGO de volta do banco e repetia a mesma recusa indefinidamente (caso real: conteúdo
+        // f74ab3b4, mesmo erro em 3 ordens distintas recriadas pelo backstop). Corrigido em
+        // cron.js: o campo aceito é gravado em conteudos.meta antes da retentativa de imagem.
+        // ACHADO SEPARADO, NÃO CORRIGIDO NESTA RODADA (autenticação interna está no "não alterar"
+        // deste pedido — aguardando autorização): a causa mais funda de o campo nunca ter sido
+        // corrigido de fato é anterior a esta — a chamada de <correcao_texto> passa `ordem_id` de
+        // uma ordem de produção (criar_post/criar_avulso — para_agente:'criativo'), mas o gate de
+        // autenticação interna (linha ~982) só aceita ordem_id de tarefa IN
+        // (direcao_avulso_criativo, copy_para_criativo) com para_agente='estrategia' — confirmado
+        // por consulta direta ao banco que o filtro nunca casa para este caminho. Toda chamada de
+        // correcao_texto recebe 403 antes de chegar ao modelo; esta correção de persistência é
+        // necessária mas não suficiente sozinha — reportado, decisão pendente do João.
+        reescrita_unica_persiste_em_conteudos_meta_antes_da_retentativa:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
