@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.21-direcao-avulsa-forca-saida-estruturada-via-tool-choice';
+const VERSAO = '2026.09.21-supressao-editorial-material-real-contrato-preservacao-separa-sujeito-de-ambiente';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -995,6 +995,36 @@ const handler = async (req, res) => {
         // <correcao_texto> ficam de fora desta entrega (mesma classe de risco, reportado, não
         // implementado — ver relatório da rodada).
         direcao_avulso_criativo_forca_tool_choice_nao_depende_mais_de_obediencia_a_tag:true,
+        // SUPRESSÃO NO MODO EDITORIAL — MATERIAL REAL EM QUALQUER MODO (21/set/2026, autorizado
+        // pelo João): o seletor de doutrina em diretorDeArte ignorava materialRealPreservado no
+        // ramo editorial — produto real cai em editorial por padrão (escolherModo), o caminho
+        // mais comum pra produto era o desprotegido; foto pessoal encaminhada ao editorial também
+        // ficava sem proteção. BLOCO_EDITORIAL_MATERIAL_REAL (novo, simétrico ao
+        // BLOCO_CENA_MATERIAL_REAL) fecha a lacuna: zona fotográfica mostra o material inteiro
+        // (sem sangramento/corte), fusão só do lado chapado (foto nunca dissolve/tinge), gráfico
+        // temático nunca toca o material, luz é a que a foto já tem (proibido reiluminar).
+        editorial_material_real_condicionado_a_materialRealPreservado_nao_ao_modo:true,
+        // CAUSA RAIZ MAIS FUNDA, MESMA RODADA — CONTRATO DE PRESERVAÇÃO REESCRITO (decisão
+        // caminho 3 do João, contra o "não alterar": "o não alterar protegia o contrato por
+        // funcionar; aqui ele é a origem do defeito"): LIBERADOS liberava clothing/pose/body
+        // position/framing and crop/lighting/shadows/colour grade — cada item uma licença pra
+        // redesenhar o SUJEITO (mudar pose = redesenhar o corpo; reiluminar = repintar o
+        // sombreamento do rosto). Travados/LIBERADOS agora separam SUJEITO (sempre travado:
+        // roupa, pose, posição do corpo, luz/sombra/cor sobre o sujeito, qualquer corte que
+        // remova parte dele — pessoa e produto igualmente) de AMBIENTE (livre: fundo, cenário,
+        // superfície, luz ambiente, grão do ambiente, enquadramento do canvas desde que o
+        // sujeito fique inteiro). Eliminado "re-lit" das 3 ocorrências originais (S1c, SPECIFICS
+        // temFoto, contrato) + a mesma correção aplicada à SPECIFICS de produto (mesma classe,
+        // fora da lista original de três, extensão simétrica autorizada pelo princípio "aplicar
+        // igualmente a pessoa e produto"). engine6 seção 6 (luz direcional/sombra profunda,
+        // antes incondicional) agora condicionada a o.materialReal: com material preservado, a
+        // luz dirigida vale só para o ambiente, nunca sobre o sujeito/produto.
+        // LIMITE REGISTRADO (não implementado nesta rodada): gpt-image-1 repinta o frame inteiro
+        // em toda chamada, inclusive em images/edits com input_fidelity=high — instrução
+        // coerente reduz distorção, não elimina. A garantia real só vem de uma infraestrutura de
+        // composição (sharp): o modelo gera o cenário deixando o espaço do sujeito, o sistema
+        // cola a foto original por cima — mesmo mecanismo que resolveria texto derretido e logo.
+        contrato_preservacao_separa_sujeito_travado_de_ambiente_liberado_nao_permite_mais_reiluminar_ou_recortar_sujeito:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

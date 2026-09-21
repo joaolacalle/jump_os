@@ -9,7 +9,7 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
 
-const VERSAO = '2026.09.21-direcao-avulsa-forca-saida-estruturada-via-tool-choice';
+const VERSAO = '2026.09.21-supressao-editorial-material-real-contrato-preservacao-separa-sujeito-de-ambiente';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -165,8 +165,17 @@ function engine6(M, o) {
     '=== 5. READING PRIORITY ===',
     'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
     '',
+    // MATERIAL REAL PRESERVADO (21/set/2026, mesma rodada do contrato reescrito): esta seção era
+    // incondicional — engine6 não recebia sinal nenhum de material preservado — e pedia luz
+    // direcional + sombra profunda SEMPRE sobre a camada fotográfica. Quando essa camada É o
+    // material preservado (pessoa/produto real), isso reintroduzia exatamente a reiluminação que
+    // o contrato agora proíbe. o.materialReal (novo, setado pelos call sites) condiciona a regra:
+    // sem material, texto idêntico ao de sempre; com material, a luz/sombra dirigida passa a valer
+    // só para o AMBIENTE ao redor, nunca sobre o que está preservado.
     '=== 6. PHOTOGRAPHIC FOCUS CONTROL ===',
-    'Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.',
+    o.materialReal
+      ? 'Photography SUPPORTS the headline, never competes: controlled medium contrast, luminosity 60-70% max, gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.'
+      : 'Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.',
     '',
     '=== 7. MANDATORY NEGATIVE SPACE ===',
     'Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.',
@@ -255,7 +264,7 @@ const BLOCO_CENA = [
   'The ENTIRE canvas is ONE PHOTOGRAPH of a real physical place. Build it in this order and state each step explicitly in the prompt:',
   'S1. THE SET IS DERIVED FROM THE THEME — THIS IS NOT A STYLE, IT IS A DEDUCTION. Read the theme, ask "where does this actually happen, physically, in the real world?", and shoot THERE. The set must be so specific to the theme that it could not be reused for a different post. Describe the surface material, its pores, stains, seams and wear. The set comes BEFORE any layout decision.',
   'S1b. HARD BAN — the default dark room: a raw/dark concrete or industrial wall with a hanging lamp is FORBIDDEN unless the theme is literally about construction, a workshop or a factory. It is the lazy answer and it means you skipped the deduction. If the theme is software, AI, agents, automation, systems or work: the set contains real SCREENS with real interfaces glowing, a conversation thread lit on a monitor, dashboards, cables, terminals, a control room, a desk mid-work — the light of the screens IS the light of the scene. Money theme: a real counter, notes, a card machine. Food: a real kitchen, a bench, ingredients. Deduce it. Never pick from a menu.',
-  'S1c. IF A REAL PHOTO IS ATTACHED: the set is built AROUND that photo. The subject is transplanted and re-lit, never re-shot. The photo does not bend to serve the set — the set bends to serve the photo. Never describe the subject itself: describe only WHERE it sits, HOW the light falls on it, and the world around it.',
+  'S1c. IF A REAL PHOTO IS ATTACHED: the set is built AROUND that photo. The subject is transplanted exactly as lit in the photo, never re-lit or re-shot. The photo does not bend to serve the set — the set bends to serve the photo. Never describe the subject itself: describe only WHERE it sits, the environment light around it, and the world around it.',
   'S2. THE HEADLINE IS A PHYSICAL OBJECT, NOT AN OVERLAY: give it a real material (cast concrete, brushed or galvanised steel letters bolted to the wall, painted stencil, extruded metal, letterpress) mounted INSIDE the set — receiving the same light, casting real directional shadows, carrying the same grain as the wall. Write it explicitly: "the letters are physical objects in the scene, lit by the lamp, casting their own shadows — not a graphic overlay".',
   'S3. PRACTICAL LIGHT IN FRAME: one visible light fixture inside the shot (hanging industrial lamp, neon tube, window shaft, desk lamp). Describe the cone, the hotspot on the surface, and the falloff — 60-75% of the canvas drops to near-black or deep shadow. Flat, even lighting is a FAILURE.',
   'S4. CAMERA: state focal length, camera height, distance and depth of field (e.g. "35mm, camera at chest height, 2m from the wall, f/2.8, foreground softly out of focus").',
@@ -301,6 +310,28 @@ const BLOCO_EDITORIAL = [
   'E6. LIGHT: the photographic zone carries real directional light and deep shadow; the flat zone stays quiet. Never both busy.',
 ].join('\n');
 
+// BLOCO_EDITORIAL_MATERIAL_REAL (21/set/2026, "supressão no modo editorial — material real em
+// qualquer modo"): simétrico ao BLOCO_CENA_MATERIAL_REAL, para o ramo editorial. Pedido do João
+// após ele mesmo apontar, pela leitura item a item de BLOCO_EDITORIAL, que E1 (sangramento corta
+// o material), E2 (dissolve/tinge a foto), E3 (deduz/cria uma fotografia nova — a mesma posição
+// enterrada do bug original de BLOCO_CENA) e E6 (reilumina a zona fotográfica) atacam exatamente
+// o que o contrato de preservação existe para proteger. E4 é seguro e entra íntegro (só
+// renumerado E4→M3). E3 sai inteiro — nenhuma fotografia é deduzida ou criada: o material
+// anexado JÁ É a zona fotográfica. M1/M5 (sem corte, sem reiluminar) só passaram a ser
+// cumpríveis depois da reescrita do CONTRATO DE PRESERVAÇÃO logo abaixo (LIBERADOS não inclui
+// mais crop do sujeito nem luz sobre o sujeito) — antes dessa reescrita essas duas promessas
+// seriam descartadas pelo próprio contrato, que se declara vencedor de qualquer conflito.
+const BLOCO_EDITORIAL_MATERIAL_REAL = [
+  '=== MODE OF THIS PIECE: EDITORIAL — REAL MATERIAL PRESERVED (the material is the photographic zone, never created) ===',
+  'A real photo is attached and is preserved elsewhere in this prompt (see the preservation contract) — you are not deducing or shooting a new photograph for this piece. The attached material IS the photographic zone in full.',
+  'M1. ZONE SPLIT: divide the canvas into a TEXT ZONE (solid colour or subtle gradient from the palette, ~45-55%) and a PHOTOGRAPHIC ZONE (~45-55%) that shows the preserved material WHOLE — no bleed off the canvas edge, no crop that cuts the product or the person. State the boundary; the material sits fully inside its zone, uncropped.',
+  'M2. THE FUSION HAPPENS ON THE FLAT SIDE: the solid-colour zone is what carries the gradient and the shadow that approaches the photographic zone — the preserved material itself is never dissolved, tinted or blended into the colour. Describe the gradient reaching toward the photo, never touching or altering it.',
+  'M3. FLAT COMPONENTS HAVE REAL STRUCTURE: the label is a SOLID FILLED PILL (not a hollow outline box). Under the headline, one short thin accent rule (2-3px, ~10% of canvas width). Info boxes, when present: 1px accent stroke, generous inner padding, an icon on the left, a bold accent title plus light body text inside. The CTA is a SOLID FILLED PILL or a bold arrow group. Everything aligns to ONE left margin.',
+  'M4. THE THEMATIC GRAPHIC STAYS IN THE FLAT ZONE: a single element in the accent colour may exist in the flat zone and reach up to its border — it is FORBIDDEN from crossing, overlapping or touching the preserved material in any way. No line, arc, arrow or shape may enter the photographic zone.',
+  'M5. LIGHT IS WHATEVER THE PHOTO ALREADY HAS: no directional relighting, no added shadow, no colour grade applied to the preserved material. The flat zone may carry its own light and shadow — the photographic zone does not.',
+  'You are FORBIDDEN from describing, redesigning or reinterpreting the preserved subject itself in any of the above — that is governed entirely by the preservation contract and the SPECIFICS section elsewhere in this prompt.',
+].join('\n');
+
 async function diretorDeArte(M, o, ctx) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const engine = engine6(M, o);
@@ -311,7 +342,10 @@ async function diretorDeArte(M, o, ctx) {
   // produto real pode cair em modo 'cena' mesmo sendo produto (o caminho que hoje só evita
   // BLOCO_CENA por CONSEQUÊNCIA do roteamento de escolherModo, não por regra própria). Checar
   // temFoto||temProduto direto, e não confiar no modo para proteger, é o que cobre esse caso.
-  // BLOCO_EDITORIAL fica de fora por ora — investigação própria, registrada, sem decisão ainda.
+  // EDITORIAL agora também condicionado (21/set/2026): o ramo editorial IGNORAVA a variável —
+  // produto real cai em editorial por padrão (escolherModo, acima), então o caminho mais comum
+  // pra produto era justamente o desprotegido; e uma foto pessoal encaminhada ao editorial
+  // também ficava sem proteção. BLOCO_EDITORIAL_MATERIAL_REAL fecha essa lacuna.
   const materialRealPreservado = !!(ctx.temFoto || ctx.temProduto);
   const sys = [
     'You are an award-winning art director for premium Brazilian Instagram brands.',
@@ -321,7 +355,9 @@ async function diretorDeArte(M, o, ctx) {
     '=== LAW 0 — THERE IS ALWAYS A REAL PHOTOGRAPHIC LAYER (absolute) ===',
     'Every reference-grade piece is built on real photographic matter. Text floating on an empty coloured background, decorated with a few outlined shapes, is an AMATEUR FAILURE and is forbidden. Whatever the mode: real surfaces, real objects, real light, real depth, real grain.',
     '',
-    modo === 'cena' ? (materialRealPreservado ? BLOCO_CENA_MATERIAL_REAL : BLOCO_CENA) : BLOCO_EDITORIAL,
+    modo === 'cena'
+      ? (materialRealPreservado ? BLOCO_CENA_MATERIAL_REAL : BLOCO_CENA)
+      : (materialRealPreservado ? BLOCO_EDITORIAL_MATERIAL_REAL : BLOCO_EDITORIAL),
     '',
     '=== HOW TO WRITE IT (both modes) ===',
     '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',
@@ -343,8 +379,8 @@ async function diretorDeArte(M, o, ctx) {
     'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤6, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
     '',
     '=== SPECIFICS ===',
-    ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene and re-lit, never re-photographed. Describe ONLY: which side they sit on, the crop, how the light of the set falls on them, gaze direction pointing toward the headline, contact shadow. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
-    ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone. Describe ONLY where it sits, the surface under it, the light hitting it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
+    ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene exactly as lit in the photo, never re-photographed, never re-lit. Describe ONLY: which side they sit on, the crop that keeps them entirely in frame, the environment\'s light around them, gaze direction pointing toward the headline, the contact shadow they cast into the set. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
+    ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone, exactly as lit in the photo, never re-lit. Describe ONLY where it sits, the crop that keeps it entirely in frame, the surface under it, the environment\'s light around it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
     // GOSTO DO CLIENTE (16/set/2026, "unificação das arquiteturas de prompt"): antes esta
     // memória só existia como INSTRUÇÃO na persona do Criativo — que compunha o prompt de
@@ -745,18 +781,30 @@ module.exports = async (req, res) => {
       //     resolve mexendo no sujeito. Dizer o que PODE mudar dá vazão legal à ordem de mudar.
       //  3. LISTA ENUMERADA: vago o modelo negocia, enumerado ele obedece (foi o que fez o
       //     acento parar de alucinar: "Text to render" + character-for-character).
+      // CAUSA RAIZ MAIS FUNDA (21/set/2026, "supressão no modo editorial", decisão caminho 3,
+      // autorizado pelo João contra o "não alterar" — "o não alterar protegia o contrato por
+      // funcionar; aqui ele é a origem do defeito"): LIBERADOS listava clothing/pose/body
+      // position/framing and crop/lighting/shadows/colour grade — cada um é uma licença para
+      // redesenhar o SUJEITO. Mudar a pose exige redesenhar o corpo; reiluminar exige repintar o
+      // sombreamento do rosto. O contrato que deveria preservar era o que autorizava a
+      // distorção — explica a distorção de rosto melhor que qualquer ajuste de doutrina anterior.
+      // Correção: separar o que é do SUJEITO (travado, sempre) do que é do AMBIENTE (liberado).
+      // Roupa, pose, posição do corpo, luz/sombra/cor SOBRE o sujeito e qualquer corte que remova
+      // parte dele saem de LIBERADOS e entram em travados — aplicado igualmente a pessoa e
+      // produto. O enquadramento do canvas continua livre, mas condicionado: só enquanto o
+      // sujeito permanecer inteiro dentro dele (nunca cortado).
       const travados = [];
-      if (temPessoa) travados.push('face shape and geometry', 'jawline', 'nose', 'eyes and eyebrows', 'lips', 'skin texture, marks, freckles, moles, wrinkles', 'hairline and haircut', 'beard', 'tattoos (exact artwork, placement and scale)', 'necklace, watch, rings, glasses, piercings and every accessory worn', 'body proportions', 'apparent age');
-      if (temProduto) travados.push('product silhouette and proportions', 'exact colours', 'label artwork and the typography printed on it', 'surface texture and material', 'filling, topping, coating and internal detail', 'finish and gloss', 'the exact count/quantity of items shown');
-      const LIBERADOS = 'clothing, pose, body position, framing and crop, background, environment and set, lighting, shadows, colour grade and film grain, and the surface the subject or product rests on';
+      if (temPessoa) travados.push('face shape and geometry', 'jawline', 'nose', 'eyes and eyebrows', 'lips', 'skin texture, marks, freckles, moles, wrinkles', 'hairline and haircut', 'beard', 'tattoos (exact artwork, placement and scale)', 'necklace, watch, rings, glasses, piercings and every accessory worn', 'body proportions', 'apparent age', 'clothing', 'pose and body position', 'the lighting and shadow falling on the person — face and body keep exactly the light they already have in the photo', 'colour grade and tone applied to the person', 'any crop or framing that cuts off any part of the person');
+      if (temProduto) travados.push('product silhouette and proportions', 'exact colours', 'label artwork and the typography printed on it', 'surface texture and material', 'filling, topping, coating and internal detail', 'finish and gloss', 'the exact count/quantity of items shown', "the product's position and orientation", 'the lighting and shadow falling on the product — it keeps exactly the light it already has in the photo', 'colour grade and tone applied to the product', 'any crop or framing that cuts off any part of the product');
+      const LIBERADOS = 'background, environment and set, the surface the subject or product rests on, ambient light and shadow in the ENVIRONMENT around the subject (never on the subject or product itself), film grain and texture applied to the environment, and the canvas framing — you may reposition or reframe the canvas as long as the subject or product stays entirely inside it, never cropped or cut off';
 
       const cabecalho = travados.length
         ? '=== PRESERVATION CONTRACT — READ BEFORE ANYTHING ELSE (OUTRANKS EVERY OTHER INSTRUCTION BELOW) ==='
-          + ' The attached photo is REAL and it is the source of truth. The subject in it is NOT re-photographed and NOT re-rendered: it is transplanted into the scene and re-lit.'
-          + ' Everything described below builds the world AROUND the attached photo — the photo never bends to serve the scene, the scene bends to serve the photo.'
+          + ' The attached photo is REAL and it is the source of truth. The subject in it is NOT re-photographed, NOT re-rendered and NOT re-lit: it is transplanted into the scene exactly as it already looks and is already lit in the original photo.'
+          + ' Everything locked below belongs to the subject itself. Everything free belongs to the world around it — the photo never bends to serve the scene, the scene bends to serve the photo.'
           + ' YOU MAY freely change: ' + LIBERADOS + '.'
-          + ' CRITICAL: preserving the subject does NOT mean a plain or minimalist background. Build the SAME rich, cinematic, textured environment you would build WITHOUT an attached photo — real set, practical light, depth, atmosphere. A locked subject on a bare flat background is a FAILURE. Freeze the person/product; go full-force on the world around them.'
-          + ' YOU MAY NOT change anything about the subject itself. If any instruction below conflicts with this contract, this contract wins and that instruction is discarded.'
+          + ' CRITICAL: preserving the subject does NOT mean a plain or minimalist background. Build the SAME rich, cinematic, textured environment you would build WITHOUT an attached photo — real set, practical light, depth, atmosphere. A locked subject on a bare flat background is a FAILURE. Freeze the person/product exactly as lit; go full-force on the world around them.'
+          + ' YOU MAY NOT change anything about the subject itself, including how it is lit. If any instruction below conflicts with this contract, this contract wins and that instruction is discarded.'
           + ' This is a PHOTOREALISTIC photograph — never an illustration, cartoon, vector, drawing or CGI render. ===\n\n'
         : '';
 
@@ -775,7 +823,9 @@ module.exports = async (req, res) => {
       preserva += ' Do NOT add, draw, invent or duplicate any logo, symbol, emblem, monogram, watermark or extra brand signature anywhere in the image — the real brand mark is applied later by the system. ===';
 
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
+      // materialReal (21/set/2026): sinal novo pra engine6 condicionar a seção 6 (luz
+      // direcional/sombra) ao ambiente quando há pessoa ou produto real preservado.
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
@@ -808,7 +858,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
