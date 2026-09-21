@@ -679,7 +679,13 @@ async function jobProduzir(soUid) {
         // poucos minutos, nunca preso em silêncio.
         const temaTxt = pl.tema ? `tema "${String(pl.tema).slice(0, 200)}"` : 'sem tema definido pelo cliente — escolha um, coerente com o negócio dele, sem repetir temas recentes';
         const fmtTxt = pl.formato === 'carrossel' ? `carrossel de ${pl.slides || '2 a 10'} slides` : 'peça única (feed)';
-        const mensagemSintetica = `Pedido avulso confirmado pelo cliente com o Designer — não é uma proposta nova aguardando aprovação sua, já foi aprovado lá. Produza agora a direção completa (headline, subheadline, prova, CTA e ${pl.tema ? 'use o' : 'escolha o'} tema) para: ${temaTxt}, ${fmtTxt}. Emita a tag <conteudo> completa (com "avulso":true) já nesta resposta — não apresente a proposta de novo nem pergunte se está bom, a confirmação já aconteceu.`;
+        // TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a aposta"): a
+        // mensagem não pede mais a tag <conteudo> — agente-chat.js agora FORÇA a ferramenta
+        // (tool_choice), decidido pela tarefa real desta ordem no banco, não por nada que esta
+        // mensagem diga. A instrução de "não apresente/não pergunte" continua útil como contexto
+        // (mesmo raciocínio de antes, evita a REGRAS_PEDIDO_AVULSO_ESTRATEGIA tratar isto como
+        // pedido novo aguardando confirmação) — só a parte da tag, agora obsoleta, saiu.
+        const mensagemSintetica = `Pedido avulso confirmado pelo cliente com o Designer — não é uma proposta nova aguardando aprovação sua, já foi aprovado lá. Produza agora a direção completa (headline, subheadline, prova, CTA e ${pl.tema ? 'use o' : 'escolha o'} tema) para: ${temaTxt}, ${fmtTxt}. Preencha os campos na ferramenta desta resposta já com a direção final — não apresente a proposta de novo nem pergunte se está bom, a confirmação já aconteceu.`;
         const r = await fetch(`${base}/api/agente-chat`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
           body: JSON.stringify({ agente: 'estrategia', user_id: o.user_id, ordem_id: o.id, mensagem: mensagemSintetica }),

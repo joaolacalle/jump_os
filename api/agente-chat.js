@@ -41,7 +41,66 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.20-autenticacao-interna-valida-posse-do-dado-nao-rotulo-de-tarefa';
+const VERSAO = '2026.09.21-direcao-avulsa-forca-saida-estruturada-via-tool-choice';
+// DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
+// aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
+// prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
+// chamadas reais do worker a direcao_avulso_criativo (10:57:39, 11:01:02, 11:05:51 UTC) — a
+// Estratégia respondeu às 3, e NENHUMA emitiu a tag <conteudo>; duas delas DECLARARAM a ação em
+// prosa ("Peça avulsa registrada e enviada ao Designer...") sem executá-la, mesmo com a mensagem
+// do worker pedindo explicitamente a tag. Conclusão do João, verbatim: "Emitir a tag sempre
+// dependeu de obediência a texto (...) Reescrever a mensagem sintética seria a décima tentativa
+// do mesmo caminho." Correção estrutural, não mais uma reescrita de prompt: só no caminho
+// interno de direcao_avulso_criativo (ver `forcarDirecaoAvulsa`, decidido no gate de
+// autenticação abaixo, a partir da PRÓPRIA `tarefa` da ordem no banco — nunca de um sinal que o
+// chamador afirma — mesma disciplina de "validar por posse do dado" da correção anterior, 20/set),
+// tool_choice força esta ferramenta: o modelo não tem como responder com texto livre. Ou devolve
+// os campos preenchidos, ou a chamada falha com erro visível (502) — nunca em silêncio, nunca com
+// um "reparo de segunda chamada" tentando adivinhar (ver comentário completo mais abaixo, no
+// ponto onde o bloco da ferramenta é extraído).
+// ESCOPO — deliberadamente estreito, exatamente como pedido: "Apenas no caminho interno. A
+// conversa ao vivo com o usuário continua como está." `copy_para_criativo` e `<correcao_texto>`
+// são a MESMA classe de risco (mesma dependência de obediência) mas ficam de fora desta entrega —
+// reportado, não implementado (ver relatório da rodada — uma entrega por vez, Contrato 9.1).
+// LIMITES DE PALAVRA NO ESQUEMA — "onde a API permitir restringir, restringir; onde não, validar
+// ao receber e acionar a reescrita única, que já funciona": `pattern` abaixo aproxima "no máximo N
+// palavras" por contagem de tokens separados por espaço — é o máximo que o JSON Schema padrão
+// permite (não existe constraint nativo de "contagem de palavras"). SEM `strict:true` isso é
+// orientação ao modelo, não garantia dura da API — a documentação oficial não confirma que
+// `pattern`/`maxLength` são impostos por amostragem fora do modo strict (não usado aqui: suporte
+// e compatibilidade com tool_choice forçado não confirmados na doc para este caso, ver relatório).
+// A garantia real não muda: `validarTextoDaPeca` (gerar-imagem.js, intocada) valida de verdade na
+// geração, e a reescrita única (<correcao_texto>, 19/set/2026, já funcionando) corrige se estourar
+// — esta peça entra pelo MESMO `criar_avulso` → laço principal do worker que qualquer outra
+// peça avulsa, então já está coberta, sem nenhum código novo precisar entrar ali.
+// COMPATIBILIDADE COM `output_config`/MODELO — verificada na documentação oficial (Anthropic,
+// "Thinking with tool use"), reportada em detalhe na entrega: `tool_choice` forçado (`any` ou
+// `tool`) é INCOMPATÍVEL com thinking MANUAL (`thinking:{type:'enabled'}`) — resulta em erro da
+// API. Este arquivo nunca usa thinking manual; usa só `output_config:{effort:'low'}` condicional,
+// que é thinking ADAPTATIVO nos modelos novos (Sonnet 5/Opus 5 em diante) — e thinking adaptativo
+// SUPORTA tool_choice forçado, EXCETO em Claude Fable 5.1 e Claude Mythos 5.1 (exceção nomeada
+// pela doc; se `AGENT_MODEL_ESTRATEGIA` apontar pra um desses dois, a doc recomenda
+// `tool_choice:'auto'` + strict tool use/structured outputs em vez de tool_choice forçado — não é
+// o caso hoje, o padrão documentado no código é 'claude-sonnet-4-5').
+const TOOL_DIRECAO_AVULSA_NOME='registrar_direcao_avulsa_criativo';
+const TOOL_DIRECAO_AVULSA={
+  name:TOOL_DIRECAO_AVULSA_NOME,
+  description:'Registra a direção criativa completa desta peça avulsa (tema se ainda não decidido, tipo visual, pilar, headline, subheadline, prova, CTA e legenda), decidida a partir do DNA da marca. Uso obrigatório nesta chamada — não é permitido responder em texto livre.',
+  input_schema:{
+    type:'object',
+    properties:{
+      tema:{type:'string',description:'O tema da peça. Se a ordem já trouxe um tema, repita-o exatamente, nunca troque. Se não veio tema, escolha um coerente com o negócio, sem repetir temas recentes do cliente.'},
+      tipo_visual:{type:'string',enum:['pessoal','pessoa_conceito','produto','conceitual'],description:'história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.'},
+      pilar:{type:'string',enum:['educação','prova','autoridade','oferta','bastidor']},
+      headline:{type:'string',pattern:'^(\\S+\\s+){0,7}\\S+$',description:'O gancho da arte, frase completa. Máx 8 palavras — limite do Engine, validado de verdade na geração da imagem.'},
+      subheadline:{type:'string',pattern:'^(\\S+\\s+){0,5}\\S+$',description:'A segunda parte do texto: o porquê da headline, cria desejo/tensão. Máx 6 palavras — limite do Engine.'},
+      prova:{type:'string',description:'1 dado, número ou fato REAL do DNA da marca que sustenta a promessa. Vazio se não houver — nunca invente.'},
+      cta_arte:{type:'string',pattern:'^(\\S+\\s+){0,1}\\S+$',description:'Chamada curta que vai NA ARTE (ex.: SAIBA MAIS, QUERO TESTAR). Máx 2 palavras — limite do Engine.'},
+      copy:{type:'string',description:'Legenda do Instagram, separada da arte (máx 600 caracteres, hook + CTA). Deixe vazio se o formato da peça for "story" — story não leva legenda, regra da Meta.'},
+    },
+    required:['tema','tipo_visual','pilar','headline','subheadline','prova','cta_arte'],
+  },
+};
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
 const { avancarCadeia } = require('./_cadeia-lib');
@@ -929,6 +988,13 @@ const handler = async (req, res) => {
         // sem impersonação (targetId só vem do user_id do chamador, nunca de ver_id); falha de
         // posse loga a origem com [auth-interno] e responde 403, sem degradar para outro modo.
         autenticacao_interna_valida_posse_do_dado_nao_lista_de_tarefas:true,
+        // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar
+        // a aposta"): a chamada interna do worker a direcao_avulso_criativo não depende mais de o
+        // modelo obedecer a instrução em prosa pra emitir <conteudo> — tool_choice força a
+        // ferramenta, decidido pela `tarefa` real da ordem no banco. copy_para_criativo e
+        // <correcao_texto> ficam de fora desta entrega (mesma classe de risco, reportado, não
+        // implementado — ver relatório da rodada).
+        direcao_avulso_criativo_forca_tool_choice_nao_depende_mais_de_obediencia_a_tag:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -997,6 +1063,7 @@ const handler = async (req, res) => {
     const _intOk=!!(_int && process.env.CRON_SECRET && _int===process.env.CRON_SECRET);
 
     let user, requester, targetId;
+    let _ordemInternaInfo=null; // {id,tarefa,payload} — só preenchido no ramo ordem_id do modo interno
     if(_intOk){
       const _ordemId=req.body && req.body.ordem_id;
       const _conteudoId=req.body && req.body.conteudo_id;
@@ -1036,9 +1103,16 @@ const handler = async (req, res) => {
         _dadoValido=!!_ct;
         if(!_dadoValido) _motivoInvalido='conteudo_id não pertence a este user_id — conteudo='+_conteudoId+' user='+_uidReq;
       } else {
-        const [_ord]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&status=in.(pendente,processando)&select=id`);
+        // select amplia pra `tarefa,payload` (21/set/2026, "direção avulsa — forçar saída
+        // estruturada"): não é um dado novo sendo confiado do chamador — é o MESMO registro já
+        // lido aqui pra autenticar, só pedindo mais colunas dele. `forcarDirecaoAvulsa` (abaixo)
+        // decide se força tool_choice a partir da `tarefa` REAL da ordem no banco, nunca de um
+        // sinal que cron.js afirme — mesma disciplina de "validar por posse/dado real" da correção
+        // de 20/set, aplicada aqui a uma decisão de comportamento, não só de autorização.
+        const [_ord]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&status=in.(pendente,processando)&select=id,tarefa,payload`);
         _dadoValido=!!_ord;
         if(!_dadoValido) _motivoInvalido='ordem_id não pertence a este user_id, ou não está pendente/processando — ordem='+_ordemId+' user='+_uidReq;
+        else _ordemInternaInfo=_ord;
       }
       if(!_dadoValido){
         console.error('[auth-interno] '+_motivoInvalido);
@@ -1068,6 +1142,13 @@ const handler = async (req, res) => {
         } else return res.status(403).json({error:'Sem permissão'});
       }
     }
+
+    // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026): decidido pela `tarefa` REAL da ordem no
+    // banco (`_ordemInternaInfo`, lida acima só pra autenticar) — nunca por um campo que o
+    // chamador declare. Só pode ser true no ramo `ordem_id` do modo interno (a conversa ao vivo
+    // nunca passa por `_ordemInternaInfo`, fica sempre null ali — ver comentário da definição da
+    // ferramenta, acima).
+    const forcarDirecaoAvulsa=!!(_intOk && _ordemInternaInfo && _ordemInternaInfo.tarefa==='direcao_avulso_criativo');
 
     // Cliente ALVO + plano + limites (dono dos dados: memórias, uso, onboarding)
     const [cli]=await sbGet(`clientes?id=eq.${targetId}&select=*`);
@@ -1648,7 +1729,12 @@ const handler = async (req, res) => {
         // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
         // modelo dedicado — o haiku padrão não aceita este parâmetro.
         ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{}),
-        ...(agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{})
+        // DIREÇÃO AVULSA FORÇADA: troca o `tools` de sempre (web_search) pela ferramenta única e
+        // obrigatória — `tool_choice` força exatamente ela, o modelo não escolhe. Fora deste
+        // caminho, nada muda (mesmo array de sempre, só para agente==='estrategia').
+        ...(forcarDirecaoAvulsa
+          ? {tools:[TOOL_DIRECAO_AVULSA],tool_choice:{type:'tool',name:TOOL_DIRECAO_AVULSA_NOME}}
+          : (agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{}))
       }),
     });
     let data=await aRes.json();
@@ -1656,11 +1742,17 @@ const handler = async (req, res) => {
     if(!respOk && /model|effort|thinking|not permitted|unexpected|invalid/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
       // AGENT_MODEL_ESTRATEGIA inválido/recusado → não derruba o agente: repete no modelo padrão.
       console.error('modelo/param da estratégia recusado, usando padrão:',MODEL_DE(agente),JSON.stringify(data).slice(0,160));
+      // Nos dois retries abaixo, quando a chamada é de direção avulsa forçada, `tools`+
+      // `tool_choice` viajam junto — só os parâmetros extras (output_config/web_search) são
+      // descartados, nunca a estrutura forçada (21/set/2026: sem isto, um erro de modelo/param
+      // faria o retry cair de volta pra texto livre, exatamente a aposta que esta correção existe
+      // pra eliminar — melhor falhar visível, com erro, do que degradar em silêncio).
+      const _paramsForcados=forcarDirecaoAvulsa?{tools:[TOOL_DIRECAO_AVULSA],tool_choice:{type:'tool',name:TOOL_DIRECAO_AVULSA_NOME}}:{};
       // 1ª tentativa: MESMO modelo forte, sem os parâmetros extras (mantém a qualidade)
       const r1=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-        body:JSON.stringify({model:MODEL_DE(agente),max_tokens:8000,system,messages}),
+        body:JSON.stringify({model:MODEL_DE(agente),max_tokens:8000,system,messages,..._paramsForcados}),
       });
       if(r1.ok){data=await r1.json();respOk=true}
       else{
@@ -1668,7 +1760,7 @@ const handler = async (req, res) => {
         const rf=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
           headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
-          body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages}),
+          body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages,..._paramsForcados}),
         });
         if(rf.ok){data=await rf.json();respOk=true}
       }
@@ -1680,6 +1772,21 @@ const handler = async (req, res) => {
       return res.status(500).json({error:'O agente não respondeu.'+(msg?(' Motivo: '+String(msg).slice(0,160)):' Tente em instantes.')});
     }
     let texto=(data.content||[]).map(c=>c.text||'').join('');
+    // DIREÇÃO AVULSA FORÇADA — extrai o bloco da ferramenta obrigatória. Nunca cai pra texto
+    // livre neste caminho: ou o bloco esperado veio, ou a chamada falha aqui mesmo, com erro
+    // visível (502) — cron.js já loga e conta como falha (mesmo tratamento de sempre, ver
+    // '[worker] direcao_avulso_criativo falhou'), nada de tentar adivinhar por cima com uma
+    // segunda chamada (isso é exatamente a aposta que esta correção elimina).
+    let _direcaoAvulsaCampos=null;
+    if(forcarDirecaoAvulsa){
+      const _toolBlock=(data.content||[]).find(c=>c&&c.type==='tool_use'&&c.name===TOOL_DIRECAO_AVULSA_NOME);
+      const _temaCandidato=String(((_ordemInternaInfo&&_ordemInternaInfo.payload&&_ordemInternaInfo.payload.tema)||(_toolBlock&&_toolBlock.input&&_toolBlock.input.tema)||'')).trim();
+      if(!_toolBlock || !_toolBlock.input || typeof _toolBlock.input!=='object' || !_temaCandidato){
+        console.error('[direcao-avulsa-forcada] tool_choice forçado não retornou o bloco esperado — ordem='+(req.body&&req.body.ordem_id)+' user='+targetId+' stop_reason='+(data.stop_reason||'')+' tipos='+(Array.isArray(data.content)?data.content.map(c=>c&&c.type).join(','):'nenhum'));
+        return res.status(502).json({error:'A Estratégia não retornou a direção estruturada esperada.'});
+      }
+      _direcaoAvulsaCampos=_toolBlock.input;
+    }
     // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
     // Antes isso passava em silêncio (o agente "dizia" que salvou e nada era gravado).
     const truncou=(data.stop_reason==='max_tokens');
@@ -1833,6 +1940,34 @@ const handler = async (req, res) => {
       try{const o=JSON.parse(j.trim());if(o.tema)conteudos.push(o)}catch(e){}
       return '';
     });
+    // DIREÇÃO AVULSA FORÇADA — MESMA array `conteudos`, MESMO caminho de gravação logo abaixo
+    // (INSERT em 'conteudos', trava de ciclo, cardinalidade, HANDOFF de fechamento da ordem) —
+    // requisito do João: "não criar segundo caminho de gravação". Só a ORIGEM do objeto muda:
+    // campos da ferramenta forçada, não uma tag <conteudo> em texto livre. `formato`/`slides` vêm
+    // do PRÓPRIO payload da ordem (nunca do modelo — mesma fonte e mesma regra de cardinalidade
+    // que o HANDOFF já usa ao criar esta ordem, ver "formato e slides exatamente como vieram na
+    // ordem, nunca inferido" na persona da Estratégia); `tema` também vem da ordem quando ela já
+    // trouxe um (nunca trocado), e só cai no que o modelo decidiu quando a ordem veio sem tema.
+    if(forcarDirecaoAvulsa && _direcaoAvulsaCampos){
+      const _plInterna=(_ordemInternaInfo && _ordemInternaInfo.payload)||{};
+      const _fmtInterno=String(_plInterna.formato||'feed');
+      const _slidesInterno=Number(_plInterna.slides);
+      conteudos.push({
+        tema:String(_plInterna.tema||_direcaoAvulsaCampos.tema||'').trim(),
+        formato:_fmtInterno,
+        ...(_fmtInterno==='carrossel'&&Number.isFinite(_slidesInterno)&&_slidesInterno>=2&&_slidesInterno<=10?{slides:Math.floor(_slidesInterno)}:{}),
+        tipo_visual:String(_direcaoAvulsaCampos.tipo_visual||'conceitual'),
+        pilar:String(_direcaoAvulsaCampos.pilar||''),
+        headline:String(_direcaoAvulsaCampos.headline||''),
+        subheadline:String(_direcaoAvulsaCampos.subheadline||''),
+        prova:String(_direcaoAvulsaCampos.prova||''),
+        cta_arte:String(_direcaoAvulsaCampos.cta_arte||''),
+        // story não leva legenda (regra da Meta, mesma exceção nomeada da persona) — copy nunca
+        // entra no objeto gravado pra este formato, mesmo que a ferramenta tenha devolvido algo.
+        ...(_fmtInterno!=='story'?{copy:String(_direcaoAvulsaCampos.copy||'')}:{}),
+        avulso:true,
+      });
+    }
     // ═══ AUTO-REPARO (Estratégia): se o agente DESCREVEU o plano mas não emitiu nenhuma tag
     //     <conteudo>, o calendário ficaria vazio e ele "diria" que salvou. Em vez de confiar,
     //     pedimos SOMENTE as tags numa segunda passada. Fim da falha silenciosa. ═══
