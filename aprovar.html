@@ -899,6 +899,7 @@ function render(){
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
         ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
+        ${(c.meta&&c.meta.verificacao_texto&&Array.isArray(c.meta.verificacao_texto.divergentes)&&c.meta.verificacao_texto.divergentes.length)?`<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px" title="${JUMP.esc(c.meta.verificacao_texto.divergentes.map(dv=>dv.campo+': esperado “'+dv.esperado+'”, saiu “'+dv.lido+'”').join(' · '))}">✏️ TEXTO DIVERGENTE — conferir</div>`:''}
         ${_expirado?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⛔ EXPIRADO — reagende para recuperar</div>':(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
           return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>

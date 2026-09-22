@@ -1122,7 +1122,13 @@ async function executarLoteCriativos(uid,ordem){
     }
     const meta=c.meta||{};
     const _tv=String(c.tipo_visual||'conceitual');
-    const _querPessoa=(_tv==='pessoal'||_tv==='pessoa_conceito');
+    // TETO DE 40% SÓ CONTA FOTO REAL (20/set/2026, "preservação de material real", consequência
+    // direta do item 2 desta mesma rodada, autorizado pelo João — "corrigir junto"): antes,
+    // 'pessoa_conceito' contava aqui igual a 'pessoal' — mas 'pessoa_conceito' NUNCA usa a foto
+    // real do cliente (corrigido em api/gerar-imagem.js), então contá-lo contra o mesmo teto de
+    // 'pessoa_conceito' apertava a cota de 'pessoal' sem necessidade — uma peça que nunca gastou
+    // foto real consumia uma vaga de quem gasta.
+    const _querPessoa=(_tv==='pessoal');
     const _semFP=_querPessoa&&usadasPessoa>=capPessoa; // teto atingido → esta arte sai conceitual
     const w=document.getElementById('msgs');
     const lbl=document.createElement('div');lbl.className='msg a';
@@ -1676,6 +1682,15 @@ function _carregarImg(src){return new Promise(res=>{const im=new Image();im.cros
 async function comporLogoNaArte(d){
   try{
     if(!d||!d.url)return d;
+    // LOGO NO SERVIDOR (22/set/2026, Fase 1 + "Engine 6.0 como caminho padrão" Rodada 1, item 2):
+    // quando /api/gerar-imagem já colou a logo real por código (sharp), não compor de novo aqui
+    // no navegador — colaria a logo DUAS vezes na mesma arte. ATUALIZADO (Rodada 1, item 2):
+    // logoJaComposta não depende mais só do interruptor composicao_ativa (hoje desligado em toda
+    // conta) — o passo padrão novo do servidor cola a logo real em TODO fluxo (chat avulso,
+    // ordem de serviço, worker, ordem do Tráfego), e devolve logoJaComposta=true sempre que
+    // conseguir. Este early-return cobre os dois casos pelo mesmo sinal — sem logo cadastrada no
+    // servidor, ele vem undefined/false e este caminho do navegador continua como sempre foi.
+    if(d.logoJaComposta)return d;
     if(!(LOGOS_USER&&LOGOS_USER.principal))await carregarLogosUser();
     const logoUrl=LOGOS_USER&&LOGOS_USER.principal; if(!logoUrl)return d; // sem logo → arte como está
     const [art,logo]=await Promise.all([_carregarImg(d.url),_carregarImg(logoUrl)]);
