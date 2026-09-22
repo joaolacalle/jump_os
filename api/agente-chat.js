@@ -3,6 +3,13 @@
 
 
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+// FONTE ÚNICA DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2, autorizado pelo
+// João) — ver api/_dna-lib.js. Usado aqui pra (1) injetar o estado real do check-in no
+// contexto do Identidade a cada turno (dado, não só instrução em texto) e (2) travar
+// <checkin_completo/> EM CÓDIGO quando algum obrigatório ainda falta, mesmo que o modelo emita
+// a tag. Nunca escreve valor nenhum no DNA — só lê e valida o que o próprio modelo tentar
+// gravar via <memoria>.
+const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando } = require('./_dna-lib.js');
 
 // CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
 // Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
@@ -41,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.22-engine6-caminho-padrao-r1-qualidade-alta-logo-padrao-verificacao-visao-prompt-final';
+const VERSAO = '2026.09.22-engine6-rodada2-causa1-corte-central-declarado-causa2-checkin-valida-dna-obrigatorio';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1135,6 +1142,37 @@ const handler = async (req, res) => {
         // nesta rodada — é relatório, exige uma peça real gerada DEPOIS do deploy (produção),
         // não reproduzível neste ambiente sem ANTHROPIC_API_KEY/OPENAI_API_KEY. Fica para a
         // entrega, como item de relatório dependente do deploy dos itens 1 a 4.
+        // INCIDENTE DE EMPACOTAMENTO (22/set/2026, achado pelo João DEPOIS da 1ª entrega desta
+        // rodada): a entrega comparou `_composicao-lib.js` contra o HEAD LOCAL (onde a
+        // composição já existia desde uma rodada anterior), nunca contra o `origin/main` REAL —
+        // o módulo nunca tinha subido. `api/package.json` do repositório real só tinha `sharp`,
+        // sem `opentype.js`; `assets/fonts/*.ttf` não existia lá. `gerar-imagem.js` carrega
+        // `_composicao-lib.js` incondicionalmente no topo (linha 16, independente do
+        // interruptor) — sem `opentype.js` resolvível, TODA geração de imagem, em TODO fluxo,
+        // quebraria em produção. Corrigido: `api/package.json` (sharp+opentype.js) e as 3
+        // fontes de reserva usadas em código (`BebasNeue-Regular.ttf`, `Barlow-Regular.ttf`,
+        // `Barlow-SemiBold.ttf`) entram na entrega. Regra nova no Contrato: empacotar sempre
+        // contra `origin/main`, nunca contra o HEAD local. Portão novo, automatizado em
+        // `test_empacotamento_dependencias.js`: todo `require()` de pacote externo em
+        // `api/*.js` tem que estar declarado em `api/package.json` (scan estático) — e, quando
+        // há rede, a prova mais forte: aplicar a entrega sobre um checkout limpo de
+        // `origin/main`, `npm install`, `require()` de verdade. Sintaxe válida (`node --check`)
+        // nunca provou que o módulo resolve — só isso prova. Registrado para quando o
+        // interruptor for ligado: as fontes são lidas por `fs.readFileSync` com caminho montado
+        // em tempo de execução — o rastreador de arquivos da Vercel pode não incluí-las no
+        // pacote da função; verificar antes de ligar.
+        incidente_empacotamento_opentype_e_fontes_ausentes_do_origin_main_corrigido:true,
+        portao_empacotamento_require_externo_declarado_em_package_json_automatizado:true,
+        // ENGINE 6.0 — RODADA 2 (22/set/2026, autorizado pelo João): comparativo real do
+        // cliente (mesma peça pelo Engine colado num chat vs. pelo pipeline) apontou 2 causas
+        // de código + 1 pendente de relatório. Causa 1 (gerar-imagem.js) e Causa 2 (aqui +
+        // gerar-imagem.js) implementadas nesta entrega; Causa 3 é relatório, sem código.
+        rodada2_causa1_corte_final_declarado_e_deterministico_no_prompt_position_center:true,
+        rodada2_causa1_alvo_de_corte_fonte_unica_nunca_mais_literal_duplicado:true,
+        rodada2_causa2_check_in_identidade_valida_campos_obrigatorios_em_codigo:true,
+        rodada2_causa2_enum_fora_do_conjunto_recusado_nunca_gravado_em_silencio:true,
+        rodada2_causa2_dna_incompleto_sinalizado_em_log_e_em_conteudos_meta_na_geracao:true,
+        rodada2_causa3_auditoria_de_fidelidade_pendente_relatorio_aguarda_peca_pos_deploy:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1453,6 +1491,28 @@ const handler = async (req, res) => {
         memTxt+='\n\nO QUE OS OUTROS AGENTES JÁ DESCOBRIRAM (use como base — é trabalho real feito para este cliente, não invente por cima):\n'
           +deOutros.map(m=>`- [${NOME[m.agente]||m.agente}] ${m.chave}: ${m.valor}`).join('\n');
       }
+    }
+
+    // CHECK-IN — ESTADO REAL DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2,
+    // autorizado pelo João): "o check-in de Identidade marca conclusão sem validar nada em
+    // código". Isto injeta o estado REAL, lido do banco a cada turno, como DADO no contexto do
+    // Identidade — não mais só o texto de instrução ("confirme que gravou...", que o modelo
+    // pode esquecer, digitar errado ou simplesmente ignorar sob pressão do cliente pra
+    // "terminar logo"). O portão que de fato TRAVA a conclusão fica em código, mais abaixo, no
+    // tratamento de <checkin_completo/> — isto aqui só avisa o modelo ANTES de ele responder,
+    // pra reduzir a chance de a tag sair errada. Só roda para 'identidade'; nenhum outro agente
+    // é afetado.
+    let dnaChecklistTxt='';
+    if(agente==='identidade'){
+      const dnaAtual={};
+      mems.filter(m=>m.agente==='global').forEach(m=>{ dnaAtual[m.chave]=m.valor; });
+      const faltandoAgora=dnaFaltando(dnaAtual);
+      dnaChecklistTxt='\n\n=== CHECK-IN — ESTADO REAL (dado lido do banco agora, não pergunte isto ao cliente em bloco só porque está aqui) ===\n'
+        +(faltandoAgora.length
+            ? ('Campos obrigatórios do DNA visual AINDA vazios: '+faltandoAgora.join(', ')+'. Você só pode emitir <checkin_completo/> quando NENHUM destes estiver faltando — o sistema recusa a conclusão em código se a tag vier antes disso. Continue a consultoria até preenchê-los.')
+            : 'Todos os campos obrigatórios do DNA visual já estão gravados. Pode concluir com <checkin_completo/> quando fizer sentido na conversa.')
+        +'\nValores aceitos nos campos de enumeração (grave EXATAMENTE um destes por campo — fora da lista, o sistema recusa e não grava em silêncio):\n'
+        +Object.keys(DNA_ENUMS).map(c=>'- '+c+': '+DNA_ENUMS[c].join('/')).join('\n');
     }
 
     // Histórico recente
@@ -1855,7 +1915,7 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
@@ -2998,8 +3058,23 @@ const handler = async (req, res) => {
 
     // Auto-aprendizado: extrair memórias
     const novas=[];
+    // Causa 2, Rodada 2 (22/set/2026, autorizado pelo João): "valores de enumeração são
+    // validados contra o conjunto aceito... valor fora do conjunto é recusado com a lista dos
+    // aceitos, não gravado em silêncio." Campo de enumeração (DNA_ENUMS) com valor fora do
+    // conjunto NUNCA entra em `novas` — nunca é upsertado (ver memWrites, mais abaixo). Log
+    // sempre (nenhuma falha silenciosa); o campo continua aparecendo como "ainda vazio" no
+    // check-in do próximo turno (dnaChecklistTxt, acima), então o agente vê e tenta de novo.
     texto=texto.replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{
-      try{const o=JSON.parse(j.trim());if(o.chave&&o.valor)novas.push(o)}catch(e){}
+      try{
+        const o=JSON.parse(j.trim());
+        if(o.chave&&o.valor){
+          if(!dnaValorAceito(o.chave,o.valor)){
+            console.error('[dna-enum-recusado] valor fora do conjunto aceito, não gravado — chave='+o.chave+' valor="'+String(o.valor).slice(0,80)+'" aceitos='+(DNA_ENUMS[o.chave]||[]).join('/'));
+          } else {
+            novas.push(o);
+          }
+        }
+      }catch(e){}
       return '';
     });
     // PÓS-TRIAL: se a Estratégia marcou que completou o mês, grava no onboarding (encerra a flag)
@@ -3017,12 +3092,31 @@ const handler = async (req, res) => {
     });
 
     // Check-in concluído (agente identidade)
+    // Causa 2, Rodada 2 (22/set/2026, autorizado pelo João): "o check-in de Identidade marca
+    // conclusão sem validar nada em código" — corrigido aqui. A tag sozinha não basta mais: só
+    // é aceita quando TODOS os campos obrigatórios do DNA visual (DNA_CAMPOS_OBRIGATORIOS)
+    // estiverem preenchidos. Estado MERGEADO — o que já estava gravado (mems, agente='global')
+    // mais o que ESTE turno está gravando agora (novas, já filtrado dos enums recusados acima)
+    // — cobre o caso comum de o cliente preencher o último campo faltante na MESMA mensagem
+    // que conclui a consultoria. Se ainda faltar algo, a tag é removida do texto do mesmo jeito
+    // (nunca vaza pro cliente), mas `checkin` continua false: onboarding.checkin nunca é
+    // setado, a ordem de ficha técnica ao Criativo (mais abaixo) não dispara — o gate real fica
+    // em código, nunca confiando só no texto solto do modelo. Log sempre (nenhuma falha
+    // silenciosa); o próximo turno já mostra a lista atualizada via dnaChecklistTxt (acima).
     let checkin=false;
     if(texto.includes('<checkin_completo/>')){
       texto=texto.replace(/<checkin_completo\/>/g,'').trim();
-      checkin=true;
-      const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});
-      await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
+      const dnaMergeado={};
+      mems.filter(m=>m.agente==='global').forEach(m=>{ dnaMergeado[m.chave]=m.valor; });
+      novas.forEach(m=>{ if(m.chave) dnaMergeado[String(m.chave)]=String(m.valor); });
+      const faltandoAgora=dnaFaltando(dnaMergeado);
+      if(agente==='identidade' && faltandoAgora.length){
+        console.error('[checkin-identidade] <checkin_completo/> recebida com DNA obrigatório incompleto — recusada em código, onboarding.checkin NÃO setado. user_id='+targetId+' faltando='+faltandoAgora.join(', '));
+      } else {
+        checkin=true;
+        const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});
+        await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
+      }
     }
     // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
     // cria a ordem para o Criativo de forma determinística — tanto ao concluir o check-in AGORA

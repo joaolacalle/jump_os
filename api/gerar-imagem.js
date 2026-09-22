@@ -14,8 +14,12 @@ const JC = require('../assets/classificacao.js');
 // já existiam exportados, só não eram importados aqui — reaproveitados para colar o logo real
 // no caminho PADRÃO (fora do interruptor de composição), ver o novo passo depois do corte.
 const { compor, obterTemplate, posicaoLogo } = require('./_composicao-lib.js');
+// FONTE ÚNICA DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2, autorizado pelo
+// João) — ver api/_dna-lib.js. Aqui só LEITURA/sinalização (log + conteudos.meta.dna_incompleto,
+// mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
+const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.22-engine6-caminho-padrao-r1-qualidade-alta-logo-padrao-verificacao-visao-prompt-final';
+const VERSAO = '2026.09.22-engine6-rodada2-causa1-corte-central-declarado-causa2-checkin-valida-dna-obrigatorio';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -136,6 +140,54 @@ function validarTextoDaPeca(o, permitirHeadlineVazia) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ZONA DE EXCLUSÃO EFETIVA (22/set/2026, "Engine 6.0 Rodada 2", Causa 1, autorizado pelo
+// João) — o Engine sempre declarou margens seguras como "percentual do canvas", mas o canvas
+// que o Engine descrevia era o canvas GERADO (o.canvas, ex. 1024x1536) — nunca o canvas que
+// o cliente final vê. Entre a geração e a entrega, o crop (`sharp`, fit:'cover', ver mais
+// abaixo) descarta uma faixa do topo/base (feed) ou dos lados (story) pra encaixar 2:3 em
+// 4:5/9:16. O Engine nunca sabia disso: media as margens dentro da região que seria cortada
+// fora — é a causa raiz do botão cortado ao meio e do elemento decepado que o João relatou.
+// calcularZonaExclusao() traduz margensBase (frações do canvas ENTREGUE, os mesmos números de
+// sempre) em margens EFETIVAS sobre o canvas GERADO — soma o descarte do crop à margem base,
+// escalada pela fração que sobrevive ao corte. FONTE ÚNICA: tanto o texto do prompt (engine6,
+// seção 12, abaixo) quanto o crop de verdade (mais abaixo no handler) usam o MESMO par alvo
+// {w,h} e a MESMA saída desta função — nunca dois números divergentes pra mesma peça.
+const MARGENS_BASE_SAFE_ZONE = {
+  feed:  { top: 0.09, sides: 0.08, bottom: 0.10 }, // FEED/CAROUSEL — números originais do Engine
+  reels: { top: 0.13, sides: 0.08, bottom: 0.17 }, // REELS/STORY — números originais do Engine
+};
+
+// Reproduz a matemática do `fit:'cover'` do sharp: escala a imagem gerada (genW x genH) até
+// cobrir o alvo (alvoW x alvoH) nos dois eixos, e informa quanto sobra pra cortar fora em CADA
+// eixo. A divisão por 2 assume corte CENTRALIZADO — é exatamente o que a Causa 1 pede
+// (position:'center' no crop de verdade, não mais 'attention'/saliência).
+function calcularZonaExclusao(genW, genH, alvoW, alvoH, margensBase) {
+  if (!genW || !genH || !alvoW || !alvoH || !margensBase) return null;
+  const escala = Math.max(alvoW / genW, alvoH / genH);
+  const escaladoW = genW * escala, escaladoH = genH * escala;
+  const corteW = Math.max(0, escaladoW - alvoW);
+  const corteH = Math.max(0, escaladoH - alvoH);
+  const fracCorteW = escaladoW ? corteW / escaladoW : 0; // fração do eixo LARGURA descartada
+  const fracCorteH = escaladoH ? corteH / escaladoH : 0; // fração do eixo ALTURA descartada
+  const descartePorLado = fracCorteW / 2;  // esquerda E direita, corte centralizado
+  const descartePorBorda = fracCorteH / 2; // topo E base, corte centralizado
+  const larguraEntregueFracao = 1 - fracCorteW;
+  const alturaEntregueFracao = 1 - fracCorteH;
+  return {
+    descarteLargura: fracCorteW,
+    descarteAltura: fracCorteH,
+    descartePorLado,
+    descartePorBorda,
+    // margem efetiva sobre o CANVAS GERADO = a fatia já descartada pelo corte + a margem base
+    // do Engine, escalada pra valer dentro da região que de fato sobrevive ao corte.
+    margemTopoGerado:  descartePorBorda + margensBase.top * alturaEntregueFracao,
+    margemBaseGerado:  descartePorBorda + margensBase.bottom * alturaEntregueFracao,
+    margemLadosGerado: descartePorLado + margensBase.sides * larguraEntregueFracao,
+  };
+}
+const fmtPct = (f) => (Math.round(f * 10000) / 100) + '%';
+
+// ═══════════════════════════════════════════════════════════════════════════
 // JUMP OS — CONTENT ENGINE 6.0 VISUAL (BLOCO IMUTÁVEL)
 // Este engine NÃO pode ser resumido, encurtado nem reescrito por nenhum agente.
 // Os agentes só PREENCHEM as variáveis (tema/headline/copy) — o resto é lei.
@@ -245,8 +297,23 @@ function engine6(M, o) {
     '',
     '=== 12. SAFE ZONES ===',
     'CANVAS (real output): ' + (o.canvas || '1024x1536 portrait (2:3)') + '. Compose for THIS exact canvas — do not assume any other aspect ratio.',
-    reels ? 'REELS safe zones, in PERCENT of the canvas (the Instagram UI covers these): top 13%, sides 8%, bottom 17%. NEVER place important text there.'
-          : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.',
+    // Causa 1, Rodada 2 (22/set/2026, autorizado pelo João): o Engine sempre disse "percent
+    // of the canvas" pensando no canvas ENTREGUE, mas isto sempre descreveu o canvas GERADO —
+    // que passa por um crop determinístico antes de chegar ao cliente (ver calcularZonaExclusao
+    // acima). Com o.regiaoEntregue calculado (handler sempre calcula hoje), a região realmente
+    // entregue é declarada explicitamente e as margens passam a ser as EFETIVAS sobre o canvas
+    // gerado — não mais os números-base isolados. Sem o.regiaoEntregue (defensivo — nunca deve
+    // faltar em produção), cai nos números-base antigos, sem o ajuste do corte.
+    (o.regiaoEntregue && o.alvoRecorte)
+      ? ('DELIVERED REGION: after you finish, this canvas is CROPPED to a fixed ' + o.alvoRecorte.w + 'x' + o.alvoRecorte.h + ' — a deterministic CENTER crop (not saliency-based: the exact same central region is kept every time). '
+          + (o.regiaoEntregue.descarteAltura > 0.001 ? ('The TOP and BOTTOM bands are discarded, ' + fmtPct(o.regiaoEntregue.descartePorBorda) + ' each (' + fmtPct(o.regiaoEntregue.descarteAltura) + ' of height, total). ') : '')
+          + (o.regiaoEntregue.descarteLargura > 0.001 ? ('The LEFT and RIGHT bands are discarded, ' + fmtPct(o.regiaoEntregue.descartePorLado) + ' each (' + fmtPct(o.regiaoEntregue.descarteLargura) + ' of width, total). ') : '')
+          + 'Compose so every element that matters — header, footer, CTA, anything near an edge — survives fully inside the surviving central region. Anything placed in the discarded bands is LOST, not just partially cropped.')
+      : '',
+    (o.regiaoEntregue)
+      ? ('EFFECTIVE SAFE ZONES on THIS generated canvas (already account for the crop above — these are NOT the same numbers as the delivered piece\'s own safe zones): top ' + fmtPct(o.regiaoEntregue.margemTopoGerado) + ', sides ' + fmtPct(o.regiaoEntregue.margemLadosGerado) + ', bottom ' + fmtPct(o.regiaoEntregue.margemBaseGerado) + '. NEVER place important text there.')
+      : (reels ? 'REELS safe zones, in PERCENT of the canvas (the Instagram UI covers these): top 13%, sides 8%, bottom 17%. NEVER place important text there.'
+              : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.'),
     '',
     '=== VALIDATION BEFORE RENDERING (run this checklist, fix silently, then render) ===',
     o.composicaoAtiva
@@ -906,6 +973,19 @@ module.exports = async (req, res) => {
     const size = (t === '16:9') ? '1536x1024' : (t === '1:1') ? '1024x1024' : '1024x1536';
     // O Diretor precisa saber a TELA REAL, senão compõe para um formato que não existe.
     const canvas = size === '1024x1536' ? '1024x1536 portrait (2:3)' : size === '1536x1024' ? '1536x1024 landscape (3:2)' : '1024x1024 square (1:1)';
+    // FONTE ÚNICA DO ALVO DE CORTE (22/set/2026, "Engine 6.0 Rodada 2", Causa 1, autorizado
+    // pelo João): _alvoRecorte nasce AQUI, uma vez só, e é reusado tanto pelo texto do prompt
+    // (via o.alvoRecorte/o.regiaoEntregue em engine6, seção 12) quanto pelo crop de verdade
+    // (mais abaixo, depois de compor()/logo) — antes eram dois literais `{w:1080,h:...}`
+    // duplicados que podiam divergir silenciosamente. _regiaoEntregue é o cálculo de quanto
+    // desse corte é descartado e quais margens efetivas isso implica sobre o canvas GERADO
+    // (ver calcularZonaExclusao, acima de engine6) — hoje `size` é sempre '1024x1536' na
+    // prática (nenhum caller passa '1:1'/'16:9' pra post real, ver grep registrado em
+    // APRENDIZADOS.md), mas o cálculo é dinâmico a partir de `size`/`_alvoRecorte`, não
+    // hardcoded por formato, pra não repetir esse acoplamento implícito.
+    const [_genW, _genH] = size.split('x').map(Number);
+    const _alvoRecorte = _vertical ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
+    const _regiaoEntregue = calcularZonaExclusao(_genW, _genH, _alvoRecorte.w, _alvoRecorte.h, MARGENS_BASE_SAFE_ZONE[_vertical ? 'reels' : 'feed']);
 
     // Buscar imagens base do acervo: logo SEMPRE; foto pessoal se for post de pessoa
     // OS_DATA REAL: sem isto o prompt pedia "siga a identidade visual" sem NUNCA enviar as cores/fontes.
@@ -914,6 +994,17 @@ module.exports = async (req, res) => {
       const mems = await fetch(`${SUPABASE_URL}/rest/v1/memorias?user_id=eq.${targetId}&select=chave,valor`, { headers: SBH() }).then(r => r.json());
       (Array.isArray(mems) ? mems : []).forEach(m => { M6[m.chave] = m.valor; });
     } catch (e) {}
+    // SINAL DE DNA INCOMPLETO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2, autorizado pelo
+    // João): "para quem já está com a conta em uso: quando a geração roda com algum obrigatório
+    // ausente, registrar em log e em conteudos.meta quais faltaram. Assim a causa fica visível
+    // na peça, em vez de invisível." Log SEMPRE (mesmo sem conteudo_id — preview avulso também
+    // deve aparecer nos logs da Vercel); a gravação em conteudos.meta acontece mais abaixo,
+    // mesclada na MESMA escrita que já grava prompt_final (nunca uma corrida de PATCHes
+    // concorrentes na mesma ordem). Só leitura — este código nunca escreve valor no DNA.
+    const _dnaFaltando = dnaFaltando(M6);
+    if (_dnaFaltando.length) {
+      console.error('[dna-incompleto] geração rodando com DNA obrigatório ausente para user_id=' + targetId + ':', _dnaFaltando.join(', '));
+    }
 
     const baseImgs = [];
     async function baixarImg(url) {
@@ -1111,7 +1202,7 @@ module.exports = async (req, res) => {
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       // materialReal (21/set/2026): sinal novo pra engine6 condicionar a seção 6 (luz
       // direcional/sombra) ao ambiente quando há pessoa ou produto real preservado.
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal };
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
@@ -1136,7 +1227,7 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
@@ -1290,8 +1381,18 @@ module.exports = async (req, res) => {
     if (!logoJaComposta) try {
       const sharp = require('sharp');
       const _vert = (typeof _vertical !== 'undefined') ? _vertical : false;
-      const alvo = _vert ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
-      bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+      // FONTE ÚNICA (Causa 1, Rodada 2, 22/set/2026, autorizado pelo João): _alvoRecorte já foi
+      // calculado uma única vez onde size/canvas nascem (acima) — exatamente o par que o prompt
+      // declarou ao modelo em engine6 seção 12. O fallback ao literal antigo só existe por
+      // defensividade de escopo (mesmo padrão já usado para _vert acima), nunca deveria disparar.
+      const alvo = (typeof _alvoRecorte !== 'undefined' && _alvoRecorte) ? _alvoRecorte : (_vert ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 });
+      // position:'center' (Causa 1 — era 'attention'): saliência escolhia o corte por heurística
+      // de conteúdo, DIFERENTE a cada peça gerada — o prompt agora promete ao modelo qual região
+      // central sobrevive (DELIVERED REGION, seção 12), então o corte real tem que ser
+      // DETERMINÍSTICO pra bater com o que foi prometido. Com 'attention', a região que sobrevive
+      // podia não ser a central que o prompt declarou, e a composição saía imprevisível — a causa
+      // exata do botão cortado e do elemento decepado que o João relatou.
+      bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'center' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
       try {
         const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url,created_at&order=created_at.desc&limit=1`, { headers: SBH() }).then(r2 => r2.json());
         const logoUrl = Array.isArray(logos) && logos[0] && logos[0].url;
@@ -1328,6 +1429,8 @@ module.exports = async (req, res) => {
       await mesclarMetaNaOrdem(conteudo_id, {
         prompt_final: String(promptFinal || '').slice(0, 12000),
         ...(verificacaoTexto ? { verificacao_texto: verificacaoTexto } : {}),
+        // Causa 2, Rodada 2: mesma escrita mesclada, nunca uma segunda gravação concorrente.
+        ...(_dnaFaltando.length ? { dna_incompleto: _dnaFaltando } : {}),
       });
     }
 
