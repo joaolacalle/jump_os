@@ -41,7 +41,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.21-supressao-editorial-material-real-contrato-preservacao-separa-sujeito-de-ambiente';
+const VERSAO = '2026.09.22-engine6-caminho-padrao-r1-qualidade-alta-logo-padrao-verificacao-visao-prompt-final';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -380,6 +380,7 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"paleta_secundaria","valor":"#HEX,#HEX,#HEX"}</memoria>
 <memoria>{"chave":"paleta_terciaria","valor":"#HEX,#HEX (cores de apoio/detalhe; se não houver, repita a secundária)"}</memoria>
 <memoria>{"chave":"cor_cta","valor":"#HEX"}</memoria>
+<memoria>{"chave":"cor_fundo","valor":"#HEX (cor de fundo da zona chapada de texto na composição — se não souber, derive da paleta primária, nunca deixe vazio)"}</memoria>
 <memoria>{"chave":"tipografia_primaria","valor":"..."}</memoria>
 <memoria>{"chave":"tipografia_secundaria","valor":"..."}</memoria>
 <memoria>{"chave":"tom_de_voz","valor":"..."}</memoria>
@@ -399,10 +400,10 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"video_duracao","valor":"15s/30s/60s (duração padrão dos reels)"}</memoria>
 <memoria>{"chave":"video_cor_legenda","valor":"#HEX da cor principal da legenda (geralmente branco #FFFFFF ou a cor de destaque da marca)"}</memoria>
 <memoria>{"chave":"objetivo","valor":"..."}</memoria>
-⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 7 memórias visuais com hex.
+⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, cor_fundo, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 8 memórias visuais com hex.
 
 FLUXO FINAL (ordem obrigatória):
-1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
+1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), cor_fundo (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
 2) Registre as memórias do OS_DATA (tags acima) e finalize a consultoria com <checkin_completo/>.
 3) Dispare a ordem ao Designer para gerar a ficha técnica visual:
 <ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
@@ -1025,6 +1026,115 @@ const handler = async (req, res) => {
         // composição (sharp): o modelo gera o cenário deixando o espaço do sujeito, o sistema
         // cola a foto original por cima — mesmo mecanismo que resolveria texto derretido e logo.
         contrato_preservacao_separa_sujeito_travado_de_ambiente_liberado_nao_permite_mais_reiluminar_ou_recortar_sujeito:true,
+        // COMPOSIÇÃO — FASE 1 (22/set/2026, autorizado pelo João, "Implementação Liberada —
+        // Partes 1 a 5, feed e story"): texto e logo reais compostos por código (sharp +
+        // opentype.js, api/_composicao-lib.js) no lugar do que o modelo desenhava — resolve texto
+        // derretido e logo torto para quem tem o interruptor ligado. Interruptor
+        // clientes.preferencias.composicao_ativa, desligado por padrão, só na conta de teste
+        // (cfd67ca7-0d7a-45f9-abb4-2c069f49ac0e) — e só DEPOIS das amostras PNG aprovadas pelo
+        // João (a SQL de ligar está registrada, não executada ainda). Modo CENA fica para a Fase
+        // 2 (texto sobre o rosto exige o template conhecer a posição do sujeito). Nova chave de
+        // DNA cor_fundo (CHAVES_GLOBAIS acima + checklist da persona Identidade) — reserva
+        // #050506 só na ausência, sempre com log.
+        composicao_fase1_texto_e_logo_por_codigo_ativa_so_com_interruptor_e_modo_editorial:true,
+        // Falha do compositor DEPOIS de já ter uma imagem sem texto em mãos (o próprio prompt, com
+        // composição ativa, manda o modelo não renderizar texto nenhum) nunca entrega a peça muda —
+        // regenera do zero pelo caminho tradicional (texto renderizado pelo modelo). Falhando essa
+        // segunda chamada também, devolve erro, nunca uma arte quebrada.
+        composicao_falha_do_compositor_regenera_pelo_caminho_tradicional_nunca_entrega_imagem_sem_texto:true,
+        // Logo composta pelo servidor (dentro de compor(), todos os fluxos que chamam
+        // /api/gerar-imagem — worker, aprovar.html, chat) sinaliza logoJaComposta:true na resposta;
+        // agentes.html não compõe a logo de novo no navegador quando esse sinal chega, evitando
+        // logo duplicada. ACHADO (não corrigido, fora deste escopo): comporLogoNaArte (navegador)
+        // só era chamada pelos fluxos de agentes.html — nem o worker (cron.js) nem aprovar.html
+        // compunham logo nenhuma antes desta rodada; a composição por servidor, rodando dentro do
+        // próprio endpoint, cobre os três de graça, mas isso significa que peças do lote automático
+        // hoje (clientes sem o interruptor) seguem sem logo real — comportamento pré-existente,
+        // registrado para o João decidir se quer corrigir fora da Fase 1.
+        composicao_logo_por_servidor_cobre_worker_aprovar_e_chat_por_estar_dentro_do_endpoint:true,
+        // COMPOSIÇÃO — FASE 1, REVISÃO DE DESIGN (22/set/2026, "revisão de design e correções
+        // antes de ligar", 6 defeitos apontados pelo João sobre as 3 primeiras amostras — todos
+        // corrigidos em _composicao-lib.js). Interruptor continua desligado (nenhuma conta além da
+        // de teste recebe composição, e a de teste só recebe depois de aprovação explícita).
+        // achado 1: story dividia esquerda/direita 50/50 como o feed — num canvas 9:16 isso dava
+        // duas colunas de 540×1920, texto espremido, menos da metade da altura usada. Story passa
+        // a dividir em cima (foto, 56% da altura) e embaixo (texto, 44%, largura inteira).
+        composicao_story_dividido_cima_baixo_no_lugar_de_esquerda_direita:true,
+        // achado 2: bloco de texto (feed e story) ficava sempre colado no topo, deixando metade da
+        // caixa vazia. Agora centraliza opticamente: monta em coordenadas relativas e desloca o
+        // bloco inteiro pro meio da altura útil, com um único <g transform>.
+        composicao_bloco_de_texto_centralizado_opticamente_na_caixa_util:true,
+        // achado 3: a emenda entre a zona de texto e a foto clareava pra uma cor sólida nos
+        // últimos 22%, criando uma faixa clara com borda dura — parecia defeito de render. Fusão
+        // agora é por PERDA DE OPACIDADE (stop-opacity, não stop-color) do próprio painel — revela
+        // a foto real por baixo, nunca uma cor inventada; distância da fusão cai pra 8% (de 22%)
+        // quando há material real preservado, pra nunca arriscar expor o sujeito travado.
+        composicao_fusao_por_perda_de_opacidade_revela_foto_real_sem_faixa:true,
+        // achado 4: a prova ("+40 clientes atendidos") saía como pílula igual à do CTA, empilhada
+        // logo acima — lia como um segundo botão desabilitado. Agora é um dado em destaque: número
+        // em cor de destaque e tamanho maior, rótulo menor ao lado — forma sempre distinta do CTA.
+        composicao_prova_como_dado_em_destaque_nao_mais_pilula_igual_ao_cta:true,
+        // achado 5: investigado — não era bug de código (compor() só lê cont.pilar pro selo, nunca
+        // a marca); o "JUMP OS" na amostra veio do próprio script de teste deste agente, que tinha
+        // passado pilar errado. Nenhuma mudança de código; registrado aqui só pra não reabrir.
+        // achado 6: a reserva de cor do CTA na ausência de cor_cta/paleta_primaria era '#D4AF37'
+        // (dourado) — uma decisão de marca tomada em código, violando o Contrato de Engenharia
+        // ("reserva sempre com valores da própria plataforma"). Trocada pelo verde-limão da
+        // própria plataforma, '#BFFF00'. Varredura confirmou nenhuma outra cor fixa de marca no
+        // compositor — só reservas da plataforma (fundo/CTA) e candidatas universais de contraste.
+        composicao_reserva_cor_cta_e_verde_limao_da_plataforma_nao_mais_cor_de_marca_fixa:true,
+        // 2ª condição do João sobre falha do compositor (confirmada nesta rodada, complementa a
+        // flag acima): console.error sozinho não bastava — "registro visível na ordem, com o
+        // motivo". Grava em conteudos.meta.composicao_falha (mesmo padrão read-merge-write de
+        // gravarSlide — PATCH em jsonb substitui o objeto inteiro, nunca escreve sem mesclar antes).
+        composicao_falha_do_compositor_registrada_na_ordem_meta_composicao_falha:true,
+        // ENGINE 6.0 COMO CAMINHO PADRÃO — RODADA 1 (22/set/2026, mudança de direção autorizada
+        // pelo João: o template de composição foi julgado regressão criativa — "painel chapado,
+        // pílula, texto empilhado" — e o Engine volta a ser o caminho padrão sem mudança de rota.
+        // Código de composição intacto no repositório, desligado, interruptor não é ligado — a
+        // autorização anterior de ligá-lo na conta de teste está REVOGADA nesta rodada, não
+        // executada). Diagnóstico: 3 fatores explicavam o pipeline ficar atrás do Engine colado
+        // num chat — quality:'medium', o Diretor quebrado por ~2 meses até 18/09 (invalidando
+        // quase toda comparação anterior) e modificações acumuladas nunca medidas contra quanto
+        // do Engine sobrevive no prompt final. Rodada 1 corrige os dois primeiros e mede o
+        // terceiro (item 5, auditoria só de relatório, sem tocar no Diretor).
+        engine6_rodada1_item1_quality_high_nas_duas_chamadas_gpt_image_1:true,
+        engine6_rodada1_item1_diagnostico_atualizado_premissa_antiga_nunca_testada_com_diretor_funcionando:true,
+        // item 2: logo real desacoplada do interruptor de composição — roda no caminho PADRÃO,
+        // no servidor, dentro de gerar-imagem, para todo fluxo (chat avulso, ordem de serviço,
+        // worker do cron, ordem do Tráfego) — antes só agentes.html compunha, no navegador; o
+        // worker e aprovar.html entregavam sem logo. Tamanho 18% da largura (era 15%, herdado do
+        // navegador) — agora conforme o texto do próprio Engine sobre o canto calmo. Posição
+        // dentro das margens seguras já existentes no template (8%/10% feed, 8%/17% story).
+        engine6_rodada1_item2_logo_real_no_canto_desacoplada_do_interruptor_roda_no_caminho_padrao:true,
+        engine6_rodada1_item2_posicaologo_18_por_cento_largura_conforme_texto_do_engine:true,
+        // item 3: texto continua renderizado pelo modelo (como sempre) — a letra certa passa a
+        // ser VERIFICADA, não só esperada. Depois de gerar, antes do corte e do upload: envia a
+        // imagem + a lista exata de textos esperados a um modelo com visão, tool_choice forçado
+        // (mesmo mecanismo da direção avulsa, commit 87d15c5) numa ferramenta só de TRANSCRIÇÃO —
+        // o modelo nunca julga sozinho se está certo, a comparação caractere a caractere
+        // (acentos incluídos) é feita em código. Diverge, regenera uma vez com o MESMO prompt;
+        // diverge nas duas, fica com a tentativa de menos divergências e grava esperado/lido/
+        // campo divergente em conteudos.meta.verificacao_texto — visível no card de aprovação
+        // (aprovar.html). Só roda quando há texto a renderizar e fora do caminho de composição
+        // (que nunca tem texto do modelo para conferir). Falha de infraestrutura na verificação
+        // NUNCA é tratada como divergência — nunca regenera às cegas.
+        engine6_rodada1_item3_verificacao_de_texto_por_visao_tool_choice_forcado_so_transcricao:true,
+        engine6_rodada1_item3_diverge_regenera_uma_vez_mesmo_prompt_fica_com_a_melhor_tentativa:true,
+        engine6_rodada1_item3_visivel_no_card_aprovar_html_meta_verificacao_texto:true,
+        // item 4: prompt final (texto exato mandado ao gpt-image-1) agora persistido em
+        // conteudos.meta.prompt_final em toda geração — antes não existia em lugar nenhum,
+        // tornando qualquer diagnóstico de qualidade suposição.
+        engine6_rodada1_item4_prompt_final_persistido_em_conteudos_meta_prompt_final:true,
+        // helper genérico mesclarMetaNaOrdem (api/gerar-imagem.js) — generaliza o padrão
+        // read-merge-write que gravarSlide e registrarFalhaComposicaoNaOrdem já usavam cada um
+        // por conta própria; registrarFalhaComposicaoNaOrdem passou a delegar nele, mesma
+        // assinatura e comportamento externo de antes.
+        mesclarmetanaordem_generaliza_read_merge_write_registrarfalhacomposicaonaordem_delega:true,
+        // item 5 (auditoria de fidelidade Engine → engine6() → prompt final): NÃO implementado
+        // nesta rodada — é relatório, exige uma peça real gerada DEPOIS do deploy (produção),
+        // não reproduzível neste ambiente sem ANTHROPIC_API_KEY/OPENAI_API_KEY. Fica para a
+        // entrega, como item de relatório dependente do deploy dos itens 1 a 4.
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -2900,7 +3010,7 @@ const handler = async (req, res) => {
       } catch (e) {}
     }
     // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
-    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','paleta_terciaria','estilo_fotografico','tipo_de_composicao','nivel_de_agressividade','elementos_obrigatorios','elementos_proibidos','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
+    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','cor_fundo','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','paleta_terciaria','estilo_fotografico','tipo_de_composicao','nivel_de_agressividade','elementos_obrigatorios','elementos_proibidos','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
     const memWrites=novas.slice(0,12).map(m=>{
       const ehGlobal=true; // DNA VIVO: todo aprendizado durável de qualquer agente entra no DNA compartilhado que todos leem
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});

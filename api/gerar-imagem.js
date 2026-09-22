@@ -8,8 +8,14 @@ const SBH = () => ({ 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Conte
 // enquadramento vertical (reel/story) é consultado; este endpoint gera imagem para qualquer
 // formato recebido, nunca decide se algo é produzível (Fase 1, 25/ago/2026).
 const JC = require('../assets/classificacao.js');
+// CAMADA DE COMPOSIÇÃO (22/set/2026, Fase 1, autorizado pelo João) — módulo helper, sem handler
+// próprio (não conta no limite de funções da Vercel, mesmo padrão dos outros _xxx-lib.js).
+// obterTemplate/posicaoLogo (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 2):
+// já existiam exportados, só não eram importados aqui — reaproveitados para colar o logo real
+// no caminho PADRÃO (fora do interruptor de composição), ver o novo passo depois do corte.
+const { compor, obterTemplate, posicaoLogo } = require('./_composicao-lib.js');
 
-const VERSAO = '2026.09.21-supressao-editorial-material-real-contrato-preservacao-separa-sujeito-de-ambiente';
+const VERSAO = '2026.09.22-engine6-caminho-padrao-r1-qualidade-alta-logo-padrao-verificacao-visao-prompt-final';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -42,6 +48,36 @@ async function gravarSlide(conteudoId, url, slide, total) {
   await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudoId}`, {
     method: 'PATCH', headers: SBH(), body: JSON.stringify(patch),
   }).catch(() => {});
+}
+
+// registrarFalhaComposicaoNaOrdem (22/set/2026, "composição — Fase 1", defeitos de design,
+// condição confirmada pelo João sobre a falha do compositor): "registro visível na ordem, com o
+// motivo" — console.error sozinho só é visível a quem abre o log da Vercel, não a quem olha o
+// conteúdo. Mesmo cuidado de gravarSlide: `meta` é jsonb, PATCH substitui o objeto inteiro —
+// lê, mescla, grava, nunca apaga headline/oferta/slides já presentes. Nunca lança: registrar a
+// falha é auditoria, não pode ela própria travar a resposta ao cliente.
+async function registrarFalhaComposicaoNaOrdem(conteudoId, motivo) {
+  await mesclarMetaNaOrdem(conteudoId, { composicao_falha: { motivo: String(motivo || '').slice(0, 500), em: new Date().toISOString() } });
+}
+
+// mesclarMetaNaOrdem (22/set/2026, "Engine 6.0 como caminho padrão", Rodada 1, item 4) —
+// generaliza o padrão read-merge-write que gravarSlide e registrarFalhaComposicaoNaOrdem já
+// usavam cada um por conta própria: meta é jsonb, PATCH substitui o objeto inteiro, então todo
+// escritor precisa ler o meta atual, mesclar por cima e só então gravar — nunca gravar direto
+// (senão apaga headline/oferta/slides já presentes, mesma família de erro já corrigida antes
+// neste arquivo). patchParcial é mesclado no NÍVEL RAIZ do meta atual — mesma semântica que
+// registrarFalhaComposicaoNaOrdem já tinha. Nunca lança: registrar metadado é auditoria, não
+// pode travar a resposta ao cliente.
+async function mesclarMetaNaOrdem(conteudoId, patchParcial) {
+  if (!conteudoId) return;
+  try {
+    const atual = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudoId}&select=meta`, { headers: SBH() })
+      .then(r => r.json()).then(a => (Array.isArray(a) && a[0] ? (a[0].meta || {}) : {})).catch(() => ({}));
+    const meta = { ...atual, ...patchParcial };
+    await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${conteudoId}`, {
+      method: 'PATCH', headers: SBH(), body: JSON.stringify({ meta }),
+    }).catch(() => {});
+  } catch (e) { console.error('[meta] mesclarMetaNaOrdem:', e.message); }
 }
 
 // BUG (Arte 3): a copy era cortada com slice(0,90) NO MEIO DA FRASE e o gerador
@@ -151,19 +187,30 @@ function engine6(M, o) {
       proib ? ('NEVER include these elements: ' + proib + '.') : '',
     ].filter(Boolean).join('\n')) : '',
     '',
-    '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
-    'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
-    'If it does not fit: 1st remove support copy, 2nd shorten headline. LESS text > MORE text.',
+    // COMPOSIÇÃO ATIVA (22/set/2026, Fase 1): quando o código vai desenhar todo o texto e a
+    // logo por cima (ver _composicao-lib.js), instruir o modelo a também tentar renderizar
+    // texto é o que causa o "texto derretido" que essa infraestrutura existe pra resolver —
+    // seções 2/3/5/10 (word limit, label, reading priority, anti-glitch) inteiras ficam sem
+    // sentido (não há texto do modelo para limitar/le­gibilizar) e são suprimidas; a 4
+    // (branding) e o bloco final ("CONTENT OF THIS PIECE") são substituídos por uma versão que
+    // NUNCA pede texto renderizado — ver o ternário de cada linha abaixo.
+    o.composicaoAtiva ? '' : '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
+    o.composicaoAtiva ? '' : 'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
+    o.composicaoAtiva ? '' : 'If it does not fit: 1st remove support copy, 2nd shorten headline. LESS text > MORE text.',
     '',
-    '=== 3. EVIDENT LABEL ===',
-    'The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.',
+    o.composicaoAtiva ? '' : '=== 3. EVIDENT LABEL ===',
+    o.composicaoAtiva ? '' : ('The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.'),
     '',
     '=== 4. BRANDING ===',
-    'ALLOWED: brand name as plain text, minimalist typographic signature. FORBIDDEN: graphic symbol, icon logo, crest, emblem, complex monogram, invented handwriting.',
-    'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
+    o.composicaoAtiva
+      ? 'The system composes the brand name, headline, subheadline, proof, CTA and the real logo on top of what you generate — BY CODE, not by you. Do NOT render, write, letter, stencil, engrave or draw the brand name, any word, digit or any logo/symbol/emblem/monogram/watermark anywhere in the image.'
+      : 'ALLOWED: brand name as plain text, minimalist typographic signature. FORBIDDEN: graphic symbol, icon logo, crest, emblem, complex monogram, invented handwriting.',
+    o.composicaoAtiva
+      ? 'Keep the entire LEFT HALF of the canvas (full height) visually calm and simple — the system will completely cover it with the brand\'s text. Never place a face, product detail or anything important there; treat it as background only. The RIGHT HALF is where the real photographic scene lives.'
+      : 'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
     '',
-    '=== 5. READING PRIORITY ===',
-    'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
+    o.composicaoAtiva ? '' : '=== 5. READING PRIORITY ===',
+    o.composicaoAtiva ? '' : 'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
     '',
     // MATERIAL REAL PRESERVADO (21/set/2026, mesma rodada do contrato reescrito): esta seção era
     // incondicional — engine6 não recebia sinal nenhum de material preservado — e pedia luz
@@ -178,16 +225,20 @@ function engine6(M, o) {
       : 'Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.',
     '',
     '=== 7. MANDATORY NEGATIVE SPACE ===',
-    'Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.',
+    o.composicaoAtiva
+      ? ('Leave ' + vazio + ' empty within the photographic (right) zone. Do NOT fill every area — empty space has narrative function. Minimum 5% height of breathing room around any visual element, margins always respected.')
+      : ('Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.'),
     '',
     '=== 8. VISUAL DEPTH (ANTI-FLAT) — 3 MANDATORY LAYERS ===',
     'FOREGROUND: light overlays, sticker cutouts, opacity 80-100%. MIDGROUND: headline, photo, labels, copy, CTA, opacity 100%. BACKGROUND: base, subtle textures, technical grid, opacity 20-60%. Subtle shadows (stickers 10-15% opacity, 8px offset), controlled overlap, selective background blur.',
     '',
     '=== 9. VISUAL MOVEMENT ===',
-    'Eye flow: headline → visual → label → CTA. Strategic diagonals, human gaze pointing to headline/CTA, subtle arrows in ' + (CTA || 'CTA color') + ' (2-3px stroke), progressive contrast (max at headline, decreasing on details).',
+    o.composicaoAtiva
+      ? 'Eye flow across the photographic zone leads naturally toward the LEFT edge, where the brand text will be composited by the system afterwards. Strategic diagonals, gaze/product pointing left, progressive contrast (brighter/sharper near the left edge, softer toward the right).'
+      : ('Eye flow: headline → visual → label → CTA. Strategic diagonals, human gaze pointing to headline/CTA, subtle arrows in ' + (CTA || 'CTA color') + ' (2-3px stroke), progressive contrast (max at headline, decreasing on details).'),
     '',
-    '=== 10. TEXT TREATMENT (ANTI-GLITCH) ===',
-    'Portuguese text 100% correct (ç ã õ é á), perfectly legible, clean alignment, no deformation, no fused or melted letters, no wrong line breaks, consistent kerning, readable on mobile.',
+    o.composicaoAtiva ? '' : '=== 10. TEXT TREATMENT (ANTI-GLITCH) ===',
+    o.composicaoAtiva ? '' : 'Portuguese text 100% correct (ç ã õ é á), perfectly legible, clean alignment, no deformation, no fused or melted letters, no wrong line breaks, consistent kerning, readable on mobile.',
     '',
     '=== 11. HUMAN MODE ===',
     'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
@@ -198,26 +249,38 @@ function engine6(M, o) {
           : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.',
     '',
     '=== VALIDATION BEFORE RENDERING (run this checklist, fix silently, then render) ===',
-    'Headline <=8 words? Support copy <=6? CTA <=2? Total <=18? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? Headline dominant at 50-60% of attention? Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.',
+    o.composicaoAtiva
+      ? 'Zero text, letters, digits, labels, pills, logos or watermarks anywhere in the image — not even the brand name? Only the palette colors above? Photo with controlled contrast? 3 depth layers present? Negative space respected? Left half left calm and uncluttered for the system to cover? Safe zones clear? If any answer is NO, fix the composition BEFORE rendering.'
+      : 'Headline <=8 words? Support copy <=6? CTA <=2? Total <=18? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? Headline dominant at 50-60% of attention? Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.',
     '',
     '=== 13. PARAMETERS ===',
     'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
     '',
-    '=== CONTENT OF THIS PIECE ===',
+    o.composicaoAtiva
+      ? '=== SCENE BRIEF (do NOT render any of this as text — it only tells you what photographic scene to build; every piece of text and the logo are composed separately, by code) ==='
+      : '=== CONTENT OF THIS PIECE ===',
     // 🔴 O fallback era 'JUMP' — a NOSSA marca renderizada na arte do CLIENTE (o produto é
     // multi-nicho: um consultório, uma padaria ou um escritório receberiam "JUMP" na peça).
     // Agora: pilar (educação/prova/oferta...) → marca do cliente → o modelo deriva do tema.
-    (o.label || o.pilar || M.marca)
+    o.composicaoAtiva ? '' : ((o.label || o.pilar || M.marca)
       ? ('LABEL: "' + String(o.label || o.pilar || M.marca).toUpperCase() + '"')
-      : 'LABEL: derive a SHORT category word (1-2 words, uppercase) from the theme itself — it must describe the CONTENT (e.g. "MÉTODO", "BASTIDORES", "RESULTADO"). Never write the name of any software, tool or platform that is not this client\'s own brand.',
-    'HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"',
-    o.subheadline ? ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"') : '',
-    o.prova ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
+      : 'LABEL: derive a SHORT category word (1-2 words, uppercase) from the theme itself — it must describe the CONTENT (e.g. "MÉTODO", "BASTIDORES", "RESULTADO"). Never write the name of any software, tool or platform that is not this client\'s own brand.'),
+    o.composicaoAtiva
+      ? ('SUBJECT: "' + (o.headline || o.tema || '') + '" — this is what the piece is about; build the photographic scene in the right half around it. Never write, letter or render this sentence, or any part of it, anywhere in the image.')
+      : ('HEADLINE (dominant, max 8 words): "' + (o.headline || o.tema || '') + '"'),
+    o.subheadline
+      ? (o.composicaoAtiva
+          ? ('ANGLE (context only, never rendered): "' + String(o.subheadline).slice(0, 140) + '"')
+          : ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"'))
+      : '',
+    (o.prova && !o.composicaoAtiva) ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
     o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
-    (o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : ''),
-    o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : '',
+    o.composicaoAtiva ? '' : ((o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : '')),
+    o.composicaoAtiva ? '' : (o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : ''),
     '',
-    'QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?',
+    o.composicaoAtiva
+      ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + vazio + '? left half calm and uncluttered? safe zones respected?')
+      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?'),
   ].filter(Boolean).join('\n');
 }
 
@@ -242,6 +305,12 @@ function engine6(M, o) {
 // mais vira "modelo não encontrado" em silêncio. Autorizado pelo João.
 const trimEnv = (v) => String(v || '').trim();
 const MODEL_DIRETOR = () => trimEnv(process.env.AGENT_MODEL_DIRETOR) || 'claude-sonnet-5';
+// MODELO DE VERIFICAÇÃO DE TEXTO POR VISÃO (22/set/2026, "Engine 6.0 como caminho padrão",
+// Rodada 1, item 3, autorizado pelo João) — mesmo padrão de override-com-default de
+// MODEL_DIRETOR acima: env var dedicada, cai no mesmo modelo padrão do resto do arquivo se
+// ausente/vazia. Modelo separado de MODEL_DIRETOR de propósito — são etapas diferentes (uma
+// escreve cena, a outra só lê o que saiu na imagem) e podem precisar de ajuste independente.
+const MODEL_VERIFICACAO_TEXTO = () => trimEnv(process.env.AGENT_MODEL_VERIFICACAO_TEXTO) || 'claude-sonnet-5';
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
@@ -332,6 +401,33 @@ const BLOCO_EDITORIAL_MATERIAL_REAL = [
   'You are FORBIDDEN from describing, redesigning or reinterpreting the preserved subject itself in any of the above — that is governed entirely by the preservation contract and the SPECIFICS section elsewhere in this prompt.',
 ].join('\n');
 
+// BLOCO_EDITORIAL_COMPOSICAO / _MATERIAL_REAL (22/set/2026, "composição — Fase 1", autorizado
+// pelo João): usados só quando o interruptor da conta está ligado E o modo resolvido é
+// EDITORIAL (única arquitetura que esta fase compõe — CENA fica para a Fase 2, ver
+// _composicao-lib.js). Diferem de BLOCO_EDITORIAL/BLOCO_EDITORIAL_MATERIAL_REAL porque o
+// código, não o modelo, desenha toda a zona chapada (fundo, gradiente de fusão, selo,
+// headline, fio, subheadline, prova, CTA) e o logo — então E1(divisão)/E2(fusão)/E4 ou
+// M3(pílulas) deixam de ser instrução PARA O MODELO: ele só precisa gerar uma foto real na
+// metade direita e manter a metade esquerda calma (será inteiramente coberta). O 45-55%
+// virou 50% fixo porque é o que os templates de _composicao-lib.js realmente usam
+// (zonaTexto/zonaFoto, ambos w:0.5) — não é mais uma faixa que o modelo escolhe.
+const BLOCO_EDITORIAL_COMPOSICAO = [
+  '=== MODE OF THIS PIECE: EDITORIAL — SERVER COMPOSITION ACTIVE (the system draws all text and the logo; you draw only the scene) ===',
+  'C1. ZONE SPLIT: the canvas is split into a LEFT zone (50%, will be entirely covered by the system with the brand text) and a RIGHT photographic zone (50%) that bleeds off the canvas edge. Build a real, specific photograph in the right zone — the left zone just needs to stay calm and simple (it will be painted over, so any detail there is wasted, not forbidden).',
+  'C2. THE PHOTOGRAPH IS REAL, SPECIFIC AND DEDUCED FROM THE THEME: ask "where does this actually happen in the real world?" and shoot THERE — a real product / real object / real scene, directional light, real shadows, shallow depth of field. It must be so specific to the theme it could not be reused for another post. If the theme is software/AI/automation: real screens with real interfaces, a conversation thread on a monitor, a dashboard mid-work. Never a vector illustration or an icon standing in for a photograph.',
+  'C3. LIGHT: the photographic (right) zone carries real directional light and deep shadow; the left zone stays visually quiet.',
+  'C4. ABSOLUTE BAN: do not render, draw, write, letter, stencil, engrave or in any way create ANY text, number, digit, letter, glyph, label, pill, button, badge, logo, symbol, emblem, monogram or watermark ANYWHERE in the image — not even the brand name. The entire piece is photography/scene only; every piece of text and the logo are composed by code after you finish.',
+].join('\n');
+
+const BLOCO_EDITORIAL_COMPOSICAO_MATERIAL_REAL = [
+  '=== MODE OF THIS PIECE: EDITORIAL — SERVER COMPOSITION ACTIVE + REAL MATERIAL PRESERVED (the material is the photographic zone; the system draws all text and the logo) ===',
+  'A real photo is attached and is preserved elsewhere in this prompt (see the preservation contract) — you are not deducing or shooting a new photograph. The attached material IS the right-hand photographic zone in full.',
+  'D1. ZONE SPLIT: the canvas is split into a LEFT zone (50%, will be entirely covered by the system with the brand text — stays calm and simple) and a RIGHT photographic zone (50%) that shows the preserved material WHOLE — no bleed off the canvas edge, no crop that cuts the product or the person.',
+  'D2. LIGHT IS WHATEVER THE PHOTO ALREADY HAS: no directional relighting, no added shadow, no colour grade applied to the preserved material. The left zone may carry its own light — the photographic zone does not.',
+  'D3. ABSOLUTE BAN: do not render, draw, write, letter, stencil, engrave or in any way create ANY text, number, digit, letter, glyph, label, pill, button, badge, logo, symbol, emblem, monogram or watermark ANYWHERE in the image — not even the brand name. Every piece of text and the logo are composed by code after you finish.',
+  'You are FORBIDDEN from describing, redesigning or reinterpreting the preserved subject itself in any of the above — that is governed entirely by the preservation contract and the SPECIFICS section elsewhere in this prompt.',
+].join('\n');
+
 async function diretorDeArte(M, o, ctx) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const engine = engine6(M, o);
@@ -357,7 +453,9 @@ async function diretorDeArte(M, o, ctx) {
     '',
     modo === 'cena'
       ? (materialRealPreservado ? BLOCO_CENA_MATERIAL_REAL : BLOCO_CENA)
-      : (materialRealPreservado ? BLOCO_EDITORIAL_MATERIAL_REAL : BLOCO_EDITORIAL),
+      : (o.composicaoAtiva
+          ? (materialRealPreservado ? BLOCO_EDITORIAL_COMPOSICAO_MATERIAL_REAL : BLOCO_EDITORIAL_COMPOSICAO)
+          : (materialRealPreservado ? BLOCO_EDITORIAL_MATERIAL_REAL : BLOCO_EDITORIAL)),
     '',
     '=== HOW TO WRITE IT (both modes) ===',
     '1. Total concreteness. Describe the finished piece as it physically is: where each element sits (upper-left, lower third), sizes as % of canvas, colours by HEX, direction of light, material, texture, depth. Never restate a rule as a rule ("the headline must dominate" WRONG -> "the headline sits upper-left, cap-height ~11% of canvas height, three short lines, the brightest object in the frame" RIGHT).',
@@ -376,7 +474,9 @@ async function diretorDeArte(M, o, ctx) {
     '5. NEGATIVE SPACE IS ATMOSPHERE, NOT BLANK. The empty percentage the design system asks for means "no elements there" — that area must still be full of matter: textured surface, light falloff, gradient, grain, dust in the light beam. A flat empty area is a FAILURE.',
     '6. HUMAN MODE: visible film grain 3-5% across the ENTIRE frame, micro-wear, real optics and real shadows. Goal: a photograph of a real campaign, not an AI render.',
     '7. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
-    'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤6, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
+    o.composicaoAtiva
+      ? 'THERE IS NO TEXT TO RENDER IN THIS PIECE. Any headline/subheadline/proof/CTA mentioned below is SCENE CONTEXT ONLY — what the post is about, so you can build a relevant photograph — never a string to letter, stencil or write anywhere in the image.'
+      : 'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤6, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
     '',
     '=== SPECIFICS ===',
     ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene exactly as lit in the photo, never re-photographed, never re-lit. Describe ONLY: which side they sit on, the crop that keeps them entirely in frame, the environment\'s light around them, gaze direction pointing toward the headline, the contact shadow they cast into the set. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
@@ -396,7 +496,7 @@ async function diretorDeArte(M, o, ctx) {
       + (M.referencia_aprovada ? ' Approved before, repeat what worked: "' + String(M.referencia_aprovada).slice(0, 200) + '".' : '')
       + (M.evitar_visual ? ' Rejected before, never repeat it: "' + String(M.evitar_visual).slice(0, 200) + '".' : '')
     ) : '',
-    'TEXT HIERARCHY — USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
+    o.composicaoAtiva ? '' : 'TEXT HIERARCHY — USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
     // ETAPA 2 (16/set/2026): esta linha antes disparava sempre que o headline chegasse vazio —
     // "NO HEADLINE WAS PROVIDED: write the headline yourself". Depois da Etapa 1 (validação em
     // código, ver validarTextoDaPeca no topo do arquivo), headline vazia é RECUSADA antes de
@@ -421,12 +521,16 @@ async function diretorDeArte(M, o, ctx) {
       + 'CRITICAL: this sentence is a DIRECTION for how to change the artwork — it must NEVER become the headline, subheadline, label, CTA or any text drawn on the image. The rendered text stays EXACTLY as specified in the content block below.\n'
       + 'Classify it and change ONLY that dimension: background/scene · composition · position of subject · photo or element swap · color · typography treatment · layout. Everything else (identity, palette, strategy, hierarchy, safe zones, crop rules, typography system, the rendered copy) stays IDENTICAL to the original piece. This is a controlled revision of the SAME artwork, not a new one.') : '',
     '',
-    '=== TEXT TO RENDER (accent bug — the model invents accents) ===',
-    'End the prompt with a list titled "Text to render:", ONE line per text string that appears in the art (headline lines, subheadline, proof, CTA, label), each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear. This list is the single source of truth for every glyph — the model must copy from it, not re-spell.',
-    'Check every line before writing it: (a) NUMBERS are digits, never letters — "8 agentes" never "B agentes"; (b) accents correct — automatizando (not "sutamatizando"), você, só, não, já, negócios; (c) no invented, doubled or dropped letters. Spell each word letter by letter in your head.',
-    'Then append this sentence verbatim: "Render every line character-for-character exactly as written in the Text-to-render list. Do NOT re-spell, translate, add, remove, double or invent any letter, digit or accent mark. Numbers stay as digits. Words without an accent stay without an accent. Do not add any other text anywhere in the image."',
+    o.composicaoAtiva ? '' : '=== TEXT TO RENDER (accent bug — the model invents accents) ===',
+    o.composicaoAtiva ? '' : 'End the prompt with a list titled "Text to render:", ONE line per text string that appears in the art (headline lines, subheadline, proof, CTA, label), each between double quotes, in Brazilian Portuguese, EXACTLY as it must appear. This list is the single source of truth for every glyph — the model must copy from it, not re-spell.',
+    o.composicaoAtiva ? '' : 'Check every line before writing it: (a) NUMBERS are digits, never letters — "8 agentes" never "B agentes"; (b) accents correct — automatizando (not "sutamatizando"), você, só, não, já, negócios; (c) no invented, doubled or dropped letters. Spell each word letter by letter in your head.',
+    o.composicaoAtiva
+      ? 'Then append this sentence verbatim: "Do not render, draw or write any text, number, letter, digit, label, logo or watermark anywhere in this image. The piece is photography/scene only."'
+      : 'Then append this sentence verbatim: "Render every line character-for-character exactly as written in the Text-to-render list. Do NOT re-spell, translate, add, remove, double or invent any letter, digit or accent mark. Numbers stay as digits. Words without an accent stay without an accent. Do not add any other text anywhere in the image."',
     '',
-    'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 600-1000 words — one dense concrete paragraph, then the "Text to render:" list. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, label prominence, eye-flow, the deduced set, the light, the camera).',
+    o.composicaoAtiva
+      ? 'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 400-700 words — one dense concrete paragraph describing the photographic scene, ending with the no-text sentence above. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, the deduced set, the light, the camera).'
+      : 'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 600-1000 words — one dense concrete paragraph, then the "Text to render:" list. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, label prominence, eye-flow, the deduced set, the light, the camera).',
   ].filter(Boolean).join('\n');
 
   const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
@@ -473,6 +577,100 @@ async function diretorDeArte(M, o, ctx) {
     const t = (d.content || []).map(c => c.text || '').join('').trim();
     return t.length > 120 ? t : null; // resposta curta demais = não confiável
   } catch (e) { console.error('diretor:', e.message); return null; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VERIFICAÇÃO DE TEXTO POR VISÃO (22/set/2026, "Engine 6.0 como caminho padrão", Rodada 1,
+// item 3, autorizado pelo João) — o texto continua sendo renderizado pelo gpt-image-1, como o
+// Engine sempre desenhou; a letra certa passa a ser GARANTIDA, não só esperada. Mesmo
+// mecanismo da direção avulsa (api/agente-chat.js, commit 87d15c5): tool_choice força saída
+// estruturada, o modelo não tem como responder em texto livre.
+//
+// DECISÃO A REPORTAR AO JOÃO (mesma prática de sempre — interpretação sinalizada, não
+// escondida): "confere caractere a caractere, acentos incluídos" — o modelo de visão só
+// TRANSCREVE o que lê na imagem (tarefa de OCR, nunca julga sozinho se está certo). A
+// comparação caractere a caractere é feita em CÓDIGO, determinística
+// (_normalizarParaComparacao + compararTextoLido): normaliza espaço e maiúscula/minúscula (uma
+// peça em CAIXA ALTA não é "texto errado" por si só), mas NUNCA remove acento — um "á" virando
+// "a" É uma divergência real e continua sendo pega.
+// ═══════════════════════════════════════════════════════════════════════════
+const TOOL_VERIFICACAO_TEXTO_NOME = 'reportar_texto_lido_na_imagem';
+const TOOL_VERIFICACAO_TEXTO = {
+  name: TOOL_VERIFICACAO_TEXTO_NOME,
+  description: 'Transcreve EXATAMENTE o texto visível na imagem, campo a campo, caractere a caractere (acentos incluídos). Não julgue se está certo ou errado — apenas leia e copie o que está escrito. Campo sem texto correspondente visível na imagem: string vazia.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      selo: { type: 'string', description: 'Texto do selo/etiqueta pequena, se houver. String vazia se não houver selo visível.' },
+      headline: { type: 'string', description: 'Texto da headline (frase principal, maior destaque visual).' },
+      subheadline: { type: 'string', description: 'Texto da subheadline (linha de apoio), se houver. String vazia se não houver.' },
+      prova: { type: 'string', description: 'Texto da prova/dado em destaque, se houver. String vazia se não houver.' },
+      cta: { type: 'string', description: 'Texto do botão/pílula de CTA, se houver. String vazia se não houver.' },
+    },
+    required: ['selo', 'headline', 'subheadline', 'prova', 'cta'],
+  },
+};
+
+// _normalizarParaComparacao: trim + colapsa espaço + minúsculas — NUNCA remove acento (decisão
+// acima). Diferença de maiúscula/minúscula sozinha não conta como erro; diferença de acento sim.
+function _normalizarParaComparacao(s) {
+  return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// compararTextoLido: compara campo a campo o texto ESPERADO (o que foi mandado o Engine
+// renderizar) contra o texto LIDO pelo modelo de visão. Só compara campos com texto esperado —
+// um campo vazio no esperado nunca gera divergência (o Engine pode legitimamente omitir um
+// campo). Retorna a lista de campos divergentes; vazia = tudo confere.
+function compararTextoLido(esperados, lidos) {
+  const campos = ['selo', 'headline', 'subheadline', 'prova', 'cta'];
+  const divergentes = [];
+  for (const campo of campos) {
+    const esp = String((esperados && esperados[campo]) || '').trim();
+    if (!esp) continue; // nada esperado neste campo → nada a conferir
+    const lido = (lidos && lidos[campo]) || '';
+    if (_normalizarParaComparacao(esp) !== _normalizarParaComparacao(lido)) {
+      divergentes.push({ campo, esperado: esp, lido: String(lido).trim() });
+    }
+  }
+  return divergentes;
+}
+
+// verificarTextoPorVisao: envia os bytes da imagem já em mãos (sem novo fetch — PNG cru da
+// OpenAI, antes do corte, ver ponto de chamada) + a lista de textos esperados a um modelo com
+// visão, tool_choice forçado na única ferramenta possível.
+// FALHA DE INFRAESTRUTURA (rede, JSON malformado, bloco ausente) LANÇA Error — distinto de
+// "verificou e divergiu" (retorno normal, possivelmente com divergentes). Quem chama nunca deve
+// tratar uma falha de infraestrutura como divergência: isso dispararia regeneração às cegas, o
+// oposto do que esta verificação existe para evitar.
+async function verificarTextoPorVisao(bytesImagem, esperados, mediaType) {
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error('sem ANTHROPIC_API_KEY');
+  const b64 = bytesImagem.toString('base64');
+  const listaEsperada = ['selo', 'headline', 'subheadline', 'prova', 'cta']
+    .map(c => `${c}: ${JSON.stringify(String((esperados && esperados[c]) || ''))}`)
+    .join('\n');
+  const userContent = [
+    { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/png', data: b64 } },
+    { type: 'text', text: 'Estes são os textos que deveriam aparecer nesta peça (campo: texto esperado — pode estar vazio se o campo não se aplica a esta peça):\n' + listaEsperada + '\n\nUse a ferramenta para transcrever exatamente o que está escrito em cada campo visível na imagem.' },
+  ];
+  // Mesmo padrão dual-attempt do Diretor (acima): 1ª tentativa com output_config (raciocínio
+  // baixo, cabe no tempo da função), repete sem output_config antes de desistir — nunca troca de
+  // modelo nem larga tools/tool_choice no caminho (mesma trava da direção avulsa: falhar visível
+  // é preferível a degradar em silêncio pra texto livre).
+  const chamar = (extra) => fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MODEL_VERIFICACAO_TEXTO(), max_tokens: 1000, messages: [{ role: 'user', content: userContent }], tools: [TOOL_VERIFICACAO_TEXTO], tool_choice: { type: 'tool', name: TOOL_VERIFICACAO_TEXTO_NOME }, ...extra }),
+  });
+  let r = await chamar({ output_config: { effort: 'low' } });
+  if (!r.ok) r = await chamar({});
+  if (!r.ok) {
+    const corpo = await r.text().catch(() => '');
+    throw new Error('verificação por visão falhou: ' + corpo.slice(0, 200));
+  }
+  const data = await r.json();
+  const bloco = (data.content || []).find(c => c && c.type === 'tool_use' && c.name === TOOL_VERIFICACAO_TEXTO_NOME);
+  if (!bloco || !bloco.input || typeof bloco.input !== 'object') throw new Error('verificação por visão: tool_choice forçado não retornou o bloco esperado');
+  return { lidos: bloco.input, modelo: MODEL_VERIFICACAO_TEXTO() };
 }
 
 module.exports = async (req, res) => {
@@ -532,7 +730,14 @@ module.exports = async (req, res) => {
       engine_6_ativo: true,
       logo_enviada_ao_gerador: false,
       input_fidelity: 'high',
-      quality: 'medium (estratégia de custo/desempenho; a fidelidade vem do rulebook ENGINE 6.0 completo, não da qualidade)',
+      // ATUALIZADO (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 1): a frase
+      // antiga aqui ("a fidelidade vem do rulebook, não da qualidade") nunca foi testada com o
+      // Diretor de Arte funcionando — ele esteve quebrado por ~2 meses até 18/09, então quase
+      // toda comparação feita até então era contra um pipeline sem direção de arte nenhuma. Essa
+      // premissa não tinha base; 'medium' virou 'high' nas duas chamadas ao gpt-image-1
+      // (images/edits e images/generations) — o chat que o cliente usa como referência roda em
+      // alta, o pipeline não tinha por que rodar abaixo disso.
+      quality: 'high (revisado 22/set/2026 — premissa anterior de custo/desempenho nunca foi testada com o Diretor funcionando)',
       contrato_preservacao: 'moldura (abre e fecha) + duas colunas TRAVADO/LIBERADO + lista enumerada',
     });
   }
@@ -595,6 +800,13 @@ module.exports = async (req, res) => {
     const [cli] = await cRes.json();
     if (!cli) return res.status(403).json({ error: 'Conta não encontrada' });
     if (cli.bloqueado) return res.status(403).json({ error: 'Conta bloqueada' });
+    // COMPOSIÇÃO — INTERRUPTOR (22/set/2026, Fase 1): lido de clientes.preferencias, desligado por
+    // padrão. Clientes sem o interruptor seguem o caminho atual sem mudança nenhuma. A decisão
+    // FINAL de compor esta peça específica (composicaoAtivaEfetiva) ainda depende do modo
+    // resolvido (só EDITORIAL nesta fase — CENA fica para a Fase 2, ver _composicao-lib.js) e é
+    // calculada mais abaixo, dentro de gerarPeca(). engine===false (ficha técnica) nunca compõe —
+    // não é post de Instagram, não carrega headline/subheadline/cta_arte.
+    const composicaoLigada = !!(cli.preferencias && cli.preferencias.composicao_ativa);
 
     // Reset mensal do uso de imagens
     const mes = new Date().toISOString().slice(0, 7);
@@ -762,13 +974,87 @@ module.exports = async (req, res) => {
       // (ambos caem no else de text-to-image; a logo ainda é aplicada se houver)
     } catch (e) { console.error('acervo:', e.message); }
 
-    let r;
-    if (baseImgs.length) {
-      // image-to-image: usa foto/logo reais como base (preserva identidade + logo verdadeira)
+    // chamarOpenAIImageToImage / chamarOpenAITextToImage (22/set/2026, "Engine 6.0 como caminho
+    // padrão" Rodada 1, item 3, autorizado pelo João) — a chamada à OpenAI em si, fatorada para
+    // fora de gerarPeca() em funções que remontam a requisição do zero a partir de primitivas já
+    // conhecidas (baseImgs, size — ambos no escopo externo, não mudam entre chamadas). Existem
+    // como função para permitir reenviarMesmoPrompt(): a verificação por visão (mais abaixo),
+    // quando o texto diverge do esperado, regenera UMA VEZ com o MESMO texto de prompt — nunca
+    // reaproveitando um FormData já consumido por um fetch anterior (não confiável), sempre
+    // reconstruindo do zero com o texto idêntico capturado em promptFinal. Corpo da requisição
+    // byte a byte o mesmo que sempre existiu — só reorganizado, nunca duplicado.
+    async function chamarOpenAIImageToImage(promptTexto) {
       const form = new FormData();
       form.append('model', 'gpt-image-1');
+      form.append('prompt', promptTexto);
+      form.append('size', size);
+      // QUALIDADE ALTA (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 1,
+      // autorizado pelo João): era 'medium' — a premissa registrada no diagnóstico ("a
+      // fidelidade vem do rulebook, não da qualidade") nunca foi testada com o Diretor de Arte
+      // funcionando (esteve quebrado ~2 meses até 18/09). O chat que o cliente usa como
+      // referência roda em alta; o pipeline não tinha por que rodar abaixo disso.
+      form.append('quality', 'high');
+      // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
+      // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
+      form.append('input_fidelity', 'high');
+      // Ordem: referência principal (pessoa/produto) primeiro, logo por último
+      const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
+      baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
+      for (const b of baseImgs) {
+        form.append('image[]', new Blob([b.buf], { type: b.ct }), `${b.tag}.png`);
+      }
+      const _t0 = Date.now();
+      const resp = await fetch('https://api.openai.com/v1/images/edits', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: form,
+      });
+      // TEMPO REAL EM QUALIDADE ALTA (item 1, "medir e reportar"): não medível neste sandbox
+      // (sem OPENAI_API_KEY) — instrumentado para a produção reportar o número real. Relevante
+      // porque maxDuration é 300s e o item 3 pode exigir até duas gerações na mesma requisição.
+      console.log('[gerar-imagem] images/edits quality=high levou', Date.now() - _t0, 'ms');
+      return resp;
+    }
+    async function chamarOpenAITextToImage(promptTexto) {
+      const _t0 = Date.now();
+      const resp = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptTexto, size, n: 1, quality: 'high' }),
+      });
+      console.log('[gerar-imagem] images/generations quality=high levou', Date.now() - _t0, 'ms');
+      return resp;
+    }
+
+    // gerarPeca() — encapsula toda a lógica de montar o prompt (image-to-image OU text-to-image,
+    // conforme haja foto/produto real) e chamar a OpenAI. Existe como função (22/set/2026,
+    // "composição — Fase 1", autorizado pelo João) para poder ser chamada DUAS VEZES na mesma
+    // requisição: uma vez com composição desejada, e — só se o compositor falhar depois de já
+    // ter uma imagem em mãos — uma segunda vez com composicaoDesejada=false, pelo caminho
+    // TRADICIONAL de sempre (texto renderizado pelo próprio modelo). Isso existe porque, com
+    // composição ativa, o próprio prompt manda o modelo NÃO renderizar texto nenhum — se o
+    // compositor falhar depois disso, a única imagem em mãos está muda; a única forma de nunca
+    // entregar uma arte quebrada (portão pedido pelo João) é regenerar do zero pelo caminho que
+    // sempre funcionou. Chamada com composicaoDesejada=false, o corpo é BYTE A BYTE o mesmo texto
+    // que sempre existiu neste arquivo — só reorganizado dentro de uma função, nunca duplicado.
+    // RETORNO ESTENDIDO (item 3 e item 4, 22/set/2026): promptFinal é o texto EXATO mandado ao
+    // gpt-image-1 (persistido em conteudos.meta.prompt_final, item 4); reenviarMesmoPrompt()
+    // chama a MESMA rota (edits ou generations, conforme o caminho já decidido) de novo, com o
+    // MESMO texto — usado pela verificação por visão (item 3) quando o texto sai divergente.
+    async function gerarPeca(composicaoDesejada) {
+      let localR;
+      let compAtivaLocal = false;
+      let localMaterialRealPreservado = false;
+      let promptFinalLocal = '';
+    if (baseImgs.length) {
+      // image-to-image: usa foto/logo reais como base (preserva identidade + logo verdadeira)
       const temPessoa = baseImgs.some(b => b.tag === 'pessoa');
       const temProduto = baseImgs.some(b => b.tag === 'produto');
+      // COMPOSIÇÃO (22/set/2026): só se aplica quando o modo resolvido é EDITORIAL — a única
+      // arquitetura que esta fase compõe (CENA fica para a Fase 2, ver _composicao-lib.js).
+      // Mesma função escolherModo que diretorDeArte usará mais abaixo com os MESMOS argumentos —
+      // determinístico, não pode divergir.
+      compAtivaLocal = composicaoDesejada && escolherModo({ modo, tipo }, { temProduto, variacao: Number(variacao) || 0 }) === 'editorial';
       // ── CONTRATO DE PRESERVAÇÃO ────────────────────────────────────────────────
       // REGRESSÃO QUE EU CRIEI NO PACOTE DO DIRETOR: o `preserva` era colado só NO FIM,
       // depois de ~400 palavras mandando "the ENTIRE canvas is ONE PHOTOGRAPH of a real
@@ -825,32 +1111,24 @@ module.exports = async (req, res) => {
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       // materialReal (21/set/2026): sinal novo pra engine6 condicionar a seção 6 (luz
       // direcional/sombra) ao ambiente quando há pessoa ou produto real preservado.
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto };
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
         : (engine6(M6, oArte)
            + (dirTxt ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt : '')))
         + preserva;
-      form.append('prompt', instr);
-      form.append('size', size);
-      form.append('quality', 'medium');
-      // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
-      // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
-      form.append('input_fidelity', 'high');
-      // Ordem: referência principal (pessoa/produto) primeiro, logo por último
-      const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
-      baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
-      for (const b of baseImgs) {
-        form.append('image[]', new Blob([b.buf], { type: b.ct }), `${b.tag}.png`);
-      }
-      r = await fetch('https://api.openai.com/v1/images/edits', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-        body: form,
-      });
+      promptFinalLocal = instr;
+      localR = await chamarOpenAIImageToImage(instr);
+      // COMPOSIÇÃO (achado 3, correção): compor() precisa saber se há material real preservado
+      // nesta peça (pessoa ou produto) pra encolher a distância da fusão (8% em vez de 22%) — a
+      // foto por baixo pode ser o próprio sujeito travado pelo contrato de preservação.
+      localMaterialRealPreservado = temPessoa || temProduto;
     } else {
       // text-to-image: pessoa_conceito pode criar gente genérica; conceitual sem pessoa
+      // COMPOSIÇÃO (22/set/2026): temProduto é sempre false neste ramo (baseImgs vazio) — mesma
+      // função escolherModo, mesmos argumentos que diretorDeArte usará mais abaixo.
+      compAtivaLocal = composicaoDesejada && escolherModo({ modo, tipo }, { temProduto: false, variacao: Number(variacao) || 0 }) === 'editorial';
       let extra = ' IMPORTANT: do NOT create, draw, write, duplicate or invent any logo, brand name, signature or handwriting in the image — leave brand space clean (the real logo is added separately). All text spelling 100% correct in Portuguese (ç ã õ é á), perfect kerning, no melted/fused letters.';
       if (tipo === 'pessoa_conceito') {
         // Só cai aqui se o cliente NÃO tem foto na pasta (senão usa a real, acima).
@@ -858,18 +1136,24 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
            + (dirTxt2 ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt2 : '')))
-        + extra;
-      r = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptSemLogo, size, n: 1, quality: 'medium' }),
-      });
+        + (compAtivaLocal ? '' : extra);
+      promptFinalLocal = promptSemLogo;
+      localR = await chamarOpenAITextToImage(promptSemLogo);
     }
+      // reenviarMesmoPrompt (item 3): chama de novo a MESMA rota, com o MESMO texto de prompt já
+      // capturado — nunca reconstrói o prompt (o Diretor não é chamado de novo, a cena não muda),
+      // só pede uma nova renderização do gpt-image-1 na esperança de a letra sair certa.
+      const reenviarMesmoPrompt = () => baseImgs.length
+        ? chamarOpenAIImageToImage(promptFinalLocal)
+        : chamarOpenAITextToImage(promptFinalLocal);
+      return { r: localR, composicaoAtivaEfetiva: compAtivaLocal, materialRealPreservado: localMaterialRealPreservado, promptFinal: promptFinalLocal, reenviarMesmoPrompt };
+    }
+    let { r, composicaoAtivaEfetiva, materialRealPreservado, promptFinal, reenviarMesmoPrompt } = await gerarPeca(composicaoLigada && engine !== false);
     const result = await r.json();
     if (!r.ok) {
       const detalhe = (result.error && result.error.message) || JSON.stringify(result).slice(0, 200);
@@ -884,18 +1168,168 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: amigavel, detalhe: detalhe.slice(0, 160) });
     }
     // gpt-image-1 retorna base64 diretamente
-    const b64 = result.data && result.data[0] && result.data[0].b64_json;
+    let b64 = result.data && result.data[0] && result.data[0].b64_json;
     if (!b64) return res.status(500).json({ error: 'Resposta sem imagem' });
     let bytes = Buffer.from(b64, 'base64');
-    // INSTAGRAM: feed aceita 4:5 a 1.91:1; reels/story = 9:16. O gpt-image-1 entrega 2:3 (fora do
-    // range do feed → a Meta REJEITA). Cortamos para a proporção certa aqui (fit cover = corta o
-    // excesso mantendo a região mais relevante), e salvamos em JPG (sRGB, leve, <8MB).
-    try {
+
+    // COMPOSIÇÃO (22/set/2026, Fase 1, autorizado pelo João) — texto e logo reais compostos por
+    // código (sharp + opentype.js, ver _composicao-lib.js), no lugar do que o modelo renderizaria.
+    // Só roda quando composicaoAtivaEfetiva (interruptor da conta ligado E modo resolvido
+    // EDITORIAL) — para qualquer outro cliente/peça este bloco inteiro não executa, caminho
+    // sem composição continua byte a byte igual. PORTÃO (pedido explícito do João): "se o
+    // compositor falhar, nunca entregar a imagem do modelo sem texto — cair para o caminho
+    // atual". Como o próprio prompt, quando composição está ativa, já manda o modelo NÃO
+    // renderizar texto nenhum, "o caminho atual" só pode significar regenerar do zero pelo
+    // caminho tradicional (texto renderizado pelo modelo) — entregar a imagem muda que já está
+    // em mãos violaria a MESMA frase que pede o fallback. gerarPeca(false) reconstrói o prompt
+    // tradicional e chama a OpenAI de novo; falhando essa segunda chamada também, devolve erro —
+    // nunca uma arte quebrada.
+    let logoJaComposta = false;
+    if (composicaoAtivaEfetiva) {
+      let compositorFalhou = false;
+      try {
+        let logoBuffer = null;
+        try {
+          const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url,created_at&order=created_at.desc&limit=1`, { headers: SBH() }).then(r2 => r2.json());
+          const logoUrl = Array.isArray(logos) && logos[0] && logos[0].url;
+          if (logoUrl) { const im = await baixarImg(logoUrl); if (im) logoBuffer = im.buf; }
+        } catch (e) { /* sem logo cadastrado → peça sai sem logo, nunca trava a entrega (PARTE 3) */ }
+        const conteudoComp = { headline, subheadline, pilar, prova, cta: cta_arte };
+        const out = await compor({ imagemBase: bytes, vertical: _vertical, M: M6, conteudo: conteudoComp, userId: targetId, logoBuffer, materialRealPreservado });
+        bytes = out.buffer;
+        logoJaComposta = true;
+        (out.logs || []).forEach(l => console.log(l));
+      } catch (e) {
+        compositorFalhou = true;
+        console.error('[composicao] compositor falhou, regenerando pelo caminho tradicional:', e.message);
+      }
+      if (compositorFalhou) {
+        const retry = await gerarPeca(false);
+        r = retry.r;
+        const result2 = await r.json();
+        if (!r.ok || !(result2.data && result2.data[0] && result2.data[0].b64_json)) {
+          const detalhe2 = (result2.error && result2.error.message) || 'regeneração sem composição também falhou';
+          console.error('[composicao] regeneração de fallback falhou:', detalhe2);
+          if (conteudo_id) await registrarFalhaComposicaoNaOrdem(conteudo_id, `Compositor falhou e a regeneração de segurança também falhou: ${detalhe2}`);
+          return res.status(500).json({ error: 'Falha ao gerar imagem (composição e regeneração de segurança falharam). Tente novamente.', detalhe: String(detalhe2).slice(0, 160) });
+        }
+        b64 = result2.data[0].b64_json;
+        bytes = Buffer.from(b64, 'base64');
+        // segue para o crop tradicional abaixo — esta peça saiu pelo caminho sem composição.
+        // PARTE 4, 2ª condição do João (confirmada, 22/set/2026): "registro visível na ordem, com
+        // o motivo" — não bastava o console.error acima (só visível a quem olha log da Vercel).
+        // Grava em conteudos.meta.composicao_falha (mesmo padrão read-merge-write de gravarSlide,
+        // acima — PATCH em jsonb substitui o objeto inteiro, nunca escrever sem mesclar primeiro).
+        // Só quando há um conteúdo real por trás (conteudo_id) — preview avulso não tem ordem.
+        if (conteudo_id) await registrarFalhaComposicaoNaOrdem(conteudo_id, `Compositor falhou nesta peça — regenerada pelo caminho tradicional (texto renderizado pelo modelo, sem composição por código).`);
+      }
+    }
+
+    // VERIFICAÇÃO DE TEXTO POR VISÃO (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1,
+    // item 3, autorizado pelo João) — "depois de gerar, antes do corte e do upload": roda aqui,
+    // nos bytes CRUS da OpenAI (PNG, ainda sem crop), porque cortar não muda a letra que o
+    // modelo já renderizou — só a moldura ao redor — e verificar antes evita gastar o corte numa
+    // imagem que a regeneração pode substituir.
+    // GATE: só quando há texto do modelo pra conferir — engine!==false (não é ficha técnica) E
+    // caminho PADRÃO sem composição (composição, quando ativa, já manda o modelo NÃO renderizar
+    // texto nenhum — nada a verificar) E pelo menos um dos 5 campos esperados não está vazio.
+    const textoEsperado = { selo: pilar || '', headline: headline || '', subheadline: subheadline || '', prova: prova || '', cta: cta_arte || '' };
+    const _temTextoParaVerificar = engine !== false && !composicaoAtivaEfetiva && Object.values(textoEsperado).some(v => String(v || '').trim());
+    let verificacaoTexto = null;
+    if (_temTextoParaVerificar) {
+      try {
+        const v1 = await verificarTextoPorVisao(bytes, textoEsperado, 'image/png');
+        const divergentes1 = compararTextoLido(textoEsperado, v1.lidos);
+        if (!divergentes1.length) {
+          verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], tentativas: 1 };
+        } else {
+          // DIVERGE, REGENERA UMA VEZ COM O MESMO PROMPT (item 3): reenviarMesmoPrompt() chama a
+          // MESMA rota (edits/generations) de novo, com o texto de prompt IDÊNTICO — a cena não
+          // muda, só se pede ao gpt-image-1 uma nova tentativa de renderizar a letra certa.
+          console.error('[verificacao-texto] divergiu na 1ª tentativa:', JSON.stringify(divergentes1));
+          const retryResp = await reenviarMesmoPrompt();
+          const retryResult = await retryResp.json().catch(() => null);
+          const retryB64 = retryResult && retryResult.data && retryResult.data[0] && retryResult.data[0].b64_json;
+          if (retryResp.ok && retryB64) {
+            const bytesRetry = Buffer.from(retryB64, 'base64');
+            const v2 = await verificarTextoPorVisao(bytesRetry, textoEsperado, 'image/png');
+            const divergentes2 = compararTextoLido(textoEsperado, v2.lidos);
+            // DIVERGE NAS DUAS: fica com a tentativa de MENOS divergências (empate → fica com a
+            // 2ª, é a que já passou por uma tentativa de correção).
+            if (divergentes2.length <= divergentes1.length) {
+              bytes = bytesRetry;
+              verificacaoTexto = { modelo: v2.modelo, esperado: textoEsperado, lido: v2.lidos, divergentes: divergentes2, tentativas: 2 };
+            } else {
+              verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, tentativas: 2 };
+            }
+          } else {
+            // regeneração de correção falhou (infra) — fica com a única imagem válida em mãos.
+            console.error('[verificacao-texto] regeneração de correção falhou, mantendo a 1ª tentativa');
+            verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, tentativas: 1, regeneracao_falhou: true };
+          }
+        }
+      } catch (e) {
+        // FALHA DE INFRAESTRUTURA (rede, sem ANTHROPIC_API_KEY, tool_choice sem retorno) — NUNCA
+        // trata como divergência, NUNCA regenera às cegas (distinção pedida pelo João). Segue com
+        // a imagem que já está em mãos, sem registro de verificação nesta peça.
+        console.error('[verificacao-texto] falha de infraestrutura, seguindo sem verificar:', e.message);
+      }
+    }
+
+    // LOGO REAL NO CANTO — CAMINHO PADRÃO (22/set/2026, "Engine 6.0 como caminho padrão" Rodada
+    // 1, item 2, autorizado pelo João): desacoplado do interruptor de composição — roda para
+    // TODO fluxo (chat avulso, ordem de serviço, worker do cron, ordem do Tráfego), não só
+    // quando agentes.html está aberto no navegador. O Engine já previa o canto calmo (18% da
+    // largura, ver o texto do próprio Engine mais acima) para o sistema colar a logo real
+    // DEPOIS — isso nunca tinha sido cumprido fora do navegador (worker e aprovar.html sempre
+    // entregaram sem logo). Roda DEPOIS do crop (precisa das dimensões finais do template para
+    // posicionar certo) e só quando ninguém já colou a logo antes (!logoJaComposta cobre tanto o
+    // caminho comum quanto o fallback do compositor, que também sai sem logo colada). Sem logo
+    // cadastrada (categoria='logo'), a peça sai sem — nunca trava a entrega, mesmo princípio do
+    // compositor de texto (PARTE 3, acima).
+    if (!logoJaComposta) try {
       const sharp = require('sharp');
       const _vert = (typeof _vertical !== 'undefined') ? _vertical : false;
       const alvo = _vert ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
       bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+      try {
+        const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url,created_at&order=created_at.desc&limit=1`, { headers: SBH() }).then(r2 => r2.json());
+        const logoUrl = Array.isArray(logos) && logos[0] && logos[0].url;
+        if (logoUrl) {
+          const im = await baixarImg(logoUrl);
+          if (im) {
+            const tpl = obterTemplate(_vert);
+            const pos = await posicaoLogo(tpl, im.buf);
+            bytes = await sharp(bytes)
+              .composite([{ input: await sharp(im.buf).resize(pos.width, pos.height, { fit: 'inside' }).toBuffer(), left: pos.left, top: pos.top }])
+              .jpeg({ quality: 88, chromaSubsampling: '4:2:0' })
+              .toBuffer();
+            logoJaComposta = true;
+          }
+        }
+      } catch (e) { console.error('[logo-padrao] colagem da logo falhou, peça sai sem logo:', e.message); }
     } catch (e) { console.error('crop/resize:', e.message); }
+    // ACHADO CORRIGIDO JUNTO (22/set/2026, "composição — Fase 1"): b64 (usado mais abaixo como
+    // fallback quando o storage falha/demora) ainda apontava para os bytes CRUS da OpenAI, de
+    // ANTES do crop — pré-existente, inofensivo até aqui (o fallback só perdia o corte certo de
+    // proporção, o texto do próprio modelo continuava na imagem). Com composição ativa isso
+    // deixaria de ser cosmético: se o storage falhar DEPOIS de compor() ter colado texto/logo
+    // reais, o fallback devolveria a imagem MUDA que a OpenAI gerou antes da composição — a
+    // mesma falha que o portão do João proíbe, só que pela porta do storage em vez da do
+    // compositor. b64 agora sempre reflete os bytes finais (compostos e/ou cortados e/ou com a
+    // logo real colada).
+    b64 = bytes.toString('base64');
+
+    // INSTRUMENTO PERMANENTE — PROMPT FINAL (22/set/2026, item 4, autorizado pelo João): "sem
+    // ele, qualquer diagnóstico de qualidade é suposição". Grava o texto EXATO mandado ao
+    // gpt-image-1 nesta geração, mais o resultado da verificação de texto (se rodou) — uma
+    // escrita só, mesclada (mesclarMetaNaOrdem), nunca uma corrida de PATCHes concorrentes.
+    if (conteudo_id) {
+      await mesclarMetaNaOrdem(conteudo_id, {
+        prompt_final: String(promptFinal || '').slice(0, 12000),
+        ...(verificacaoTexto ? { verificacao_texto: verificacaoTexto } : {}),
+      });
+    }
 
     // ECONOMIA DE TEMPO (Hobby 60s): subir no storage e registrar AGORA, mas com timeout curto.
     // Se o storage demorar, devolvemos base64 (a imagem nunca se perde).
@@ -943,7 +1377,18 @@ module.exports = async (req, res) => {
       slide: (slide != null ? Number(slide) : null),
       engine: '6.0',
       usadas: uso.imagens, limite: lim.imagens || 0, reloads_usados: uso.reloads||0, reloads_limite: lim.reloads||0,
-      aviso: publicUrl ? undefined : 'base64'
+      aviso: publicUrl ? undefined : 'base64',
+      // LOGO REAL: true quando o SERVIDOR já colou a logo real nesta peça — seja pelo compositor
+      // de texto+logo (composição, ver _composicao-lib.js, hoje desligado em toda conta) seja
+      // pelo passo padrão novo (item 2, 22/set/2026, roda para todo fluxo). agentes.html usa
+      // este sinal para NÃO compor a logo de novo no navegador (comporLogoNaArte), evitando logo
+      // duplicada na mesma arte.
+      logoJaComposta: logoJaComposta || undefined,
+      // VERIFICAÇÃO DE TEXTO (item 3, 22/set/2026): presente só quando rodou (peça com texto
+      // renderizado pelo modelo, fora do caminho de composição). Mesmo objeto persistido em
+      // conteudos.meta.verificacao_texto quando há conteudo_id — aqui também no preview avulso
+      // (sem conteudo_id, sem onde persistir) para o chamador já ver na hora.
+      verificacao_texto: verificacaoTexto || undefined,
     });
   } catch (e) {
     console.error('gerar-imagem:', e.message);
