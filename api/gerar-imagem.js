@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo } = require('./_composicao-lib.js');
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.23-engine6-dna-marca-camada-visual-system-vs-prefixo-tem-precedencia-sobre-generico';
+const VERSAO = '2026.09.23-engine6-corte-por-visao-teto-de-texto-por-objeto-mockup-legivel-icone-escopado-a-marca';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -221,7 +221,10 @@ function engine6(M, o) {
     M.estilo_de_copy ? ('Copy style: ' + M.estilo_de_copy + '.') : '',
     M.tom_do_cta ? ('CTA tone: ' + M.tom_do_cta + '.') : '',
     M.estilo_iconografico ? ('Iconographic style: ' + M.estilo_iconografico + '.') : '',
-    M.estilo_de_mockup ? ('Mockup style: ' + M.estilo_de_mockup + '.') : '',
+    // 23/set/2026 (decisão 5, autorizado pelo João): a peça de teste saiu com a tela do notebook
+    // ilegível, um borrão — objeto pequeno e distante o gerador não consegue desenhar legível.
+    // Escala mínima declarada junto do estilo, não um bloco à parte.
+    M.estilo_de_mockup ? ('Mockup style: ' + M.estilo_de_mockup + '. Give it real scale: at least 25% of the piece\'s area, with the screen/label content clearly legible — never small or distant enough that the generator can\'t render it readable.') : '',
     M.momento_negocio ? ('Business moment: ' + M.momento_negocio + '.') : '',
     M.objetivo_conteudo ? ('Content objective: ' + M.objetivo_conteudo + '.') : '',
     M.sempre_fazer ? ('Always do: ' + M.sempre_fazer + '.') : '',
@@ -235,8 +238,13 @@ function engine6(M, o) {
   // fica em português, na ordem da chave, não traduzido/reordenado como no exemplo dele; sinalizado
   // como desvio no relatório desta entrega. .sort() garante prompt determinístico (a ordem que
   // chega do banco não é garantida).
+  // 23/set/2026 (decisão 8, autorizado pelo João): as 4 chaves abaixo têm seção PRÓPRIA (5, 6, 8,
+  // 11) que já as substitui no lugar do genérico — sem esta exclusão, cada uma aparecia DUAS
+  // vezes no prompt (aqui, na varredura, e de novo na seção dedicada). Excluídas só da varredura
+  // genérica; a substituição na seção própria continua valendo normalmente.
+  const VS_COM_SECAO_PROPRIA = ['vs_modo_humano', 'vs_controle_foco_fotografico', 'vs_hierarquia_visual', 'vs_profundidade_visual'];
   const visualSystemLinhas = Object.keys(M)
-    .filter(k => k.indexOf('vs_') === 0 && String(M[k] == null ? '' : M[k]).trim())
+    .filter(k => k.indexOf('vs_') === 0 && VS_COM_SECAO_PROPRIA.indexOf(k) === -1 && String(M[k] == null ? '' : M[k]).trim())
     .sort()
     .map(k => {
       const rotulo = k.slice(3).replace(/_/g, ' ');
@@ -288,9 +296,10 @@ function engine6(M, o) {
       proib ? ('NEVER include these elements: ' + proib + '.') : '',
     ].filter(Boolean).join('\n')) : '',
     // BRAND VISUAL SYSTEM: varredura genérica de vs_* — ver o comentário de visualSystemLinhas
-    // acima. Os 4 campos abaixo TAMBÉM aparecem aqui (declaração) E substituem a linha genérica
-    // correspondente mais adiante (seções 5/6/8/11) — não é regra duplicada: uma é a declaração,
-    // a outra é o lugar onde o genérico teria entrado e agora não entra.
+    // acima. 23/set/2026 (correção da decisão 8): os 4 campos com seção própria (vs_modo_humano,
+    // vs_controle_foco_fotografico, vs_hierarquia_visual, vs_profundidade_visual — VS_COM_SECAO_
+    // PROPRIA) NÃO aparecem mais aqui — só na seção dedicada de cada um (5/6/8/11), onde
+    // substituem a linha genérica. Antes apareciam nas DUAS, duas vezes o mesmo dado no prompt.
     visualSystemLinhas.length ? ('=== BRAND VISUAL SYSTEM (the client\'s own design system — obey it) ===\n' + visualSystemLinhas.join('\n')) : '',
     '',
     // COMPOSIÇÃO ATIVA (22/set/2026, Fase 1): quando o código vai desenhar todo o texto e a
@@ -300,17 +309,32 @@ function engine6(M, o) {
     // sentido (não há texto do modelo para limitar/le­gibilizar) e são suprimidas; a 4
     // (branding) e o bloco final ("CONTENT OF THIS PIECE") são substituídos por uma versão que
     // NUNCA pede texto renderizado — ver o ternário de cada linha abaixo.
-    o.composicaoAtiva ? '' : '=== 2. WORD LIMIT (MAXIMUM 18 VISIBLE WORDS) ===',
-    o.composicaoAtiva ? '' : 'HEADLINE max 8 words · SUPPORT COPY max 6 words · CTA max 2 words · LABEL does not count (graphic element).',
-    o.composicaoAtiva ? '' : 'If it does not fit: 1st remove support copy, 2nd shorten headline. LESS text > MORE text.',
+    // 23/set/2026 ("Corte, mockup e teto de texto", decisão 2, autorizado pelo João): a peça de
+    // teste saiu com ~45% de ocupação contra 68% declarado, faltando os módulos secundários que
+    // a marca pede como obrigatórios (capturas de tela, blocos modulares). O teto de palavras
+    // sempre foi lido pelo modelo como teto da CENA inteira — inclusive texto que pertence a um
+    // OBJETO da cena (tela de software, quadro branco) — o que sufoca a densidade que o DNA pede.
+    // Copy de apoio sobe de 6 para 12 (referência aprovada usa 10); headline (8) e CTA (2) ficam.
+    // Teto total ajustado de 18 para 22 pra continuar sendo a soma real dos três (8+12+2), não um
+    // número solto que já não batia antes (8+6+2=16) nem bateria agora (8+12+2=22 > 18 antigo).
+    o.composicaoAtiva ? '' : '=== 2. WORD LIMIT (MAXIMUM 22 VISIBLE WORDS OF PIECE TEXT) ===',
+    o.composicaoAtiva ? '' : 'This limit is for the PIECE\'S OWN TEXT ONLY — headline, support copy, CTA (label does not count, graphic element). HEADLINE max 8 words · SUPPORT COPY max 12 words · CTA max 2 words.',
+    o.composicaoAtiva ? '' : 'Text that belongs to an OBJECT represented in the scene — a software screen, a whiteboard, a book spine, a mug, a sign, a handwritten note — is a VISUAL ELEMENT, not piece text: it does NOT count toward this limit. This is exactly what makes a dense, populated scene possible without inflating the copy.',
+    o.composicaoAtiva ? '' : 'If the piece text does not fit: 1st remove support copy, 2nd shorten headline. LESS piece text > MORE piece text.',
     '',
     o.composicaoAtiva ? '' : '=== 3. EVIDENT LABEL ===',
     o.composicaoAtiva ? '' : ('The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.'),
     '',
     '=== 4. BRANDING ===',
+    // 23/set/2026 (decisão 4, autorizado pelo João): a proibição era ampla demais — proibia
+    // QUALQUER símbolo/ícone, mesmo quando outro bloco (estilo_iconografico, elementos_obrigatorios
+    // com "capturas reais de tela") pedia exatamente isso. Agora escopada à MARCA: só o símbolo/
+    // logo/emblema/monograma/assinatura QUE REPRESENTA a marca é proibido. Ícone funcional e
+    // pictograma da cena (ícone de UI numa tela, diagrama, pictograma técnico) deixam de ser
+    // proibidos e seguem estilo_iconografico quando a marca declarar.
     o.composicaoAtiva
-      ? 'The system composes the brand name, headline, subheadline, proof, CTA and the real logo on top of what you generate — BY CODE, not by you. Do NOT render, write, letter, stencil, engrave or draw the brand name, any word, digit or any logo/symbol/emblem/monogram/watermark anywhere in the image.'
-      : 'ALLOWED: brand name as plain text, minimalist typographic signature. FORBIDDEN: graphic symbol, icon logo, crest, emblem, complex monogram, invented handwriting.',
+      ? 'The system composes the brand name, headline, subheadline, proof, CTA and the real logo on top of what you generate — BY CODE, not by you. Do NOT render, write, letter, stencil, engrave or draw the brand name, any word or digit, or this BRAND\'s own logo/symbol/emblem/monogram/watermark, anywhere in the image. Functional icons and pictograms that belong to the SCENE (UI icons on a screen, a diagram, a technical pictogram) are allowed and should follow estilo_iconografico when the brand declares it — they are not this brand\'s mark.'
+      : 'ALLOWED: brand name as plain text, minimalist typographic signature; functional icons and pictograms that belong to the scene (UI icons on a screen, a diagram, a technical pictogram) — follow estilo_iconografico when the brand declares it. FORBIDDEN, as THIS BRAND\'s own mark: a graphic symbol, icon-style logo, crest, emblem, complex monogram, or invented handwritten signature representing the brand itself.',
     o.composicaoAtiva
       ? 'Keep the entire LEFT HALF of the canvas (full height) visually calm and simple — the system will completely cover it with the brand\'s text. Never place a face, product detail or anything important there; treat it as background only. The RIGHT HALF is where the real photographic scene lives.'
       : 'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
@@ -330,11 +354,18 @@ function engine6(M, o) {
     // sem material, texto idêntico ao de sempre; com material, a luz/sombra dirigida passa a valer
     // só para o AMBIENTE ao redor, nunca sobre o que está preservado.
     '=== 6. PHOTOGRAPHIC FOCUS CONTROL ===',
-    // vs_controle_foco_fotografico (23/set/2026): substitui "luminosity 60-70% max" nas duas
-    // variantes (com/sem material real) quando a marca declara o próprio controle de foco.
+    // vs_controle_foco_fotografico (23/set/2026, correção da decisão 7 desta rodada): a versão
+    // anterior só trocava o fragmento "luminosity 60-70% max" e mantinha o resto da frase genérica
+    // ao redor — o valor da marca entrava NO MEIO da frase e repetia "controlled contrast"/
+    // "directional lighting" ao lado do que a marca já tinha declarado. Agora substitui a frase
+    // INTEIRA (as duas variantes, com/sem material real) quando a marca declara o próprio controle.
     o.materialReal
-      ? ('Photography SUPPORTS the headline, never competes: controlled medium contrast, ' + (focoVS ? ('this brand\'s own photographic focus control: ' + focoVS) : 'luminosity 60-70% max') + ', gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.')
-      : ('Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), ' + (focoVS ? ('this brand\'s own photographic focus control: ' + focoVS) : 'luminosity 60-70% max') + ', strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.'),
+      ? (focoVS
+          ? ('Photography SUPPORTS the headline, never competes: this brand\'s own photographic focus control: ' + focoVS + '. Gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.')
+          : ('Photography SUPPORTS the headline, never competes: controlled medium contrast, luminosity 60-70% max, gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.'))
+      : (focoVS
+          ? ('Photography SUPPORTS the headline, never competes: this brand\'s own photographic focus control: ' + focoVS + '. Gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.')
+          : ('Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.')),
     '',
     '=== 7. MANDATORY NEGATIVE SPACE ===',
     // densidade_visual (23/set/2026): substitui o % de vazio derivado de intensidade quando a
@@ -366,10 +397,14 @@ function engine6(M, o) {
     o.composicaoAtiva ? '' : 'Portuguese text 100% correct (ç ã õ é á), perfectly legible, clean alignment, no deformation, no fused or melted letters, no wrong line breaks, consistent kerning, readable on mobile.',
     '',
     '=== 11. HUMAN MODE ===',
-    // vs_modo_humano (23/set/2026): substitui "grain 2-5%, noise 1-3%..." quando a marca declara
-    // o próprio modo humano.
+    // vs_modo_humano (23/set/2026, correção da decisão 6 desta rodada): substitui "grain 2-5%,
+    // noise 1-3%..." quando a marca declara o próprio modo humano — mas a salvaguarda "NEVER
+    // artificial, exaggerated or forced vintage" tinha sumido JUNTO com o genérico na primeira
+    // versão desta substituição. Ela é o que impede o modelo de exagerar um grain de 8% (o valor
+    // real declarado pela conta de teste) até virar vintage forçado — continua sendo emitida nos
+    // dois casos agora.
     modoHumanoVS
-      ? ('This brand\'s own human-mode treatment: ' + modoHumanoVS + '. Goal: a real campaign, not an AI render.')
+      ? ('This brand\'s own human-mode treatment: ' + modoHumanoVS + '. NEVER artificial, exaggerated or forced vintage — apply it subtly. Goal: a real campaign, not an AI render.')
       : 'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
     '',
     '=== 12. SAFE ZONES ===',
@@ -393,9 +428,12 @@ function engine6(M, o) {
               : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.'),
     '',
     '=== VALIDATION BEFORE RENDERING (run this checklist, fix silently, then render) ===',
+    // 23/set/2026: este checklist tinha o MESMO problema que o da seção QUALITY (mais abaixo) já
+    // corrigiu — citava o teto de palavras antigo (6/18) e a hierarquia fixa (50-60%) mesmo quando
+    // a seção 2 e a seção 5 já declaram outra coisa. Mesma correção, mesmo motivo.
     o.composicaoAtiva
       ? 'Zero text, letters, digits, labels, pills, logos or watermarks anywhere in the image — not even the brand name? Only the palette colors above? Photo with controlled contrast? 3 depth layers present? Negative space respected? Left half left calm and uncluttered for the system to cover? Safe zones clear? If any answer is NO, fix the composition BEFORE rendering.'
-      : 'Headline <=8 words? Support copy <=6? CTA <=2? Total <=18? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? Headline dominant at 50-60% of attention? Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.',
+      : ('Headline <=8 words? Support copy <=12 words? CTA <=2? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? ' + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
     '',
     '=== 13. PARAMETERS ===',
     // densidade_visual (23/set/2026): substitui o PAR intensidade/complexidade (não só a
@@ -430,9 +468,12 @@ function engine6(M, o) {
     // % de vazio genérico por número — quando a marca declara densVisual, a seção 7 acima nunca
     // emite esse número, então o checklist deixa de perguntar por ele e passa a perguntar pela
     // densidade declarada (senão o checklist citaria um valor que nunca apareceu no prompt).
+    // vs_hierarquia_visual (23/set/2026, decisão 9 desta rodada): mesmo problema, mesma correção —
+    // "headline dominant 50-60%" ficava fixo mesmo quando a seção 5 já tinha trocado esse
+    // percentual pelo declarado pela marca. Word count também segue o novo teto (22, decisão 2).
     o.composicaoAtiva
       ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + (densVisual || vazio) + '? left half calm and uncluttered? safe zones respected?')
-      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
+      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: piece text word count ≤22? palette locked? label 8-12% at 7:1? ' + (hierarquiaVS ? ('reading priority follows the brand\'s own declared hierarchy') : 'headline dominant 50-60%') + '? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
   ].filter(Boolean).join('\n');
 }
 
@@ -749,7 +790,7 @@ async function diretorDeArte(M, o, ctx) {
 const TOOL_VERIFICACAO_TEXTO_NOME = 'reportar_texto_lido_na_imagem';
 const TOOL_VERIFICACAO_TEXTO = {
   name: TOOL_VERIFICACAO_TEXTO_NOME,
-  description: 'Transcreve EXATAMENTE o texto visível na imagem, campo a campo, caractere a caractere (acentos incluídos). Não julgue se está certo ou errado — apenas leia e copie o que está escrito. Campo sem texto correspondente visível na imagem: string vazia.',
+  description: 'Transcreve EXATAMENTE o texto visível na imagem, campo a campo, caractere a caractere (acentos incluídos). Não julgue se está certo ou errado — apenas leia e copie o que está escrito. Campo sem texto correspondente visível na imagem: string vazia. Além disso, verifica se algum elemento importante cai dentro das faixas que serão CORTADAS antes da entrega (a mensagem descreve quais faixas, em percentual).',
   input_schema: {
     type: 'object',
     properties: {
@@ -758,8 +799,15 @@ const TOOL_VERIFICACAO_TEXTO = {
       subheadline: { type: 'string', description: 'Texto da subheadline (linha de apoio), se houver. String vazia se não houver.' },
       prova: { type: 'string', description: 'Texto da prova/dado em destaque, se houver. String vazia se não houver.' },
       cta: { type: 'string', description: 'Texto do botão/pílula de CTA, se houver. String vazia se não houver.' },
+      // 23/set/2026 ("Corte, mockup e teto de texto", decisão 1, autorizado pelo João): a peça de
+      // teste teve label do topo e CTA da base cortados MESMO com a seção 12 declarando a região
+      // entregue — instrução em prosa sozinha não bastou (mesmo padrão de outros 7 casos já
+      // corrigidos com mecanismo em vez de ênfase textual). Verificação por visão já roda ANTES
+      // do corte de verdade e já tem regeneração de uma tentativa — reaproveita os dois.
+      elemento_em_faixa_descartada: { type: 'boolean', description: 'true se QUALQUER elemento importante (texto, label, CTA, selo, rosto, logo, borda de mockup) estiver total ou parcialmente dentro de alguma das faixas descritas na mensagem como "serão descartadas". false se todos os elementos importantes estão fora dessas faixas.' },
+      descricao_faixa_descartada: { type: 'string', description: 'Quais elementos estão na faixa descartada e em qual borda (ex.: "CTA cortado na faixa inferior; label roçando a faixa do topo"). String vazia se elemento_em_faixa_descartada for false.' },
     },
-    required: ['selo', 'headline', 'subheadline', 'prova', 'cta'],
+    required: ['selo', 'headline', 'subheadline', 'prova', 'cta', 'elemento_em_faixa_descartada', 'descricao_faixa_descartada'],
   },
 };
 
@@ -794,15 +842,24 @@ function compararTextoLido(esperados, lidos) {
 // "verificou e divergiu" (retorno normal, possivelmente com divergentes). Quem chama nunca deve
 // tratar uma falha de infraestrutura como divergência: isso dispararia regeneração às cegas, o
 // oposto do que esta verificação existe para evitar.
-async function verificarTextoPorVisao(bytesImagem, esperados, mediaType) {
+// regiaoEntregue (23/set/2026, decisão 1 acima): a MESMA geometria que calcularZonaExclusao() já
+// calcula e que engine6() seção 12 já declara ao modelo de IMAGEM — nunca recalculada nem
+// hardcodada aqui de novo, só reaproveitada pra descrever as faixas ao modelo de VISÃO.
+async function verificarTextoPorVisao(bytesImagem, esperados, mediaType, regiaoEntregue) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('sem ANTHROPIC_API_KEY');
   const b64 = bytesImagem.toString('base64');
   const listaEsperada = ['selo', 'headline', 'subheadline', 'prova', 'cta']
     .map(c => `${c}: ${JSON.stringify(String((esperados && esperados[c]) || ''))}`)
     .join('\n');
+  const descricaoFaixas = (regiaoEntregue && (regiaoEntregue.descarteAltura > 0.001 || regiaoEntregue.descarteLargura > 0.001))
+    ? ('\n\nEsta imagem será CORTADA antes da entrega ao cliente: '
+        + (regiaoEntregue.descarteAltura > 0.001 ? ('a faixa do TOPO e a faixa da BASE, ' + fmtPct(regiaoEntregue.descartePorBorda) + ' da altura cada uma (' + fmtPct(regiaoEntregue.descarteAltura) + ' da altura total), serão descartadas. ') : '')
+        + (regiaoEntregue.descarteLargura > 0.001 ? ('a faixa da ESQUERDA e a faixa da DIREITA, ' + fmtPct(regiaoEntregue.descartePorLado) + ' da largura cada uma (' + fmtPct(regiaoEntregue.descarteLargura) + ' da largura total), serão descartadas. ') : '')
+        + 'Olhe atentamente se algum elemento importante (texto, label, CTA, selo, rosto, logo, borda de mockup) está total ou parcialmente dentro dessas faixas — ele será cortado fora na entrega final, mesmo que pareça só "roçando" a borda.')
+    : '';
   const userContent = [
     { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/png', data: b64 } },
-    { type: 'text', text: 'Estes são os textos que deveriam aparecer nesta peça (campo: texto esperado — pode estar vazio se o campo não se aplica a esta peça):\n' + listaEsperada + '\n\nUse a ferramenta para transcrever exatamente o que está escrito em cada campo visível na imagem.' },
+    { type: 'text', text: 'Estes são os textos que deveriam aparecer nesta peça (campo: texto esperado — pode estar vazio se o campo não se aplica a esta peça):\n' + listaEsperada + descricaoFaixas + '\n\nUse a ferramenta para transcrever exatamente o que está escrito em cada campo visível na imagem, e reportar também se algum elemento está dentro da faixa que será descartada.' },
   ];
   // Mesmo padrão dual-attempt do Diretor (acima): 1ª tentativa com output_config (raciocínio
   // baixo, cabe no tempo da função), repete sem output_config antes de desistir — nunca troca de
@@ -1421,34 +1478,45 @@ module.exports = async (req, res) => {
     let verificacaoTexto = null;
     if (_temTextoParaVerificar) {
       try {
-        const v1 = await verificarTextoPorVisao(bytes, textoEsperado, 'image/png');
+        const v1 = await verificarTextoPorVisao(bytes, textoEsperado, 'image/png', _regiaoEntregue);
         const divergentes1 = compararTextoLido(textoEsperado, v1.lidos);
-        if (!divergentes1.length) {
-          verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], tentativas: 1 };
+        // 23/set/2026 ("Corte, mockup e teto de texto", decisão 1, autorizado pelo João): elemento
+        // em faixa descartada agora conta como divergência, no MESMO fluxo de regeneração de uma
+        // tentativa que já existia pra texto errado — a seção 12 sozinha (prosa) não bastou pra
+        // impedir o label do topo e o CTA da base cortados na peça de teste.
+        const faixaDescartada1 = { em: !!(v1.lidos && v1.lidos.elemento_em_faixa_descartada), descricao: String((v1.lidos && v1.lidos.descricao_faixa_descartada) || '') };
+        if (!divergentes1.length && !faixaDescartada1.em) {
+          verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], faixa_descartada: faixaDescartada1, tentativas: 1 };
         } else {
           // DIVERGE, REGENERA UMA VEZ COM O MESMO PROMPT (item 3): reenviarMesmoPrompt() chama a
           // MESMA rota (edits/generations) de novo, com o texto de prompt IDÊNTICO — a cena não
           // muda, só se pede ao gpt-image-1 uma nova tentativa de renderizar a letra certa.
-          console.error('[verificacao-texto] divergiu na 1ª tentativa:', JSON.stringify(divergentes1));
+          if (divergentes1.length) console.error('[verificacao-texto] divergiu na 1ª tentativa:', JSON.stringify(divergentes1));
+          if (faixaDescartada1.em) console.error('[verificacao-texto] elemento em faixa descartada na 1ª tentativa:', faixaDescartada1.descricao);
           const retryResp = await reenviarMesmoPrompt();
           const retryResult = await retryResp.json().catch(() => null);
           const retryB64 = retryResult && retryResult.data && retryResult.data[0] && retryResult.data[0].b64_json;
           if (retryResp.ok && retryB64) {
             const bytesRetry = Buffer.from(retryB64, 'base64');
-            const v2 = await verificarTextoPorVisao(bytesRetry, textoEsperado, 'image/png');
+            const v2 = await verificarTextoPorVisao(bytesRetry, textoEsperado, 'image/png', _regiaoEntregue);
             const divergentes2 = compararTextoLido(textoEsperado, v2.lidos);
+            const faixaDescartada2 = { em: !!(v2.lidos && v2.lidos.elemento_em_faixa_descartada), descricao: String((v2.lidos && v2.lidos.descricao_faixa_descartada) || '') };
             // DIVERGE NAS DUAS: fica com a tentativa de MENOS divergências (empate → fica com a
-            // 2ª, é a que já passou por uma tentativa de correção).
-            if (divergentes2.length <= divergentes1.length) {
+            // 2ª, é a que já passou por uma tentativa de correção). Elemento em faixa descartada
+            // entra no mesmo placar, como +1 problema — texto certo com CTA cortado ainda é pior
+            // que texto certo sem nada cortado.
+            const placar1 = divergentes1.length + (faixaDescartada1.em ? 1 : 0);
+            const placar2 = divergentes2.length + (faixaDescartada2.em ? 1 : 0);
+            if (placar2 <= placar1) {
               bytes = bytesRetry;
-              verificacaoTexto = { modelo: v2.modelo, esperado: textoEsperado, lido: v2.lidos, divergentes: divergentes2, tentativas: 2 };
+              verificacaoTexto = { modelo: v2.modelo, esperado: textoEsperado, lido: v2.lidos, divergentes: divergentes2, faixa_descartada: faixaDescartada2, tentativas: 2 };
             } else {
-              verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, tentativas: 2 };
+              verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, faixa_descartada: faixaDescartada1, tentativas: 2 };
             }
           } else {
             // regeneração de correção falhou (infra) — fica com a única imagem válida em mãos.
             console.error('[verificacao-texto] regeneração de correção falhou, mantendo a 1ª tentativa');
-            verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, tentativas: 1, regeneracao_falhou: true };
+            verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, faixa_descartada: faixaDescartada1, tentativas: 1, regeneracao_falhou: true };
           }
         }
       } catch (e) {
@@ -1519,7 +1587,12 @@ module.exports = async (req, res) => {
     // escrita só, mesclada (mesclarMetaNaOrdem), nunca uma corrida de PATCHes concorrentes.
     if (conteudo_id) {
       await mesclarMetaNaOrdem(conteudo_id, {
-        prompt_final: String(promptFinal || '').slice(0, 12000),
+        // 23/set/2026 ("Corte, mockup e teto de texto", autorizado pelo João, decisão 10): o
+        // corte de 12.000 caracteres saiu — prompt_final é o instrumento de auditoria ("sem ele,
+        // qualquer diagnóstico de qualidade é suposição", item 4 da rodada anterior); cortado, ele
+        // cegava justamente a cauda (o briefing de cena, seções finais). O prompt cresceu bastante
+        // com a camada VISUAL_SYSTEM (rodada anterior); auditoria precisa do texto inteiro.
+        prompt_final: String(promptFinal || ''),
         ...(verificacaoTexto ? { verificacao_texto: verificacaoTexto } : {}),
         // Causa 2, Rodada 2: mesma escrita mesclada, nunca uma segunda gravação concorrente.
         ...(_dnaFaltando.length ? { dna_incompleto: _dnaFaltando } : {}),

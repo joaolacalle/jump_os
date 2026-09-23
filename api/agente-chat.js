@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.23-engine6-dna-marca-camada-visual-system-vs-prefixo-tem-precedencia-sobre-generico';
+const VERSAO = '2026.09.23-engine6-corte-por-visao-teto-de-texto-por-objeto-mockup-legivel-icone-escopado-a-marca';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1181,6 +1181,20 @@ const handler = async (req, res) => {
         dna_marca_cor_fundo_chega_ao_engine_nunca_sobre_a_camada_fotografica:true,
         dna_marca_contraste_desacoplado_da_agressividade_campo_tipo_de_contraste_proprio:true,
         dna_marca_m6_carregamento_filtra_agente_eq_global_evita_colisao_silenciosa:true,
+        // CORTE, MOCKUP E TETO DE TEXTO (23/set/2026, autorizado pelo João) — peça de teste real
+        // com a camada VISUAL_SYSTEM revelou 3 defeitos: label/CTA cortados apesar da seção 12
+        // declarar a região entregue, mockup ilegível, ocupação bem abaixo do declarado. Só
+        // gerar-imagem.js foi tocado em código; aqui é só VERSAO/correcoes_ativas, regra permanente.
+        corte_verificacao_por_visao_agora_detecta_elemento_em_faixa_descartada_regenera_uma_vez:true,
+        teto_de_palavras_escopado_a_texto_da_peca_texto_de_objeto_da_cena_nao_conta:true,
+        copy_de_apoio_teto_subiu_de_6_para_12_palavras_headline_e_cta_inalterados:true,
+        branding_proibicao_de_icone_escopada_a_marca_icone_funcional_da_cena_permitido:true,
+        mockup_declara_escala_minima_25_por_cento_com_conteudo_legivel_quando_marca_declara_estilo:true,
+        vs_modo_humano_recupera_salvaguarda_never_artificial_exaggerated_or_forced_vintage:true,
+        vs_controle_foco_fotografico_substitui_a_frase_inteira_nao_so_o_fragmento_de_luminosidade:true,
+        varredura_vs_exclui_as_4_chaves_com_secao_propria_nunca_mais_duas_vezes_no_prompt:true,
+        checklists_finais_citam_hierarquia_e_densidade_declaradas_quando_existem_nao_o_fixo:true,
+        prompt_final_gravado_sem_corte_de_12000_caracteres_instrumento_de_auditoria_integral:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
