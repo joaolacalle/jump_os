@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo } = require('./_composicao-lib.js');
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.22-engine6-rodada2-causa1-corte-central-declarado-causa2-checkin-valida-dna-obrigatorio';
+const VERSAO = '2026.09.23-engine6-dna-marca-camada-visual-system-vs-prefixo-tem-precedencia-sobre-generico';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -200,6 +200,48 @@ function engine6(M, o) {
   // Campos novos do Script A (via Identidade) — refinam a direção de arte de cada marca.
   const estFoto = M.estilo_fotografico || '', composic = M.tipo_de_composicao || '', agress = M.nivel_de_agressividade || '';
   const obrig = M.elementos_obrigatorios || '', proib = M.elementos_proibidos || '';
+  const corFundo = M.cor_fundo || '';
+  // DNA DA MARCA — camada VISUAL_SYSTEM (23/set/2026, autorizado pelo João). Estes 5 campos têm
+  // PRECEDÊNCIA sobre o derivado genérico do enum — quando existem, a linha genérica correspondente
+  // é suprimida (nunca as duas ao mesmo tempo; ver cada uso abaixo, seções 5/6/7/8/11/13).
+  const densVisual = M.densidade_visual || '';
+  const contraste = M.tipo_de_contraste || '';
+  const modoHumanoVS = M.vs_modo_humano || '';
+  const focoVS = M.vs_controle_foco_fotografico || '';
+  const hierarquiaVS = M.vs_hierarquia_visual || '';
+  const profVS = M.vs_profundidade_visual || '';
+  // Campos declarativos do "segundo bloco do OS_DATA" — só emitidos quando a marca preencheu;
+  // marca sem eles continua caindo nos genéricos (_dna-lib.js não muda; nada aqui é obrigatório).
+  const estruturaCampos = [
+    densVisual ? ('Visual density (brand-declared): ' + densVisual + '.') : '',
+    composic ? ('Composition type: ' + composic + ' — lay the piece out this way.') : '',
+    contraste ? ('Contrast: ' + contraste + ' — calibrate contrast to this, independent of visual energy/aggressiveness below.') : '',
+    M.temperatura_cromatica ? ('Color temperature: ' + M.temperatura_cromatica + '.') : '',
+    M.estilo_visual_descricao ? ('Visual style, in the brand\'s own words: ' + M.estilo_visual_descricao + '.') : '',
+    M.estilo_de_copy ? ('Copy style: ' + M.estilo_de_copy + '.') : '',
+    M.tom_do_cta ? ('CTA tone: ' + M.tom_do_cta + '.') : '',
+    M.estilo_iconografico ? ('Iconographic style: ' + M.estilo_iconografico + '.') : '',
+    M.estilo_de_mockup ? ('Mockup style: ' + M.estilo_de_mockup + '.') : '',
+    M.momento_negocio ? ('Business moment: ' + M.momento_negocio + '.') : '',
+    M.objetivo_conteudo ? ('Content objective: ' + M.objetivo_conteudo + '.') : '',
+    M.sempre_fazer ? ('Always do: ' + M.sempre_fazer + '.') : '',
+    M.nunca_fazer ? ('Never do: ' + M.nunca_fazer + '.') : '',
+  ].filter(Boolean);
+  // VISUAL_SYSTEM: varre QUALQUER chave vs_* do DNA em vez de consumir lista fixa — campo novo
+  // aparece no prompt sem deploy. Descartado o mapa hardcoded (vs_comportamento_headline →
+  // "Headline behavior", no exemplo do João): a configuração campo a campo dos agentes já está
+  // planejada e cada campo novo viraria alteração de código. Rótulo derivado mecanicamente da
+  // própria chave (remove o prefixo vs_, troca _ por espaço, maiúscula só na primeira letra) —
+  // fica em português, na ordem da chave, não traduzido/reordenado como no exemplo dele; sinalizado
+  // como desvio no relatório desta entrega. .sort() garante prompt determinístico (a ordem que
+  // chega do banco não é garantida).
+  const visualSystemLinhas = Object.keys(M)
+    .filter(k => k.indexOf('vs_') === 0 && String(M[k] == null ? '' : M[k]).trim())
+    .sort()
+    .map(k => {
+      const rotulo = k.slice(3).replace(/_/g, ' ');
+      return rotulo.charAt(0).toUpperCase() + rotulo.slice(1) + ': ' + M[k];
+    });
   const paleta = [P1, P2, P3].filter(Boolean).join(', ');
   const reels = JC.ehVertical(o.formato || '');
   const intens = (M.intensidade_visual || 'MEDIA').toUpperCase();
@@ -224,20 +266,32 @@ function engine6(M, o) {
     o.total > 1 ? ('CAROUSEL slide ' + (o.slide || 1) + ' of ' + o.total + ': keep grid, composition, lighting, hierarchy, palette, intensity, complexity and temperature IDENTICAL to the other slides. Change ONLY label, headline, specific visual element and support copy.') : '',
     '',
     '=== 1. LOCKED PALETTE (CRITICAL) ===',
-    paleta ? ('Use EXCLUSIVELY these colors: ' + paleta + '. CTA color: ' + CTA + ' with locked saturation. Validate before rendering: am I using ONLY these colors? If an external color appears, STOP and fix.') : 'Use a restrained, consistent premium palette (max 3 colors).',
+    paleta ? ('Use EXCLUSIVELY these colors: ' + paleta + '. CTA color: ' + CTA + ' with locked saturation.' + (corFundo ? (' Background color: ' + corFundo + ' — dominant background tone and the color of any flat/solid zone. NEVER applied over the photographic layer: a real scene keeps its own real tones.') : '') + ' Validate before rendering: am I using ONLY these colors? If an external color appears, STOP and fix.') : 'Use a restrained, consistent premium palette (max 3 colors).',
     T1 || T2 ? ('Typography: headline in ' + (T1 || 'a bold grotesque') + ' Bold; support copy in ' + (T2 || T1 || 'a clean sans') + '.') : '',
     DNA ? ('Brand visual DNA: ' + DNA) : '',
     // CONTEXTO DE NEGÓCIO: sem isto o diretor inventa cenário genérico. Com isto, a cena
     // nasce do mundo real do cliente (consultório, oficina, cozinha, escritório, estúdio...).
     negocio ? ('=== BUSINESS CONTEXT (the scene must belong to THIS world) ===\n' + negocio + '\nEvery physical element you choose — environment, props, textures, wardrobe, objects — must plausibly belong to this business. A generic office/laptop scene is a failure unless this business IS an office business.') : '',
-    // BRAND VISUAL RULES: os campos novos do DNA que direcionam composição, fotografia e energia.
-    [estFoto, composic, agress, obrig, proib].some(Boolean) ? ('=== BRAND VISUAL RULES (from the client\'s DNA — obey them) ===\n' + [
+    // BRAND STRUCTURE & DENSITY (23/set/2026, "DNA da marca — camada VISUAL_SYSTEM", autorizado
+    // pelo João): segundo bloco do OS_DATA — densidade, composição, contraste e o resto dos campos
+    // declarativos da marca. tipo_de_composicao mora só aqui agora (saiu do bloco BRAND VISUAL
+    // RULES logo abaixo, que também o emitia — duas linhas pedindo a mesma coisa duas vezes).
+    estruturaCampos.length ? ('=== BRAND STRUCTURE & DENSITY (the client\'s own declared density and composition — obey them) ===\n' + estruturaCampos.join('\n')) : '',
+    // BRAND VISUAL RULES: os campos novos do DNA que direcionam fotografia e elementos.
+    [estFoto, agress, obrig, proib].some(Boolean) ? ('=== BRAND VISUAL RULES (from the client\'s DNA — obey them) ===\n' + [
       estFoto ? ('Photographic style: ' + estFoto + ' — any photographic layer must follow it.') : '',
-      composic ? ('Composition type: ' + composic + ' — lay the piece out this way.') : '',
-      agress ? ('Visual energy / aggressiveness: ' + agress + ' — calibrate contrast, scale and tension to this.') : '',
+      // 23/set/2026: contraste deixou de vir daqui — agora é tipo_de_contraste, campo próprio da
+      // marca (bloco acima), independente da energia/agressividade. As duas eram calibradas juntas
+      // e se anulavam quando a marca queria contraste alto com energia baixa (ou o oposto).
+      agress ? ('Visual energy / aggressiveness: ' + agress + ' — calibrate scale and tension to this.') : '',
       obrig ? ('ALWAYS include these brand elements: ' + obrig + '.') : '',
       proib ? ('NEVER include these elements: ' + proib + '.') : '',
     ].filter(Boolean).join('\n')) : '',
+    // BRAND VISUAL SYSTEM: varredura genérica de vs_* — ver o comentário de visualSystemLinhas
+    // acima. Os 4 campos abaixo TAMBÉM aparecem aqui (declaração) E substituem a linha genérica
+    // correspondente mais adiante (seções 5/6/8/11) — não é regra duplicada: uma é a declaração,
+    // a outra é o lugar onde o genérico teria entrado e agora não entra.
+    visualSystemLinhas.length ? ('=== BRAND VISUAL SYSTEM (the client\'s own design system — obey it) ===\n' + visualSystemLinhas.join('\n')) : '',
     '',
     // COMPOSIÇÃO ATIVA (22/set/2026, Fase 1): quando o código vai desenhar todo o texto e a
     // logo por cima (ver _composicao-lib.js), instruir o modelo a também tentar renderizar
@@ -262,7 +316,11 @@ function engine6(M, o) {
       : 'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
     '',
     o.composicaoAtiva ? '' : '=== 5. READING PRIORITY ===',
-    o.composicaoAtiva ? '' : 'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.',
+    // vs_hierarquia_visual (23/set/2026): substitui os percentuais fixos quando a marca declara
+    // a própria hierarquia — a linha genérica abaixo não é emitida junto.
+    o.composicaoAtiva ? '' : (hierarquiaVS
+      ? ('This brand\'s own reading priority: ' + hierarquiaVS + '. No element may compete above the headline\'s own share.')
+      : 'Headline ALWAYS dominant (50-60% of attention) > visual (30-40%) > label (5-10%) > copy+CTA (5-10%). No element may compete above 50% with the headline.'),
     '',
     // MATERIAL REAL PRESERVADO (21/set/2026, mesma rodada do contrato reescrito): esta seção era
     // incondicional — engine6 não recebia sinal nenhum de material preservado — e pedia luz
@@ -272,17 +330,32 @@ function engine6(M, o) {
     // sem material, texto idêntico ao de sempre; com material, a luz/sombra dirigida passa a valer
     // só para o AMBIENTE ao redor, nunca sobre o que está preservado.
     '=== 6. PHOTOGRAPHIC FOCUS CONTROL ===',
+    // vs_controle_foco_fotografico (23/set/2026): substitui "luminosity 60-70% max" nas duas
+    // variantes (com/sem material real) quando a marca declara o próprio controle de foco.
     o.materialReal
-      ? 'Photography SUPPORTS the headline, never competes: controlled medium contrast, luminosity 60-70% max, gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.'
-      : 'Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), luminosity 60-70% max, strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.',
+      ? ('Photography SUPPORTS the headline, never competes: controlled medium contrast, ' + (focoVS ? ('this brand\'s own photographic focus control: ' + focoVS) : 'luminosity 60-70% max') + ', gaze/product pointing toward the headline, subtly blurred background AROUND the preserved subject. The directional light and deep shadow this rule asks for belong to the ENVIRONMENT around the preserved material, never to the material itself — the preserved subject or product keeps exactly the light it already has in the original photo. An over-lit photo competes with the headline — avoid.')
+      : ('Photography SUPPORTS the headline, never competes: controlled medium contrast (not hyper-detailed), directional lighting (never flat), ' + (focoVS ? ('this brand\'s own photographic focus control: ' + focoVS) : 'luminosity 60-70% max') + ', strategic deep shadow areas, gaze/product pointing toward the headline, subtly blurred background. An over-lit photo competes with the headline — avoid.'),
     '',
     '=== 7. MANDATORY NEGATIVE SPACE ===',
-    o.composicaoAtiva
-      ? ('Leave ' + vazio + ' empty within the photographic (right) zone. Do NOT fill every area — empty space has narrative function. Minimum 5% height of breathing room around any visual element, margins always respected.')
-      : ('Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.'),
+    // densidade_visual (23/set/2026): substitui o % de vazio derivado de intensidade quando a
+    // marca declara a própria densidade — a linha genérica (mapa BAIXA/MEDIA/ALTA/EXTREMA) não
+    // é emitida junto. Sem conversão aritmética do valor declarado (formato é da marca, não do
+    // código) — ver ressalva no relatório desta entrega.
+    densVisual
+      ? (o.composicaoAtiva
+          ? ('This brand\'s own visual density: ' + densVisual + ' — build the photographic (right) zone to this density, not the generic empty-space mapping. Minimum 5% height of breathing room around any visual element, margins always respected.')
+          : ('This brand\'s own visual density: ' + densVisual + ' — build the piece to this density, not the generic empty-space mapping. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.'))
+      : (o.composicaoAtiva
+          ? ('Leave ' + vazio + ' empty within the photographic (right) zone. Do NOT fill every area — empty space has narrative function. Minimum 5% height of breathing room around any visual element, margins always respected.')
+          : ('Leave ' + vazio + ' empty. Do NOT fill every area — empty space has narrative function. Breathing room around the headline (never touch it with elements), minimum 5% height between elements, margins always respected.')),
     '',
     '=== 8. VISUAL DEPTH (ANTI-FLAT) — 3 MANDATORY LAYERS ===',
-    'FOREGROUND: light overlays, sticker cutouts, opacity 80-100%. MIDGROUND: headline, photo, labels, copy, CTA, opacity 100%. BACKGROUND: base, subtle textures, technical grid, opacity 20-60%. Subtle shadows (stickers 10-15% opacity, 8px offset), controlled overlap, selective background blur.',
+    // vs_profundidade_visual (23/set/2026): substitui o CONTEÚDO fixo das 3 camadas quando a
+    // marca declara a própria profundidade — as 3 camadas continuam obrigatórias (estrutura não
+    // muda), só o que vai em cada uma passa a vir do valor declarado.
+    profVS
+      ? ('3 layers remain mandatory (foreground / midground / background) — this brand\'s own layer content: ' + profVS + '. Subtle shadows (stickers 10-15% opacity, 8px offset), controlled overlap, selective background blur.')
+      : 'FOREGROUND: light overlays, sticker cutouts, opacity 80-100%. MIDGROUND: headline, photo, labels, copy, CTA, opacity 100%. BACKGROUND: base, subtle textures, technical grid, opacity 20-60%. Subtle shadows (stickers 10-15% opacity, 8px offset), controlled overlap, selective background blur.',
     '',
     '=== 9. VISUAL MOVEMENT ===',
     o.composicaoAtiva
@@ -293,7 +366,11 @@ function engine6(M, o) {
     o.composicaoAtiva ? '' : 'Portuguese text 100% correct (ç ã õ é á), perfectly legible, clean alignment, no deformation, no fused or melted letters, no wrong line breaks, consistent kerning, readable on mobile.',
     '',
     '=== 11. HUMAN MODE ===',
-    'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
+    // vs_modo_humano (23/set/2026): substitui "grain 2-5%, noise 1-3%..." quando a marca declara
+    // o próprio modo humano.
+    modoHumanoVS
+      ? ('This brand\'s own human-mode treatment: ' + modoHumanoVS + '. Goal: a real campaign, not an AI render.')
+      : 'Subtly add: grain 2-5%, noise 1-3%, light print texture, organic micro-wear. NEVER artificial, exaggerated or forced vintage. Goal: a real campaign, not an AI render.',
     '',
     '=== 12. SAFE ZONES ===',
     'CANVAS (real output): ' + (o.canvas || '1024x1536 portrait (2:3)') + '. Compose for THIS exact canvas — do not assume any other aspect ratio.',
@@ -321,7 +398,11 @@ function engine6(M, o) {
       : 'Headline <=8 words? Support copy <=6? CTA <=2? Total <=18? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? Headline dominant at 50-60% of attention? Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.',
     '',
     '=== 13. PARAMETERS ===',
-    'Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.',
+    // densidade_visual (23/set/2026): substitui o PAR intensidade/complexidade (não só a
+    // intensidade) quando a marca declara a própria densidade — ver Alterações da entrega.
+    densVisual
+      ? ('Visual density (brand-declared): ' + densVisual + '. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.')
+      : ('Intensity: ' + intens + ' (' + vazio + ' empty). Complexity: ' + elems + ' elements. Emotional temperature: ' + temp + '. Base style: ' + estilo + '.'),
     '',
     o.composicaoAtiva
       ? '=== SCENE BRIEF (do NOT render any of this as text — it only tells you what photographic scene to build; every piece of text and the logo are composed separately, by code) ==='
@@ -345,9 +426,13 @@ function engine6(M, o) {
     o.composicaoAtiva ? '' : ((o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : '')),
     o.composicaoAtiva ? '' : (o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : ''),
     '',
+    // densidade_visual (23/set/2026): estas duas linhas de checklist final também citavam o
+    // % de vazio genérico por número — quando a marca declara densVisual, a seção 7 acima nunca
+    // emite esse número, então o checklist deixa de perguntar por ele e passa a perguntar pela
+    // densidade declarada (senão o checklist citaria um valor que nunca apareceu no prompt).
     o.composicaoAtiva
-      ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + vazio + '? left half calm and uncluttered? safe zones respected?')
-      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + vazio + '? safe zones respected? spelling perfect?'),
+      ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + (densVisual || vazio) + '? left half calm and uncluttered? safe zones respected?')
+      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: word count ≤18? palette locked? label 8-12% at 7:1? headline dominant 50-60%? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
   ].filter(Boolean).join('\n');
 }
 
@@ -991,7 +1076,14 @@ module.exports = async (req, res) => {
     // OS_DATA REAL: sem isto o prompt pedia "siga a identidade visual" sem NUNCA enviar as cores/fontes.
     const M6 = {};
     try {
-      const mems = await fetch(`${SUPABASE_URL}/rest/v1/memorias?user_id=eq.${targetId}&select=chave,valor`, { headers: SBH() }).then(r => r.json());
+      // FONTE ÚNICA DO DNA (23/set/2026, "DNA da marca — camada VISUAL_SYSTEM", achado 6 do
+      // João, autorizado): faltava &agente=eq.global aqui — mesmo filtro que agente-chat.js já
+      // aplica (ver fontes/filtroMem, mais acima no outro arquivo). Sem ele, QUALQUER memória
+      // não-global do mesmo user_id com chave colidente (ex.: um agente registra um rascunho
+      // próprio sob uma chave que também é DNA global) sobrescreve o DNA da marca em silêncio —
+      // a ordem de chegada das linhas do banco decide qual valor "ganha", não a intenção. Este
+      // M6 alimenta só o Engine (engine6()); memórias por-agente nunca deveriam entrar aqui.
+      const mems = await fetch(`${SUPABASE_URL}/rest/v1/memorias?user_id=eq.${targetId}&agente=eq.global&select=chave,valor`, { headers: SBH() }).then(r => r.json());
       (Array.isArray(mems) ? mems : []).forEach(m => { M6[m.chave] = m.valor; });
     } catch (e) {}
     // SINAL DE DNA INCOMPLETO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2, autorizado pelo

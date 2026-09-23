@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.22-engine6-rodada2-causa1-corte-central-declarado-causa2-checkin-valida-dna-obrigatorio';
+const VERSAO = '2026.09.23-engine6-dna-marca-camada-visual-system-vs-prefixo-tem-precedencia-sobre-generico';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1173,6 +1173,14 @@ const handler = async (req, res) => {
         rodada2_causa2_enum_fora_do_conjunto_recusado_nunca_gravado_em_silencio:true,
         rodada2_causa2_dna_incompleto_sinalizado_em_log_e_em_conteudos_meta_na_geracao:true,
         rodada2_causa3_auditoria_de_fidelidade_pendente_relatorio_aguarda_peca_pos_deploy:true,
+        // DNA DA MARCA — camada VISUAL_SYSTEM (23/set/2026, autorizado pelo João): só
+        // gerar-imagem.js foi tocado nesta entrega (engine6() + carregamento de M6); aqui é só
+        // VERSAO/correcoes_ativas, mantidos em sincronia por regra permanente do contrato.
+        dna_marca_visual_system_vs_prefixo_varrido_sem_lista_fixa_campo_novo_sem_deploy:true,
+        dna_marca_declarado_tem_precedencia_sobre_generico_derivado_do_enum_nunca_ambos:true,
+        dna_marca_cor_fundo_chega_ao_engine_nunca_sobre_a_camada_fotografica:true,
+        dna_marca_contraste_desacoplado_da_agressividade_campo_tipo_de_contraste_proprio:true,
+        dna_marca_m6_carregamento_filtra_agente_eq_global_evita_colisao_silenciosa:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
