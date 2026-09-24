@@ -899,7 +899,7 @@ function render(){
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
         ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
-        ${(c.meta&&c.meta.verificacao_texto&&Array.isArray(c.meta.verificacao_texto.divergentes)&&c.meta.verificacao_texto.divergentes.length)?`<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px" title="${JUMP.esc(c.meta.verificacao_texto.divergentes.map(dv=>dv.campo+': esperado “'+dv.esperado+'”, saiu “'+dv.lido+'”').join(' · '))}">✏️ TEXTO DIVERGENTE — conferir</div>`:''}
+        ${(c.meta&&c.meta.alerta_defeito)?`<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px" title="${JUMP.esc(c.meta.alerta_defeito)}">⚠️ DEFEITO CONHECIDO — conferir</div>`:''}
         ${_expirado?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⛔ EXPIRADO — reagende para recuperar</div>':(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
           return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
@@ -957,6 +957,14 @@ function abrirEdicao(id){
        <div class="ec-cap">HASHTAGS</div>
        <div class="ec-box ec-chips">${hashtags.length?hashtags.map(h=>`<span class="ed-tag">${JUMP.esc(h)}</span>`).join(''):'<span class="ec-muted">Escreva #assim na legenda para adicionar</span>'}</div>`;
 
+  // DEFEITO VISÍVEL (24/set/2026, "Regeneração dirigida, defeito visível e cena que não se
+  // repete", decisão 2, autorizado pelo João): meta.alerta_defeito é gravado pelo backend
+  // (api/gerar-imagem.js) só quando a verificação por visão FINAL ainda tem texto divergente ou
+  // elemento em faixa descartada, mesmo após a regeneração dirigida. Reaproveita a mesma
+  // .ec-alert já usada abaixo para vencido/expirado — pedido explícito era "aparece para o
+  // usuário na tela de aprovação", nunca ficar só no badge pequeno do grid (ver esse badge, mais
+  // acima nesta tela, também atualizado nesta rodada pro mesmo campo). Independente de
+  // vencido/expirado — os dois podem coexistir, por isso é um bloco à parte, não um ternário.
   document.getElementById('edit-body').innerHTML=`
     <header class="ec-hd">
       <div>
@@ -975,6 +983,7 @@ function abrirEdicao(id){
     </div>
     ${_expiradoEdicao?`<div class="ec-alert"><div><b>Este post expirou</b> — a semana dele já fechou (ou a data já passou) sem aprovação. Reagende para uma data nova e ele volta a poder ser aprovado. Sem reagendar, é excluído automaticamente ${JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO} dias após expirar.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`
       :(vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:'')}
+    ${m.alerta_defeito?`<div class="ec-alert"><div>⚠️ <b>Defeito conhecido nesta peça, mesmo após a regeneração automática.</b> ${JUMP.esc(m.alerta_defeito)}</div></div>`:''}
 
     <div class="ec-grid">
       <section class="ec-pane">
