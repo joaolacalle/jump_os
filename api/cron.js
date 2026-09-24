@@ -1031,7 +1031,22 @@ async function jobProduzir(soUid) {
     // com o motivo visível — nunca fica preso em 'processando' nem some silenciosamente.
     // FALHA PARCIAL: carrossel só é 'concluida' se TODOS os slides saíram. Se faltou algum,
     // volta para a fila (retry) e a retomada gera apenas o que falta — nunca o que já existe.
-    const estadoFinal = (!posts.length) ? 'concluida'
+    // CICLO DE VIDA DO 'criar_avulso' (24/set/2026, decisão do João — "tirar o freio e fechar o
+    // buraco entre peça criada e arte gerada"): esta tarefa nasce para produzir arte NOVA
+    // (payload.ids aponta pro conteúdo que a Estratégia acabou de gravar via a cadeia
+    // direcao_avulso_criativo→criar_avulso, ou payload.itens/brief pede pra criar do zero pelo
+    // recorrente) — aqui, 'posts' vazio NUNCA significa "nada a fazer": significa que a peça não
+    // ficou pronta a tempo (gate de prontoParaArte, conteúdo ainda não visível pra esta leitura,
+    // ids apontando para algo excluído). Achado real: a ordem virava 'concluida' com progresso
+    // 0 de 0 e sem concluida_em (feitos=0, ver abaixo) — a peça ficava presa em rascunho, sem
+    // imagem, sem aviso em lugar nenhum (nem em Tarefas de Serviço, nem no painel "Sua Fila" do
+    // Criativo, que só conta pendente/processando/erro — uma ordem 'concluida' sai da contagem
+    // em silêncio). Outras tarefas (criar_post, ficha_tecnica etc.) mantêm o comportamento de
+    // sempre — 'posts vazio' pode legitimamente significar "já estava tudo pronto" para elas;
+    // só 'criar_avulso' nasce com o propósito exclusivo de criar o que ainda não existe, então só
+    // ela entra no mesmo retry-com-limite de uma falha real, em vez de concluir sem produzir nada.
+    const estadoFinal = (o.tarefa === 'criar_avulso' && !posts.length) ? (tent < 3 ? 'pendente' : 'erro')
+      : (!posts.length) ? 'concluida'
       : (faltamNoFim === 0 && feitos > 0) ? 'concluida'
       : (tent < 3 ? 'pendente' : 'erro');
     await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {

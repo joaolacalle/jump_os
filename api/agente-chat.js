@@ -1206,6 +1206,20 @@ const handler = async (req, res) => {
         cena_com_memoria_diretor_recebe_ultimas_3_cenas_do_cliente_como_contexto_negativo_nao_repita:true,
         mockup_25_por_cento_agora_condicional_a_cena_ter_tela_nunca_forcado_em_toda_peca:true,
         prova_ganha_teto_de_6_palavras_preferindo_numero_mais_substantivo:true,
+        // TIRAR O FREIO E FECHAR O BURACO ENTRE "PEÇA CRIADA" E "ARTE GERADA" (24/set/2026,
+        // autorizado pelo João) — peça de 24/set 17:36 ficou em rascunho, sem imagem, sem aviso
+        // e sem como tentar de novo (3ª ocorrência). Duas causas: o freio compartilhado
+        // ('jump_parar_lote') saiu inteiro de agentes.html/aprovar.html/dashboard-usuario.html —
+        // a única proteção de gasto agora é a cota do plano, checada a cada imagem dentro de
+        // api/gerar-imagem.js (intocado nesta rodada); e a ordem 'criar_avulso' virava 'concluida'
+        // com progresso 0/0 e sem concluida_em sempre que o worker (api/cron.js) não achava/gerava
+        // nenhuma peça na primeira passada — corrigido para ir a 'pendente'/'erro' via o mesmo
+        // retry-com-limite de uma falha real, nunca concluir sem produzir nada. Este arquivo
+        // (agente-chat.js) e gerar-imagem.js não tiveram código tocado — só este registro.
+        freio_compartilhado_removido_unica_protecao_agora_e_cota_por_imagem:true,
+        criar_avulso_nao_conclui_mais_com_zero_midia_vai_a_pendente_ou_erro:true,
+        aprovar_exibe_rascunhos_prontos_com_botao_que_chama_gerarfila_no_clique:true,
+        tarefas_de_servico_oferece_gerar_arte_para_criar_avulso_pendente:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
