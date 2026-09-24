@@ -261,6 +261,10 @@ const LV={basico:1,plus:2,pro:3};
 
 (async()=>{
   try{
+    // FREIO REMOVIDO (24/set/2026, decisão do João): 'jump_parar_lote' saiu de todas as telas —
+    // quem já tinha a marca gravada precisa ficar livre dela sem clicar em nada. O controle de
+    // gasto passa a ser só a cota do plano, checada a cada imagem em api/gerar-imagem.js.
+    try{localStorage.removeItem('jump_parar_lote')}catch(e){}
     const ctx=await JUMP.guard();
     let{user,cliente}=ctx;
     let viewing=null;
@@ -540,7 +544,6 @@ const LV={basico:1,plus:2,pro:3};
 // voltar, tem que ser por clique. origem:'lote' respeita a reserva de 20% do humano.
 async function autoGerarSemana(uid){
   try{
-    if(localStorage.getItem('jump_parar_lote')==='1')return; // freio compartilhado
     const tk=window._ctx&&window._ctx.token; if(!tk)return;
     const lim=new Date(Date.now()+7*864e5).toISOString();
     let{data:pend}=await JUMP.sb.from('conteudos').select('id,tema,copy,formato,tipo_visual,meta,data_sugerida').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).not('copy','is',null).neq('copy','').or(`data_sugerida.lte.${lim},data_sugerida.is.null`).order('data_sugerida',{ascending:true}).limit(3);
@@ -549,7 +552,6 @@ async function autoGerarSemana(uid){
     if(!ok.length)return;
     pend=ok;
     for(const c of pend){
-      if(localStorage.getItem('jump_parar_lote')==='1')return; // parado pelo usuário
       // CONTRATO ÚNICO (era a mesma sopa do aprovar.html — headline nunca chegava).
       try{
         const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(JUMP.payloadDoConteudo(c,{origem:'lote',ver_id:(window._ctx&&window._ctx.viewId)||null}))});

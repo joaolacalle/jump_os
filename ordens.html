@@ -278,6 +278,7 @@ function render(){
       </div>
       <div class="ord-acts">
         ${o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:''}
+        ${(o.status==='pendente'&&o.tarefa==='criar_avulso')?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">🎨 Gerar arte agora</button>`:''}
         <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
       </div>
     </div>`;

@@ -230,10 +230,19 @@ textarea.edt{resize:vertical;line-height:1.5}
   <div class="card" id="basico-note" style="display:none;border-color:rgba(185,117,249,.25);margin-bottom:16px">
     <div style="font-size:13px;color:var(--t2);line-height:1.6">💡 No plano <strong style="color:var(--cy)">Básico</strong>, você baixa o conteúdo pronto e publica você mesmo. Nos planos <strong>Plus e Pro</strong>, aprovar publica automaticamente no horário ideal.</div>
   </div>
+  <!-- RASCUNHOS PRONTOS PARA ARTE (24/set/2026, decisão do João): antes calculada e nunca
+       exibida — a peça ficava pronta para arte e nenhuma tela oferecia o botão para gerá-la.
+       Nasce oculta; render() decide se mostra, de acordo com RASCUNHOS.length. Nada automático:
+       a geração só começa no clique de "Gerar artes agora". -->
+  <div id="rascunhos-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:16px">🎨</span>
+      <span id="rascunhos-txt" style="font-family:var(--M);font-size:13px;color:var(--t2)"></span>
+      <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="gerarFila()">🎨 Gerar artes agora</button>
+    </div>
+  </div>
   <div id="fila-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span>
-      <button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>
-    <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-top:7px;line-height:1.5">Interrompe após a arte atual — nenhum token é gasto depois disso. Vale para todas as telas.</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span></div>
     <div style="font-size:11px;color:var(--t3);margin-top:6px">As artes do seu plano estão sendo criadas uma a uma. Você pode aguardar aqui.</div>
   </div>
   <div class="ap-grid" id="ap-grid"></div>
@@ -292,6 +301,10 @@ textarea.edt{resize:vertical;line-height:1.5}
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
   try{
+    // FREIO REMOVIDO (24/set/2026, decisão do João): 'jump_parar_lote' saiu de todas as telas —
+    // quem já tinha a marca gravada precisa ficar livre dela sem clicar em nada. O controle de
+    // gasto passa a ser só a cota do plano, checada a cada imagem em api/gerar-imagem.js.
+    try{localStorage.removeItem('jump_parar_lote')}catch(e){}
     JUMP.sidebar('aprovar');
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
@@ -403,9 +416,7 @@ async function regerarCarrossel(id){
   const tot=JUMP.totalSlides(c);
   if(!confirm('Regerar os '+tot+' slides? Isso gasta '+tot+' imagens da sua cota.'))return;
   const b=(typeof event!=='undefined'&&event)?event.target:null; if(b){b.disabled=true}
-  liberarGeracao();
   for(let n=1;n<=tot;n++){
-    if(deveParar()){JUMP.toast('Geração interrompida.');break}
     if(b)b.innerHTML='<span class="spin-i"></span> '+n+'/'+tot+'...';
     try{
       const r=await fetch('/api/gerar-imagem',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},
@@ -847,6 +858,16 @@ function render(){
   const _tot=ITENS.length+ESTRATEGIAS.length+MATERIAL_PEND.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
   const g=document.getElementById('ap-grid');
   document.getElementById('vazio').style.display=_tot?'none':'block';
+  // RASCUNHOS PRONTOS PARA ARTE: convite visível sempre que houver algo esperando e a fila não
+  // estiver já rodando (evita os dois avisos competindo pela atenção ao mesmo tempo).
+  const rb=document.getElementById('rascunhos-bar');
+  if(rb){
+    const filaRodando=document.getElementById('fila-bar')&&document.getElementById('fila-bar').style.display!=='none';
+    if(RASCUNHOS.length&&!filaRodando){
+      document.getElementById('rascunhos-txt').textContent=RASCUNHOS.length+' post(s) prontos, esperando arte.';
+      rb.style.display='block';
+    }else rb.style.display='none';
+  }
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
   const cardsEstr=ESTRATEGIAS.map(o=>{
     const semanal=(o.tarefa==='aprovar_semana'), n=(o._posts||[]).length;
@@ -1157,43 +1178,16 @@ async function excluirPost(id){
     JUMP.toast('Post excluído.');
   }catch(e){JUMP.toast('Erro ao excluir','err')}
 }
-// Geração automática em fila: gera a arte de cada rascunho, uma a uma, com progresso
-// ⏹ FREIO COMPARTILHADO: vale para as filas da Aprovação, do Criativo e do painel.
-function pararGeracao(btn){
-  try{localStorage.setItem('jump_parar_lote','1')}catch(e){}
-  if(btn){btn.disabled=true;btn.innerHTML='⏹ Parando...'}
-  JUMP.toast('Vou parar assim que a arte atual terminar.');
-}
-function deveParar(){try{return localStorage.getItem('jump_parar_lote')==='1'}catch(e){return false}}
-function liberarGeracao(){try{localStorage.removeItem('jump_parar_lote')}catch(e){}}
-function retomarGeracao(btn){
-  liberarGeracao();
-  if(btn){btn.disabled=true;btn.innerHTML='Retomando...'}
-  const b=document.getElementById('fila-bar');
-  if(b)b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span><button class="btn btn-o btn-sm" id="btn-parar" style="margin-left:auto" onclick="pararGeracao(this)">⏹ Parar geração</button></div>';
-  gerarFila();
-}
+// Geração em fila: gera a arte de cada rascunho, uma a uma, com progresso. Disparada só pelo
+// clique em "🎨 Gerar artes agora" (rascunhos-bar) — nada automático. O freio compartilhado
+// ('jump_parar_lote') saiu do sistema em 24/set/2026 (decisão do João): a única proteção de
+// gasto agora é a cota do plano, checada a cada imagem dentro de api/gerar-imagem.js — por
+// isso este loop não precisa mais de um ponto de parada próprio, só reage ao limite (d.limite).
 async function gerarFila(){
-  // Se a geração está pausada, mostra o aviso + botão de retomar (nunca fica preso).
-  if(deveParar()){
-    const b=document.getElementById('fila-bar');
-    if(b){
-      b.style.display='block';
-      b.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px">⏸</span>'+
-        '<span style="font-family:var(--M);font-size:13px;color:var(--t2)">Geração de artes pausada por você — '+RASCUNHOS.length+' post(s) aguardando.</span>'+
-        '<button class="btn btn-g btn-sm" style="margin-left:auto" onclick="retomarGeracao(this)">▶ Retomar geração</button></div>';
-    }
-    return;
-  }
   const bar=document.getElementById('fila-bar');
   if(bar)bar.style.display='block';
+  const rb=document.getElementById('rascunhos-bar'); if(rb)rb.style.display='none';
   for(let i=0;i<RASCUNHOS.length;i++){
-    if(deveParar()){
-      const st0=document.getElementById('fila-status');
-      if(st0)st0.textContent='⏹ Geração interrompida. '+i+' arte(s) prontas — as demais seguem pendentes.';
-      const bp=document.getElementById('btn-parar');if(bp)bp.remove();
-      return;
-    }
     const c=RASCUNHOS[i];
     const st=document.getElementById('fila-status');
     if(st)st.textContent=`Gerando arte ${i+1} de ${RASCUNHOS.length}…`;
@@ -1214,12 +1208,16 @@ async function gerarFila(){
       } else if(d&&d.limite){
         // limite de imagens atingido — para a fila com aviso claro
         if(bar)bar.style.display='none';
+        RASCUNHOS=RASCUNHOS.slice(i); // os que faltam continuam prontos para uma próxima tentativa
+        render();
         JUMP.toast('Limite de imagens do plano atingido. As artes restantes ficam pendentes.','err');
         return;
       }
     }catch(e){console.error('fila:',e);}
   }
   if(bar)bar.style.display='none';
+  RASCUNHOS=[];
+  render();
   JUMP.toast('✓ Artes geradas! Revise e aprove.');
 }
 // Salva o gosto do cliente como memória global (Designer aprende)
