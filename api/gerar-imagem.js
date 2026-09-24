@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo, carregarFonteParaTexto, pilulaSvg, e
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.24-foto-travada-cta-selo-por-codigo-coerencia-e-diretor-instrumentado';
+const VERSAO = '2026.09.24-motor-de-imagem-configuravel-e-zonas-das-pilulas-reservadas';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -186,6 +186,65 @@ function calcularZonaExclusao(genW, genH, alvoW, alvoH, margensBase) {
   };
 }
 const fmtPct = (f) => (Math.round(f * 10000) / 100) + '%';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ZONAS RESERVADAS DAS PÍLULAS (24/set/2026, "Trocar o motor de imagem e reservar as zonas das
+// pílulas", decisão 5, autorizado pelo João) — Achado adicional da ordem: o selo "OFERTA" saiu
+// POR CIMA da headline numa peça (24/set 21:32) porque o Engine nunca declarou ao modelo que as
+// duas áreas onde o código carimba CTA/selo (ver bloco de composição, mais abaixo, dentro de
+// `if (!logoJaComposta)`) estão reservadas — já faz isso pro canto do logo (seção 4 BRANDING),
+// faltava para as pílulas. FUNÇÃO IRMÃ de calcularZonaExclusao (acima), NUNCA dentro dela — esta
+// rodada não altera calcularZonaExclusao (está na lista do que não muda: "corte determinístico e
+// safe zones"). mapearRetParaGerado traduz um retângulo do canvas ENTREGUE (onde as pílulas
+// realmente ficam) para frações do canvas GERADO (onde o modelo de imagem desenha, ANTES do
+// corte) — mesma matemática de fit:'cover' com corte centralizado que calcularZonaExclusao já usa
+// para margens uniformes, aqui generalizada para um retângulo qualquer.
+function mapearRetParaGerado(genW, genH, alvoW, alvoH, ret) {
+  if (!genW || !genH || !alvoW || !alvoH || !ret) return null;
+  const escala = Math.max(alvoW / genW, alvoH / genH);
+  const escaladoW = genW * escala, escaladoH = genH * escala;
+  const offX = (escaladoW - alvoW) / 2, offY = (escaladoH - alvoH) / 2;
+  return {
+    x0: (ret.x + offX) / escala / genW,
+    y0: (ret.y + offY) / escala / genH,
+    x1: (ret.x + ret.w + offX) / escala / genW,
+    y1: (ret.y + ret.h + offY) / escala / genH,
+  };
+}
+// calcularZonasPills — FONTE ÚNICA da geometria das duas pílulas (selo e CTA) que o código
+// carimba por código, por cima da peça já cortada. Extraída do bloco que já existia (Rodada
+// "Foto travada de verdade, CTA e selo por código", 24/set/2026) para poder rodar CEDO — antes de
+// montar qualquer prompt — e alimentar tanto a declaração ao modelo (engine6, seção 4 BRANDING)
+// quanto o desenho de verdade (mais abaixo, dentro de `if (!logoJaComposta)`), que passa a REUSAR
+// este mesmo resultado em vez de recalcular. Comportamento — textos, fontes, cores, posições,
+// fallbacks — byte a byte o mesmo que já existia: SÓ o lugar onde a conta roda mudou (Invariante
+// em risco da ordem: "as coordenadas das zonas reservadas e as do compositor são a MESMA fonte").
+async function calcularZonasPills(vert, M6, pilar, ctaArte, total, targetId) {
+  const seloTexto = String(pilar || M6.marca || '').trim();
+  const ctaTexto = String(ctaArte || '').trim() || (Number(total) > 1 ? 'SWIPE →' : '');
+  if (!seloTexto && !ctaTexto) return null;
+  const tpl = obterTemplate(vert);
+  const corCtaDna = M6.cor_cta && String(M6.cor_cta).trim();
+  const corCta = corCtaDna || (M6.paleta_primaria && String(M6.paleta_primaria).split(',')[0].trim()) || '#BFFF00';
+  const { cor: corTextoCta } = escolherCorTexto(['#FFFFFF', '#0A0A0A'], corCta);
+  const textoAmostra = [seloTexto, ctaTexto].filter(Boolean).join(' ');
+  const { font } = await carregarFonteParaTexto('secundaria', M6.tipografia_secundaria, textoAmostra, { userId: targetId });
+  const contX = Math.round(tpl.w * tpl.margens.lados);
+  const topoY = Math.round(tpl.h * tpl.margens.top);
+  const baseY = Math.round(tpl.h * (1 - tpl.margens.bottom));
+  let selo = null, cta = null;
+  if (seloTexto) {
+    const r = pilulaSvg(font, seloTexto.toUpperCase(), Math.round(tpl.w * 0.028), contX, topoY, corCta, corTextoCta);
+    selo = { x: contX, y: topoY, w: r.largura, h: r.altura, svg: r.svg };
+  }
+  if (ctaTexto) {
+    const paddingXCta = 30, paddingYCta = 18, tamanhoCta = Math.round(tpl.w * 0.03);
+    const alturaCta = Math.round(tamanhoCta + paddingYCta * 2);
+    const r = pilulaSvg(font, ctaTexto.toUpperCase(), tamanhoCta, contX, baseY - alturaCta, corCta, corTextoCta, { paddingX: paddingXCta, paddingY: paddingYCta });
+    cta = { x: contX, y: baseY - alturaCta, w: r.largura, h: r.altura, svg: r.svg };
+  }
+  return { tpl, selo, cta };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // JUMP OS — CONTENT ENGINE 6.0 VISUAL (BLOCO IMUTÁVEL)
@@ -360,6 +419,19 @@ function engine6(M, o) {
     o.composicaoAtiva
       ? 'Keep the entire LEFT HALF of the canvas (full height) visually calm and simple — the system will completely cover it with the brand\'s text. Never place a face, product detail or anything important there; treat it as background only. The RIGHT HALF is where the real photographic scene lives.'
       : 'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
+    // ZONAS RESERVADAS DAS PÍLULAS (24/set/2026, decisão 5, autorizado pelo João) — mesma
+    // mecânica da linha do canto do logo, acima: quando o.ctaSeloPorCodigo, o sistema também
+    // carimba por código o selo (categoria) e o botão de CTA, em retângulos exatos calculados
+    // pela MESMA função (calcularZonasPills) que desenha de verdade mais abaixo — nunca um número
+    // aproximado hand-typed aqui. Ausente quando não há texto de selo/CTA nesta peça (zonasPills
+    // null) ou quando composicaoAtiva (compor() já reserva o espaço à sua própria maneira).
+    (!o.composicaoAtiva && o.ctaSeloPorCodigo && o.zonasPills && (o.zonasPills.selo || o.zonasPills.cta))
+      ? ('The system also reserves two exact rectangles, by code, for the CTA button/pill and the category label (selo) it stamps there after this image is cropped — same mechanism as the logo corner above. Do NOT place important text, a focal element or anything visually busy inside them: '
+          + [
+              o.zonasPills.selo ? ('SELO/LABEL zone — horizontally ' + fmtPct(o.zonasPills.selo.x0) + ' to ' + fmtPct(o.zonasPills.selo.x1) + ', vertically ' + fmtPct(o.zonasPills.selo.y0) + ' to ' + fmtPct(o.zonasPills.selo.y1) + '.') : '',
+              o.zonasPills.cta ? ('CTA zone — horizontally ' + fmtPct(o.zonasPills.cta.x0) + ' to ' + fmtPct(o.zonasPills.cta.x1) + ', vertically ' + fmtPct(o.zonasPills.cta.y0) + ' to ' + fmtPct(o.zonasPills.cta.y1) + '.') : '',
+            ].filter(Boolean).join(' '))
+      : '',
     '',
     o.composicaoAtiva ? '' : '=== 5. READING PRIORITY ===',
     // vs_hierarquia_visual (23/set/2026): substitui os percentuais fixos quando a marca declara
@@ -546,6 +618,22 @@ const MODEL_DIRETOR = () => trimEnv(process.env.AGENT_MODEL_DIRETOR) || 'claude-
 // ausente/vazia. Modelo separado de MODEL_DIRETOR de propósito — são etapas diferentes (uma
 // escreve cena, a outra só lê o que saiu na imagem) e podem precisar de ajuste independente.
 const MODEL_VERIFICACAO_TEXTO = () => trimEnv(process.env.AGENT_MODEL_VERIFICACAO_TEXTO) || 'claude-sonnet-5';
+
+// MODELO DE IMAGEM POR CAMINHO (24/set/2026, "Trocar o motor de imagem e reservar as zonas das
+// pílulas", decisão 4, autorizado pelo João) — o nome do modelo de cada caminho (edição
+// image-to-image e geração text-to-image) sai de constante literal e vira configuração, mesmo
+// padrão de MODEL_DIRETOR/MODEL_VERIFICACAO_TEXTO acima (trimEnv + fallback). PADRÃO ATUAL:
+// 'gpt-image-1' — a troca para a linha GPT Image 2.5 (nomes confirmados na doc oficial da OpenAI,
+// developers.openai.com: 'gpt-image-2.5-sunburst' e 'gpt-image-2.5-flare', ambos servindo os
+// mesmos endpoints images/generations e images/edits) fica disponível por env var, NUNCA como
+// padrão automático desta rodada — "precisamos poder voltar ao gpt-image-1 numa linha, e não por
+// rollback de deploy" (decisão 4). Dois nomes de env var separados (não uma só) porque a ordem
+// pede modelos DIFERENTES por caminho (decisão 3): AGENT_MODEL_IMAGEM_EDICAO para o caminho com
+// foto/produto real (Sunburst, precisão de edição), AGENT_MODEL_IMAGEM_TEXTO para o caminho
+// conceitual sem material real (Flare, geração rápida). Ver relatório desta entrega para os
+// valores exatos a configurar na Vercel quando a troca for aprovada.
+const MODEL_IMAGEM_EDICAO = () => trimEnv(process.env.AGENT_MODEL_IMAGEM_EDICAO) || 'gpt-image-1';
+const MODEL_IMAGEM_TEXTO = () => trimEnv(process.env.AGENT_MODEL_IMAGEM_TEXTO) || 'gpt-image-1';
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
@@ -1373,6 +1461,16 @@ module.exports = async (req, res) => {
     const [_genW, _genH] = size.split('x').map(Number);
     const _alvoRecorte = _vertical ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
     const _regiaoEntregue = calcularZonaExclusao(_genW, _genH, _alvoRecorte.w, _alvoRecorte.h, MARGENS_BASE_SAFE_ZONE[_vertical ? 'reels' : 'feed']);
+    // INSTRUMENTO PERMANENTE — CUSTO E TEMPO POR CHAMADA À OPENAI (24/set/2026, "Trocar o motor
+    // de imagem e reservar as zonas das pílulas", "Alterações" item 4, autorizado pelo João).
+    // Populado DENTRO de chamarOpenAIImageToImage/chamarOpenAITextToImage (mais abaixo, únicas
+    // duas funções que de fato chamam a OpenAI — toda regeneração, inclusive reenviarMesmoPrompt
+    // e o fallback de composição, passa por uma das duas). O `usage` de cada chamada só é
+    // conhecido depois que o CHAMADOR já consumiu a resposta (`.json()`, corpo consumível uma
+    // única vez) — por isso é anexado ao ÚLTIMO item deste array no ponto de chamada, nunca
+    // recalculado aqui. Seguro por execução estritamente sequencial: este handler nunca dispara
+    // duas chamadas à OpenAI em paralelo (sem Promise.all entre elas em nenhum caminho).
+    const _chamadasOpenAI = [];
 
     // Buscar imagens base do acervo: logo SEMPRE; foto pessoal se for post de pessoa
     // OS_DATA REAL: sem isto o prompt pedia "siga a identidade visual" sem NUNCA enviar as cores/fontes.
@@ -1413,6 +1511,29 @@ module.exports = async (req, res) => {
         if (_alertaCoerencia) console.error('[coerencia] divergência detectada antes de gerar:', _alertaCoerencia);
       } catch (e) { console.error('[coerencia] falha inesperada, seguindo sem checar:', e.message); }
     }
+
+    // ZONAS RESERVADAS DAS PÍLULAS (24/set/2026, decisão 5, autorizado pelo João) — calculada
+    // CEDO, antes de montar qualquer prompt, com calcularZonasPills (FONTE ÚNICA, ver definição
+    // acima de engine6). M6/pilar/cta_arte/total já existem neste ponto (M6 populado acima,
+    // pilar/cta_arte/total vêm do req.body, desestruturados no topo do handler — nenhum dos três
+    // muda depois daqui). O resultado alimenta tanto o.zonasPills (declaração ao modelo, dentro de
+    // oArte/oArte2 mais abaixo) quanto o desenho de verdade (bloco `if (!logoJaComposta)`, mais
+    // abaixo), que passa a REUSAR _zonasPills em vez de recalcular — nunca duas contas
+    // divergentes. engine===false (ficha técnica) não carrega pilar/cta_arte de peça de verdade —
+    // mesmo escopo de validarTextoDaPeca/checarCoerenciaConteudo, acima.
+    let _zonasPills = null;
+    if (engine !== false) {
+      try {
+        _zonasPills = await calcularZonasPills(_vertical, M6, pilar, cta_arte, total, targetId);
+      } catch (e) { console.error('[zonas-pills] cálculo antecipado falhou, prompt e composição seguem sem reserva:', e.message); }
+    }
+    // Traduzida pro canvas GERADO (o que o modelo de imagem desenha, ANTES do corte) — mesma
+    // matemática de calcularZonaExclusao, função IRMÃ nova (mapearRetParaGerado, acima) porque
+    // calcularZonaExclusao está na lista do que esta rodada não altera.
+    const _zonasPillsGeradas = _zonasPills ? {
+      selo: _zonasPills.selo ? mapearRetParaGerado(_genW, _genH, _alvoRecorte.w, _alvoRecorte.h, _zonasPills.selo) : null,
+      cta: _zonasPills.cta ? mapearRetParaGerado(_genW, _genH, _alvoRecorte.w, _alvoRecorte.h, _zonasPills.cta) : null,
+    } : null;
 
     // CENA COM MEMÓRIA (24/set/2026, "Regeneração dirigida, defeito visível e cena que não se
     // repete", decisão 3, autorizado pelo João) — FONTE ÚNICA, buscada uma vez só (mesmo padrão
@@ -1503,8 +1624,14 @@ module.exports = async (req, res) => {
     // reconstruindo do zero com o texto idêntico capturado em promptFinal. Corpo da requisição
     // byte a byte o mesmo que sempre existiu — só reorganizado, nunca duplicado.
     async function chamarOpenAIImageToImage(promptTexto) {
+      // MODELO POR CONFIGURAÇÃO (24/set/2026, "Trocar o motor de imagem...", decisão 4,
+      // autorizado pelo João): era o literal 'gpt-image-1' — ver MODEL_IMAGEM_EDICAO, acima de
+      // engine6(). Endpoint, quality e input_fidelity CONFIRMADOS idênticos entre gpt-image-1 e a
+      // linha GPT Image 2.5 na doc oficial da OpenAI (ver relatório desta entrega) — nenhum dos
+      // três precisou mudar de nome/valor para o modelo novo funcionar aqui.
+      const modelo = MODEL_IMAGEM_EDICAO();
       const form = new FormData();
-      form.append('model', 'gpt-image-1');
+      form.append('model', modelo);
       form.append('prompt', promptTexto);
       form.append('size', size);
       // QUALIDADE ALTA (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 1,
@@ -1528,20 +1655,28 @@ module.exports = async (req, res) => {
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
         body: form,
       });
+      const _tempoMs = Date.now() - _t0;
       // TEMPO REAL EM QUALIDADE ALTA (item 1, "medir e reportar"): não medível neste sandbox
       // (sem OPENAI_API_KEY) — instrumentado para a produção reportar o número real. Relevante
       // porque maxDuration é 300s e o item 3 pode exigir até duas gerações na mesma requisição.
-      console.log('[gerar-imagem] images/edits quality=high levou', Date.now() - _t0, 'ms');
+      console.log('[gerar-imagem] images/edits quality=high modelo=' + modelo + ' levou', _tempoMs, 'ms');
+      // CUSTO E TEMPO (decisão "Alterações" item 4): usage anexado pelo CHAMADOR, depois de
+      // consumir resp.json() — ver _chamadasOpenAI, acima de engine6().
+      _chamadasOpenAI.push({ endpoint: 'images/edits', modelo, tempo_ms: _tempoMs, ok: resp.ok, em: new Date().toISOString() });
       return resp;
     }
     async function chamarOpenAITextToImage(promptTexto) {
+      // MODELO POR CONFIGURAÇÃO (decisão 4): era o literal 'gpt-image-1' — ver MODEL_IMAGEM_TEXTO.
+      const modelo = MODEL_IMAGEM_TEXTO();
       const _t0 = Date.now();
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-image-1', prompt: promptTexto, size, n: 1, quality: 'high' }),
+        body: JSON.stringify({ model: modelo, prompt: promptTexto, size, n: 1, quality: 'high' }),
       });
-      console.log('[gerar-imagem] images/generations quality=high levou', Date.now() - _t0, 'ms');
+      const _tempoMs = Date.now() - _t0;
+      console.log('[gerar-imagem] images/generations quality=high modelo=' + modelo + ' levou', _tempoMs, 'ms');
+      _chamadasOpenAI.push({ endpoint: 'images/generations', modelo, tempo_ms: _tempoMs, ok: resp.ok, em: new Date().toISOString() });
       return resp;
     }
 
@@ -1644,7 +1779,7 @@ module.exports = async (req, res) => {
       // pílulas depois do corte (ver o ponto de composição, mais abaixo). Só falso quando
       // compAtivaLocal é true — aí o template de composição completo (compor()) já desenha os
       // dois: nunca os dois caminhos ao mesmo tempo (invariante da ordem).
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
@@ -1673,7 +1808,7 @@ module.exports = async (req, res) => {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
       // ctaSeloPorCodigo (decisão 4): mesmo raciocínio do ramo image-to-image, acima.
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
@@ -1698,6 +1833,12 @@ module.exports = async (req, res) => {
     }
     let { r, composicaoAtivaEfetiva, materialRealPreservado, promptFinal, reenviarMesmoPrompt, resumoCena, diretorPrompt, diretorResposta } = await gerarPeca(composicaoLigada && engine !== false);
     const result = await r.json();
+    // CUSTO E TEMPO (decisão "Alterações" item 4, autorizado pelo João): usage só é conhecido
+    // aqui, depois de consumir o corpo da resposta — anexado ao último item de _chamadasOpenAI
+    // (a chamada que acabou de terminar; execução sequencial, ver comentário na declaração do
+    // array). Ausente na resposta (doc marca usage como "For gpt-image-1 only" — ver relatório) →
+    // fica undefined, nunca inventado.
+    if (_chamadasOpenAI.length) _chamadasOpenAI[_chamadasOpenAI.length - 1].usage = result.usage || undefined;
     if (!r.ok) {
       const detalhe = (result.error && result.error.message) || JSON.stringify(result).slice(0, 200);
       console.error('openai gpt-image:', detalhe);
@@ -1759,6 +1900,9 @@ module.exports = async (req, res) => {
         diretorPrompt = retry.diretorPrompt || null;
         diretorResposta = retry.diretorResposta || '';
         const result2 = await r.json();
+        // CUSTO E TEMPO: mesma anexação de usage, agora pra chamada de regeneração de fallback
+        // (compositor falhou → gerarPeca(false), caminho tradicional).
+        if (_chamadasOpenAI.length) _chamadasOpenAI[_chamadasOpenAI.length - 1].usage = result2.usage || undefined;
         if (!r.ok || !(result2.data && result2.data[0] && result2.data[0].b64_json)) {
           const detalhe2 = (result2.error && result2.error.message) || 'regeneração sem composição também falhou';
           console.error('[composicao] regeneração de fallback falhou:', detalhe2);
@@ -1818,6 +1962,8 @@ module.exports = async (req, res) => {
           const _adendoCorretivo = montarAdendoCorretivo(divergentes1, faixaDescartada1);
           const retryResp = await reenviarMesmoPrompt(_adendoCorretivo);
           const retryResult = await retryResp.json().catch(() => null);
+          // CUSTO E TEMPO: mesma anexação de usage do ponto acima, agora pra chamada de retry.
+          if (_chamadasOpenAI.length) _chamadasOpenAI[_chamadasOpenAI.length - 1].usage = (retryResult && retryResult.usage) || undefined;
           const retryB64 = retryResult && retryResult.data && retryResult.data[0] && retryResult.data[0].b64_json;
           if (retryResp.ok && retryB64) {
             const bytesRetry = Buffer.from(retryB64, 'base64');
@@ -1895,37 +2041,24 @@ module.exports = async (req, res) => {
       // que só o modelo tinha; se pilar e marca vierem vazios, o selo simplesmente não é desenhado
       // (desvio documentado, sinalizado no relatório desta entrega). CTA cai no mesmo fallback de
       // "SWIPE →" no carrossel sem cta_arte, mesma regra que engine6() já tinha.
+      // FONTE ÚNICA (24/set/2026, "Trocar o motor de imagem e reservar as zonas das pílulas",
+      // decisão 5, autorizado pelo João): reaproveita _zonasPills, já calculado CEDO (antes de
+      // montar o prompt) pela MESMA função (calcularZonasPills, acima de engine6) que também
+      // alimentou a reserva declarada ao modelo — nunca duas contas divergentes, nunca duas
+      // chamadas de fonte/rede quando a de cedo já resolveu. Recalcular aqui só entra como
+      // fallback DEFENSIVO (mesmo padrão já usado por _vert/alvo, acima) para o caso raro da
+      // chamada de cedo ter falhado (ex.: rede instável) — preserva, mesmo nesse caso, o sinal de
+      // falha visível (registrarFalhaComposicaoNaOrdem, no catch abaixo) que já existia antes
+      // desta rodada: sem o fallback, uma falha só na etapa cedo passaria em silêncio aqui.
       if (engine !== false) {
-        const seloTexto = String(pilar || M6.marca || '').trim();
-        const ctaTexto = String(cta_arte || '').trim() || (Number(total) > 1 ? 'SWIPE →' : '');
-        if (seloTexto || ctaTexto) {
+        const zonas = _zonasPills || await calcularZonasPills(_vert, M6, pilar, cta_arte, total, targetId).catch(() => null);
+        if (zonas && (zonas.selo || zonas.cta)) {
           try {
-            const tplPills = obterTemplate(_vert);
-            const corCtaDna = M6.cor_cta && String(M6.cor_cta).trim();
-            const corCta = corCtaDna || (M6.paleta_primaria && String(M6.paleta_primaria).split(',')[0].trim()) || '#BFFF00';
-            const { cor: corTextoCta } = escolherCorTexto(['#FFFFFF', '#0A0A0A'], corCta);
-            const textoAmostraPills = [seloTexto, ctaTexto].filter(Boolean).join(' ');
-            const { font: fonteSecundariaPills } = await carregarFonteParaTexto('secundaria', M6.tipografia_secundaria, textoAmostraPills, { userId: targetId });
-            const contXPills = Math.round(tplPills.w * tplPills.margens.lados);
-            const topoYPills = Math.round(tplPills.h * tplPills.margens.top);
-            const baseYPills = Math.round(tplPills.h * (1 - tplPills.margens.bottom));
             let pillsSvg = '';
-            if (seloTexto) {
-              const selo = pilulaSvg(fonteSecundariaPills, seloTexto.toUpperCase(), Math.round(tplPills.w * 0.028), contXPills, topoYPills, corCta, corTextoCta);
-              pillsSvg += selo.svg;
-            }
-            if (ctaTexto) {
-              const paddingXCta = 30, paddingYCta = 18, tamanhoCta = Math.round(tplPills.w * 0.03);
-              // altura mirra a fórmula interna de pilulaSvg (tamanhoFonte + paddingY*2) — precisa
-              // saber a altura ANTES de desenhar pra ancorar pela BASE (margem segura de baixo,
-              // nunca pelo topo); a fórmula não depende do texto, só do tamanho da fonte, então
-              // chamar pilulaSvg duas vezes só pra descobrir a altura seria redundante.
-              const alturaCta = Math.round(tamanhoCta + paddingYCta * 2);
-              const cta = pilulaSvg(fonteSecundariaPills, ctaTexto.toUpperCase(), tamanhoCta, contXPills, baseYPills - alturaCta, corCta, corTextoCta, { paddingX: paddingXCta, paddingY: paddingYCta });
-              pillsSvg += cta.svg;
-            }
+            if (zonas.selo) pillsSvg += zonas.selo.svg;
+            if (zonas.cta) pillsSvg += zonas.cta.svg;
             if (pillsSvg) {
-              const svgPills = `<svg width="${tplPills.w}" height="${tplPills.h}" xmlns="http://www.w3.org/2000/svg">${pillsSvg}</svg>`;
+              const svgPills = `<svg width="${zonas.tpl.w}" height="${zonas.tpl.h}" xmlns="http://www.w3.org/2000/svg">${pillsSvg}</svg>`;
               bytes = await sharp(bytes).composite([{ input: Buffer.from(svgPills), left: 0, top: 0 }]).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
             }
           } catch (e) {
@@ -2013,6 +2146,13 @@ module.exports = async (req, res) => {
         // que respondeu (nunca sobrescreve com vazio/null por cima de um registro anterior).
         ...(diretorPrompt ? { diretor_prompt: diretorPrompt } : {}),
         ...(diretorResposta ? { diretor_resposta: diretorResposta } : {}),
+        // CUSTO E TEMPO POR CHAMADA À OPENAI (24/set/2026, "Trocar o motor de imagem...",
+        // "Alterações" item 4, autorizado pelo João) — uma entrada por chamada de verdade feita
+        // nesta requisição (1ª tentativa, retry da regeneração dirigida, regeneração de fallback
+        // do compositor — ver _chamadasOpenAI, acima de engine6): modelo usado, tempo em ms,
+        // usage quando a resposta trouxer. Mesma cautela read-merge-write do resto deste padrão —
+        // só grava quando houve de fato alguma chamada.
+        ...(_chamadasOpenAI.length ? { openai_chamadas: _chamadasOpenAI } : {}),
       });
     }
 
@@ -2074,6 +2214,10 @@ module.exports = async (req, res) => {
       // conteudos.meta.verificacao_texto quando há conteudo_id — aqui também no preview avulso
       // (sem conteudo_id, sem onde persistir) para o chamador já ver na hora.
       verificacao_texto: verificacaoTexto || undefined,
+      // CUSTO E TEMPO (decisão "Alterações" item 4): mesmo objeto persistido em
+      // conteudos.meta.openai_chamadas quando há conteudo_id — aqui também no preview avulso, para
+      // o chamador (e o relatório desta rodada) já ver modelo/tempo/usage sem precisar do banco.
+      openai_chamadas: _chamadasOpenAI.length ? _chamadasOpenAI : undefined,
     });
   } catch (e) {
     console.error('gerar-imagem:', e.message);

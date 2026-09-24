@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.24-foto-travada-cta-selo-por-codigo-coerencia-e-diretor-instrumentado';
+const VERSAO = '2026.09.24-motor-de-imagem-configuravel-e-zonas-das-pilulas-reservadas';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1235,6 +1235,21 @@ const handler = async (req, res) => {
         variacao_50_e_100_com_material_real_preservado_nunca_mais_autoriza_mexer_no_sujeito:true,
         cta_e_selo_saem_do_modelo_compostos_por_codigo_pos_corte_com_fonte_e_cor_do_dna:true,
         coerencia_de_conteudo_checada_antes_de_gerar_alerta_no_mesmo_alerta_defeito_existente:true,
+        // "Trocar o motor de imagem e reservar as zonas das pílulas" (24/set/2026, autorizado
+        // pelo João): sete dias de defeitos crônicos (acento quebrado, rosto redesenhado em
+        // edição, layout instável, regeneração dirigida que redesenha a peça inteira) apontam
+        // pra gpt-image-1 como causa comum — a linha GPT Image 2.5 (Flare/Sunburst, doc oficial
+        // confirmada) promete resolver os quatro, um a um. Esta rodada ISOLA A VARIÁVEL: só troca
+        // o motor (por configuração, padrão ainda gpt-image-1 — troca real é uma env var na
+        // Vercel, nunca automática por este deploy) e reserva, ao modelo, as duas zonas onde o
+        // código carimba selo/CTA (achado extra: o selo saiu por cima da headline numa peça real
+        // por falta exatamente dessa declaração). Nada mais mudou — nem Diretor, nem verificação
+        // por visão, nem corte, nem a composição das pílulas em si (só o lugar onde a conta da
+        // geometria roda, nunca o resultado). Só api/gerar-imagem.js tocado; aqui é só
+        // VERSAO/correcoes_ativas.
+        modelo_de_imagem_por_caminho_e_configuravel_padrao_ainda_gpt_image_1:true,
+        engine_declara_zonas_reservadas_das_pilulas_quando_cta_selo_por_codigo_mesma_fonte_do_compositor:true,
+        custo_tempo_modelo_e_usage_de_cada_chamada_openai_gravados_em_meta_openai_chamadas:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
