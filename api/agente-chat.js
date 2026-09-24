@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.24-regeneracao-dirigida-defeito-visivel-cena-com-memoria-mockup-condicional-prova-6-palavras';
+const VERSAO = '2026.09.24-foto-travada-cta-selo-por-codigo-coerencia-e-diretor-instrumentado';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1220,6 +1220,21 @@ const handler = async (req, res) => {
         criar_avulso_nao_conclui_mais_com_zero_midia_vai_a_pendente_ou_erro:true,
         aprovar_exibe_rascunhos_prontos_com_botao_que_chama_gerarfila_no_clique:true,
         tarefas_de_servico_oferece_gerar_arte_para_criar_avulso_pendente:true,
+        // FOTO TRAVADA DE VERDADE, CTA E SELO POR CÓDIGO, E ENXERGAR O DIRETOR (24/set/2026,
+        // autorizado pelo João) — peça real de 24/set 20:32 provou 4 achados: Diretor ainda
+        // dirigia postura/olhar do sujeito real ("seated... gaze directed toward the upper-left
+        // quadrant" numa foto de pessoa em pé com microfone — rosto distorcido); a variação 50/100
+        // autorizava "different placement and photographic treatment" do sujeito no MESMO prompt
+        // que o contrato de preservação proíbe; headline "8 agentes" contra prova "5 agentes
+        // especializados" na MESMA peça, nunca checado (a verificação por visão só compara
+        // renderizado×esperado, nunca esperado×esperado); e o prompt/resposta do Diretor nunca
+        // eram gravados — só o prompt final da imagem. Só api/gerar-imagem.js e
+        // api/_composicao-lib.js tiveram código tocado; aqui é só VERSAO/correcoes_ativas.
+        diretor_prompt_sistema_e_resposta_bruta_gravados_em_meta_diretor_prompt_e_diretor_resposta:true,
+        foto_real_diretor_nao_dirige_mais_postura_corpo_angulo_ou_expressao_so_lado_do_quadro:true,
+        variacao_50_e_100_com_material_real_preservado_nunca_mais_autoriza_mexer_no_sujeito:true,
+        cta_e_selo_saem_do_modelo_compostos_por_codigo_pos_corte_com_fonte_e_cor_do_dna:true,
+        coerencia_de_conteudo_checada_antes_de_gerar_alerta_no_mesmo_alerta_defeito_existente:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

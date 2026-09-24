@@ -634,6 +634,12 @@ module.exports = {
   obterFonteBuffer, carregarFonteParaTexto, glifosFaltantes,
   luminanciaRelativa, contraste, escolherCorTexto,
   quebrarLinhas, ajustarTamanhoAutomatico,
+  // pilulaSvg (24/set/2026, "Foto travada de verdade, CTA e selo por código, e enxergar o
+  // Diretor", decisão 4, autorizado pelo João): exportada pra ser reaproveitada por
+  // gerar-imagem.js num caminho ESTREITO — compor só as duas pílulas (CTA/selo) sobre a peça
+  // já cortada, sem invocar compor() (o template de composição completo, que segue desligado
+  // fora do modo EDITORIAL com composição ativa).
+  pilulaSvg,
   RESERVA_COR_FUNDO,
   compor,
 };
