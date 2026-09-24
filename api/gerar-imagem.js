@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo } = require('./_composicao-lib.js');
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.23-engine6-corte-por-visao-teto-de-texto-por-objeto-mockup-legivel-icone-escopado-a-marca';
+const VERSAO = '2026.09.24-regeneracao-dirigida-defeito-visivel-cena-com-memoria-mockup-condicional-prova-6-palavras';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -221,10 +221,21 @@ function engine6(M, o) {
     M.estilo_de_copy ? ('Copy style: ' + M.estilo_de_copy + '.') : '',
     M.tom_do_cta ? ('CTA tone: ' + M.tom_do_cta + '.') : '',
     M.estilo_iconografico ? ('Iconographic style: ' + M.estilo_iconografico + '.') : '',
-    // 23/set/2026 (decisão 5, autorizado pelo João): a peça de teste saiu com a tela do notebook
-    // ilegível, um borrão — objeto pequeno e distante o gerador não consegue desenhar legível.
-    // Escala mínima declarada junto do estilo, não um bloco à parte.
-    M.estilo_de_mockup ? ('Mockup style: ' + M.estilo_de_mockup + '. Give it real scale: at least 25% of the piece\'s area, with the screen/label content clearly legible — never small or distant enough that the generator can\'t render it readable.') : '',
+    // 23/set/2026 (decisão 5 da rodada anterior, autorizado pelo João): a peça de teste saiu com
+    // a tela do notebook ilegível, um borrão — objeto pequeno e distante o gerador não consegue
+    // desenhar legível. Escala mínima declarada junto do estilo, não um bloco à parte.
+    // 24/set/2026 ("Regeneração dirigida, defeito visível e cena que não se repete", decisão 4,
+    // autorizado pelo João): a regra virou CONDICIONAL — antes disparava sempre que a MARCA
+    // tinha estilo_de_mockup preenchido no DNA, mesmo em peças cuja cena não tem nenhum motivo
+    // pra incluir tela (causa apontada da monotonia visual — luminária/notebook/caneca em toda
+    // peça). engine6() não decide a cena (isso é do Diretor, mais abaixo) — não há como o código
+    // saber aqui se ESTA peça terá tela; a condição vira instrução explícita pro modelo deduzir
+    // da própria cena, mesmo padrão já usado em BLOCO_CENA S1b ("se o tema for software... telas
+    // reais"). Desvio sinalizado no relatório: as outras 9 correções desta e da rodada anterior
+    // preferiram mecanismo a prosa — aqui não há mecanismo possível sem um passo novo de
+    // verificação pós-geração (fora do escopo pedido, que só cita "engine6(): a linha de mockup
+    // vira condicional").
+    M.estilo_de_mockup ? ('Mockup style, ONLY IF this piece\'s own scene actually includes a screen or software interface (deduce that from the theme — a screen/mockup is NOT mandatory in every piece; never force one into a scene that has no real reason for it): ' + M.estilo_de_mockup + '. When it does apply, give it real scale: at least 25% of the piece\'s area, with the screen/label content clearly legible — never small or distant enough that the generator can\'t render it readable.') : '',
     M.momento_negocio ? ('Business moment: ' + M.momento_negocio + '.') : '',
     M.objetivo_conteudo ? ('Content objective: ' + M.objetivo_conteudo + '.') : '',
     M.sempre_fazer ? ('Always do: ' + M.sempre_fazer + '.') : '',
@@ -431,9 +442,11 @@ function engine6(M, o) {
     // 23/set/2026: este checklist tinha o MESMO problema que o da seção QUALITY (mais abaixo) já
     // corrigiu — citava o teto de palavras antigo (6/18) e a hierarquia fixa (50-60%) mesmo quando
     // a seção 2 e a seção 5 já declaram outra coisa. Mesma correção, mesmo motivo.
+    // 24/set/2026 (decisão 5 desta rodada): acrescentado o teto novo da prova (6 palavras,
+    // número + substantivo) — antes este checklist nunca perguntava por ela.
     o.composicaoAtiva
       ? 'Zero text, letters, digits, labels, pills, logos or watermarks anywhere in the image — not even the brand name? Only the palette colors above? Photo with controlled contrast? 3 depth layers present? Negative space respected? Left half left calm and uncluttered for the system to cover? Safe zones clear? If any answer is NO, fix the composition BEFORE rendering.'
-      : ('Headline <=8 words? Support copy <=12 words? CTA <=2? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? ' + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
+      : ('Headline <=8 words? Support copy <=12 words? CTA <=2? Proof point <=6 words, number+noun shape? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? Label 8-12% width with 7:1 contrast? ' + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
     '',
     '=== 13. PARAMETERS ===',
     // densidade_visual (23/set/2026): substitui o PAR intensidade/complexidade (não só a
@@ -459,7 +472,16 @@ function engine6(M, o) {
           ? ('ANGLE (context only, never rendered): "' + String(o.subheadline).slice(0, 140) + '"')
           : ('SUBHEADLINE (the WHY — render it as a second, smaller text block under the headline; this is the line that makes the piece convert instead of just look good): "' + String(o.subheadline).slice(0, 140) + '"'))
       : '',
-    (o.prova && !o.composicaoAtiva) ? ('PROOF POINT (a real figure/fact — render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
+    // 24/set/2026 ("Regeneração dirigida...", decisão 5, autorizado pelo João): teto de 6
+    // palavras novo — a peça de 24/set errou justamente numa prova longa com acento ("10
+    // usuários em validação, maioria no plano Pro" saiu "10 USUARIOS EN-VALIDAÇÃO, MAIORIA NO
+    // PLANS PRS"), frase comprida gravada num objeto pequeno é onde o gerador mais erra
+    // português. cortarFrase(90) continua sendo só o teto de CARACTERES do texto do prompt (nunca
+    // validado em código — ver validarTextoDaPeca, topo do arquivo, que documenta essa decisão
+    // explicitamente); o teto de PALAVRAS abaixo é só a instrução ao modelo, mesmo tratamento que
+    // esta rodada deu ao mockup (decisão 4) — sem mecanismo de checagem em código, fora do escopo
+    // pedido ("engine6(): ... a declaração do ponto de prova ganha o limite de 6 palavras").
+    (o.prova && !o.composicaoAtiva) ? ('PROOF POINT, max 6 words, prefer a NUMBER + NOUN shape over a full sentence (e.g. "10 usuários no Pro", not a long sentence with accents — a real figure/fact, render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
     o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
     o.composicaoAtiva ? '' : ((o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : '')),
     o.composicaoAtiva ? '' : (o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : ''),
@@ -473,7 +495,7 @@ function engine6(M, o) {
     // percentual pelo declarado pela marca. Word count também segue o novo teto (22, decisão 2).
     o.composicaoAtiva
       ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + (densVisual || vazio) + '? left half calm and uncluttered? safe zones respected?')
-      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: piece text word count ≤22? palette locked? label 8-12% at 7:1? ' + (hierarquiaVS ? ('reading priority follows the brand\'s own declared hierarchy') : 'headline dominant 50-60%') + '? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
+      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: piece text word count ≤22? proof point ≤6 words, number+noun? palette locked? label 8-12% at 7:1? ' + (hierarquiaVS ? ('reading priority follows the brand\'s own declared hierarchy') : 'headline dominant 50-60%') + '? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
   ].filter(Boolean).join('\n');
 }
 
@@ -689,6 +711,21 @@ async function diretorDeArte(M, o, ctx) {
       + (M.referencia_aprovada ? ' Approved before, repeat what worked: "' + String(M.referencia_aprovada).slice(0, 200) + '".' : '')
       + (M.evitar_visual ? ' Rejected before, never repeat it: "' + String(M.evitar_visual).slice(0, 200) + '".' : '')
     ) : '',
+    // CENA COM MEMÓRIA (24/set/2026, "Regeneração dirigida, defeito visível e cena que não se
+    // repete", decisão 3, autorizado pelo João) — causa apontada da monotonia visual (luminária/
+    // notebook/caneca/texto-na-parede em praticamente toda peça): cada geração nasce sem nenhuma
+    // memória do que já foi feito pra este cliente. ctx.cenasRecentes vem pronto de fora (ver
+    // ponto de montagem no handler, mesmo padrão de M6/_dnaFaltando — nunca recalculado aqui).
+    // INVARIANTE (explícito no pedido do João): isto é CONTEXTO NEGATIVO — "não repita" — nunca
+    // uma fonte do que construir; por isso o bloco só lista o que EVITAR, nunca sugere um tema ou
+    // objeto novo. Nas primeiras peças de um cliente não há histórico (array vazio) — o Diretor
+    // segue exatamente como já se comportava, sem este bloco; o efeito só aparece a partir da 3ª
+    // peça registrada com resumo (ver montagem do resumo mais abaixo, "SCENE MEMORY").
+    (ctx.cenasRecentes && ctx.cenasRecentes.length) ? (
+      'RECENT SCENES FOR THIS SAME CLIENT — NEGATIVE CONTEXT ONLY (what to AVOID, never what to build): the last '
+      + ctx.cenasRecentes.length + ' piece(s) made for this client already used these scenes — do NOT reuse the same environment, the same main objects or the same framing as any of them. Deduce a genuinely different one from THIS piece\'s own theme, exactly as you always do — this list only narrows what you may not repeat, it never suggests a replacement:\n'
+      + ctx.cenasRecentes.map((s, i) => (i + 1) + '. ' + s).join('\n')
+    ) : '',
     o.composicaoAtiva ? '' : 'TEXT HIERARCHY — USE THE FULL TEXT BLOCK — A LONE HEADLINE LOOKS POOR AND DOES NOT SELL. The brief gives you a hierarchy: HEADLINE (the hook), SUBHEADLINE (the why — a second, smaller line that creates desire or tension), PROOF POINT (a real stat/fact), and CTA. Compose ALL of them into the piece as a clear typographic hierarchy — big headline, smaller subheadline beneath it, the proof as a small highlighted stat/badge, the CTA as a button/plaque. If a subheadline or proof is provided, rendering only the headline is a FAILURE. This text hierarchy is what fills the composition — never pad an empty layout with invented scenery when you were given real words to place.',
     // ETAPA 2 (16/set/2026): esta linha antes disparava sempre que o headline chegasse vazio —
     // "NO HEADLINE WAS PROVIDED: write the headline yourself". Depois da Etapa 1 (validação em
@@ -724,6 +761,14 @@ async function diretorDeArte(M, o, ctx) {
     o.composicaoAtiva
       ? 'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 400-700 words — one dense concrete paragraph describing the photographic scene, ending with the no-text sentence above. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, the deduced set, the light, the camera).'
       : 'OUTPUT: only the final prompt. No preamble, no bullet points, no explanations, no markdown. Write it AS LONG AS THE PIECE NEEDS — typically 600-1000 words — one dense concrete paragraph, then the "Text to render:" list. Do NOT compress: completeness and concreteness beat brevity. Bake in every rule (depth layers, safe zones, label prominence, eye-flow, the deduced set, the light, the camera).',
+    '',
+    // SCENE MEMORY (24/set/2026, decisão 3 acima): esta linha final é bookkeeping interno, nunca
+    // parte do prompt de imagem — é o que alimenta ctx.cenasRecentes da PRÓXIMA peça deste mesmo
+    // cliente (ver extração logo abaixo do retorno desta função, e a gravação no handler). Pedida
+    // como a ÚLTIMA linha do texto, num formato fixo e reconhecível, pra poder ser separada do
+    // resto do prompt por código de forma determinística (nunca por interpretação de IA de novo).
+    '=== SCENE MEMORY (internal bookkeeping, NEVER part of the image prompt) ===',
+    'After writing the entire prompt above, add exactly ONE more line, on its own, as the very last line of your output, starting exactly with "SCENE_SUMMARY:" followed by a short one-line description IN PORTUGUESE of the environment and the main objects you chose for THIS scene (e.g. "SCENE_SUMMARY: cozinha industrial, bancada de aço escovado, luminária pendente, xícara de café fumegante"). This line is internal bookkeeping only — it is stripped out before the prompt reaches the image generator, must never be rendered, drawn, mentioned or treated as scene content itself, and must always come after everything else, never in the middle.',
   ].filter(Boolean).join('\n');
 
   const user = 'DESIGN SYSTEM (LAW):\n' + engine + '\n\nWrite the final image prompt now.';
@@ -768,7 +813,16 @@ async function diretorDeArte(M, o, ctx) {
     if (tentativa === 'repetição (sem output_config)') console.error('diretor: funcionou na repetição, sem output_config —', MODEL_DIRETOR());
     const d = await r.json();
     const t = (d.content || []).map(c => c.text || '').join('').trim();
-    return t.length > 120 ? t : null; // resposta curta demais = não confiável
+    if (t.length <= 120) return null; // resposta curta demais = não confiável
+    // SCENE MEMORY (24/set/2026, decisão 3): separa a última linha "SCENE_SUMMARY: ..." (pedida
+    // acima, bookkeeping interno) do resto do texto, que continua sendo o prompt de cena de
+    // sempre — NUNCA a linha crua chega ao prompt final. Se o modelo não seguiu o formato pedido
+    // (padrão defensivo, mesmo espírito do resto deste arquivo: degrada, nunca quebra), resumoCena
+    // fica vazio e o texto inteiro segue como prompt, exatamente como antes desta rodada.
+    const mResumo = t.match(/\n?SCENE_SUMMARY:\s*(.+?)\s*$/i);
+    const resumoCena = mResumo ? mResumo[1].trim().slice(0, 220) : '';
+    const texto = mResumo ? t.slice(0, mResumo.index).trim() : t;
+    return { texto, resumoCena };
   } catch (e) { console.error('diretor:', e.message); return null; }
 }
 
@@ -833,6 +887,63 @@ function compararTextoLido(esperados, lidos) {
     }
   }
   return divergentes;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REGENERAÇÃO DIRIGIDA (24/set/2026, "Regeneração dirigida, defeito visível e cena que não se
+// repete", decisão 1, autorizado pelo João) — a peça de 24/set provou que reenviarMesmoPrompt()
+// mandando o MESMO prompt de novo, sem informação nenhuma do que saiu errado, não corrige nada:
+// tentativas=2, e os dois erros de texto E o CTA cortado continuaram idênticos na peça entregue.
+// A frase diagnóstica (divergentes[].esperado/lido + faixaDescartada.descricao) já existia — só
+// nunca tinha sido repassada ao modelo. montarAdendoCorretivo() monta um texto CURTO, anexado ao
+// FIM do prompt já existente (nunca reescreve nada acima) — corrige exclusivamente POSIÇÃO
+// (mover o elemento cortado pra dentro da zona segura) e GRAFIA (re-renderizar exatamente os
+// campos que saíram errados) — nunca conteúdo, DNA, cena ou regra do Engine (invariante do
+// João). Retorna string vazia quando não há nada a corrigir (chamador nunca deveria chegar aqui
+// nesse caso, mas a função fica seguindo o mesmo padrão defensivo do resto do arquivo).
+function montarAdendoCorretivo(divergentes, faixaDescartada) {
+  const partes = [];
+  if (Array.isArray(divergentes) && divergentes.length) {
+    partes.push(
+      'The following field(s) came out WRONG in the previous attempt — re-render ONLY these fields, character-for-character exactly as given here (accents included), and change nothing else about them:\n'
+      + divergentes.map(d => '- ' + d.campo + ': render exactly "' + d.esperado + '" (the previous attempt incorrectly rendered "' + d.lido + '")').join('\n')
+    );
+  }
+  if (faixaDescartada && faixaDescartada.em) {
+    partes.push(
+      'The following element was cropped/cut off in the previous attempt, per section 12\'s safe zones above — reposition ONLY that element so it sits entirely OUTSIDE the discard bands already described there; do not resize, redesign or change what it says, only move it fully into the safe zone:\n- '
+      + String(faixaDescartada.descricao || 'elemento importante dentro da faixa que será descartada')
+    );
+  }
+  if (!partes.length) return '';
+  return '\n\n=== CORRECTIVE ADDENDUM — DIRECTED REGENERATION (fix ONLY what is listed below — position and/or spelling. Everything else about this piece, its content, its scene, the brand DNA and every rule above stays EXACTLY as already instructed) ===\n'
+    + partes.join('\n\n');
+}
+
+// DEFEITO VISÍVEL (24/set/2026, decisão 2 da mesma ordem, autorizado pelo João) — a peça de
+// 24/set foi entregue como aguardando_aprovacao sem aviso nenhum visível ("o usuário descobriu
+// 'PLANS PRS' no olho"), com o defeito já gravado em meta.verificacao_texto mas sem nenhum texto
+// que resumisse isso pro humano que vai aprovar. montarAlertaDefeito() lê a verificação FINAL
+// (a que efetivamente foi mantida/entregue — nunca a 1ª tentativa descartada) e, só quando ela
+// ainda tem divergência de texto OU elemento em faixa descartada, monta um aviso legível em
+// português — persistido em meta.alerta_defeito (ver ponto de gravação) e exibido em
+// aprovar.html. ACHADO (autoencontrado, reportado, não é bug desta rodada): o badge que já
+// existia em aprovar.html (linha ~902, "✏️ TEXTO DIVERGENTE") só olhava pra divergentes — uma
+// peça com texto 100% certo mas elemento cortado (faixaDescartada.em=true, divergentes=[])
+// nunca disparava aviso nenhum. alerta_defeito cobre os dois casos juntos.
+function montarAlertaDefeito(verificacaoFinal) {
+  if (!verificacaoFinal) return '';
+  const partes = [];
+  if (Array.isArray(verificacaoFinal.divergentes) && verificacaoFinal.divergentes.length) {
+    partes.push('texto divergente do esperado — ' + verificacaoFinal.divergentes.map(d => d.campo + ': saiu "' + d.lido + '" (esperado "' + d.esperado + '")').join('; '));
+  }
+  if (verificacaoFinal.faixa_descartada && verificacaoFinal.faixa_descartada.em) {
+    // .replace: a descrição da visão já vem pontuada ("...da imagem.") — sem isso o alerta saía
+    // com ponto duplicado antes de "Revise com atenção..." (achado de polimento, não funcional).
+    partes.push(String(verificacaoFinal.faixa_descartada.descricao || 'elemento importante cai na faixa que será cortada na entrega').replace(/\.+\s*$/, ''));
+  }
+  if (!partes.length) return '';
+  return 'Esta peça foi entregue com defeito conhecido mesmo após a regeneração automática — ' + partes.join(' · ') + '. Revise com atenção antes de aprovar.';
 }
 
 // verificarTextoPorVisao: envia os bytes da imagem já em mãos (sem novo fetch — PNG cru da
@@ -1155,6 +1266,26 @@ module.exports = async (req, res) => {
       console.error('[dna-incompleto] geração rodando com DNA obrigatório ausente para user_id=' + targetId + ':', _dnaFaltando.join(', '));
     }
 
+    // CENA COM MEMÓRIA (24/set/2026, "Regeneração dirigida, defeito visível e cena que não se
+    // repete", decisão 3, autorizado pelo João) — FONTE ÚNICA, buscada uma vez só (mesmo padrão
+    // de M6/_dnaFaltando acima), nunca recalculada dentro de gerarPeca() nem por chamada. Busca
+    // até 5 peças recentes do MESMO cliente (não só 3 — algumas podem não ter cena_resumo
+    // gravado: ficha técnica com engine:false, peças de antes desta rodada, ou o Diretor sem
+    // responder no formato pedido) e fica só com os 3 primeiros resumos não-vazios, na ordem mais
+    // recente primeiro. id=neq.conteudo_id evita que uma REGERAÇÃO da própria peça (mesmo
+    // conteudo_id, chamada de novo) conte a si mesma como "cena recente" antes de escrever seu
+    // próprio resumo novo. Nas primeiras peças de uma conta o array sai vazio — comportamento
+    // idêntico ao de antes desta rodada, esperado (efeito só a partir da 3ª peça com histórico).
+    let _cenasRecentes = [];
+    try {
+      const qCenas = `${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${targetId}${conteudo_id ? ('&id=neq.' + conteudo_id) : ''}&select=meta&order=created_at.desc&limit=5`;
+      const recentes = await fetch(qCenas, { headers: SBH() }).then(r => r.json());
+      _cenasRecentes = (Array.isArray(recentes) ? recentes : [])
+        .map(c => c && c.meta && c.meta.cena_resumo)
+        .filter(s => s && String(s).trim())
+        .slice(0, 3);
+    } catch (e) { console.error('[cena-memoria] busca de cenas recentes falhou, seguindo sem histórico:', e.message); }
+
     const baseImgs = [];
     async function baixarImg(url) {
       try {
@@ -1286,6 +1417,10 @@ module.exports = async (req, res) => {
       let compAtivaLocal = false;
       let localMaterialRealPreservado = false;
       let promptFinalLocal = '';
+      // CENA COM MEMÓRIA (24/set/2026, decisão 3): captura o resumo de UMA linha que o Diretor
+      // devolveu junto com o prompt (ver diretorDeArte, "SCENE MEMORY") — vazio quando engine:false
+      // (sem Diretor) ou quando o modelo não seguiu o formato pedido (degrada, nunca quebra).
+      let localResumoCena = '';
     if (baseImgs.length) {
       // image-to-image: usa foto/logo reais como base (preserva identidade + logo verdadeira)
       const temPessoa = baseImgs.some(b => b.tag === 'pessoa');
@@ -1352,11 +1487,11 @@ module.exports = async (req, res) => {
       // materialReal (21/set/2026): sinal novo pra engine6 condicionar a seção 6 (luz
       // direcional/sombra) ao ambiente quando há pessoa ou produto real preservado.
       const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
-      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
+      const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
         : (engine6(M6, oArte)
-           + (dirTxt ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt : '')))
+           + (dirTxt ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt.texto : '')))
         + preserva;
       promptFinalLocal = instr;
       localR = await chamarOpenAIImageToImage(instr);
@@ -1364,6 +1499,7 @@ module.exports = async (req, res) => {
       // nesta peça (pessoa ou produto) pra encolher a distância da fusão (8% em vez de 22%) — a
       // foto por baixo pode ser o próprio sujeito travado pelo contrato de preservação.
       localMaterialRealPreservado = temPessoa || temProduto;
+      localResumoCena = (dirTxt && dirTxt.resumoCena) || '';
     } else {
       // text-to-image: pessoa_conceito pode criar gente genérica; conceitual sem pessoa
       // COMPOSIÇÃO (22/set/2026): temProduto é sempre false neste ramo (baseImgs vazio) — mesma
@@ -1377,23 +1513,27 @@ module.exports = async (req, res) => {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
       const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue };
-      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline });
+      const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
-           + (dirTxt2 ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt2 : '')))
+           + (dirTxt2 ? '\n\n=== ART DIRECTION FOR THIS PIECE (concrete scene — obey every rule above while rendering it) ===\n' + dirTxt2.texto : '')))
         + (compAtivaLocal ? '' : extra);
       promptFinalLocal = promptSemLogo;
       localR = await chamarOpenAITextToImage(promptSemLogo);
+      localResumoCena = (dirTxt2 && dirTxt2.resumoCena) || '';
     }
-      // reenviarMesmoPrompt (item 3): chama de novo a MESMA rota, com o MESMO texto de prompt já
-      // capturado — nunca reconstrói o prompt (o Diretor não é chamado de novo, a cena não muda),
-      // só pede uma nova renderização do gpt-image-1 na esperança de a letra sair certa.
-      const reenviarMesmoPrompt = () => baseImgs.length
-        ? chamarOpenAIImageToImage(promptFinalLocal)
-        : chamarOpenAITextToImage(promptFinalLocal);
-      return { r: localR, composicaoAtivaEfetiva: compAtivaLocal, materialRealPreservado: localMaterialRealPreservado, promptFinal: promptFinalLocal, reenviarMesmoPrompt };
+      // reenviarMesmoPrompt (item 3, rodada anterior; adendoCorretivo, decisão 1 desta rodada):
+      // chama de novo a MESMA rota, com o MESMO texto de prompt já capturado — nunca reconstrói o
+      // prompt (o Diretor não é chamado de novo, a cena não muda) — mas agora aceita um adendo
+      // OPCIONAL (montado pelo ponto de chamada, a partir de divergentes+faixaDescartada da 1ª
+      // tentativa), anexado ao FIM do texto já existente. Sem adendo (nenhum argumento), o
+      // comportamento é byte a byte o mesmo de antes — reenvio cego, nunca o padrão agora.
+      const reenviarMesmoPrompt = (adendoCorretivo) => baseImgs.length
+        ? chamarOpenAIImageToImage(promptFinalLocal + (adendoCorretivo || ''))
+        : chamarOpenAITextToImage(promptFinalLocal + (adendoCorretivo || ''));
+      return { r: localR, composicaoAtivaEfetiva: compAtivaLocal, materialRealPreservado: localMaterialRealPreservado, promptFinal: promptFinalLocal, reenviarMesmoPrompt, resumoCena: localResumoCena };
     }
-    let { r, composicaoAtivaEfetiva, materialRealPreservado, promptFinal, reenviarMesmoPrompt } = await gerarPeca(composicaoLigada && engine !== false);
+    let { r, composicaoAtivaEfetiva, materialRealPreservado, promptFinal, reenviarMesmoPrompt, resumoCena } = await gerarPeca(composicaoLigada && engine !== false);
     const result = await r.json();
     if (!r.ok) {
       const detalhe = (result.error && result.error.message) || JSON.stringify(result).slice(0, 200);
@@ -1446,6 +1586,10 @@ module.exports = async (req, res) => {
       if (compositorFalhou) {
         const retry = await gerarPeca(false);
         r = retry.r;
+        // SCENE MEMORY (24/set/2026, decisão 3): a regeneração de segurança chama o Diretor de
+        // novo (nova cena, prompt tradicional) — o resumo da 1ª chamada não vale mais pra esta
+        // peça; troca pelo resumo da regeneração, mesmo se vazio (nunca fica com o resumo velho).
+        resumoCena = retry.resumoCena || '';
         const result2 = await r.json();
         if (!r.ok || !(result2.data && result2.data[0] && result2.data[0].b64_json)) {
           const detalhe2 = (result2.error && result2.error.message) || 'regeneração sem composição também falhou';
@@ -1488,12 +1632,18 @@ module.exports = async (req, res) => {
         if (!divergentes1.length && !faixaDescartada1.em) {
           verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], faixa_descartada: faixaDescartada1, tentativas: 1 };
         } else {
-          // DIVERGE, REGENERA UMA VEZ COM O MESMO PROMPT (item 3): reenviarMesmoPrompt() chama a
-          // MESMA rota (edits/generations) de novo, com o texto de prompt IDÊNTICO — a cena não
-          // muda, só se pede ao gpt-image-1 uma nova tentativa de renderizar a letra certa.
+          // REGENERAÇÃO DIRIGIDA (24/set/2026, "Regeneração dirigida, defeito visível e cena que
+          // não se repete", decisão 1, autorizado pelo João): a peça de 24/set provou que
+          // reenviarMesmoPrompt() sem informação nenhuma não corrige nada — tentativas=2 e os
+          // mesmos 2 erros de texto + o mesmo CTA cortado continuaram na peça entregue. Agora
+          // monta um adendo curto a partir do que a 1ª tentativa já sabe (divergentes1 +
+          // faixaDescartada1) e anexa ao MESMO prompt — a cena continua não mudando (o Diretor não
+          // é chamado de novo), só ganha uma correção dirigida do que saiu errado. Orçamento
+          // continua em UMA regeneração (invariante do João) — o adendo não abre uma 3ª tentativa.
           if (divergentes1.length) console.error('[verificacao-texto] divergiu na 1ª tentativa:', JSON.stringify(divergentes1));
           if (faixaDescartada1.em) console.error('[verificacao-texto] elemento em faixa descartada na 1ª tentativa:', faixaDescartada1.descricao);
-          const retryResp = await reenviarMesmoPrompt();
+          const _adendoCorretivo = montarAdendoCorretivo(divergentes1, faixaDescartada1);
+          const retryResp = await reenviarMesmoPrompt(_adendoCorretivo);
           const retryResult = await retryResp.json().catch(() => null);
           const retryB64 = retryResult && retryResult.data && retryResult.data[0] && retryResult.data[0].b64_json;
           if (retryResp.ok && retryB64) {
@@ -1585,6 +1735,9 @@ module.exports = async (req, res) => {
     // ele, qualquer diagnóstico de qualidade é suposição". Grava o texto EXATO mandado ao
     // gpt-image-1 nesta geração, mais o resultado da verificação de texto (se rodou) — uma
     // escrita só, mesclada (mesclarMetaNaOrdem), nunca uma corrida de PATCHes concorrentes.
+    // DEFEITO VISÍVEL (24/set/2026, decisão 2): calculado uma vez só, sobre a verificação FINAL
+    // (a que efetivamente foi mantida/entregue) — nunca recalculado dentro do objeto do PATCH.
+    const _alertaDefeito = montarAlertaDefeito(verificacaoTexto);
     if (conteudo_id) {
       await mesclarMetaNaOrdem(conteudo_id, {
         // 23/set/2026 ("Corte, mockup e teto de texto", autorizado pelo João, decisão 10): o
@@ -1596,6 +1749,21 @@ module.exports = async (req, res) => {
         ...(verificacaoTexto ? { verificacao_texto: verificacaoTexto } : {}),
         // Causa 2, Rodada 2: mesma escrita mesclada, nunca uma segunda gravação concorrente.
         ...(_dnaFaltando.length ? { dna_incompleto: _dnaFaltando } : {}),
+        // DEFEITO VISÍVEL (24/set/2026, decisão 2, autorizado pelo João): só grava quando a
+        // verificação FINAL (a que efetivamente foi mantida/entregue — verificacaoTexto já é essa,
+        // nunca a 1ª tentativa descartada) ainda tem divergência de texto ou elemento em faixa
+        // descartada. aprovar.html lê este campo pra exibir o aviso (ver alteração lá).
+        // MESMA RESSALVA de dna_incompleto (linha acima, padrão já existente neste arquivo): campo
+        // só é ESCRITO quando há defeito — uma peça que teve defeito e foi corrigida por edição
+        // manual não limpa este campo sozinha (mesma limitação read-merge-write de sempre, não
+        // nova desta rodada; reportado, não corrigido — fora do escopo pedido).
+        ...(_alertaDefeito ? { alerta_defeito: _alertaDefeito } : {}),
+        // CENA COM MEMÓRIA (24/set/2026, decisão 3): grava o resumo de UMA linha desta peça pra
+        // alimentar ctx.cenasRecentes da PRÓXIMA peça do mesmo cliente (ver busca de
+        // _cenasRecentes, acima). Só grava quando o Diretor devolveu um resumo de verdade — nunca
+        // sobrescreve com string vazia por cima de um resumo anterior (mesma cautela read-merge
+        // do resto deste padrão).
+        ...(resumoCena ? { cena_resumo: resumoCena } : {}),
       });
     }
 

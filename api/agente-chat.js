@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.23-engine6-corte-por-visao-teto-de-texto-por-objeto-mockup-legivel-icone-escopado-a-marca';
+const VERSAO = '2026.09.24-regeneracao-dirigida-defeito-visivel-cena-com-memoria-mockup-condicional-prova-6-palavras';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1195,6 +1195,17 @@ const handler = async (req, res) => {
         varredura_vs_exclui_as_4_chaves_com_secao_propria_nunca_mais_duas_vezes_no_prompt:true,
         checklists_finais_citam_hierarquia_e_densidade_declaradas_quando_existem_nao_o_fixo:true,
         prompt_final_gravado_sem_corte_de_12000_caracteres_instrumento_de_auditoria_integral:true,
+        // REGENERAÇÃO DIRIGIDA, DEFEITO VISÍVEL E CENA QUE NÃO SE REPETE (24/set/2026, autorizado
+        // pelo João) — peça real de 24/set provou que a checagem de faixa descartada FUNCIONA
+        // (visão detectou o CTA cortado e 2 erros de português), mas a correção não: o reenvio
+        // cego mandava o mesmo prompt de novo, sem dizer ao modelo o que saiu errado, e a peça
+        // com defeito conhecido era entregue como se estivesse pronta, sem aviso nenhum visível.
+        // gerar-imagem.js e aprovar.html foram tocados em código; aqui é só VERSAO/correcoes_ativas.
+        regeneracao_agora_recebe_adendo_corretivo_com_divergentes_e_faixa_descartada_da_1a_tentativa:true,
+        peca_com_defeito_na_tentativa_final_grava_alerta_legivel_exibido_na_tela_de_aprovacao:true,
+        cena_com_memoria_diretor_recebe_ultimas_3_cenas_do_cliente_como_contexto_negativo_nao_repita:true,
+        mockup_25_por_cento_agora_condicional_a_cena_ter_tela_nunca_forcado_em_toda_peca:true,
+        prova_ganha_teto_de_6_palavras_preferindo_numero_mais_substantivo:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
