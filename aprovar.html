@@ -392,6 +392,12 @@ async function regerarSlide(id){
   // morria em silêncio — causa real do "não acontece nada").
   const ajuste=await confirmarRecriacao();
   if(ajuste===null)return; // cancelou
+  // "O sistema aprende o gosto do cliente" (25/set/2026) — o texto de ajuste é o dado mais
+  // valioso aqui (nas palavras do próprio cliente, nunca substituído por descritor sintético).
+  // Chamada paralela, nunca aguardada: nunca atrasa nem bloqueia a regeneração da imagem abaixo;
+  // se falhar, a arte continua sendo gerada normalmente. Campo é opcional — ajuste vazio não grava
+  // nada (decisão em api/admin-users.js, não aqui).
+  if(ajuste)JUMP.apiSilencioso('registrar_gosto',{conteudo_id:id,tipo:'ajuste',texto:ajuste});
   // P6: a imagem vive no modal ('edit-img'), não mais no grid ('sl-img-<id>').
   const im=document.getElementById('edit-img');
   const i=im?Number(im.dataset.i||0):0, tot=JUMP.totalSlides(c);
@@ -1240,12 +1246,6 @@ async function gerarFila(){
   render();
   JUMP.toast('✓ Artes geradas! Revise e aprove.');
 }
-// Salva o gosto do cliente como memória global (Designer aprende)
-async function salvarGosto(chave,valor){
-  try{
-    await JUMP.sb.from('memorias').insert({user_id:CTX.viewId||CTX.user.id,agente:'global',chave,valor});
-  }catch(e){}
-}
 async function aprovar(id){
   const c=ITENS.find(i=>i.id===id);
   if(GERANDO){JUMP.toast('Aguarde a geração terminar.','err');return;}
@@ -1284,8 +1284,12 @@ async function aprovar(id){
     loadingArte(true,'Enviando para publicação...');
     try{await JUMP.authFetch('/api/cron?job=publicar_meu',{method:'POST'})}catch(e){
     loadingArte(false); GERANDO=false;}
-    // Designer aprende: este tipo/tema foi aprovado
-    if(c)salvarGosto('referencia_aprovada',`${c.tema||'post'} (${c.tipo_visual||'conceitual'}, ${c.formato||'feed'}) — aprovado pelo cliente`);
+    // Designer aprende: este tipo/tema foi aprovado. "O sistema aprende o gosto do cliente"
+    // (25/set/2026) — escrita agora é SÓ no backend (api/admin-users.js, registrar_gosto), que
+    // monta o descritor a partir da linha real do banco e faz upsert (nunca insert puro — a
+    // UNIQUE (user_id,agente,chave) fazia toda aprovação depois da primeira falhar em silêncio).
+    // Chamada paralela, nunca aguardada: falha aqui nunca atrasa nem bloqueia a aprovação/publicação.
+    if(c)JUMP.apiSilencioso('registrar_gosto',{conteudo_id:id,tipo:'aprovado'});
     JUMP.toast('✓ Aprovado! Será publicado no horário ideal.');
     ITENS=ITENS.filter(i=>i.id!==id);render();
   }catch(e){JUMP.toast('Erro ao aprovar','err')}
