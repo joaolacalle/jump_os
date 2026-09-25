@@ -1287,6 +1287,31 @@ const handler = async (req, res) => {
         // tocado; aqui é só VERSAO/correcoes_ativas.
         cta_selo_por_codigo_chave_unica_default_false_codigo_dormente_nao_removido:true,
         area_util_do_engine_declarada_como_retangulo_positivo_em_vez_de_so_margem_proibida:true,
+        // "Carrossel por upload no calendário, e alerta de defeito com linguagem de produto"
+        // (25/set/2026, autorizado pelo João): o publicador (api/cron.js) já publicava carrossel
+        // desde a Rodada do Designer — lia meta.slides, montava o container CAROUSEL, cortava em
+        // 10 — só faltava a ponta da frente: a criação manual (calendario.html) nunca grava
+        // meta.slides, upload múltiplo nunca existiu ali (pendência anotada em comentário desde
+        // 15/set, nunca fechada). Campo de arquivo passa a aceitar vários; 1 arquivo continua
+        // exatamente como sempre (midia_url, peça única); 2 a 10 imagens (nunca vídeo, nunca sob
+        // story/reels) sobem na ORDEM escolhida e viram meta.slides — zero mudança no publicador,
+        // que já sabia consumir esse formato. Limites validados na TELA antes de subir qualquer
+        // coisa: máximo 10, story e reels recusam múltiplos (reels é extensão desta
+        // implementação — ver relatório), vídeo misturado é recusado. Falha no meio do upload
+        // nunca grava um carrossel incompleto — nem sobe o resto, nem grava nada em conteudos, e
+        // limpa (melhor esforço) o que já tinha subido.
+        // Segundo: o alerta de defeito (meta.alerta_defeito, gravado pelo backend desde a Rodada
+        // de 24/set) é um relatório técnico de diagnóstico, escrito pra quem corrige, não pra
+        // quem usa — aparecer assim pro cliente só gera insegurança sobre o produto, sem dar a
+        // ele nada que possa fazer com aquilo. Gravação intocada, sempre o texto inteiro; só a
+        // TELA (aprovar.html) passa a mostrar, pro papel 'usuario' (tabela clientes.role), uma
+        // linha curta sem jargão em vez do relatório — admin/supervisor continuam vendo o texto
+        // técnico completo, sem cortes, em qualquer conta que estejam visualizando (o papel de
+        // quem está LOGADO nunca muda por impersonação via ?ver=).
+        calendario_upload_multiplo_grava_meta_slides_no_formato_que_o_publicador_ja_consumia:true,
+        calendario_limites_de_carrossel_validados_na_tela_antes_de_subir_qualquer_arquivo:true,
+        calendario_falha_no_meio_do_upload_nunca_grava_carrossel_incompleto_e_limpa_parcial:true,
+        alerta_defeito_exibido_por_papel_usuario_ve_linha_curta_admin_supervisor_ve_tecnico_completo:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
