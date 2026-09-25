@@ -630,6 +630,20 @@ async function jobProduzir(soUid) {
     delete pl.erros;
     return pl;
   };
+  // ERRO REAL SEMPRE VISÍVEL (25/set/2026, "input_fidelity condicional e erro real visível",
+  // decisão 3, autorizado pelo João) — /api/gerar-imagem manda `error` (frase amigável,
+  // traduzida) e `detalhe` (texto ORIGINAL da OpenAI/validação) na mesma resposta de falha (ver
+  // gerar-imagem.js). Os dois pontos deste worker que gravam payload.erros liam só `d.error` —
+  // o texto real nunca chegava à ordem nem à tela de Tarefas (achado do João: 3 ordens falharam
+  // com "Modelo de imagem indisponível... verifique o acesso ao gpt-image-1", frase que apontava
+  // pro modelo errado e escondia a causa real). FONTE ÚNICA — usada nos dois pontos, nunca duas
+  // extrações divergentes. Nunca substitui a frase amigável, sempre mostra as duas.
+  const motivoDeFalhaGerarImagem = (d, r) => {
+    const amigavel = (d && d.error) ? String(d.error) : '';
+    const real = (d && d.detalhe) ? String(d.detalhe) : '';
+    if (amigavel && real && amigavel !== real) return (amigavel + ' — ' + real).slice(0, 300);
+    return (real || amigavel || ('HTTP ' + (r && r.status))).slice(0, 300);
+  };
   let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0, copiasCriativo = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -833,7 +847,7 @@ async function jobProduzir(soUid) {
         await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
           method: 'PATCH', headers: SBH(),
           body: JSON.stringify({ status: ok ? 'concluida' : 'erro', progresso: ok ? 1 : 0, total: 1,
-            payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: String((d && (d.error && (d.error.message||d.error))) || ('HTTP '+r.status)).slice(0,160) }] }) },
+            payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: tf, motivo: motivoDeFalhaGerarImagem(d, r) }] }) },
             ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
         }).catch(() => {});
         if (ok) artes++;
@@ -1006,7 +1020,7 @@ async function jobProduzir(soUid) {
           } catch (e) { console.error('[worker] correcao-texto — exceção — ordem=' + o.id + ' conteudo=' + c.id + ' erro=' + (e && e.message)); }
         }
 
-        if (!r.ok || !d || !(d.url || d.midia_url)) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: String((d && (d.error && (d.error.message || d.error.error || d.error))) || ('HTTP ' + r.status)).slice(0,160) }); continue; }
+        if (!r.ok || !d || !(d.url || d.midia_url)) { faltamNoFim++; erros.push({ tema: (c.tema || 'post') + (alvo.tot > 1 ? ` (slide ${nSlide}/${alvo.tot})` : ''), motivo: motivoDeFalhaGerarImagem(d, r) }); continue; }
         await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
           method: 'PATCH', headers: SBH(),
           // só o slide 1 (capa) escreve midia_url aqui; os demais já foram gravados em

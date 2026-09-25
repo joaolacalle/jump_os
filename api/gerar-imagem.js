@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo, carregarFonteParaTexto, pilulaSvg, e
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.24-motor-de-imagem-configuravel-e-zonas-das-pilulas-reservadas';
+const VERSAO = '2026.09.25-input-fidelity-condicional-e-erro-real-visivel';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -1626,43 +1626,80 @@ module.exports = async (req, res) => {
     async function chamarOpenAIImageToImage(promptTexto) {
       // MODELO POR CONFIGURAÇÃO (24/set/2026, "Trocar o motor de imagem...", decisão 4,
       // autorizado pelo João): era o literal 'gpt-image-1' — ver MODEL_IMAGEM_EDICAO, acima de
-      // engine6(). Endpoint, quality e input_fidelity CONFIRMADOS idênticos entre gpt-image-1 e a
-      // linha GPT Image 2.5 na doc oficial da OpenAI (ver relatório desta entrega) — nenhum dos
-      // três precisou mudar de nome/valor para o modelo novo funcionar aqui.
+      // engine6(). Endpoint e quality confirmados idênticos entre gpt-image-1 e a linha GPT
+      // Image 2/2.5 na doc oficial da OpenAI — input_fidelity, a doc TAMBÉM lista como suportado
+      // por gpt-image-2, mas a API real recusou ("does not support the 'input_fidelity'
+      // parameter") — a causa da rodada seguinte, "input_fidelity condicional e erro real
+      // visível" (25/set/2026): ver `montarEChamar`/detecção por resposta, abaixo.
       const modelo = MODEL_IMAGEM_EDICAO();
-      const form = new FormData();
-      form.append('model', modelo);
-      form.append('prompt', promptTexto);
-      form.append('size', size);
-      // QUALIDADE ALTA (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 1,
-      // autorizado pelo João): era 'medium' — a premissa registrada no diagnóstico ("a
-      // fidelidade vem do rulebook, não da qualidade") nunca foi testada com o Diretor de Arte
-      // funcionando (esteve quebrado ~2 meses até 18/09). O chat que o cliente usa como
-      // referência roda em alta; o pipeline não tinha por que rodar abaixo disso.
-      form.append('quality', 'high');
-      // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição.
-      // Sem ele o modelo redesenha a pessoa (era a causa das fotos distorcidas).
-      form.append('input_fidelity', 'high');
-      // Ordem: referência principal (pessoa/produto) primeiro, logo por último
-      const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
-      baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
-      for (const b of baseImgs) {
-        form.append('image[]', new Blob([b.buf], { type: b.ct }), `${b.tag}.png`);
+      // MONTAR E CHAMAR (25/set/2026, "input_fidelity condicional e erro real visível", decisão
+      // 1, autorizado pelo João) — fatorada pra poder repetir a MESMA chamada, byte a byte, só
+      // tirando `input_fidelity` quando a OpenAI recusar apontando esse parâmetro. `comFidelity`
+      // é o único grau de liberdade entre as duas montagens — nada mais muda entre tentativas.
+      async function montarEChamar(comFidelity) {
+        const form = new FormData();
+        form.append('model', modelo);
+        form.append('prompt', promptTexto);
+        form.append('size', size);
+        // QUALIDADE ALTA (22/set/2026, "Engine 6.0 como caminho padrão" Rodada 1, item 1,
+        // autorizado pelo João): era 'medium' — a premissa registrada no diagnóstico ("a
+        // fidelidade vem do rulebook, não da qualidade") nunca foi testada com o Diretor de Arte
+        // funcionando (esteve quebrado ~2 meses até 18/09). O chat que o cliente usa como
+        // referência roda em alta; o pipeline não tinha por que rodar abaixo disso.
+        form.append('quality', 'high');
+        // input_fidelity=high é o que REALMENTE preserva rosto/logo numa edição — quando o
+        // modelo aceita o parâmetro. CONDICIONAL POR RESPOSTA (decisão 1): manda por padrão,
+        // nunca decidido por lista de modelo (a lista envelhece a cada lançamento) — só sai
+        // quando a 1ª tentativa já provou, pela própria resposta da OpenAI, que este modelo não
+        // aceita. Sem isso, comportamento idêntico ao de sempre — gpt-image-1 nunca perde a
+        // preservação de identidade que depende deste parâmetro (invariante da ordem).
+        if (comFidelity) form.append('input_fidelity', 'high');
+        // Ordem: referência principal (pessoa/produto) primeiro, logo por último
+        const ordemImg = { pessoa: 0, produto: 1, logo: 2 };
+        baseImgs.sort((a, b) => (ordemImg[a.tag] ?? 9) - (ordemImg[b.tag] ?? 9));
+        for (const b of baseImgs) {
+          form.append('image[]', new Blob([b.buf], { type: b.ct }), `${b.tag}.png`);
+        }
+        const _t0 = Date.now();
+        const resp = await fetch('https://api.openai.com/v1/images/edits', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+          body: form,
+        });
+        return { resp, tempoMs: Date.now() - _t0 };
       }
-      const _t0 = Date.now();
-      const resp = await fetch('https://api.openai.com/v1/images/edits', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-        body: form,
-      });
-      const _tempoMs = Date.now() - _t0;
+      let { resp, tempoMs } = await montarEChamar(true);
+      let inputFidelityRemovido = false;
+      if (!resp.ok) {
+        // .clone() (nunca consome o corpo original): se NÃO for o caso de input_fidelity, `resp`
+        // volta pro chamador intocado, pronto pra `await r.json()` normalmente — mesmo contrato
+        // de sempre, só o corpo é espiado aqui, nunca gasto.
+        let corpoErro = null;
+        try { corpoErro = await resp.clone().json(); } catch (e) {}
+        const msgErro = (corpoErro && corpoErro.error && corpoErro.error.message) || '';
+        if (/input_fidelity/i.test(msgErro) && /does not support|not supported|unsupported|unknown parameter|unrecognized/i.test(msgErro)) {
+          inputFidelityRemovido = true;
+          console.error('[gerar-imagem] modelo ' + modelo + ' recusou input_fidelity — repetindo UMA vez sem o parâmetro:', msgErro);
+          // UMA repetição, nunca um laço (invariante da ordem) — `resp`/`tempoMs` são
+          // SUBSTITUÍDOS pela 2ª tentativa, nunca somados/escolhidos por comparação: esta
+          // repetição corrige a MESMA chamada, não é uma segunda geração (não consome o
+          // orçamento de UMA regeneração por defeito de imagem — esse é outro mecanismo,
+          // verificarTextoPorVisao/reenviarMesmoPrompt, nunca tocado por este bloco).
+          const segunda = await montarEChamar(false);
+          resp = segunda.resp;
+          tempoMs += segunda.tempoMs; // tempo total desta chamada, nunca esconde a 1ª tentativa
+        }
+      }
       // TEMPO REAL EM QUALIDADE ALTA (item 1, "medir e reportar"): não medível neste sandbox
       // (sem OPENAI_API_KEY) — instrumentado para a produção reportar o número real. Relevante
-      // porque maxDuration é 300s e o item 3 pode exigir até duas gerações na mesma requisição.
-      console.log('[gerar-imagem] images/edits quality=high modelo=' + modelo + ' levou', _tempoMs, 'ms');
-      // CUSTO E TEMPO (decisão "Alterações" item 4): usage anexado pelo CHAMADOR, depois de
-      // consumir resp.json() — ver _chamadasOpenAI, acima de engine6().
-      _chamadasOpenAI.push({ endpoint: 'images/edits', modelo, tempo_ms: _tempoMs, ok: resp.ok, em: new Date().toISOString() });
+      // porque maxDuration é 300s e a regeneração dirigida pode exigir até duas gerações na
+      // mesma requisição.
+      console.log('[gerar-imagem] images/edits quality=high modelo=' + modelo + (inputFidelityRemovido ? ' (repetido sem input_fidelity)' : '') + ' levou', tempoMs, 'ms');
+      // CUSTO E TEMPO (rodada anterior, "Alterações" item 4): usage anexado pelo CHAMADOR, depois
+      // de consumir resp.json() — ver _chamadasOpenAI, acima de engine6(). input_fidelity_removido
+      // (decisão 1 desta rodada, "registra no meta que a repetição aconteceu e por quê") fica
+      // gravado no MESMO registro, sem campo paralelo.
+      _chamadasOpenAI.push({ endpoint: 'images/edits', modelo, tempo_ms: tempoMs, ok: resp.ok, em: new Date().toISOString(), input_fidelity_removido: inputFidelityRemovido || undefined });
       return resp;
     }
     async function chamarOpenAITextToImage(promptTexto) {
@@ -1833,23 +1870,51 @@ module.exports = async (req, res) => {
     }
     let { r, composicaoAtivaEfetiva, materialRealPreservado, promptFinal, reenviarMesmoPrompt, resumoCena, diretorPrompt, diretorResposta } = await gerarPeca(composicaoLigada && engine !== false);
     const result = await r.json();
-    // CUSTO E TEMPO (decisão "Alterações" item 4, autorizado pelo João): usage só é conhecido
-    // aqui, depois de consumir o corpo da resposta — anexado ao último item de _chamadasOpenAI
-    // (a chamada que acabou de terminar; execução sequencial, ver comentário na declaração do
-    // array). Ausente na resposta (doc marca usage como "For gpt-image-1 only" — ver relatório) →
-    // fica undefined, nunca inventado.
+    // CUSTO E TEMPO (rodada anterior, "Alterações" item 4, autorizado pelo João): usage só é
+    // conhecido aqui, depois de consumir o corpo da resposta — anexado ao último item de
+    // _chamadasOpenAI (a chamada que acabou de terminar; execução sequencial, ver comentário na
+    // declaração do array). Ausente na resposta (doc marca usage como "For gpt-image-1 only" —
+    // ver relatório) → fica undefined, nunca inventado.
     if (_chamadasOpenAI.length) _chamadasOpenAI[_chamadasOpenAI.length - 1].usage = result.usage || undefined;
+    // MODELO REALMENTE USADO NESTA CHAMADA (25/set/2026, "input_fidelity condicional e erro real
+    // visível", decisão 4, autorizado pelo João) — antes as mensagens amigáveis abaixo citavam
+    // 'gpt-image-1' escrito à mão, mesmo quando a chamada de verdade usou outro modelo (via
+    // MODEL_IMAGEM_EDICAO()/MODEL_IMAGEM_TEXTO(), rodada anterior) — lido do MESMO registro que
+    // já existe em _chamadasOpenAI, nunca uma segunda fonte.
+    const _modeloUsado = (_chamadasOpenAI.length && _chamadasOpenAI[_chamadasOpenAI.length - 1].modelo) || 'gpt-image-1';
     if (!r.ok) {
       const detalhe = (result.error && result.error.message) || JSON.stringify(result).slice(0, 200);
       console.error('openai gpt-image:', detalhe);
-      let amigavel = 'Falha ao gerar imagem. Tente novamente.';
+      // Sem valor inicial fixo (decisão 4: nenhum erro deveria cair num genérico que some com a
+      // causa) — o `else` final, no fim da cadeia, é o único fallback, e mostra o texto real.
+      let amigavel;
       if (/billing|quota|insufficient/i.test(detalhe)) amigavel = 'Sem créditos na OpenAI. Adicione em platform.openai.com → Billing.';
       else if (/content_policy|safety|moderation/i.test(detalhe)) amigavel = 'O conteúdo do prompt foi recusado pela OpenAI. Ajuste a descrição e tente de novo.';
+      // INPUT_FIDELITY (decisão 1 e 4): chega aqui só se a repetição automática (dentro de
+      // chamarOpenAIImageToImage, acima) também tiver falhado, ou por outro parâmetro fora dela
+      // — caso raro, mas com regra própria pra nunca cair no genérico "modelo indisponível" logo
+      // abaixo (a causa real dos dois dias de diagnóstico errado desta ordem).
+      else if (/input_fidelity/i.test(detalhe)) amigavel = 'O modelo ' + _modeloUsado + ' recusou o parâmetro input_fidelity mesmo depois da repetição automática sem ele — falha diferente na 2ª tentativa. Veja o texto real da OpenAI abaixo.';
       else if (/size|dimension/i.test(detalhe)) amigavel = 'Formato de imagem inválido. Tente outro tamanho.';
       else if (/api key|invalid|authentication/i.test(detalhe)) amigavel = 'Chave da OpenAI inválida. Verifique a OPENAI_API_KEY na Vercel.';
-      else if (/verif|organization|access|must be verified/i.test(detalhe)) amigavel = 'Sua organização OpenAI precisa ser verificada para usar o gpt-image-1. Acesse platform.openai.com → Settings → Organization → Verify.';
-      else if (/does not exist|model/i.test(detalhe)) amigavel = 'Modelo de imagem indisponível na sua conta. Verifique o acesso ao gpt-image-1 na OpenAI.';
-      return res.status(500).json({ error: amigavel, detalhe: detalhe.slice(0, 160) });
+      else if (/verif|organization|access|must be verified/i.test(detalhe)) amigavel = 'Sua organização OpenAI precisa ser verificada para usar o ' + _modeloUsado + '. Acesse platform.openai.com → Settings → Organization → Verify.';
+      // MODELO INEXISTENTE/SEM ACESSO (decisão 4, autorizado pelo João) — era `/does not exist|model/i`,
+      // larga demais: QUALQUER erro que citasse a palavra "model" caía aqui, inclusive "The model
+      // 'gpt-image-2' does not support the 'input_fidelity' parameter" (contém "model", não é falta
+      // de acesso nenhuma) — a causa real dos dois dias de diagnóstico errado desta ordem. Agora
+      // exige a FRASE que de fato indica modelo inexistente/sem acesso, não a palavra solta.
+      else if (/model[\s\S]{0,60}(does not exist|not found|is not available)|do(es)? not have access to (the )?model/i.test(detalhe)) amigavel = 'Modelo de imagem (' + _modeloUsado + ') indisponível na sua conta. Verifique o acesso a esse modelo em platform.openai.com.';
+      // QUALQUER ERRO NÃO RECONHECIDO (decisão 4): antes caía no genérico "Falha ao gerar imagem.
+      // Tente novamente" — mensagem que esconde a causa. Agora, sem casar com nenhuma regra
+      // conhecida, devolve o texto da OpenAI como está (dentro do limite de tamanho do campo
+      // `amigavel` mesmo, truncado só por sanidade de exibição — `detalhe`, abaixo, já carrega o
+      // texto completo até 300 caracteres de qualquer forma).
+      else amigavel = 'A OpenAI recusou a geração: ' + detalhe.slice(0, 200);
+      // ERRO REAL SEMPRE VISÍVEL (decisão 3, autorizado pelo João): `detalhe` nunca mais é
+      // substituído pela frase amigável — as duas viajam juntas na mesma resposta. Era 160
+      // caracteres; 300 dá espaço pra mensagens de erro mais longas da OpenAI sem cortar a parte
+      // que de fato diagnostica (ex.: a lista de parâmetros aceitos que alguns erros incluem).
+      return res.status(500).json({ error: amigavel, detalhe: detalhe.slice(0, 300) });
     }
     // gpt-image-1 retorna base64 diretamente
     let b64 = result.data && result.data[0] && result.data[0].b64_json;

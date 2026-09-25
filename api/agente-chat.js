@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.24-motor-de-imagem-configuravel-e-zonas-das-pilulas-reservadas';
+const VERSAO = '2026.09.25-input-fidelity-condicional-e-erro-real-visivel';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1250,6 +1250,25 @@ const handler = async (req, res) => {
         modelo_de_imagem_por_caminho_e_configuravel_padrao_ainda_gpt_image_1:true,
         engine_declara_zonas_reservadas_das_pilulas_quando_cta_selo_por_codigo_mesma_fonte_do_compositor:true,
         custo_tempo_modelo_e_usage_de_cada_chamada_openai_gravados_em_meta_openai_chamadas:true,
+        // "input_fidelity condicional e erro real visível" (25/set/2026, autorizado pelo João):
+        // a troca de motor da rodada anterior estava correta em tudo, mas a OpenAI recusou em
+        // 326ms com "The model 'gpt-image-2' does not support the 'input_fidelity' parameter" —
+        // a conta TEM acesso ao gpt-image-2, o pipeline mandava um parâmetro que só gpt-image-1
+        // aceita. Pior: a tradução de erro amigável tinha uma regra larga (/does not exist|model/i)
+        // que disparava com QUALQUER erro contendo "model" e devolvia sempre "verifique o acesso
+        // ao gpt-image-1" — três ordens falharam com essa frase, apontando pro modelo errado e
+        // escondendo a causa real por dois dias. Detecção agora vem da RESPOSTA da OpenAI, nunca
+        // de uma lista de modelos (que envelhece a cada lançamento): manda input_fidelity como
+        // sempre; se a OpenAI recusar apontando esse parâmetro, repete a MESMA chamada UMA vez sem
+        // ele — nunca um laço, nunca consome o orçamento da regeneração dirigida (que é uma
+        // chamada inteira e separada, reenviarMesmoPrompt, para corrigir texto renderizado errado
+        // — não confundir as duas). Só api/gerar-imagem.js e api/cron.js tocados; aqui é só
+        // VERSAO/correcoes_ativas.
+        input_fidelity_removido_e_repetido_uma_vez_quando_openai_recusa_o_parametro_nunca_um_laco:true,
+        input_fidelity_retry_interno_a_chamarOpenAIImageToImage_nunca_consome_orcamento_de_regeneracao_dirigida:true,
+        erro_real_da_openai_gravado_junto_da_frase_amigavel_em_payload_erros_e_no_meta_nunca_substituida:true,
+        regra_de_deteccao_de_modelo_inexistente_restrita_texto_fixo_gpt_image_1_trocado_pelo_modelo_realmente_chamado:true,
+        erro_sem_regra_conhecida_devolve_o_texto_da_openai_em_vez_de_generico_que_esconde_a_causa:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
