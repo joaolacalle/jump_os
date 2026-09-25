@@ -3,6 +3,12 @@
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const { salvarVideoNoBanco, zapCheckTask, checarRender, zapUpload, zapCriarTask, montarEdit, iniciarRender } = require('./_video-lib');
 const { emailContaCriada } = require('./_email-lib');
+// VERSAO — mesmo mecanismo de api/agente-chat.js e api/gerar-imagem.js (rastreio de qual rodada
+// está no ar), introduzido aqui pela primeira vez: este arquivo nunca teve um carimbo de versão
+// nem um `correcoes_ativas`. Ainda não tem uma rota de diagnóstico própria (GET ?diag=1, como os
+// outros dois arquivos têm) — não construída nesta rodada, que não pediu isso; fica como
+// constante grepável até uma ordem futura decidir expor um diagnóstico aqui também.
+const VERSAO = '2026.09.25-quem-pode-chamar-as-acoes-de-cliente';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
 
 const H = () => ({
@@ -132,6 +138,15 @@ module.exports = async (req, res) => {
     const [me] = await sbGet(`clientes?id=eq.${requester.id}&select=*`);
     const role = (me && me.role) || 'usuario';
     const { action: act0 } = req.body || {};
+    // "Quem pode chamar as ações de cliente" (25/set/2026, autorizado pelo João) — isAdmin
+    // adiantado pra antes das ações testadas por act0 (request_tokens, cancelar_ordem,
+    // registrar_gosto, e agora o portão abaixo): assertScope() e o critério de posse de
+    // registrar_gosto passam a depender dela também, e ambos executam antes de onde `isAdmin`
+    // era calculado originalmente (linha antiga, depois do portão de supervisor/admin) — sem
+    // este adiantamento, chamá-los daqui daria ReferenceError de TDZ. assertScope() continua
+    // definida mais abaixo (function declaration — hoisted, chamável de qualquer ponto deste
+    // bloco), só o VALOR que ela lê precisava vir mais cedo.
+    const isAdmin = role === 'admin';
 
     // Solicitação de aumento de tokens — aberta a qualquer usuário autenticado
     if (act0 === 'request_tokens') {
@@ -190,13 +205,15 @@ module.exports = async (req, res) => {
       }
       const [conteudo] = await sbGet(`conteudos?id=eq.${encodeURIComponent(conteudo_id)}&select=id,user_id,tema,tipo_visual,formato`);
       if (!conteudo) return res.status(404).json({ error: 'Conteúdo não encontrado' });
-      // Posse confirmada no BANCO, nunca no que o navegador afirma — nunca o que o chamador
-      // afirma sobre outra conta: só o dono real do conteúdo pode ter memória gravada por esta
-      // ação. Literal à ordem (nenhuma exceção de admin/supervisor foi pedida) — ver relatório
-      // desta entrega sobre a interação com CTX.viewId (aprovação em nome de outra conta).
-      if (conteudo.user_id !== requester.id) {
-        return res.status(403).json({ error: 'Sem permissão sobre este conteúdo' });
-      }
+      // Posse confirmada no BANCO, nunca no que o navegador afirma. "Quem pode chamar as ações
+      // de cliente" (25/set/2026) ampliou esta checagem: além do dono, admin e o supervisor DO
+      // DONO do conteúdo também podem chamar (as telas permitem "ver como" a conta de um
+      // cliente) — reaproveita assertScope() (já usada por set_tema/set_dados e outras ações de
+      // gestão; agora também aceita o próprio dono, ver correção acima) em vez de escrever uma
+      // segunda versão deste mesmo critério aqui. A memória é gravada SEMPRE na conta do DONO do
+      // conteúdo (donoId, abaixo), nunca na conta de quem chamou.
+      try { await assertScope(conteudo.user_id); }
+      catch (e) { return res.status(403).json({ error: 'Sem permissão sobre este conteúdo' }); }
       const donoId = conteudo.user_id;
       let chave, novoRegistro;
       if (tipo === 'aprovado') {
@@ -234,16 +251,37 @@ module.exports = async (req, res) => {
       }
     }
 
-    if (role !== 'supervisor' && role !== 'admin') {
+    // "Quem pode chamar as ações de cliente" (25/set/2026, autorizado pelo João) — o problema:
+    // este portão recusava QUALQUER papel que não fosse supervisor/admin, mesmo para as ações
+    // que as próprias telas de cliente chamam sobre a PRÓPRIA conta (confirmado, uma a uma,
+    // contra o corpo de cada ação e contra toda chamada JUMP.api/apiSilencioso em agentes.html,
+    // ordens.html, upload.html, editor-video.html e configuracoes.html — nenhuma delas aceita um
+    // identificador de OUTRA conta sem checar posse, e nenhuma outra ação de tela de cliente
+    // ficou de fora desta lista). Três dessas ações já tinham sido tiradas de trás deste portão,
+    // uma de cada vez, sempre depois do bug aparecer (request_tokens, cancelar_ordem,
+    // registrar_gosto — todas testadas por `act0`, mais acima). Esta lista resolve as 9 que
+    // faltavam de uma vez, no PORTÃO, sem mover nenhum corpo de ação de lugar: a ação continua
+    // exatamente onde está, só passa a alcançá-la.
+    const ACOES_DE_CLIENTE = [
+      'criar_os_copy', 'criar_ordem_usuario', 'minhas_ordens', 'set_tema', 'set_dados',
+      'video_meus_jobs', 'video_salvar', 'video_diagnostico', 'video_baixado',
+    ];
+    if (!ACOES_DE_CLIENTE.includes(act0) && role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
+    // Conta bloqueada continua recusada pra QUALQUER ação, sem exceção — checagem de segurança,
+    // nunca de hierarquia, então fica de fora da lista acima por natureza.
     if (me && me.bloqueado) return res.status(403).json({ error: 'Conta bloqueada' });
 
     const { action } = req.body || {};
-    const isAdmin = role === 'admin';
 
-    // Escopo: supervisor só atua nos próprios usuários
+    // Escopo: supervisor só atua nos próprios usuários. "Quem pode chamar as ações de cliente"
+    // (25/set/2026): set_tema/set_dados recebem user_id pelo corpo e chamam assertScope(user_id)
+    // — um cliente agindo na PRÓPRIA conta não satisfazia "sou admin OU sou supervisor DELE" e
+    // continuaria bloqueado mesmo depois de liberado no portão acima. Uma linha, uma regra, só
+    // aqui — nenhuma das ações que chamam assertScope precisou replicar esta condição.
     async function assertScope(targetId) {
+      if (targetId === requester.id) return;
       if (isAdmin) return;
       const [t] = await sbGet(`clientes?id=eq.${targetId}&select=supervisor_id`);
       if (!t || t.supervisor_id !== requester.id) throw new Error('Fora do seu escopo de gestão');
