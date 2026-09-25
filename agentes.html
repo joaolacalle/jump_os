@@ -240,7 +240,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
         <select class="f-input" id="promo-obj">
           <option value="link">Enviar link</option>
           <option value="cupom">Enviar cupom</option>
-          <option value="lead">Captar lead</option>
+          <option value="lead">Adquirir lead</option>
           <option value="info">Dar informação</option>
         </select></div>
       <div style="flex:1;min-width:140px"><label class="f-label">Onde vale</label>
@@ -459,7 +459,7 @@ const LV={basico:1,plus:2,pro:3};
 const AGS=[
   {id:'identidade',ico:'🎨',n:'Identidade',r:'DNA da marca',min:1,nc:'34,211,238',btns:[{i:'🎨',t:'Aplicar identidade',fn:'aplicarIdentidade'}],sug:['Quero fazer meu check-in','Refinar meu posicionamento','Qual tom de voz combina comigo?']},
   {id:'mercado',ico:'🔍',n:'Mercado',r:'Inteligência do nicho',min:1,nc:'79,124,255',btns:[],sug:['Mapear meus concorrentes','Quais lacunas existem no meu nicho?','Benchmarks do meu segmento']},
-  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Atualizar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
+  {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Analisar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
   {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Seu plano',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Sua fila',fn:'abrirPainelCriativo'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
   {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📊',t:'Suas publicações',fn:'abrirPainelPublicacao'},{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
