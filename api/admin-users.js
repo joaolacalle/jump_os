@@ -171,6 +171,69 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    // ── REGISTRAR GOSTO: aprovação/ajuste de peça alimenta o aprendizado do Designer ──
+    // "O sistema aprende o gosto do cliente" (25/set/2026, autorizado pelo João). Antes,
+    // aprovar.html (salvarGosto) escrevia direto na tabela `memorias` pelo navegador com um
+    // INSERT puro; a UNIQUE (user_id,agente,chave) mais a política do navegador ter só INSERT
+    // (nunca UPDATE) faziam a segunda aprovação em diante falhar sempre, engolida por um catch
+    // vazio — confirmado no banco: referencia_aprovada não existia em nenhuma conta. evitar_visual
+    // nunca foi escrito por ninguém (regerarSlide colhia o texto do cliente e descartava). A
+    // escrita passa a existir SÓ aqui, com a service key, por upsert (nunca insert puro) — nenhuma
+    // segunda implementação em lugar nenhum. MESMO MOTIVO do cancelar_ordem acima: quem chama
+    // esta ação é o CLIENTE comum aprovando/ajustando a própria peça em aprovar.html — atrás do
+    // portão de supervisor/admin (linha abaixo), ele levaria 403 e a memória nunca seria gravada;
+    // por isso fica testada por `act0` (como cancelar_ordem), antes desse portão.
+    if (act0 === 'registrar_gosto') {
+      const { conteudo_id, tipo, texto } = req.body || {};
+      if (!conteudo_id || (tipo !== 'aprovado' && tipo !== 'ajuste')) {
+        return res.status(400).json({ error: 'Dados incompletos (conteudo_id, tipo)' });
+      }
+      const [conteudo] = await sbGet(`conteudos?id=eq.${encodeURIComponent(conteudo_id)}&select=id,user_id,tema,tipo_visual,formato`);
+      if (!conteudo) return res.status(404).json({ error: 'Conteúdo não encontrado' });
+      // Posse confirmada no BANCO, nunca no que o navegador afirma — nunca o que o chamador
+      // afirma sobre outra conta: só o dono real do conteúdo pode ter memória gravada por esta
+      // ação. Literal à ordem (nenhuma exceção de admin/supervisor foi pedida) — ver relatório
+      // desta entrega sobre a interação com CTX.viewId (aprovação em nome de outra conta).
+      if (conteudo.user_id !== requester.id) {
+        return res.status(403).json({ error: 'Sem permissão sobre este conteúdo' });
+      }
+      const donoId = conteudo.user_id;
+      let chave, novoRegistro;
+      if (tipo === 'aprovado') {
+        // descritor montado no BACKEND a partir da linha real do banco — nunca a partir do que o
+        // navegador mandar (mesmo texto que salvarGosto já montava, só que agora com dados confiáveis)
+        chave = 'referencia_aprovada';
+        novoRegistro = `${conteudo.tema || 'post'} (${conteudo.tipo_visual || 'conceitual'}, ${conteudo.formato || 'feed'}) — aprovado pelo cliente`;
+      } else {
+        // ajuste: o TEXTO DO CLIENTE, nas palavras dele — é o dado mais valioso aqui, nunca
+        // substituído por descritor sintético. Campo é opcional na tela: vazio não grava nada.
+        const limpo = String(texto || '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!limpo) return res.status(200).json({ ok: true, ignorado: true });
+        chave = 'evitar_visual';
+        novoRegistro = limpo;
+      }
+      try {
+        // ACÚMULO: novo registro na frente, junta com "; ", corta o fim até caber em 200
+        // caracteres (mesmo teto que engine6() já aplica na leitura, api/gerar-imagem.js ~862) —
+        // registro antigo que não couber é descartado pelo fim. Sem duplicar registro idêntico
+        // ao que já está na frente.
+        const [atualRow] = await sbGet(`memorias?user_id=eq.${donoId}&agente=eq.global&chave=eq.${chave}&select=valor`);
+        const atual = String((atualRow && atualRow.valor) || '');
+        const primeiro = atual.split('; ')[0];
+        const valorFinal = (primeiro === novoRegistro)
+          ? atual.slice(0, 200)
+          : (atual ? (novoRegistro + '; ' + atual) : novoRegistro).slice(0, 200);
+        // upsert com a service key, agente 'global' — nunca insert puro; a UNIQUE
+        // (user_id,agente,chave) é o que resolve o merge-duplicates aqui.
+        await sbUpsert('memorias', { user_id: donoId, agente: 'global', chave, valor: valorFinal, updated_at: new Date().toISOString() });
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        // FALHA NUNCA SILENCIOSA — logada com user_id, chave e motivo, sempre.
+        console.error('[registrar_gosto] falha ao gravar — user_id=' + donoId + ' chave=' + chave + ' motivo=' + e.message);
+        return res.status(500).json({ error: 'Erro ao registrar preferência' });
+      }
+    }
+
     if (role !== 'supervisor' && role !== 'admin') {
       return res.status(403).json({ error: 'Sem permissão' });
     }
