@@ -8,8 +8,10 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 // contexto do Identidade a cada turno (dado, não só instrução em texto) e (2) travar
 // <checkin_completo/> EM CÓDIGO quando algum obrigatório ainda falta, mesmo que o modelo emita
 // a tag. Nunca escreve valor nenhum no DNA — só lê e valida o que o próprio modelo tentar
-// gravar via <memoria>.
-const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando } = require('./_dna-lib.js');
+// gravar via <memoria>. fatiaDoAgente (25/set/2026, "Fonte única do DNA da marca") decide, a
+// partir do mapa já deduplicado, qual fatia do DNA cada agente recebe — ver o ponto de leitura
+// única mais abaixo.
+const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, fatiaDoAgente } = require('./_dna-lib.js');
 
 // CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
 // Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
@@ -48,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.25-persona-condizente-e-vocabulario-do-produto';
+const VERSAO = '2026.09.25-fonte-unica-do-dna-da-marca';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -444,7 +446,7 @@ Ao concluir, registre memórias globais:
 <memoria>{"chave":"pontos_corrigir","valor":"..."}</memoria>
 <memoria>{"chave":"prioridades","valor":"..."}</memoria>
 E oriente: "Agora temos tudo para a estratégia. Vá ao Agente de Estratégia montar seu plano de conteúdo." Nunca seja genérico — fale do negócio dele.`,
-  estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — estrategista de Instagram (algoritmo 2026, análise de mercado, resultados). Use TODO o OS_DATA + memórias (mercado, diagnóstico). Tom de voz da marca sempre.
+  estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — estrategista de Instagram (algoritmo 2026, análise de mercado, resultados). Use o DNA da marca (marca, nicho, público, posicionamento, produtos, diferenciais, tom de voz, estilo de copy, sempre/nunca fazer, objetivo e momento do negócio) + as memórias do cliente. Tom de voz da marca sempre.
 
 PRIMEIRA PERGUNTA (sempre, ao iniciar um plano): descubra qual caminho o cliente quer:
 "Você quer que eu CRIE a estratégia do zero (analiso mercado, algoritmo e monto tudo), ou você JÁ TEM sua estratégia/temas e quer que eu EXECUTE (transformo suas ideias em conteúdos prontos)?"
@@ -524,7 +526,7 @@ NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o 
 Uma peça avulsa exige a MESMA inteligência de uma peça do plano. Antes de escrever headline/subheadline/prova/cta_arte, decida conscientemente:
 1) OBJETIVO da peça: vender, adquirir lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
 2) PÚBLICO e MOMENTO: quem vê isso e em que estágio está (frio/morno/quente)?
-3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil). Se o bloco "O QUE OS OUTROS AGENTES JÁ DESCOBRIRAM" existir no seu contexto, ele é insumo obrigatório — não invente por cima dele.
+3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil).
 4) ÂNGULO/PROMESSA: qual a promessa única? Evite o clichê que todo concorrente usa (as lacunas de mercado apontam o espaço livre).
 5) PROVA: existe número/fato REAL do cliente para sustentar? Se não houver, deixe vazio — nunca invente.
 6) CTA: escolha pelo estágio — frio = "SAIBA MAIS/VER COMO"; morno = "QUERO TESTAR/GARANTIR"; quente = "COMPRAR AGORA". Máx 2 palavras, verbo de ação.
@@ -1337,6 +1339,45 @@ const handler = async (req, res) => {
         diagnostico_botao_renomeado_para_analisar_metricas_funcao_e_texto_enviado_inalterados:true,
         estrategia_lista_de_analises_sem_item_de_historico_de_temas_que_nao_existe:true,
         vocabulario_captar_capturar_lead_padronizado_para_adquirir_lead:true,
+        // "Fonte única do DNA da marca" (25/set/2026, autorizado pelo João): o mesmo DNA era
+        // lido em três lugares com três limites diferentes — memCheck do Criativo (limit=40,
+        // sem ordenação) e a leitura "por dependência" (DEPENDE_DE, limit=60, sem ordenação —
+        // conforme o DNA crescia, o agente podia receber um DNA cortado sem nenhum aviso);
+        // api/gerar-imagem.js (intocado nesta rodada) já lia tudo, sem limite — é a leitura
+        // correta. Agora: UMA leitura só por requisição, sem filtro por agente (existem 13
+        // linhas legadas gravadas antes da decisão do DNA vivo, com agente != global — não
+        // podem sumir), ordenação explícita (order=chave.asc) e limite alto e explícito (500) —
+        // batendo nesse limite, vira aviso visível na resposta, nunca corte silencioso. Chave
+        // repetida em mais de uma linha: vence agente='global'; empate, vence a mais recente por
+        // updated_at — dnaFinal {chave:valor}, resultado dessa regra, é a fonte que todo o
+        // resto do arquivo usa a partir daí. api/_dna-lib.js ganhou fatiaDoAgente(): BASE (todo
+        // agente recebe), VISUAL (só identidade e criativo, + prefixo vs_), VIDEO (só identidade
+        // e video, + prefixo video_) — identidade recebe o DNA inteiro, sem fatia, por ser quem
+        // escreve. Chave que não cai em nenhuma lista e não tem prefixo conhecido entra na BASE,
+        // visível a todos (regra da chave nova — sumir em silêncio é o que este projeto não
+        // repete). Removidos por estarem mortos: CHAVES_GLOBAIS (a linha seguinte já marcava
+        // ehGlobal=true incondicionalmente — a constante nunca era consultada), o grafo
+        // DEPENDE_DE e o filtro or=(...) que ele montava, e o bloco "O QUE OS OUTROS AGENTES JÁ
+        // DESCOBRIRAM" — com toda escrita nova caindo em global desde a rodada do DNA vivo, esse
+        // bloco nunca mais tinha o que mostrar; a fatia por papel é agora a única regra de quem
+        // vê o quê. dnaChecklistTxt e a trava em código de <checkin_completo/> NÃO mudaram de
+        // lógica — continuam com a mesma expressão de sempre (mems.filter(agente==='global')),
+        // só a fonte de `mems` mudou, por decisão explícita de não tocar no processamento dessa
+        // tag. Persona da Estratégia ajustada nos dois trechos que a fatia tornava falsos: "use
+        // TODO o OS_DATA + memórias (mercado, diagnóstico)" agora descreve o DNA real que ela
+        // recebe (BASE) + memórias do cliente; a frase que mandava usar "O QUE OS OUTROS AGENTES
+        // JÁ DESCOBRIRAM" saiu, porque o bloco deixou de existir. Escrita das memórias (sempre
+        // em agente='global') não mudou nem uma linha. Só api/_dna-lib.js e api/agente-chat.js
+        // tocados — api/gerar-imagem.js, Engine 6.0, DNA_CAMPOS_OBRIGATORIOS/validação de
+        // check-in existentes em _dna-lib.js, gates de aprovação/data/trial, cadeias de ordem,
+        // worker, publicador, qualquer tag e seu processamento, e a gravação de memórias ficaram
+        // intactos, por decisão explícita do João.
+        dna_lido_uma_unica_vez_por_requisicao_sem_filtro_por_agente_ordenado_e_com_limite_alto_e_explicito:true,
+        dna_cortado_no_limite_agora_gera_aviso_visivel_nunca_corte_silencioso:true,
+        chave_de_dna_repetida_em_mais_de_uma_linha_desempatada_por_global_e_depois_por_updated_at_mais_recente:true,
+        dna_fatiado_por_agente_em_dna_lib_base_todos_visual_so_identidade_e_criativo_video_so_identidade_e_video:true,
+        chave_de_dna_nao_classificada_e_sem_prefixo_conhecido_cai_na_base_visivel_a_todos_nunca_invisivel:true,
+        chaves_globais_e_grafo_depende_de_removidos_por_estarem_mortos_desde_que_toda_escrita_cai_em_global:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1553,19 +1594,59 @@ const handler = async (req, res) => {
       uso.msgs = Number(uso.msgs || 0) + 1;
     }
 
+    // ── FONTE ÚNICA DO DNA DA MARCA (25/set/2026, autorizado pelo João) ──────────────────
+    // ANTES: o mesmo DNA era lido em três lugares com três limites diferentes — memCheck do
+    // Criativo (limit=40, procurando paleta_primaria/estilo_visual no meio das 40, sem
+    // ordenação) e a leitura "por dependência" do resto dos agentes (limit=60, sem ordenação —
+    // o banco decidia que 60 campos voltavam; conforme o DNA crescia, o agente podia receber um
+    // DNA cortado, sem nenhum aviso). AGORA: uma leitura só, por requisição, sem filtro por
+    // agente (existem hoje 13 linhas legadas gravadas com agente != global, de antes da decisão
+    // do DNA vivo — elas não podem sumir; a regra de desempate abaixo já cobre uma chave legada
+    // sem par global), com ordenação explícita (order=chave.asc — a ordem do banco não é
+    // garantida) e limite alto e explícito (500).
+    let mems=await sbGet(`memorias?user_id=eq.${targetId}&select=chave,valor,agente,updated_at&order=chave.asc&limit=500`);
+    if(!Array.isArray(mems))mems=[];
+    // SEM CORTE SILENCIOSO: se a leitura bateu no limite, o DNA pode ter vindo incompleto —
+    // vira aviso visível na resposta (avisosPartes, mais abaixo), nunca um corte sem avisar.
+    let avisoDnaCortado=null;
+    if(mems.length>=500){
+      avisoDnaCortado='O DNA desta conta tem mais campos do que o sistema consegue ler de uma vez (limite de 500) — alguns dados podem estar faltando nesta resposta. Avise o suporte com esta mensagem.';
+      console.error('[dna-fonte-unica] leitura bateu no limite de 500 linhas — DNA pode ter vindo incompleto. user_id='+targetId);
+    }
+    // Chave repetida em mais de uma linha (ex.: uma legada de antes do DNA vivo + uma global
+    // escrita depois): vence a linha agente='global'; havendo empate (as duas globais, ou
+    // nenhuma das duas), vence a mais recente por updated_at. Regra determinística, escrita uma
+    // vez só — dnaFinal {chave:valor} é o que todo o resto deste arquivo usa a partir daqui.
+    const dnaFinal={};
+    {
+      const vencendo={};
+      for(const m of mems){
+        if(!m||!m.chave)continue;
+        const atual=vencendo[m.chave];
+        if(!atual){ vencendo[m.chave]=m; continue; }
+        const novoGlobal=m.agente==='global', atualGlobal=atual.agente==='global';
+        const ganhaNovo = novoGlobal!==atualGlobal
+          ? novoGlobal
+          : (new Date(m.updated_at||0).getTime() > new Date(atual.updated_at||0).getTime());
+        if(ganhaNovo) vencendo[m.chave]=m;
+      }
+      Object.keys(vencendo).forEach(c=>{ dnaFinal[c]=vencendo[c].valor; });
+    }
+    // Fatia do agente atual (api/_dna-lib.js:fatiaDoAgente) — identidade recebe o DNA inteiro
+    // (é quem escreve); os demais recebem só o que a lista de _dna-lib.js decide pra eles. É
+    // agora a ÚNICA regra de quem vê o quê — nunca mais "próprias + de quem eu dependo".
+    const fatiaAtual=fatiaDoAgente(agente,dnaFinal);
+
     // Acervo de imagens (pré-requisito do Identidade)
     let acervoTxt='';
-    // Designer: verificar se a conta tem OS_DATA mínimo (paleta/estilo) antes de gerar
+    // Designer: verificar se a conta tem OS_DATA mínimo (paleta/estilo) — agora consultando a
+    // MESMA leitura única acima (dnaFinal), nunca uma consulta própria.
     let osDataStatus='';
     if(agente==='criativo'){
-      try{
-        const memCheck=await sbGet(`memorias?user_id=eq.${targetId}&agente=eq.global&select=chave&limit=40`);
-        const chaves=(Array.isArray(memCheck)?memCheck:[]).map(m=>m.chave);
-        const temMinimo=chaves.includes('paleta_primaria')&&chaves.includes('estilo_visual');
-        osDataStatus = temMinimo
-          ? '\nOS_DATA: completo — use as cores/fontes/estilo reais das memórias.'
-          : '\n⚠️ OS_DATA INCOMPLETO: esta conta NÃO tem identidade visual definida (sem paleta/estilo). NÃO gere imagem genérica nem invente dados. Oriente o cliente a fazer o check-in com o Agente de Identidade primeiro, para você ter as cores, fontes e estilo da marca. Só gere imagem após o OS_DATA existir.';
-      }catch(e){}
+      const temMinimo=Object.prototype.hasOwnProperty.call(dnaFinal,'paleta_primaria')&&Object.prototype.hasOwnProperty.call(dnaFinal,'estilo_visual');
+      osDataStatus = temMinimo
+        ? '\nOS_DATA: completo — use as cores/fontes/estilo reais das memórias.'
+        : '\n⚠️ OS_DATA INCOMPLETO: esta conta NÃO tem identidade visual definida (sem paleta/estilo). NÃO gere imagem genérica nem invente dados. Oriente o cliente a fazer o check-in com o Agente de Identidade primeiro, para você ter as cores, fontes e estilo da marca. Só gere imagem após o OS_DATA existir.';
     }
     // Diagnóstico: injetar métricas reais do Instagram (se houver)
     let metricasTxt='';
@@ -1622,39 +1703,17 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    // ── MEMÓRIA POR DEPENDÊNCIA (antes: só as próprias + globais) ──────────────
-    // 🔴 BUG ESTRUTURAL: o Mercado grava concorrentes/lacunas_mercado/oportunidades/
-    // formatos_nicho com agente='mercado'. Como a Estratégia lia apenas
-    // or=(agente.eq.estrategia,agente.eq.global), ela NUNCA via essa pesquisa —
-    // mesmo o prompt dela mandando "use as memórias (mercado, diagnóstico)".
-    // O trabalho de um agente morria dentro dele. Agora cada agente lê também a
-    // memória de quem ele DEPENDE, e sabe de onde veio cada informação.
-    const DEPENDE_DE={
-      estrategia:['mercado','diagnostico'],   // planeja com pesquisa de nicho + desempenho real
-      criativo:['estrategia'],                // executa a direção da estratégia
-      video:['estrategia'],
-      trafego:['diagnostico','mercado','estrategia'],
-      publicacao:['estrategia'],
-      diagnostico:['mercado'],                // interpreta números à luz do nicho
-      mercado:['diagnostico'],                // pesquisa olhando o desempenho real
-      identidade:[]                           // a identidade é a raiz: não depende de ninguém
-    };
-    const fontes=[agente,'global'].concat(DEPENDE_DE[agente]||[]);
-    const filtroMem=fontes.map(a=>`agente.eq.${a}`).join(',');
-    let mems=await sbGet(`memorias?user_id=eq.${targetId}&or=(${filtroMem})&select=chave,valor,agente&limit=60`);
-    if(!Array.isArray(mems))mems=[];
-    const proprias=mems.filter(m=>m.agente===agente||m.agente==='global');
-    const deOutros=mems.filter(m=>m.agente!==agente&&m.agente!=='global');
+    // MEMÓRIAS deste turno: a FATIA do agente, calculada acima (fatiaAtual) — nunca mais
+    // "próprias + de quem eu dependo por DEPENDE_DE" (removido: morto desde que toda escrita
+    // nova cai em global — o grafo só alimentava linhas antigas). O bloco "O QUE OS OUTROS
+    // AGENTES JÁ DESCOBRIRAM" também sai: com toda escrita em global, ele nunca mais tinha o
+    // que mostrar — a fatia por papel é agora a ÚNICA regra de quem vê o quê.
+    const chavesFatia=Object.keys(fatiaAtual);
     let memTxt;
-    if(!mems.length){
+    if(!chavesFatia.length){
       memTxt='MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
     }else{
-      memTxt='MEMÓRIAS SOBRE ESTE CLIENTE:\n'+proprias.map(m=>`- ${m.chave}: ${m.valor}`).join('\n');
-      if(deOutros.length){
-        const NOME={mercado:'Agente de Mercado',diagnostico:'Agente de Diagnóstico',estrategia:'Agente de Estratégia'};
-        memTxt+='\n\nO QUE OS OUTROS AGENTES JÁ DESCOBRIRAM (use como base — é trabalho real feito para este cliente, não invente por cima):\n'
-          +deOutros.map(m=>`- [${NOME[m.agente]||m.agente}] ${m.chave}: ${m.valor}`).join('\n');
-      }
+      memTxt='MEMÓRIAS SOBRE ESTE CLIENTE:\n'+chavesFatia.map(c=>`- ${c}: ${fatiaAtual[c]}`).join('\n');
     }
 
     // CHECK-IN — ESTADO REAL DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2,
@@ -1665,7 +1724,11 @@ const handler = async (req, res) => {
     // "terminar logo"). O portão que de fato TRAVA a conclusão fica em código, mais abaixo, no
     // tratamento de <checkin_completo/> — isto aqui só avisa o modelo ANTES de ele responder,
     // pra reduzir a chance de a tag sair errada. Só roda para 'identidade'; nenhum outro agente
-    // é afetado.
+    // é afetado. Continua com a MESMA expressão de sempre (mems.filter(agente==='global')) —
+    // agora sobre a leitura única acima, nunca mudou de lógica, só de fonte (25/set/2026, "Fonte
+    // única do DNA da marca"). Este check-in tem sua própria trava em código (mais abaixo, no
+    // tratamento de <checkin_completo/>) — não fatiado, por decisão explícita de não tocar
+    // nesse mecanismo nesta rodada.
     let dnaChecklistTxt='';
     if(agente==='identidade'){
       const dnaAtual={};
@@ -3248,8 +3311,10 @@ const handler = async (req, res) => {
         await sbPatch(`clientes?id=eq.${targetId}`, { onboarding: onb });
       } catch (e) {}
     }
-    // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global)
-    const CHAVES_GLOBAIS=['marca','nicho','arquetipo','posicionamento','publico_alvo','produtos_precos','diferenciais','emocao_central','dna_visual','paleta_primaria','paleta_secundaria','cor_cta','cor_fundo','tipografia_primaria','tipografia_secundaria','tom_de_voz','estilo_visual','intensidade_visual','complexidade_visual','temperatura_emocional','paleta_terciaria','estilo_fotografico','tipo_de_composicao','nivel_de_agressividade','elementos_obrigatorios','elementos_proibidos','objetivo','video_ritmo','video_legenda','video_rosto','video_narracao','video_duracao','referencia_aprovada','evitar_visual','video_estilo_legenda','video_corte_preferido','video_formato_padrao','video_trilha_preferida','video_fonte','video_cor_legenda'];
+    // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global). A
+    // constante CHAVES_GLOBAIS que vivia aqui foi removida (25/set/2026, "Fonte única do DNA da
+    // marca") por estar morta: a linha abaixo (ehGlobal=true) já decidia isso incondicionalmente
+    // — a constante nunca era de fato consultada. A escrita continua exatamente como estava.
     const memWrites=novas.slice(0,12).map(m=>{
       const ehGlobal=true; // DNA VIVO: todo aprendizado durável de qualquer agente entra no DNA compartilhado que todos leem
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
@@ -3335,6 +3400,7 @@ const handler = async (req, res) => {
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
+    if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
     if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
     if(erroGravacao) avisosPartes.push('🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.');
     if(truncou){

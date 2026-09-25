@@ -55,4 +55,61 @@ function dnaFaltando(mapaDna) {
   return DNA_CAMPOS_OBRIGATORIOS.filter(c => !String(m[c] == null ? '' : m[c]).trim());
 }
 
-module.exports = { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando };
+// ── FATIA DO DNA POR AGENTE (rodada "Fonte única do DNA da marca", 25/set/2026, autorizado
+// pelo João) — decide, olhando só o NOME da chave, quem recebe o quê. Único lugar onde esta
+// classificação existe — api/agente-chat.js só chama fatiaDoAgente(), nunca reimplementa a
+// lista aqui. IDENTIDADE não usa fatia nenhuma: recebe o DNA inteiro, porque é o agente que
+// escreve o DNA — os outros agentes é que têm visão parcial.
+
+// BASE — todo agente recebe: o núcleo de negócio/voz da marca, nada de visual ou vídeo.
+const DNA_BASE = [
+  'marca', 'nicho', 'arquetipo', 'posicionamento', 'publico_alvo', 'produtos_precos',
+  'diferenciais', 'emocao_central', 'tom_de_voz', 'objetivo', 'estilo_de_copy', 'sempre_fazer',
+  'nunca_fazer', 'objetivo_conteudo', 'momento_negocio',
+];
+
+// VISUAL — só identidade e criativo (mais qualquer chave com prefixo vs_).
+const DNA_VISUAL = [
+  'dna_visual', 'paleta_primaria', 'paleta_secundaria', 'paleta_terciaria', 'cor_cta',
+  'cor_fundo', 'tipografia_primaria', 'tipografia_secundaria', 'estilo_visual',
+  'intensidade_visual', 'complexidade_visual', 'temperatura_emocional', 'estilo_fotografico',
+  'tipo_de_composicao', 'nivel_de_agressividade', 'elementos_obrigatorios',
+  'elementos_proibidos', 'densidade_visual', 'tipo_de_contraste', 'temperatura_cromatica',
+  'estilo_visual_descricao', 'estilo_iconografico', 'estilo_de_mockup', 'tom_do_cta',
+  'referencia_aprovada', 'evitar_visual',
+];
+
+// VIDEO — só identidade e video (mais qualquer chave com prefixo video_).
+const DNA_VIDEO = ['perfil_video'];
+
+// Chave que não está em nenhuma lista acima e não tem prefixo conhecido (vs_/video_) entra na
+// BASE, visível a todos — regra da chave nova, obrigatória: o DNA é vivo, os agentes criam
+// chaves novas, e nenhuma chave pode ficar invisível para todo mundo por não ter sido
+// classificada. Errar para o lado de aparecer demais é barato; sumir em silêncio não é opção.
+function _fatiaDaChave(chave) {
+  const c = String(chave == null ? '' : chave);
+  if (DNA_VISUAL.includes(c) || /^vs_/.test(c)) return 'visual';
+  if (DNA_VIDEO.includes(c) || /^video_/.test(c)) return 'video';
+  return 'base';
+}
+
+// Recebe o AGENTE e o mapa {chave:valor} já deduplicado (uma linha por chave — ver a regra de
+// desempate em api/agente-chat.js) e devolve só a fatia que esse agente deveria ver. identidade
+// recebe o mapa inteiro, sem cópia filtrada — é o mesmo objeto, nunca fatiado.
+function fatiaDoAgente(agente, mapaDnaFinal) {
+  const m = mapaDnaFinal || {};
+  if (agente === 'identidade') return m;
+  const fatia = {};
+  for (const chave of Object.keys(m)) {
+    const f = _fatiaDaChave(chave);
+    if (f === 'base') { fatia[chave] = m[chave]; }
+    else if (f === 'visual' && agente === 'criativo') { fatia[chave] = m[chave]; }
+    else if (f === 'video' && agente === 'video') { fatia[chave] = m[chave]; }
+  }
+  return fatia;
+}
+
+module.exports = {
+  DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando,
+  DNA_BASE, DNA_VISUAL, DNA_VIDEO, fatiaDoAgente,
+};
