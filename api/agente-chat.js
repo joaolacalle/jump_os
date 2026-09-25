@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.25-input-fidelity-condicional-e-erro-real-visivel';
+const VERSAO = '2026.09.25-cta-e-selo-devolvidos-ao-modelo-area-util-declarada';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1269,6 +1269,24 @@ const handler = async (req, res) => {
         erro_real_da_openai_gravado_junto_da_frase_amigavel_em_payload_erros_e_no_meta_nunca_substituida:true,
         regra_de_deteccao_de_modelo_inexistente_restrita_texto_fixo_gpt_image_1_trocado_pelo_modelo_realmente_chamado:true,
         erro_sem_regra_conhecida_devolve_o_texto_da_openai_em_vez_de_generico_que_esconde_a_causa:true,
+        // "Devolver CTA e selo ao modelo, e declarar a área útil de verdade" (25/set/2026,
+        // autorizado pelo João): primeira peça real com gpt-image-2 (25/set 12:47) — 2 chamadas,
+        // 107s e 92s, ~11.400 tokens cada, mesmo custo do gpt-image-1 — e a identidade do sujeito
+        // saiu preservada mesmo com input_fidelity removido nas duas (achado da rodada anterior):
+        // a preservação é nativa no gpt-image-2. O modelo também desenhou, sozinho e com
+        // acentuação correta, um quadro branco manuscrito e cinco cards de texto — o defeito de
+        // acento que motivou tirar CTA/selo das mãos do modelo (24/set) não existe mais; o
+        // defeito agora é o OPOSTO — a pílula composta por código fica sobreposta à cena, nunca
+        // integrada. CTA_SELO_POR_CODIGO volta a false (era true por padrão desde 24/set) — CTA e
+        // selo voltam a ser pedidos ao modelo, as zonas reservadas param de ser declaradas, o
+        // compositor de pílulas para de desenhar. O CÓDIGO NÃO FOI REMOVIDO — fica dormente atrás
+        // da mesma chave, religável numa linha se um modelo futuro voltar a errar. Seção 12 do
+        // Engine (safe zones) reescrita: a área útil agora é declarada como RETÂNGULO POSITIVO
+        // ("componha tudo dentro deste retângulo") em vez de só a proibição de margem — mesmos
+        // números de sempre (regiaoEntregue), só a frase virou afirmativa. Só api/gerar-imagem.js
+        // tocado; aqui é só VERSAO/correcoes_ativas.
+        cta_selo_por_codigo_chave_unica_default_false_codigo_dormente_nao_removido:true,
+        area_util_do_engine_declarada_como_retangulo_positivo_em_vez_de_so_margem_proibida:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

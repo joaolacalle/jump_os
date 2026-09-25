@@ -19,7 +19,7 @@ const { compor, obterTemplate, posicaoLogo, carregarFonteParaTexto, pilulaSvg, e
 // mais abaixo); nunca grava nada no DNA do cliente — preencher é exclusividade do onboarding.
 const { dnaFaltando } = require('./_dna-lib.js');
 
-const VERSAO = '2026.09.25-input-fidelity-condicional-e-erro-real-visivel';
+const VERSAO = '2026.09.25-cta-e-selo-devolvidos-ao-modelo-area-util-declarada';
 
 // ── SLIDES DE CARROSSEL ───────────────────────────────────────────────────────
 // O schema (perguntado ao banco, nunca inferido) NÃO tem coluna de slides:
@@ -338,6 +338,26 @@ function engine6(M, o) {
     M.arquetipo ? ('Brand archetype: ' + M.arquetipo) : '',
   ].filter(Boolean).join('\n');
 
+  // ÁREA ÚTIL, DECLARADA COMO ÁREA (25/set/2026, "Devolver CTA e selo ao modelo, e declarar a
+  // área útil de verdade", decisão 3, autorizado pelo João) — a seção 12 sempre descreveu as
+  // margens como PROIBIÇÃO ("não coloque texto importante aqui") e o modelo continuava compondo
+  // até a borda; a peça de 25/set 12:47 mostrou que ele obedece de fato uma instrução AFIRMATIVA
+  // ("componha tudo dentro deste retângulo"). Mesmos números de sempre (o.regiaoEntregue, FONTE
+  // ÚNICA com o corte real — calcularZonaExclusao, nunca alterada nesta rodada) — só a FRASE virou
+  // positiva: o retângulo útil é o complemento das margens já calculadas, nunca um número novo.
+  const areaUtil = o.regiaoEntregue ? {
+    x0: fmtPct(o.regiaoEntregue.margemLadosGerado), x1: fmtPct(1 - o.regiaoEntregue.margemLadosGerado),
+    y0: fmtPct(o.regiaoEntregue.margemTopoGerado), y1: fmtPct(1 - o.regiaoEntregue.margemBaseGerado),
+  } : null;
+  // Fallback defensivo (sem o.regiaoEntregue — nunca deveria disparar em produção, mesmo padrão já
+  // usado no restante da seção 12): mesmos números-base de MARGENS_BASE_SAFE_ZONE, únicos e já
+  // existentes, nunca um segundo par hand-typed.
+  const margensBaseFallback = MARGENS_BASE_SAFE_ZONE[reels ? 'reels' : 'feed'];
+  const areaUtilFallback = {
+    x0: fmtPct(margensBaseFallback.sides), x1: fmtPct(1 - margensBaseFallback.sides),
+    y0: fmtPct(margensBaseFallback.top), y1: fmtPct(1 - margensBaseFallback.bottom),
+  };
+
   return [
     'You are an art director creating premium Instagram content following a professional design system. Execute EVERY rule below — they are non-negotiable.',
     reels ? 'FORMAT: vertical 1080x1920 single frame.' : 'FORMAT: Instagram feed/carousel slide.',
@@ -516,10 +536,10 @@ function engine6(M, o) {
           + (o.regiaoEntregue.descarteLargura > 0.001 ? ('The LEFT and RIGHT bands are discarded, ' + fmtPct(o.regiaoEntregue.descartePorLado) + ' each (' + fmtPct(o.regiaoEntregue.descarteLargura) + ' of width, total). ') : '')
           + 'Compose so every element that matters — header, footer, CTA, anything near an edge — survives fully inside the surviving central region. Anything placed in the discarded bands is LOST, not just partially cropped.')
       : '',
-    (o.regiaoEntregue)
-      ? ('EFFECTIVE SAFE ZONES on THIS generated canvas (already account for the crop above — these are NOT the same numbers as the delivered piece\'s own safe zones): top ' + fmtPct(o.regiaoEntregue.margemTopoGerado) + ', sides ' + fmtPct(o.regiaoEntregue.margemLadosGerado) + ', bottom ' + fmtPct(o.regiaoEntregue.margemBaseGerado) + '. NEVER place important text there.')
-      : (reels ? 'REELS safe zones, in PERCENT of the canvas (the Instagram UI covers these): top 13%, sides 8%, bottom 17%. NEVER place important text there.'
-              : 'FEED/CAROUSEL safe zones, in PERCENT of the canvas: top 9%, sides 8%, bottom 10%. NEVER place important text there.'),
+    (areaUtil)
+      ? ('USEFUL AREA on THIS generated canvas (already accounts for the crop above — these are NOT the same numbers as the delivered piece\'s own safe zones): compose the ENTIRE piece — headline, copy, CTA, label, everything — inside this rectangle: horizontally from ' + areaUtil.x0 + ' to ' + areaUtil.x1 + ' of the canvas width, vertically from ' + areaUtil.y0 + ' to ' + areaUtil.y1 + ' of the canvas height. Anything placed OUTSIDE this rectangle is LOST in the crop, not just partially cut.')
+      : (reels ? ('REELS useful area, in PERCENT of the canvas (the Instagram UI covers everything outside it): compose the entire piece inside this rectangle — horizontally from ' + areaUtilFallback.x0 + ' to ' + areaUtilFallback.x1 + ', vertically from ' + areaUtilFallback.y0 + ' to ' + areaUtilFallback.y1 + '.')
+              : ('FEED/CAROUSEL useful area, in PERCENT of the canvas: compose the entire piece inside this rectangle — horizontally from ' + areaUtilFallback.x0 + ' to ' + areaUtilFallback.x1 + ', vertically from ' + areaUtilFallback.y0 + ' to ' + areaUtilFallback.y1 + '.')),
     '',
     '=== VALIDATION BEFORE RENDERING (run this checklist, fix silently, then render) ===',
     // 23/set/2026: este checklist tinha o MESMO problema que o da seção QUALITY (mais abaixo) já
@@ -634,6 +654,20 @@ const MODEL_VERIFICACAO_TEXTO = () => trimEnv(process.env.AGENT_MODEL_VERIFICACA
 // valores exatos a configurar na Vercel quando a troca for aprovada.
 const MODEL_IMAGEM_EDICAO = () => trimEnv(process.env.AGENT_MODEL_IMAGEM_EDICAO) || 'gpt-image-1';
 const MODEL_IMAGEM_TEXTO = () => trimEnv(process.env.AGENT_MODEL_IMAGEM_TEXTO) || 'gpt-image-1';
+
+// CTA E SELO POR CÓDIGO — CHAVE ÚNICA (25/set/2026, "Devolver CTA e selo ao modelo, e declarar a
+// área útil de verdade", decisão 1 e 2, autorizado pelo João) — a Rodada anterior (24/set) tirou
+// CTA e selo das mãos do modelo porque o gpt-image-1 errava acento e posição; a primeira peça real
+// com gpt-image-2 (25/set 12:47) desenhou os dois — e um quadro branco manuscrito e cinco cards de
+// texto, tudo com acentuação correta, sozinho — sem nenhum defeito de texto. A causa que justificava
+// código deixou de existir; agora o carimbo por código é que produz o defeito (pílula sobreposta à
+// cena, nunca integrada). CTA_SELO_POR_CODIGO = false: todo o mecanismo (Engine para de suprimir
+// CTA/selo do modelo, zonas reservadas param de ser declaradas, o compositor de pílulas para de
+// desenhar) volta ao comportamento anterior à Rodada de 24/set. O CÓDIGO NÃO FOI REMOVIDO — fica
+// dormente atrás desta única chave, pronto pra ser religado numa linha (trocar só este valor) se um
+// modelo futuro voltar a errar acento ou posição. Nunca decidida por modelo (não é `if (modelo ===
+// 'gpt-image-1')`) — é uma escolha de produto, registrada aqui, não uma capacidade do modelo.
+const CTA_SELO_POR_CODIGO = false;
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
@@ -1521,8 +1555,13 @@ module.exports = async (req, res) => {
     // abaixo), que passa a REUSAR _zonasPills em vez de recalcular — nunca duas contas
     // divergentes. engine===false (ficha técnica) não carrega pilar/cta_arte de peça de verdade —
     // mesmo escopo de validarTextoDaPeca/checarCoerenciaConteudo, acima.
+    // GATED POR CTA_SELO_POR_CODIGO (25/set/2026, "Devolver CTA e selo ao modelo...", decisão 1) —
+    // com a chave desligada (padrão atual), nem a reserva antecipada nem o desenho de verdade
+    // (bloco `if (!logoJaComposta)`, mais abaixo) rodam — sem isso, o código continuaria
+    // carimbando pílulas por CIMA do que o modelo agora desenha sozinho (o próprio defeito que
+    // motivou esta reversão), mesmo com a declaração ao modelo (engine6) já suprimida.
     let _zonasPills = null;
-    if (engine !== false) {
+    if (CTA_SELO_POR_CODIGO && engine !== false) {
       try {
         _zonasPills = await calcularZonasPills(_vertical, M6, pilar, cta_arte, total, targetId);
       } catch (e) { console.error('[zonas-pills] cálculo antecipado falhou, prompt e composição seguem sem reserva:', e.message); }
@@ -1811,12 +1850,13 @@ module.exports = async (req, res) => {
       // engine:false → peça que NÃO é post de Instagram (ex.: ficha técnica da marca).
       // materialReal (21/set/2026): sinal novo pra engine6 condicionar a seção 6 (luz
       // direcional/sombra) ao ambiente quando há pessoa ou produto real preservado.
-      // ctaSeloPorCodigo (24/set/2026, decisão 4): true sempre que este é o caminho TRADICIONAL
-      // (compAtivaLocal false) — CTA e selo saem de vez da conta do modelo, código compõe as duas
-      // pílulas depois do corte (ver o ponto de composição, mais abaixo). Só falso quando
-      // compAtivaLocal é true — aí o template de composição completo (compor()) já desenha os
-      // dois: nunca os dois caminhos ao mesmo tempo (invariante da ordem).
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
+      // ctaSeloPorCodigo (24/set/2026, decisão 4; revertida por padrão em 25/set/2026, "Devolver
+      // CTA e selo ao modelo...", decisão 1) — true só quando a CHAVE ÚNICA CTA_SELO_POR_CODIGO
+      // (acima) está ligada E este é o caminho TRADICIONAL (compAtivaLocal false); nunca os dois
+      // caminhos (tradicional por código, composição completa) ao mesmo tempo — invariante de
+      // sempre. Com a chave desligada (padrão atual), byte a byte o mesmo de antes da Rodada de
+      // 24/set: CTA e selo voltam a ser pedidos ao modelo.
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
@@ -1844,8 +1884,9 @@ module.exports = async (req, res) => {
       } else if (tipo === 'conceitual') {
         extra += ' NO people — use objects, mockups, screenshots, graphics or abstract elements.';
       }
-      // ctaSeloPorCodigo (decisão 4): mesmo raciocínio do ramo image-to-image, acima.
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
+      // ctaSeloPorCodigo (25/set/2026): mesmo raciocínio do ramo image-to-image, acima — gated
+      // pela mesma chave única CTA_SELO_POR_CODIGO.
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
@@ -2115,7 +2156,10 @@ module.exports = async (req, res) => {
       // chamada de cedo ter falhado (ex.: rede instável) — preserva, mesmo nesse caso, o sinal de
       // falha visível (registrarFalhaComposicaoNaOrdem, no catch abaixo) que já existia antes
       // desta rodada: sem o fallback, uma falha só na etapa cedo passaria em silêncio aqui.
-      if (engine !== false) {
+      // GATED POR CTA_SELO_POR_CODIGO (25/set/2026, decisão 1) — mesma chave do bloco de reserva
+      // antecipada, acima; com ela desligada este bloco inteiro fica dormente (nunca desenha),
+      // pronto pra ser religado numa linha (a mesma que liga a reserva e a supressão em engine6).
+      if (CTA_SELO_POR_CODIGO && engine !== false) {
         const zonas = _zonasPills || await calcularZonasPills(_vert, M6, pilar, cta_arte, total, targetId).catch(() => null);
         if (zonas && (zonas.selo || zonas.cta)) {
           try {
