@@ -854,6 +854,20 @@ function _msSP(d){
   return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)?iso:(iso+'-03:00')).getTime();
 }
 function _agoraSP(){ return Date.now(); }   // instante absoluto: comparável ao ms acima
+// LINGUAGEM DE PRODUTO NO ALERTA DE DEFEITO (26/set/2026, "Carrossel por upload no calendário, e
+// alerta de defeito com linguagem de produto", decisão 4, autorizado pelo João) — o alerta
+// CONTINUA sendo gravado inteiro, sempre, pelo backend (api/gerar-imagem.js, meta.alerta_defeito)
+// — ZERO mudança na gravação. Muda só o que cada papel VÊ na tela: o texto técnico ("saiu X,
+// esperado Y — CTA parcialmente cortado...") foi escrito para diagnóstico, não para o cliente —
+// aparecer assim hoje só gera insegurança sobre a qualidade do produto, sem dar ao usuário nada
+// que ele possa fazer com aquilo. CTX.role vem de JUMP.guard() (assets/jump-core.js) — é sempre o
+// papel de quem está LOGADO na tela (nunca muda com impersonação por ?ver=, mesmo quando um
+// admin/supervisor está visualizando a conta de um usuario) — então quem tem acesso técnico
+// continua vendo o texto técnico completo, mesmo olhando pela conta de outra pessoa.
+function textoAlertaDefeito(raw){
+  if(!raw)return '';
+  return (CTX&&CTX.role==='usuario') ? 'Revise o enquadramento antes de aprovar.' : raw;
+}
 function render(){
   const _tot=ITENS.length+ESTRATEGIAS.length+MATERIAL_PEND.length; document.getElementById('pend-n').textContent=_tot+' pendente'+(_tot===1?'':'s');
   const g=document.getElementById('ap-grid');
@@ -920,7 +934,10 @@ function render(){
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
         ${(c.meta&&c.meta.finalidade==='anuncio')?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">🎯 PARA ANÚNCIO</div>':''}
-        ${(c.meta&&c.meta.alerta_defeito)?`<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px" title="${JUMP.esc(c.meta.alerta_defeito)}">⚠️ DEFEITO CONHECIDO — conferir</div>`:''}
+        ${(c.meta&&c.meta.alerta_defeito)?((CTX&&CTX.role==='usuario')
+          ? `<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⚠️ ${JUMP.esc(textoAlertaDefeito(c.meta.alerta_defeito))}</div>`
+          : `<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px" title="${JUMP.esc(c.meta.alerta_defeito)}">⚠️ DEFEITO CONHECIDO — conferir</div>`)
+        :''}
         ${_expirado?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⛔ EXPIRADO — reagende para recuperar</div>':(()=>{const d=c.data_sugerida?new Date(c.data_sugerida):null;const h=new Date();h.setHours(0,0,0,0);
           return (d&&d<h)?'<div style="font-family:var(--M);font-size:9px;color:#fbbf24;margin-top:3px">⏰ DATA VENCIDA</div>':''})()}
         <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para editar →</div>
@@ -1004,7 +1021,10 @@ function abrirEdicao(id){
     </div>
     ${_expiradoEdicao?`<div class="ec-alert"><div><b>Este post expirou</b> — a semana dele já fechou (ou a data já passou) sem aprovação. Reagende para uma data nova e ele volta a poder ser aprovado. Sem reagendar, é excluído automaticamente ${JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO} dias após expirar.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`
       :(vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:'')}
-    ${m.alerta_defeito?`<div class="ec-alert"><div>⚠️ <b>Defeito conhecido nesta peça, mesmo após a regeneração automática.</b> ${JUMP.esc(m.alerta_defeito)}</div></div>`:''}
+    ${m.alerta_defeito?((CTX&&CTX.role==='usuario')
+      ? `<div class="ec-alert"><div>⚠️ ${JUMP.esc(textoAlertaDefeito(m.alerta_defeito))}</div></div>`
+      : `<div class="ec-alert"><div>⚠️ <b>Defeito conhecido nesta peça, mesmo após a regeneração automática.</b> ${JUMP.esc(m.alerta_defeito)}</div></div>`)
+    :''}
 
     <div class="ec-grid">
       <section class="ec-pane">

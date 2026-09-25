@@ -106,8 +106,13 @@
       <textarea class="ed-ta" id="criar-copy" rows="4" placeholder="Deixe em branco se quiser publicar só a arte, sem legenda."></textarea>
     </div>
     <div id="criar-copy-aviso-story" style="display:none;font-family:var(--M);font-size:11px;color:var(--t3);margin:14px 0 5px">📵 Stories não têm legenda no Instagram — o texto, se houver, vai na própria arte.</div>
-    <label class="ed-lbl">Arquivo (opcional agora — pode enviar depois em Aprovações)</label>
-    <input class="ed-inp" id="criar-arquivo" type="file" accept="image/*,video/*">
+    <!-- CARROSSEL POR UPLOAD (25/set/2026, "Carrossel por upload no calendário...", decisão 1,
+         autorizado pelo João): 1 arquivo continua o comportamento de sempre (midia_url, peça
+         única). 2+ arquivos passam a virar carrossel — é o publicador (api/cron.js) já pronto pra
+         isso, só faltava a ponta da frente. `multiple` some quando o formato é story (só um
+         arquivo, ver atualizarCampoCopyCriacao) — Instagram Stories não aceitam carrossel. -->
+    <label class="ed-lbl" id="criar-arquivo-lbl">Arquivo (opcional agora — pode enviar depois em Aprovações). 2 a 10 imagens viram um carrossel.</label>
+    <input class="ed-inp" id="criar-arquivo" type="file" accept="image/*,video/*" multiple>
     <div class="ed-foot">
       <button class="btn btn-o btn-sm" onclick="fecharCriacao()">Cancelar</button>
       <button class="btn btn-g btn-sm" id="criar-salvar" onclick="criarPublicacaoManual()">Criar publicação</button>
@@ -267,14 +272,18 @@ function abrirVariacao(){
 }
 function mudaMes(n){MES+=n;if(MES<0){MES=11;ANO--}if(MES>11){MES=0;ANO++}render()}
 
-// ═══ PUBLICAÇÃO MANUAL (Parte 2, 15/set/2026) — usuário cria uma publicação do zero, como no
-// planner do Meta. Reaproveita 100% a infra de material do usuário da Etapa 2 (mesmo status
-// 'aguardando_material', mesmo bucket/caminho de Storage, mesmo bloqueio de aprovação até o
-// arquivo existir — ver aprovar.html abrirMaterial/enviarMaterial) — nenhum mecanismo novo
-// criado. Formatos oferecidos: feed, story, reels (arquivo único) — carrossel FICA DE FORA
-// desta entrega porque a infra reaproveitada só grava um midia_url por conteúdo (nem
-// aprovar.html sabe subir carrossel de material do usuário hoje); virar carrossel manual
-// exigiria upload múltiplo, mecanismo que não existe — reportado, não implementado calado.
+// ═══ PUBLICAÇÃO MANUAL (Parte 2, 15/set/2026; carrossel por upload, 25/set/2026, "Carrossel por
+// upload no calendário, e alerta de defeito com linguagem de produto", autorizado pelo João) —
+// usuário cria uma publicação do zero, como no planner do Meta. Reaproveita 100% a infra de
+// material do usuário da Etapa 2 (mesmo status 'aguardando_material', mesmo bucket/caminho de
+// Storage, mesmo bloqueio de aprovação até o arquivo existir — ver aprovar.html
+// abrirMaterial/enviarMaterial, NUNCA tocado por esta rodada) — nenhum mecanismo novo de Storage
+// criado. Formatos oferecidos: feed, story, reels. Carrossel NÃO é uma opção nova no menu — o
+// sistema entende que é carrossel porque o usuário subiu mais de um arquivo (decisão explícita
+// do João): 1 arquivo é peça única, como sempre; 2 a 10 imagens (nunca vídeo, nunca story/reels
+// — ver criarPublicacaoManual) viram meta.slides, no formato que api/cron.js já publica desde
+// antes desta rodada (o publicador nunca precisou de nenhuma mudança — só faltava a ponta da
+// frente que grava meta.slides a partir de upload múltiplo, que não existia até agora).
 let CRIAR_DIA=null;
 function abrirCriacao(d){
   CRIAR_DIA=d;
@@ -292,10 +301,28 @@ function fecharCriacao(){document.getElementById('criar-modal').style.display='n
 // STORY NÃO TEM LEGENDA (item 3, 15/set/2026): esconde o campo de copy quando o formato é story
 // — regra de plataforma (Stories do Instagram não têm legenda como feed/reels), não preferência.
 function atualizarCampoCopyCriacao(){
-  const ehStory=(document.getElementById('criar-formato').value==='story');
+  const formato=document.getElementById('criar-formato').value;
+  const ehStory=(formato==='story');
   const wrap=document.getElementById('criar-copy-wrap'), aviso=document.getElementById('criar-copy-aviso-story');
   if(wrap)wrap.style.display=ehStory?'none':'';
   if(aviso)aviso.style.display=ehStory?'':'none';
+  // CARROSSEL POR UPLOAD (25/set/2026, decisão 2, "STORY NÃO ACEITA CARROSSEL", autorizado pelo
+  // João) — story aceita só um arquivo, mesma natureza da regra que já esconde a legenda acima.
+  // REELS (extensão, não pedida explicitamente na ordem, mas decorre do mesmo mecanismo: um
+  // conteúdo com formato='reels' é sempre tratado como VÍDEO ÚNICO pelo publicador — ver
+  // `ehVideo` em api/cron.js, que casa a palavra "reel" no `formato` ANTES de olhar pra
+  // meta.slides — então um carrossel gravado sob formato='reels' nunca seria publicado como tal,
+  // silenciosamente: só a capa sairia, como um Reels comum, descartando os demais arquivos sem
+  // aviso nenhum. Reportado no relatório desta entrega). `multiple` só fica disponível pra feed.
+  const fi=document.getElementById('criar-arquivo'), lbl=document.getElementById('criar-arquivo-lbl');
+  const sozinho=(ehStory||formato==='reels');
+  if(fi){
+    if(sozinho)fi.removeAttribute('multiple'); else fi.setAttribute('multiple','');
+    // troca de formato para um que não aceita múltiplos, com múltiplos já escolhidos: limpa a
+    // seleção — evita mandar 2+ arquivos escondidos por trás de um campo que parece aceitar 1.
+    if(sozinho&&fi.files&&fi.files.length>1)fi.value='';
+  }
+  if(lbl)lbl.textContent=sozinho?'Arquivo (opcional agora — pode enviar depois em Aprovações)':'Arquivo (opcional agora — pode enviar depois em Aprovações). 2 a 10 imagens viram um carrossel.';
 }
 async function criarPublicacaoManual(){
   if(CRIAR_DIA==null||!CTX)return;
@@ -305,8 +332,37 @@ async function criarPublicacaoManual(){
   const hora=document.getElementById('criar-hora').value||'09:00';
   const tema=document.getElementById('criar-tema').value.trim()||null;
   const copy=ehStory?'':(document.getElementById('criar-copy').value||'');
-  const arquivo=(document.getElementById('criar-arquivo').files||[])[0];
+  const arquivos=Array.from(document.getElementById('criar-arquivo').files||[]);
   const dataISO=ANO+'-'+String(MES+1).padStart(2,'0')+'-'+String(CRIAR_DIA).padStart(2,'0');
+
+  // CARROSSEL POR UPLOAD (25/set/2026, "Carrossel por upload no calendário, e alerta de defeito
+  // com linguagem de produto", decisão 2, autorizado pelo João) — limites da meta, validados na
+  // TELA, ANTES de subir qualquer coisa (nenhuma chamada de rede ainda neste ponto — nem o
+  // insert do conteúdo, nem o upload). A tela recusa e explica em vez de deixar o publicador
+  // (api/cron.js) descartar em silêncio: ele já corta em 10 (`slidesArr.slice(0,10)`) como última
+  // defesa, mas a defesa aqui é a PRIMEIRA, pra o usuário saber por quê.
+  if(arquivos.length>10){
+    toast('Máximo de 10 arquivos por carrossel — você selecionou '+arquivos.length+'.','err');
+    return;
+  }
+  if(arquivos.length>1&&ehStory){
+    toast('Stories não aceitam carrossel — selecione só um arquivo.','err');
+    return;
+  }
+  // REELS (extensão desta implementação, não nomeada na ordem — ver relatório desta entrega):
+  // um conteúdo com formato='reels' é sempre tratado como vídeo único pelo publicador
+  // (api/cron.js: `ehVideo` casa a palavra "reel" no campo `formato`, antes mesmo de olhar pra
+  // meta.slides) — gravar um carrossel sob este formato nunca seria publicado como carrossel,
+  // só a capa sairia como um Reels comum, descartando os demais arquivos sem aviso nenhum.
+  if(arquivos.length>1&&formato==='reels'){
+    toast('Reels não aceitam carrossel — selecione só um arquivo.','err');
+    return;
+  }
+  if(arquivos.length>1&&arquivos.some(a=>String(a.type||'').indexOf('video')===0)){
+    toast('Carrossel não aceita vídeo nesta entrega — todos os arquivos precisam ser imagem.','err');
+    return;
+  }
+
   btn.disabled=true;btn.textContent='Criando...';
   try{
     const uid=CTX.viewId||CTX.user.id;
@@ -322,12 +378,12 @@ async function criarPublicacaoManual(){
       meta:{headline:tema||'', criado_manual:true}
     }).select().single();
     if(error)throw error;
-    if(arquivo){
+    if(arquivos.length===1){
+      // UM ARQUIVO: comportamento de hoje, intocado byte a byte (invariante da ordem) — mesmo
+      // mecanismo de Storage que aprovar.html/enviarMaterial já usa, bucket 'user-uploads',
+      // vínculo direto no midia_url deste conteúdo. Zero mudança no publicador.
+      const arquivo=arquivos[0];
       btn.textContent='Enviando arquivo...';
-      // MESMO mecanismo de Storage que aprovar.html/enviarMaterial já usa — bucket
-      // 'user-uploads', vínculo direto no midia_url deste conteúdo, sem passar pela tabela
-      // 'uploads' (essa é de outro fluxo). Zero mudança no publicador: ele já lê midia_url
-      // genericamente, decidindo vídeo x imagem pelo formato/extensão do arquivo.
       const path=uid+'/material_conteudo/'+ins.id+'-'+Date.now()+'-'+arquivo.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
       const{error:errUp}=await JUMP.sb.storage.from('user-uploads').upload(path,arquivo);
       if(errUp)throw errUp;
@@ -335,9 +391,41 @@ async function criarPublicacaoManual(){
       const{error:errSet}=await JUMP.sb.from('conteudos').update({midia_url:pub.publicUrl,status:'aguardando_aprovacao'}).eq('id',ins.id);
       if(errSet)throw errSet;
       ins.midia_url=pub.publicUrl; ins.status='aguardando_aprovacao';
+    }else if(arquivos.length>1){
+      // CARROSSEL (2+ arquivos, decisão 1): mesmo bucket e caminho de hoje, um upload por
+      // arquivo, na ORDEM em que o usuário escolheu — meta.slides no formato {n,url} que o
+      // publicador já consome (api/cron.js, `slidesArr`). A capa continua em midia_url — é o
+      // PRIMEIRO arquivo escolhido, nunca recalculada depois.
+      btn.textContent='Enviando arquivos (0/'+arquivos.length+')...';
+      const enviados=[]; // paths já subidos no Storage — limpos (melhor esforço) se algum falhar
+      const slides=[];
+      try{
+        for(let i=0;i<arquivos.length;i++){
+          const arquivo=arquivos[i];
+          const path=uid+'/material_conteudo/'+ins.id+'-'+Date.now()+'-'+i+'-'+arquivo.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+          const{error:errUp}=await JUMP.sb.storage.from('user-uploads').upload(path,arquivo);
+          if(errUp)throw errUp;
+          enviados.push(path);
+          const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
+          slides.push({n:i+1,url:pub.publicUrl});
+          btn.textContent='Enviando arquivos ('+(i+1)+'/'+arquivos.length+')...';
+        }
+      }catch(eUp){
+        // OU SOBEM TODOS, OU NENHUM É GRAVADO (invariante da ordem) — até aqui nada foi escrito
+        // em `conteudos` (só Storage); limpa os arquivos já enviados pra não deixar sobra órfã
+        // no bucket, melhor esforço, nunca troca o erro real por um erro de limpeza.
+        if(enviados.length){
+          try{await JUMP.sb.storage.from('user-uploads').remove(enviados);}catch(eDel){console.error('[criar-publicacao] limpeza de upload parcial falhou:',eDel);}
+        }
+        throw eUp;
+      }
+      const metaFinal={...(ins.meta||{}),slides};
+      const{error:errSet}=await JUMP.sb.from('conteudos').update({midia_url:slides[0].url,meta:metaFinal,status:'aguardando_aprovacao'}).eq('id',ins.id);
+      if(errSet)throw errSet;
+      ins.midia_url=slides[0].url; ins.meta=metaFinal; ins.status='aguardando_aprovacao';
     }
     EVENTOS.push(ins);
-    toast(arquivo?'✓ Publicação criada e enviada para Aprovações!':'✓ Publicação criada — envie o arquivo em Aprovações quando estiver pronto.');
+    toast(arquivos.length?'✓ Publicação criada e enviada para Aprovações!':'✓ Publicação criada — envie o arquivo em Aprovações quando estiver pronto.');
     fecharCriacao(); render(); if(DIA_SEL!=null)verDia(DIA_SEL);
   }catch(e){ toast(e.message||'Erro ao criar publicação','err'); btn.disabled=false; btn.textContent='Criar publicação'; }
 }
