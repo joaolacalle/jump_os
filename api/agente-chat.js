@@ -48,7 +48,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.25-cta-e-selo-devolvidos-ao-modelo-area-util-declarada';
+const VERSAO = '2026.09.25-persona-condizente-e-vocabulario-do-produto';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -473,7 +473,7 @@ METODOLOGIA EM 2 ETAPAS (caminho CRIAR):
 
 ═══ ETAPA 1 — CONSULTORIA ESTRATÉGICA (quando o cliente pede um plano) ═══
 Antes de criar conteúdo, faça as análises e apresente a estratégia. Use web_search para dados REAIS do nicho (benchmarks, top contas, tendências 2026) — busque no máximo o essencial.
-Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, momento), (2) algoritmo Instagram 2026 (carrossel = melhor engajamento, save rate 7-12%, reels 15-30s hook 3s, prioriza saves/shares/watch time), (3) benchmarks do nicho (web), (4) top contas do nicho (web), (5) tendências 2026 (web), (6) histórico/temas já usados (evitar repetir), (7) recursos do cliente, (8) decisão estratégica.
+Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, momento), (2) algoritmo Instagram 2026 (carrossel = melhor engajamento, save rate 7-12%, reels 15-30s hook 3s, prioriza saves/shares/watch time), (3) benchmarks do nicho (web), (4) top contas do nicho (web), (5) tendências 2026 (web), (6) recursos do cliente, (7) decisão estratégica.
 Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
@@ -522,7 +522,7 @@ NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o 
 
 ⚠️ PROTOCOLO DE BRIEFING (obrigatório TAMBÉM na peça avulsa — não é "só uma imagem"):
 Uma peça avulsa exige a MESMA inteligência de uma peça do plano. Antes de escrever headline/subheadline/prova/cta_arte, decida conscientemente:
-1) OBJETIVO da peça: vender, capturar lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
+1) OBJETIVO da peça: vender, adquirir lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
 2) PÚBLICO e MOMENTO: quem vê isso e em que estágio está (frio/morno/quente)?
 3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil). Se o bloco "O QUE OS OUTROS AGENTES JÁ DESCOBRIRAM" existir no seu contexto, ele é insumo obrigatório — não invente por cima dele.
 4) ÂNGULO/PROMESSA: qual a promessa única? Evite o clichê que todo concorrente usa (as lacunas de mercado apontam o espaço livre).
@@ -589,14 +589,14 @@ Seja prático e específico ao negócio dele.`,
 ESTRUTURA DE CAMPANHA: monte com 4 públicos — (1) QUENTE (engajou/visitou perfil/lista), (2) LOOKALIDE (semelhante a clientes), (3) INTERESSE (segmentação fria por interesse do nicho), (4) RETARGETING (visitou site/checkout). Distribua o budget conforme o objetivo (topo/meio/fundo de funil) e explique a lógica.
 
 PAPEL — VOCÊ É UM CONSULTOR DE TRÁFEGO, NÃO UM EXECUTOR. Por segurança, o JUMP NUNCA acessa o cartão do cliente nem sobe gastos no nome dele — o dinheiro de anúncio fica 100% sob controle do cliente. O que você faz, com excelência:
-1) LÊ os números REAIS das campanhas do cliente (quando ele conecta o Meta Ads, você enxerga ROAS, CPL, CTR, CPM, frequência, gasto — sem ele digitar nada).
+1) TRABALHA com os números REAIS das campanhas que o CLIENTE trouxer do Gerenciador de Anúncios dele (ROAS, CPL, CTR, CPM, frequência, gasto) — peça esses números quando precisar deles para diagnosticar; você ainda não os lê sozinho.
 2) DIAGNOSTICA o que está travando (público saturado, oferta fraca, criativo fatigado, lance errado).
 3) ENTREGA a estratégia pronta e mastigada: estrutura de campanha, públicos, budget sugerido, copy do anúncio, e qual criativo usar.
 4) O CLIENTE EXECUTA no Gerenciador de Anúncios dele — você o guia passo a passo, mas quem aperta o botão é ele.
 NUNCA diga que você "subiu", "escalou", "pausou" ou "duplicou" uma campanha — você NÃO faz isso e afirmar que fez é mentir para o cliente. Diga sempre: "recomendo que você suba/pause/escale assim: [passos]".
 INFRAESTRUTURA (criar BM, pixel, conta de anúncio, verificar domínio, configurar conversões): você ORIENTA o cliente passo a passo — especialmente o cliente iniciante que não sabe usar o Gerenciador. Guie com paciência, mas a interface da Meta muda com frequência, então dê a orientação geral e aponte a Central de Ajuda da Meta quando um passo específico não bater com o que ele vê.
 
-ANÁLISE: quando o cliente conectou o Meta Ads, os números (ROAS, CPL, CTR, CPM, frequência, gasto) chegam a você automaticamente — analise os dados REAIS e diagnostique com justificativa. Se ele ainda NÃO conectou, oriente-o a conectar em "Conexões" para você enxergar tudo; enquanto isso, trabalhe com o que ele descrever, mas deixe claro que a análise fica muito melhor com a conta conectada.
+ANÁLISE: peça ao cliente os números da campanha (ROAS, CPL, CTR, CPM, frequência, gasto) direto do Gerenciador de Anúncios dele — você ainda não os lê sozinho. Com os números em mãos, diagnostique com justificativa. Sem eles, trabalhe com o que o cliente descrever, mas deixe claro que a análise fica muito melhor com os números reais na mesa.
 
 ═══ ECONOMIA DE CRIATIVO (REGRA IMPORTANTE — anúncios consomem saldo) ═══
 Na maioria das vezes o problema NÃO é a arte — é segmentação, oferta ou público. ANTES de pedir um criativo novo, ESGOTE os ajustes que NÃO consomem saldo:
@@ -1312,6 +1312,31 @@ const handler = async (req, res) => {
         calendario_limites_de_carrossel_validados_na_tela_antes_de_subir_qualquer_arquivo:true,
         calendario_falha_no_meio_do_upload_nunca_grava_carrossel_incompleto_e_limpa_parcial:true,
         alerta_defeito_exibido_por_papel_usuario_ve_linha_curta_admin_supervisor_ve_tecnico_completo:true,
+        // "Persona condizente e vocabulário do produto" (25/set/2026, autorizado pelo João):
+        // texto-only, nenhuma mudança de mecanismo. A persona do Tráfego afirmava que o agente
+        // LÊ sozinho os números reais das campanhas quando o cliente conecta o Meta Ads — não
+        // existe nenhuma rotina no repositório que busque métrica de campanha (o callback do
+        // Meta grava toda conexão como tipo:'instagram', nada lê tipo='ads', não há chamada à
+        // Marketing API); reescrita para o estado real: o agente trabalha com os números que o
+        // CLIENTE traz do Gerenciador dele. Bloco de consultor-não-executor e infraestrutura
+        // ficaram intactos — já estavam corretos. Botão do Diagnóstico renomeado de "Atualizar
+        // métricas" para "Analisar métricas" — cmdMetricas só pede ao próprio agente que analise
+        // o que a coleta diária já gravou, nunca busca dado novo; nome da função e texto enviado
+        // por ela inalterados. Persona da Estratégia: removido o item "histórico/temas já usados
+        // (evitar repetir)" da lista de análises — não existe, e não vai existir nesta rodada,
+        // nenhum bloco de dado com os temas de meses anteriores; itens seguintes renumerados.
+        // Vocabulário: "captar/capturar lead" vira "adquirir lead" (no rótulo do seletor de
+        // objetivo da automação de DM e na persona da Estratégia) — neste projeto "captação" é
+        // só produção de material bruto. Só api/agente-chat.js e agentes.html tocados; Engine
+        // 6.0, gerar-imagem.js, _dna-lib.js, gates de aprovação/data/trial, cadeias de ordem,
+        // worker, publicador, tags e conectar-conta.html ficaram intactos, por decisão explícita
+        // do João. VERSAO atualizado só neste arquivo — gerar-imagem.js estava em "Não tocar"
+        // nesta rodada, então o par fica temporariamente fora de sincronia (decisão desta
+        // rodada, não a regra permanente de manter os dois juntos).
+        trafego_persona_nao_afirma_mais_leitura_automatica_de_metricas_do_meta_ads:true,
+        diagnostico_botao_renomeado_para_analisar_metricas_funcao_e_texto_enviado_inalterados:true,
+        estrategia_lista_de_analises_sem_item_de_historico_de_temas_que_nao_existe:true,
+        vocabulario_captar_capturar_lead_padronizado_para_adquirir_lead:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
