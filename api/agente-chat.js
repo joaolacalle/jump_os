@@ -11,7 +11,7 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 // gravar via <memoria>. fatiaDoAgente (25/set/2026, "Fonte única do DNA da marca") decide, a
 // partir do mapa já deduplicado, qual fatia do DNA cada agente recebe — ver o ponto de leitura
 // única mais abaixo.
-const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, fatiaDoAgente } = require('./_dna-lib.js');
+const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando, fatiaDoAgente } = require('./_dna-lib.js');
 
 // CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
 // Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.25-fonte-unica-do-dna-da-marca';
+const VERSAO = '2026.09.25-onboarding-capta-dna-de-direcao-de-arte';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -398,7 +398,6 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 <memoria>{"chave":"complexidade_visual","valor":"MINIMAL/BALANCED/DENSE"}</memoria>
 <memoria>{"chave":"temperatura_emocional","valor":"PREMIUM/CALMO/TENSO/URGENTE/LUXUOSO/AGRESSIVO"}</memoria>
 <memoria>{"chave":"estilo_fotografico","valor":"editorial documental / produto limpo / lifestyle / urbano / studio (padrão fotográfico da marca)"}</memoria>
-<memoria>{"chave":"tipo_de_composicao","valor":"centralizada / assimétrica peso esquerdo / assimétrica peso direito / grid modular / livre orgânica"}</memoria>
 <memoria>{"chave":"nivel_de_agressividade","valor":"baixo / médio-baixo / médio / médio-alto / alto (energia visual conforme nicho/arquétipo)"}</memoria>
 <memoria>{"chave":"elementos_obrigatorios","valor":"elementos visuais que SEMPRE aparecem na marca (ou vazio)"}</memoria>
 <memoria>{"chave":"elementos_proibidos","valor":"elementos visuais que NUNCA devem aparecer (ou vazio)"}</memoria>
@@ -412,12 +411,37 @@ Registre CADA campo como tag <memoria> separada (base de todos os agentes):
 ⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, cor_fundo, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 8 memórias visuais com hex.
 
 FLUXO FINAL (ordem obrigatória):
-1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), cor_fundo (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, tipo_de_composicao, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
-2) Registre as memórias do OS_DATA (tags acima) e finalize a consultoria com <checkin_completo/>.
-3) Dispare a ordem ao Designer para gerar a ficha técnica visual:
+1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), cor_fundo (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
+2) DIREÇÃO DE ARTE — DEDUZIDA E CONFIRMADA, NUNCA PERGUNTADA EM JARGÃO TÉCNICO (depois do checklist visual acima, ANTES de emitir <checkin_completo/>): existem mais 21 campos que o Content Engine também usa para desenhar a peça — densidade, tipo de composição, contraste, temperatura cromática, comportamento de headline/copy/CTA/label, fluxo de leitura, hierarquia e profundidade visual, foco fotográfico, "modo humano" (grain/textura) e mais. Nenhum dono de padaria, oficina ou loja sabe responder se você perguntar em termos técnicos ("qual sua hierarquia visual?", "qual seu tipo de contraste?") — por isso você NÃO pergunta estes 21 campos, você os DEDUZ a partir do que já está na sua mão: a logo e as fotos reais que você está enxergando, mais arquétipo, nicho, tom de voz, estilo_visual, intensidade_visual, complexidade_visual, temperatura_emocional e a paleta que você já registrou no checklist acima. Depois de deduzir, APRESENTE ao cliente EM LINGUAGEM DE CLIENTE, como uma decisão de direção de arte que ele aprova ou ajusta — nunca em jargão técnico, nunca citando o nome das chaves. É a MESMA mecânica que você já usa para propor o tema da dashboard nos passos 5-6 abaixo: você decide por trás, mas pergunta em português simples, e SÓ GRAVA depois que o cliente confirmar ou pedir ajuste — nunca grave a dedução sem essa confirmação. Exemplo de como apresentar (adapte à marca real; nunca copie literalmente): "Pensando na sua marca, suas peças vão ter headline grande em caixa alta ocupando boa parte da arte, bastante respiro ao redor, CTA discreto sem gritar e fotos com contraste forte — é essa a cara que você quer, ou prefere ajustar algo?"
+Os 21 campos e a FORMA esperada de cada valor (o CONTEÚDO é sempre da marca real — os exemplos entre parênteses ilustram só o FORMATO, nunca copie-os literalmente):
+<memoria>{"chave":"densidade_visual","valor":"percentual de ocupação e de respiro (ex.: 65% ocupado, 35% de respiro)"}</memoria>
+<memoria>{"chave":"tipo_de_composicao","valor":"frase curta descrevendo a estrutura do layout"}</memoria>
+<memoria>{"chave":"tipo_de_contraste","valor":"uma palavra: alto, médio ou baixo"}</memoria>
+<memoria>{"chave":"temperatura_cromatica","valor":"uma palavra: fria, neutra ou quente"}</memoria>
+<memoria>{"chave":"estilo_visual_descricao","valor":"2 a 4 palavras, o estilo nas palavras da própria marca"}</memoria>
+<memoria>{"chave":"estilo_de_copy","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"tom_do_cta","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"estilo_iconografico","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"momento_negocio","valor":"uma palavra: lançamento, validação, escala ou consolidação"}</memoria>
+<memoria>{"chave":"objetivo_conteudo","valor":"uma frase"}</memoria>
+<memoria>{"chave":"sempre_fazer","valor":"lista curta separada por ponto e vírgula"}</memoria>
+<memoria>{"chave":"nunca_fazer","valor":"lista curta separada por ponto e vírgula"}</memoria>
+<memoria>{"chave":"vs_comportamento_headline","valor":"caixa, faixa de tamanho em px, máximo de linhas, espaçamento, alinhamento"}</memoria>
+<memoria>{"chave":"vs_comportamento_copy","valor":"legibilidade, máximo de palavras por bloco, separação"}</memoria>
+<memoria>{"chave":"vs_comportamento_cta","valor":"forma e nível de agressividade"}</memoria>
+<memoria>{"chave":"vs_comportamento_label","valor":"forma da tag"}</memoria>
+<memoria>{"chave":"vs_fluxo_leitura","valor":"padrão de leitura e sequência dos elementos"}</memoria>
+<memoria>{"chave":"vs_hierarquia_visual","valor":"percentuais por elemento, somando 100"}</memoria>
+<memoria>{"chave":"vs_profundidade_visual","valor":"o que fica em primeiro plano, plano médio e fundo"}</memoria>
+<memoria>{"chave":"vs_controle_foco_fotografico","valor":"contraste, iluminação, percentual de luminosidade, sombras"}</memoria>
+<memoria>{"chave":"vs_modo_humano","valor":"percentual de grain, de noise e textura"}</memoria>
+Mais um campo OPCIONAL, que NUNCA bloqueia o check-in e NUNCA deve ser exigido do cliente: estilo_de_mockup só faz sentido para negócio que tem tela ou software real na cena (app, painel, site). Se o negócio não tem tela — padaria, salão, loja física, restaurante — deixe este campo vazio e não pergunte nada sobre ele; exigir isso de quem não tem produto digital faria você inventar.
+<memoria>{"chave":"estilo_de_mockup","valor":"frase curta (ou não registre esta memória, se o negócio não tem tela)"}</memoria>
+3) Registre as memórias do OS_DATA (tags do passo 1) e as de direção de arte (tags do passo 2) e finalize a consultoria com <checkin_completo/>.
+4) Dispare a ordem ao Designer para gerar a ficha técnica visual:
 <ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
-4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
-5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
+5) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
+6) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
 - c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos). OBS: o MENU LATERAL tem cores próprias fixas e NÃO muda — as cores personalizam a dashboard e as páginas internas, nunca o menu.
 - c2 (secundária) = segunda cor da paleta (informações de apoio)
 - c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
@@ -1378,6 +1402,52 @@ const handler = async (req, res) => {
         dna_fatiado_por_agente_em_dna_lib_base_todos_visual_so_identidade_e_criativo_video_so_identidade_e_video:true,
         chave_de_dna_nao_classificada_e_sem_prefixo_conhecido_cai_na_base_visivel_a_todos_nunca_invisivel:true,
         chaves_globais_e_grafo_depende_de_removidos_por_estarem_mortos_desde_que_toda_escrita_cai_em_global:true,
+        // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+        // João): engine6() (api/gerar-imagem.js, intocado) consome do DNA 22 campos além dos 9
+        // de DNA_CAMPOS_OBRIGATORIOS — 17 por nome literal + 4 pela varredura genérica vs_* que
+        // exclui só vs_modo_humano/vs_controle_foco_fotografico/vs_hierarquia_visual/
+        // vs_profundidade_visual da varredura por já terem seção própria (consumidos igual, só
+        // que por nome). Sem eles a peça cai nos fallbacks hardcoded (BALANCED/MEDIA/PREMIUM/
+        // EDITORIAL). api/_dna-lib.js ganhou DNA_CAMPOS_DIRECAO (21 campos, texto livre, sem
+        // enumeração — nenhum entrou em DNA_ENUMS) e dnaDirecaoFaltando(), mesmo padrão de
+        // DNA_CAMPOS_OBRIGATORIOS/dnaFaltando, só leitura. estilo_de_mockup é um 22º campo,
+        // OPCIONAL de propósito (só faz sentido pra negócio com tela/software) — fica fora de
+        // DNA_CAMPOS_DIRECAO, nunca bloqueia o check-in. Persona do Identidade ganhou uma etapa
+        // nova (passo 2 do FLUXO FINAL, depois do checklist visual, antes de <checkin_completo/>)
+        // onde os 21 campos são DEDUZIDOS a partir do que o agente já tem (logo, fotos reais,
+        // arquétipo, nicho, tom de voz, estilo/intensidade/complexidade/temperatura, paleta) e
+        // APRESENTADOS ao cliente em linguagem de cliente — mesma mecânica já usada pra propor o
+        // tema da dashboard — só gravados após confirmação ou ajuste do cliente, nunca perguntados
+        // em jargão técnico. Desvio autoexplicado (não pedido literalmente pela ordem, mas
+        // necessário pra cumprir "reporte em vez de duplicar a pergunta"): dos 22, a varredura
+        // confirmou que só tipo_de_composicao já era pedido numa persona ativa — mas por um
+        // mecanismo mais fraco (inferência silenciosa a partir do nicho/arquétipo, sem apresentar
+        // ao cliente nem esperar confirmação, nos antigos passo 1 e na tag solta do bloco
+        // OS_DATA). Manter as duas instruções teria feito o modelo receber ordens conflitantes
+        // pra a mesma chave; a antiga foi removida (tag solta e menção em "Registre TAMBÉM") e
+        // tipo_de_composicao passou a viver só no novo passo 2, com FORMA "frase curta descrevendo
+        // a estrutura do layout" (a mesma que a ordem deu pros outros 20 campos), tratado como os
+        // demais. Nenhum dos outros 21 campos apareceu em nenhuma outra persona na varredura.
+        // Portão de <checkin_completo/> (código, mesmo bloco de sempre): REUSA o mesmo dnaMergeado
+        // (mems+novas, tag removida do texto de qualquer jeito, log sempre) e passa a recusar
+        // também quando dnaDirecaoFaltando(dnaMergeado) não está vazio — nenhuma validação
+        // paralela, a lista mora só em _dna-lib.js. dnaChecklistTxt (mesma fonte de sempre,
+        // mems.filter(agente==='global'), decisão de não fatiar mantida da rodada anterior) passa
+        // a listar também os campos de direção ainda faltando, no mesmo mecanismo. Verificado: não
+        // existe limite de tamanho de prompt/system em código neste arquivo (os max_tokens
+        // encontrados são todos de RESPOSTA do modelo, nunca de entrada; o único corte de
+        // caracteres do repositório, 12000, é do prompt de imagem em gerar-imagem.js, intocado e
+        // sem relação) — etapa nova não teve necessidade de corte. Só api/_dna-lib.js e
+        // api/agente-chat.js tocados — api/gerar-imagem.js, Engine 6.0, fatiaDoAgente e as 3
+        // listas da rodada anterior, DNA_CAMPOS_OBRIGATORIOS, gate de aprovação semanal, travas de
+        // data/trial, cadeias de ordem, worker, publicador e a gravação de memórias ficaram
+        // intactos, por decisão explícita do João.
+        dna_campos_direcao_21_campos_texto_livre_sem_enumeracao_dna_enums_intocado:true,
+        estilo_de_mockup_22o_campo_opcional_fora_da_lista_obrigatoria_nunca_bloqueia_checkin:true,
+        identidade_deduz_e_confirma_direcao_de_arte_em_linguagem_de_cliente_antes_de_gravar:true,
+        tipo_de_composicao_consolidado_no_passo_novo_removida_a_inferencia_silenciosa_antiga_para_nao_duplicar:true,
+        checkin_completo_recusa_em_codigo_tambem_quando_falta_campo_de_direcao_reusando_o_mesmo_dnamergeado:true,
+        dna_checklist_txt_lista_tambem_campos_de_direcao_faltando_na_mesma_fonte_de_sempre:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1734,10 +1804,19 @@ const handler = async (req, res) => {
       const dnaAtual={};
       mems.filter(m=>m.agente==='global').forEach(m=>{ dnaAtual[m.chave]=m.valor; });
       const faltandoAgora=dnaFaltando(dnaAtual);
+      // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+      // João) — mesmo mecanismo, mesma fonte única (dnaAtual acima, sem mudar); só soma a
+      // segunda lista (21 campos de direção, dnaDirecaoFaltando) à mesma mensagem de estado.
+      // estilo_de_mockup é opcional e nunca entra aqui — dnaDirecaoFaltando() já não o exige.
+      const direcaoFaltando=dnaDirecaoFaltando(dnaAtual);
       dnaChecklistTxt='\n\n=== CHECK-IN — ESTADO REAL (dado lido do banco agora, não pergunte isto ao cliente em bloco só porque está aqui) ===\n'
         +(faltandoAgora.length
             ? ('Campos obrigatórios do DNA visual AINDA vazios: '+faltandoAgora.join(', ')+'. Você só pode emitir <checkin_completo/> quando NENHUM destes estiver faltando — o sistema recusa a conclusão em código se a tag vier antes disso. Continue a consultoria até preenchê-los.')
-            : 'Todos os campos obrigatórios do DNA visual já estão gravados. Pode concluir com <checkin_completo/> quando fizer sentido na conversa.')
+            : 'Todos os campos obrigatórios do DNA visual já estão gravados.')
+        +(direcaoFaltando.length
+            ? ('\nCampos de DIREÇÃO DE ARTE ainda vazios (passo 2 do FLUXO FINAL — deduza e confirme com o cliente, não pergunte em jargão técnico): '+direcaoFaltando.join(', ')+'. Você só pode emitir <checkin_completo/> quando NENHUM destes estiver faltando também — o sistema recusa a conclusão em código se a tag vier antes disso. estilo_de_mockup NÃO está nesta lista (é opcional, só se o negócio tiver tela). Continue a consultoria até preenchê-los.')
+            : '\nTodos os campos de direção de arte já estão gravados.')
+        +((!faltandoAgora.length && !direcaoFaltando.length) ? ' Pode concluir com <checkin_completo/> quando fizer sentido na conversa.' : '')
         +'\nValores aceitos nos campos de enumeração (grave EXATAMENTE um destes por campo — fora da lista, o sistema recusa e não grava em silêncio):\n'
         +Object.keys(DNA_ENUMS).map(c=>'- '+c+': '+DNA_ENUMS[c].join('/')).join('\n');
     }
@@ -3339,8 +3418,14 @@ const handler = async (req, res) => {
       mems.filter(m=>m.agente==='global').forEach(m=>{ dnaMergeado[m.chave]=m.valor; });
       novas.forEach(m=>{ if(m.chave) dnaMergeado[String(m.chave)]=String(m.valor); });
       const faltandoAgora=dnaFaltando(dnaMergeado);
-      if(agente==='identidade' && faltandoAgora.length){
-        console.error('[checkin-identidade] <checkin_completo/> recebida com DNA obrigatório incompleto — recusada em código, onboarding.checkin NÃO setado. user_id='+targetId+' faltando='+faltandoAgora.join(', '));
+      // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+      // João) — REUSA o mesmo dnaMergeado (mesma mescla mems+novas, tag já removida do texto de
+      // qualquer jeito, log sempre, nenhuma falha silenciosa); só soma a segunda condição de
+      // bloqueio. Nenhuma validação paralela: a lista dos 21 campos mora só em _dna-lib.js.
+      // estilo_de_mockup é opcional e não entra em dnaDirecaoFaltando(), então nunca bloqueia.
+      const direcaoFaltandoAgora=dnaDirecaoFaltando(dnaMergeado);
+      if(agente==='identidade' && (faltandoAgora.length || direcaoFaltandoAgora.length)){
+        console.error('[checkin-identidade] <checkin_completo/> recebida com DNA incompleto — recusada em código, onboarding.checkin NÃO setado. user_id='+targetId+' faltando_obrigatorios='+faltandoAgora.join(', ')+' faltando_direcao='+direcaoFaltandoAgora.join(', '));
       } else {
         checkin=true;
         const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});

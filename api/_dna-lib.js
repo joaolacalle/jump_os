@@ -55,6 +55,33 @@ function dnaFaltando(mapaDna) {
   return DNA_CAMPOS_OBRIGATORIOS.filter(c => !String(m[c] == null ? '' : m[c]).trim());
 }
 
+// ── DNA DE DIREÇÃO DE ARTE (rodada "O onboarding passa a captar o DNA de direção de arte",
+// 25/set/2026, autorizado pelo João) — 21 campos que engine6() (api/gerar-imagem.js) também
+// consome (17 por nome literal + 4 via a varredura genérica de chaves vs_*, que exclui só
+// vs_modo_humano/vs_controle_foco_fotografico/vs_hierarquia_visual/vs_profundidade_visual da
+// varredura porque essas 4 já têm seção própria — mas são consumidas igual, só que por nome
+// literal em vez de pela varredura). Sem eles a peça cai nos fallbacks hardcoded do Engine
+// (BALANCED/MEDIA/PREMIUM/EDITORIAL) e sai no padrão achatado. Texto livre, sem enumeração —
+// qualquer valor não vazio é aceito, por isso não entram em DNA_ENUMS. estilo_de_mockup é um
+// 22º campo, OPCIONAL de propósito (só faz sentido pra negócio com tela/software) — por isso
+// NÃO está nesta lista e dnaDirecaoFaltando() nunca o exige.
+const DNA_CAMPOS_DIRECAO = [
+  'densidade_visual', 'tipo_de_composicao', 'tipo_de_contraste', 'temperatura_cromatica',
+  'estilo_visual_descricao', 'estilo_de_copy', 'tom_do_cta', 'estilo_iconografico',
+  'momento_negocio', 'objetivo_conteudo', 'sempre_fazer', 'nunca_fazer',
+  'vs_comportamento_headline', 'vs_comportamento_copy', 'vs_comportamento_cta',
+  'vs_comportamento_label', 'vs_fluxo_leitura', 'vs_hierarquia_visual', 'vs_profundidade_visual',
+  'vs_controle_foco_fotografico', 'vs_modo_humano',
+];
+
+// Mesmo padrão de dnaFaltando — só lê, nunca escreve. Lista separada (nunca somada a
+// DNA_CAMPOS_OBRIGATORIOS) porque o portão de <checkin_completo/> em api/agente-chat.js precisa
+// reportar as duas listas distintamente (obrigatórios vs. direção) nos logs e no checklist.
+function dnaDirecaoFaltando(mapaDna) {
+  const m = mapaDna || {};
+  return DNA_CAMPOS_DIRECAO.filter(c => !String(m[c] == null ? '' : m[c]).trim());
+}
+
 // ── FATIA DO DNA POR AGENTE (rodada "Fonte única do DNA da marca", 25/set/2026, autorizado
 // pelo João) — decide, olhando só o NOME da chave, quem recebe o quê. Único lugar onde esta
 // classificação existe — api/agente-chat.js só chama fatiaDoAgente(), nunca reimplementa a
@@ -111,5 +138,6 @@ function fatiaDoAgente(agente, mapaDnaFinal) {
 
 module.exports = {
   DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando,
+  DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando,
   DNA_BASE, DNA_VISUAL, DNA_VIDEO, fatiaDoAgente,
 };
