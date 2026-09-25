@@ -1,0 +1,3553 @@
+// api/agente-chat.js — Chat com os agentes + auto-aprendizado de nicho
+// ENV: SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY, AGENT_MODEL (opcional)
+
+
+const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
+// FONTE ÚNICA DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2, autorizado pelo
+// João) — ver api/_dna-lib.js. Usado aqui pra (1) injetar o estado real do check-in no
+// contexto do Identidade a cada turno (dado, não só instrução em texto) e (2) travar
+// <checkin_completo/> EM CÓDIGO quando algum obrigatório ainda falta, mesmo que o modelo emita
+// a tag. Nunca escreve valor nenhum no DNA — só lê e valida o que o próprio modelo tentar
+// gravar via <memoria>. fatiaDoAgente (25/set/2026, "Fonte única do DNA da marca") decide, a
+// partir do mapa já deduplicado, qual fatia do DNA cada agente recebe — ver o ponto de leitura
+// única mais abaixo.
+const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando, fatiaDoAgente } = require('./_dna-lib.js');
+
+// CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
+// Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
+// de forma ambígua. Contrato: feed|story|reels => 1 · carrossel => 2..10 declarado na tag.
+function cardinalidade(ct){
+  const fmt = String((ct && ct.formato) || 'feed').toLowerCase();
+  if (!/carrossel|carousel/.test(fmt)) return 1;
+  const n = Number(ct && ct.slides);
+  if (!Number.isFinite(n) || n < 2 || n > 10) {
+    throw new Error('Carrossel sem quantidade de slides definida (informe "slides" entre 2 e 10).');
+  }
+  return Math.floor(n);
+}
+const KEY = () => process.env.SUPABASE_SERVICE_KEY;
+// CAUSA RAIZ DE DOIS MESES DE FALHA (18/set/2026, "qualidade da arte — diagnóstico", rodada 6):
+// AGENT_MODEL_DIRETOR estava configurada na Vercel com espaço à direita — a Anthropic ecoava o
+// nome recebido com o espaço junto ("model: claude-sonnet-5 ", not_found_error), e como o mesmo
+// nome VISÍVEL é usado em vários lugares, o mesmo bug pode existir aqui sem nunca ter sido notado
+// (este arquivo tem o teste de diagnóstico que passou — mas só porque a variável aqui,
+// AGENT_MODEL_ESTRATEGIA, por acaso não tem o espaço). trimEnv() é a defesa: nunca deixa um
+// espaço invisível de configuração virar "modelo não encontrado" de novo, em nenhuma variável de
+// nome de modelo. Autorizado pelo João.
+const trimEnv = (v) => String(v || '').trim();
+const MODEL = () => trimEnv(process.env.AGENT_MODEL) || 'claude-haiku-4-5';
+// A Estratégia é a tarefa mais complexa do sistema: pode usar um modelo mais forte.
+// Defina AGENT_MODEL_ESTRATEGIA na Vercel (ex.: claude-sonnet-4-5). Sem a variável, usa o padrão.
+const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_ESTRATEGIA)) ? trimEnv(process.env.AGENT_MODEL_ESTRATEGIA) : MODEL();
+// Carimbo de versão — confira em /api/agente-chat?diag=1 se o que está no ar é o que você subiu.
+// FILA TÉCNICA — item da rodada de 15/set (achado do João, 5ª/6ª rodada do dia): existiu OUTRA
+// rodada chamada "fila técnica" em 09/set/2026 (commit 3ef9773, VERSAO
+// '2026.09.09-fila-tecnica-cinco-correcoes') com numeração de itens própria e independente desta.
+// O nome repetido contribuiu pra uma checagem listar 2 itens (então numerados 2 e 3) como
+// pendentes sem confirmar que já tinham sido corrigidos há 6 dias. Carimbo abaixo leva "-ii" —
+// data OU número no nome da rodada evita a mesma confusão de novo.
+// POSTURA DOS AGENTES — ESTADO REAL E REGRA EM CÓDIGO (15/set/2026, sétima rodada do dia,
+// autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
+// Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
+// rodada.
+const VERSAO = '2026.09.25-onboarding-capta-dna-de-direcao-de-arte';
+// DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
+// aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
+// prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
+// chamadas reais do worker a direcao_avulso_criativo (10:57:39, 11:01:02, 11:05:51 UTC) — a
+// Estratégia respondeu às 3, e NENHUMA emitiu a tag <conteudo>; duas delas DECLARARAM a ação em
+// prosa ("Peça avulsa registrada e enviada ao Designer...") sem executá-la, mesmo com a mensagem
+// do worker pedindo explicitamente a tag. Conclusão do João, verbatim: "Emitir a tag sempre
+// dependeu de obediência a texto (...) Reescrever a mensagem sintética seria a décima tentativa
+// do mesmo caminho." Correção estrutural, não mais uma reescrita de prompt: só no caminho
+// interno de direcao_avulso_criativo (ver `forcarDirecaoAvulsa`, decidido no gate de
+// autenticação abaixo, a partir da PRÓPRIA `tarefa` da ordem no banco — nunca de um sinal que o
+// chamador afirma — mesma disciplina de "validar por posse do dado" da correção anterior, 20/set),
+// tool_choice força esta ferramenta: o modelo não tem como responder com texto livre. Ou devolve
+// os campos preenchidos, ou a chamada falha com erro visível (502) — nunca em silêncio, nunca com
+// um "reparo de segunda chamada" tentando adivinhar (ver comentário completo mais abaixo, no
+// ponto onde o bloco da ferramenta é extraído).
+// ESCOPO — deliberadamente estreito, exatamente como pedido: "Apenas no caminho interno. A
+// conversa ao vivo com o usuário continua como está." `copy_para_criativo` e `<correcao_texto>`
+// são a MESMA classe de risco (mesma dependência de obediência) mas ficam de fora desta entrega —
+// reportado, não implementado (ver relatório da rodada — uma entrega por vez, Contrato 9.1).
+// LIMITES DE PALAVRA NO ESQUEMA — "onde a API permitir restringir, restringir; onde não, validar
+// ao receber e acionar a reescrita única, que já funciona": `pattern` abaixo aproxima "no máximo N
+// palavras" por contagem de tokens separados por espaço — é o máximo que o JSON Schema padrão
+// permite (não existe constraint nativo de "contagem de palavras"). SEM `strict:true` isso é
+// orientação ao modelo, não garantia dura da API — a documentação oficial não confirma que
+// `pattern`/`maxLength` são impostos por amostragem fora do modo strict (não usado aqui: suporte
+// e compatibilidade com tool_choice forçado não confirmados na doc para este caso, ver relatório).
+// A garantia real não muda: `validarTextoDaPeca` (gerar-imagem.js, intocada) valida de verdade na
+// geração, e a reescrita única (<correcao_texto>, 19/set/2026, já funcionando) corrige se estourar
+// — esta peça entra pelo MESMO `criar_avulso` → laço principal do worker que qualquer outra
+// peça avulsa, então já está coberta, sem nenhum código novo precisar entrar ali.
+// COMPATIBILIDADE COM `output_config`/MODELO — verificada na documentação oficial (Anthropic,
+// "Thinking with tool use"), reportada em detalhe na entrega: `tool_choice` forçado (`any` ou
+// `tool`) é INCOMPATÍVEL com thinking MANUAL (`thinking:{type:'enabled'}`) — resulta em erro da
+// API. Este arquivo nunca usa thinking manual; usa só `output_config:{effort:'low'}` condicional,
+// que é thinking ADAPTATIVO nos modelos novos (Sonnet 5/Opus 5 em diante) — e thinking adaptativo
+// SUPORTA tool_choice forçado, EXCETO em Claude Fable 5.1 e Claude Mythos 5.1 (exceção nomeada
+// pela doc; se `AGENT_MODEL_ESTRATEGIA` apontar pra um desses dois, a doc recomenda
+// `tool_choice:'auto'` + strict tool use/structured outputs em vez de tool_choice forçado — não é
+// o caso hoje, o padrão documentado no código é 'claude-sonnet-4-5').
+const TOOL_DIRECAO_AVULSA_NOME='registrar_direcao_avulsa_criativo';
+const TOOL_DIRECAO_AVULSA={
+  name:TOOL_DIRECAO_AVULSA_NOME,
+  description:'Registra a direção criativa completa desta peça avulsa (tema se ainda não decidido, tipo visual, pilar, headline, subheadline, prova, CTA e legenda), decidida a partir do DNA da marca. Uso obrigatório nesta chamada — não é permitido responder em texto livre.',
+  input_schema:{
+    type:'object',
+    properties:{
+      tema:{type:'string',description:'O tema da peça. Se a ordem já trouxe um tema, repita-o exatamente, nunca troque. Se não veio tema, escolha um coerente com o negócio, sem repetir temas recentes do cliente.'},
+      tipo_visual:{type:'string',enum:['pessoal','pessoa_conceito','produto','conceitual'],description:'história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.'},
+      pilar:{type:'string',enum:['educação','prova','autoridade','oferta','bastidor']},
+      headline:{type:'string',pattern:'^(\\S+\\s+){0,7}\\S+$',description:'O gancho da arte, frase completa. Máx 8 palavras — limite do Engine, validado de verdade na geração da imagem.'},
+      subheadline:{type:'string',pattern:'^(\\S+\\s+){0,5}\\S+$',description:'A segunda parte do texto: o porquê da headline, cria desejo/tensão. Máx 6 palavras — limite do Engine.'},
+      prova:{type:'string',description:'1 dado, número ou fato REAL do DNA da marca que sustenta a promessa. Vazio se não houver — nunca invente.'},
+      cta_arte:{type:'string',pattern:'^(\\S+\\s+){0,1}\\S+$',description:'Chamada curta que vai NA ARTE (ex.: SAIBA MAIS, QUERO TESTAR). Máx 2 palavras — limite do Engine.'},
+      copy:{type:'string',description:'Legenda do Instagram, separada da arte (máx 600 caracteres, hook + CTA). Deixe vazio se o formato da peça for "story" — story não leva legenda, regra da Meta.'},
+    },
+    required:['tema','tipo_visual','pilar','headline','subheadline','prova','cta_arte'],
+  },
+};
+const { zapUpload, zapCriarTask } = require('./_video-lib');
+// HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
+const { avancarCadeia } = require('./_cadeia-lib');
+// REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
+// "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
+// <detalhe>, este arquivo GARANTE o card 'aprovar_semana' (cria se não existir, reaproveita se já
+// existir) em vez de deixar o backstop (mais abaixo) tentar criar 'criar_post' direto. Mesma
+// função que api/cron.js usa no job de drip semanal — Família 2 do Contrato: mesma decisão em N
+// lugares vira N regras que divergem com o tempo.
+const { garantirCardAprovarSemana } = require('./_semana-lib.js');
+// FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
+// usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
+// própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
+const JC = require('../assets/classificacao.js');
+
+// TRAVA DE DATAS (item 3, "ANCORAGEM DAS SEMANAS", 28/ago/2026): mesmo padrão de cardinalidade()
+// acima — lança Error, a chamadora descarta SÓ aquela peça e acumula um aviso rastreável. NUNCA
+// corrige a data pro limite mais próximo (mesma família de erro do auto-reparo, do default de 4
+// slides e do fallback 09:00 — ver APRENDIZADOS.md: corrigir em silêncio é o que este projeto
+// decidiu nunca mais fazer). Só se aplica a conteúdo do PLANO (avulso:false) — avulso não tem
+// horizonte de plano, fica de fora por definição. Sem data_sugerida ou em formato inesperado,
+// não é esta trava que deve pegar (fora do escopo do item 3) — deixa passar.
+function travaDeDatas(ct, ancoraISO, diaLote) {
+  if (!ct || ct.avulso) return;
+  const raw = ct.data_sugerida;
+  if (!raw) return;
+  const data = String(raw).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+  const hz = JC.horizonteDoPlano(ancoraISO, diaLote);
+  if (data < hz.inicio || data > hz.fim) {
+    throw new Error('data ' + data + ' fora do horizonte do plano (' + hz.inicio + ' a ' + hz.fim + ')');
+  }
+}
+
+// TRAVA DO TRIAL (novo escopo, pedido explícito de 28/ago/2026): durante os 7 dias de teste, o
+// horizonte do plano não pode passar do fim do trial — senão o cliente recebe produção além do
+// período gratuito e pode sumir sem assinar. Mesmo critério de recusa: rejeita o post fora do
+// prazo e avisa; NUNCA encolhe o plano em silêncio nem produz parcialmente. Quem passa do prazo
+// aprovando tarde arca com a consequência (avisos de trial já existem em outros pontos do
+// dashboard — fora do escopo deste arquivo).
+function travaTrial(ct, cortesiaAteISO) {
+  if (!ct || ct.avulso) return;
+  const raw = ct.data_sugerida;
+  if (!raw) return;
+  const data = String(raw).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+  if (!cortesiaAteISO) return;
+  const limite = String(cortesiaAteISO).slice(0, 10);
+  if (data > limite) {
+    throw new Error('data ' + data + ' passa do fim do período de teste (' + limite + ') — assine para liberar o mês completo');
+  }
+}
+
+// LIMITE DE AUTOMAÇÕES DE DM ATIVAS (POSTURA DOS AGENTES — PARTE 2, "cota inventada",
+// 15/set/2026, ver APRENDIZADOS.md): ÚNICO lugar que calcula "quantas automações de DM este
+// cliente pode ter ativas" — precedência individual (cli.limites.dm) > config do plano (tabela
+// `config`, chave 'planos') > fallback fixo (básico=3, plus=5, pro=8). Antes desta rodada, essa
+// conta só existia dentro do processamento da tag <automacao_dm> (depois da resposta pronta);
+// agora também alimenta o bloco de contexto da Publicação (dado real, antes de responder) —
+// mesma função nos dois pontos, nunca duas contas que podem divergir.
+async function limiteAtivoDm(cli, targetId, sbGet) {
+  const LIM_DM = { basico: 3, plus: 5, pro: 8 };
+  let maxDm = LIM_DM[(cli && cli.plano) || 'basico'] || 3;
+  try {
+    const pc = await sbGet(`config?chave=eq.planos&select=valor&limit=1`);
+    if (Array.isArray(pc) && pc[0] && pc[0].valor && cli && pc[0].valor[cli.plano] && pc[0].valor[cli.plano].dm != null) {
+      maxDm = Number(pc[0].valor[cli.plano].dm);
+    }
+  } catch (e) {}
+  if (cli && cli.limites && cli.limites.dm != null) maxDm = Number(cli.limites.dm);
+  let atuais = 0;
+  try {
+    const rows = await sbGet(`automacoes_dm?user_id=eq.${targetId}&ativo=eq.true&select=id`);
+    atuais = Array.isArray(rows) ? rows.length : 0;
+  } catch (e) {}
+  return { max: maxDm, atuais };
+}
+
+// TETO DE IMAGENS DO PLANO (item 5 da rodada "Ancoragem das semanas", item 4 da rodada "Janela
+// de planejamento", 28/ago/2026): 80% do saldo de imagens fica pro plano; os outros 20% ficam de
+// reserva pra recriações/avulsos do mês. ÚNICO lugar que calcula essa conta — antes de existir
+// esta função, a mesma fórmula (Math.floor(rest*0.8)) foi escrita 2x de forma independente
+// (o texto injetado no prompt, e o corte de código no checkpoint de cardinalidade); uma terceira
+// cópia nasceria com a checagem de "Semana 1 obrigatória" se não fosse extraída agora — exatamente
+// o padrão de bug que este projeto tenta não repetir (regra igual escrita em lugares diferentes,
+// que um dia diverge). Qualquer ponto que precise saber "quantas peças com arte cabem no plano"
+// chama esta função a partir de agora.
+// FRENTE 2 (NÍVEL 3 — PAINEL, 09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL —
+// IMPLEMENTAÇÃO"): `tetoImagensPlano` e o cálculo por trás de `resumoPlanoPorSemana` foram
+// EXTRAÍDOS pra `assets/classificacao.js` (`JC.tetoImagensPlano`/`JC.resumoSemanasEstrategia`) —
+// fonte única entre o bloco injetado neste prompt (aqui, via `sbGet`/chave de serviço) e o painel
+// de estado real na interface (agentes.html, via `JUMP.sb`/RLS). Este arquivo continua sendo o
+// único responsável por BUSCAR os dados (é quem tem a chave de serviço) — a REGRA de como contar
+// já não mora mais aqui. Ver assets/classificacao.js pro corpo das duas funções.
+//
+// CORREÇÕES DO JOÃO (09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO
+// JOÃO"): duas mudanças nesta função.
+// (1) a consulta de `posts` trocou de lista de EXCLUSÃO (`status=neq.excluido&status=neq.
+//     rejeitado`, deixava `expirado` entrar como se fosse ativo) pra lista de INCLUSÃO
+//     (`JC.STATUS_ATIVOS_CONTEUDO`, fonte única com o painel) — mesma causa raiz corrigida nos
+//     dois lugares que liam essa regra.
+// (2) duas novas leituras (avulsosPend/semOrigemPend) alimentam duas linhas novas no texto: quantos
+//     avulsos aguardam aprovação (mesmo dado que o painel mostra do lado do cliente — Frente A:
+//     informa, não manda) e quanto conteúdo antigo (de antes da migration da Falha 3, sem
+//     `origem` e sem `data_sugerida`) não cai em nenhuma categoria — nunca contado como avulso
+//     (seria a mesma inferência que a Falha 3 baniu), só reportado como o que é.
+async function resumoPlanoPorSemana(targetId, janelasCliente, ancoraPlano, diaLoteCliente) {
+  const [posts, cards, avulsosPend, semOrigemPend] = await Promise.all([
+    sbGet(`conteudos?user_id=eq.${targetId}&status=in.(${JC.STATUS_ATIVOS_CONTEUDO.join(',')})&or=(origem.eq.plano,origem.is.null)&select=id,copy,data_sugerida&order=data_sugerida.asc&limit=200`),
+    sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=in.(aguardando_aprovacao,concluida)&select=status,payload`),
+    // AVULSOS PENDENTES: avulso não passa por card de aprovação semanal (produção sempre livre,
+    // Falha 3) — o estado dele é o do próprio post depois de produzido. Mesma leitura que o
+    // painel (agentes.html) faz do lado do cliente.
+    sbGet(`conteudos?user_id=eq.${targetId}&status=eq.${JC.STATUS_AGUARDANDO_APROVACAO}&origem=eq.avulso&select=id&limit=500`),
+    // LEGADO SEM ORIGEM: conteúdo de antes da migration da Falha 3 (`origem IS NULL`, sem
+    // backfill — decisão deliberada, nunca inferir) que também não tem `data_sugerida`, então não
+    // cai em nenhuma semana (resumoSemanasEstrategia descarta quem não tem semana) nem no balde
+    // de avulso (não tem origem='avulso'). Não é contado como avulso — reportado como o que é.
+    sbGet(`conteudos?user_id=eq.${targetId}&status=eq.${JC.STATUS_AGUARDANDO_APROVACAO}&origem=is.null&data_sugerida=is.null&select=id&limit=500`),
+  ]);
+  const texto = JC.resumoSemanasEstrategia(posts, cards, janelasCliente, ancoraPlano, diaLoteCliente).texto;
+  const nAvulsos = Array.isArray(avulsosPend) ? avulsosPend.length : 0;
+  const nSemOrigem = Array.isArray(semOrigemPend) ? semOrigemPend.length : 0;
+  const linhaAvulsos = '\nAVULSOS (fora do plano semanal, dado pronto) — ' + (nAvulsos ? (nAvulsos + ' aguardando aprovação do cliente.') : 'nenhum aguardando aprovação.');
+  const linhaSemOrigem = nSemOrigem ? ('\nCONTEÚDO ANTIGO SEM CATEGORIA (' + nSemOrigem + ') — anterior a 08/set/2026, sem "plano" nem "avulso" definido; não conte como avulso nem como parte de nenhuma semana, é só um registro de que existe.') : '';
+  return texto + linhaAvulsos + linhaSemOrigem;
+}
+
+// LOTE 2 — item 2 (detecção de falha silenciosa, 01/set/2026) + REPARO AVULSO FRENTE B
+// (03/set/2026): o agente pode declarar que fez algo ("enviado para produção", "fila do
+// Designer", "vai aparecer em Aprovações"...) sem emitir NENHUMA tag <conteudo> — o sistema não
+// salvou nada e o agente afirmou o contrário pro cliente. `declarouAcaoSemRegistro(texto)` decide
+// se a resposta contém essa declaração.
+//
+// Calibrada primeiro contra 1 frase só (o relato original) — não generalizava. Um teste real em
+// produção pegou o comportamento INVERTIDO no mesmo dia: (a) NÃO disparou pra "as artes FORAM
+// enviadas... e VÃO aparecer em Aprovações" (plural + voz passiva, nenhuma cláusula cobria); (b)
+// disparou pra "já está na fila do Designer", mencionando uma peça ANTERIOR, não uma ação nova
+// deste turno (falso positivo). Corrigido: (a) cláusula nova pra "foi/foram enviad[oa]s ao
+// designer" + "vai/vão aparecer" (plural cobre os dois lados agora); (b) das cláusulas do
+// gatilho, só as DUAS que descrevem ESTADO (não ação) — "está/estão (sendo|na fila|a caminho)" e
+// "fila do designer" — são ambíguas o bastante pra confundir referência a algo antigo com
+// declaração nova; só essas duas são ignoradas quando "já" aparece antes, na MESMA frase (corte
+// por . ! ?). As cláusulas de AÇÃO (mandei, foi/foram enviado, vai/vão aparecer) não são afetadas
+// pelo filtro — "já mandei para o designer" É uma declaração válida (aconteceu agora), diferente
+// de "já está na fila" (pode ser sobre qualquer peça, de qualquer época).
+//
+// MESMO ERRO QUE O AUTO-REPARO ANTIGO JÁ TINHA CORRIGIDO (ver 'GATILHO PROSPECTIVO APENAS', mais
+// abaixo, em torno de 'prometeuConteudo') — gatilho lexical sozinho não distingue prospectivo de
+// retrospectivo. A lição não tinha sido herdada na primeira versão desta função. Registrado no
+// APRENDIZADOS.md pra não se repetir numa terceira.
+//
+// REMENDO, NÃO SOLUÇÃO (aceito assim, 03/set/2026): a causa de fundo é estrutural — blocos de
+// contexto sempre-injetados no prompt (ex.: "POSTS DA SEMANA PARA DETALHAR", "SITUAÇÃO REAL DA
+// SUA FILA") competem com a conversa em andamento e podem levar o agente a falar sobre a coisa
+// errada. Essa causa não é corrigida aqui — ver Frente A (proposta separada).
+const GATILHOS_ACAO_SEM_REGISTRO=/enviad[oa]s?\s*(para|pra)\s*produ[çc][ãa]o|fila do designer|(vai|vão)\s*aparecer em aprova[çc][õo]es|disparando agora|cota consumida|mandei\s*(para|pra)\s*o designer|(foi|foram)\s*enviad[oa]s?\s*(para|pra)\s*o\s*designer|(est[áa]|est[ãa]o)\s*(sendo|na fila|a caminho)|envio(u)?\s*(para|pra)\s*aprova[çc][ãa]o|arte(s)?\s*(est[ãa]o|est[áa])\s*sendo\s*(gerada|criada|produzida)/gi;
+const GATILHO_RETROSPECTIVO_AMBIGUO=/^(est[áa]|est[ãa]o)\s*(sendo|na fila|a caminho)|^fila do designer/i;
+function declarouAcaoSemRegistro(texto){
+  const t=String(texto||'');
+  for(const g of t.matchAll(GATILHOS_ACAO_SEM_REGISTRO)){
+    if(GATILHO_RETROSPECTIVO_AMBIGUO.test(g[0])){
+      const antesDoMatch=t.slice(0,g.index);
+      const corte=Math.max(antesDoMatch.lastIndexOf('.'),antesDoMatch.lastIndexOf('!'),antesDoMatch.lastIndexOf('?'));
+      const fraseAteAqui=t.slice(corte+1,g.index);
+      if(/já/i.test(fraseAteAqui)) continue; // "já está"/"já ...fila" = referência a algo antigo, não conta
+    }
+    return true;
+  }
+  return false;
+}
+
+const H = () => ({
+  'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`,
+  'Content-Type': 'application/json', 'Prefer': 'return=representation',
+});
+// REPARO AVULSO — FALHA 1 DA SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "SEXTA PORTA ainda
+// aberta — produção sem aprovação"): sbGet era o ÚNICO dos quatro helpers (sbGet/sbPatch/
+// sbInsert/sbUpsert) que nunca ganhou a correção da Família 1 — não conferia `r.ok`, só devolvia
+// `r.json()` cru. Reproduzido em teste: card aprovar_semana não nascia, sem nenhum aviso, quando
+// a leitura que calcula os ids do card falhava (400/500/corpo inválido) — Array.isArray(x)?x:[]
+// tratava a falha exatamente como "não há nada pra proteger". Mesma filosofia das outras três:
+// só visibilidade (loga o motivo), NUNCA muda o que é devolvido — todo chamador existente já foi
+// escrito esperando `r.json()` cru (a maioria já faz Array.isArray(x)?x:[] por conta própria), e
+// mudar o contrato de retorno agora quebraria esses pontos silenciosamente, o mesmo tipo de bug
+// que este reparo existe pra fechar.
+async function sbGet(p){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{headers:H()});
+  if(!r.ok){
+    let corpo=null; try{corpo=await r.json();}catch(e){}
+    const motivo=(corpo&&(corpo.message||corpo.hint||corpo.details))||JSON.stringify(corpo||{}).slice(0,200);
+    console.error('[agente-chat] sbGet falhou — path='+p+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+    return corpo; // mesmo valor que r.json() devolveria hoje — comportamento inalterado, só ganhou o log
+  }
+  return r.json();
+}
+// REPARO AVULSO — VISIBILIDADE DE FALHA NA GRAVAÇÃO (04/set/2026, ver APRENDIZADOS.md "regressão
+// — conversa parou de ser gravada"): antes, sbPatch/sbInsert só rejeitavam a Promise em falha de
+// REDE (fetch não completou) — se o Supabase/Postgres RECUSASSE a gravação (400, coluna errada,
+// regra violada etc.), a função devolvia normalmente, ninguém checava `r.ok`, e o chamador achava
+// que tinha gravado. Foi exatamente esse buraco que explicou um caso real (aviso apareceu na
+// tela, nada foi salvo). Correção é só de VISIBILIDADE — continua sem lançar exceção (nenhum
+// chamador existente foi escrito esperando que uma falha HTTP derrube o fluxo; mudar isso agora
+// quebraria pontos que hoje seguem em frente mesmo com falha), só passa a logar o motivo e a
+// devolver a Response (antes devolvia `undefined`) pra quem quiser conferir por conta própria.
+async function sbPatch(p,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${p}`,{method:'PATCH',headers:H(),body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbPatch falhou — path='+p+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
+async function sbInsert(t,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:H(),body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbInsert falhou — tabela='+t+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
+// REPARO AVULSO — mesmo ponto cego de sbInsert/sbPatch acima, fechado agora por exigência do
+// CONTRATO DE ENGENHARIA (família 1 — falha silenciosa não pode ficar aberta, ver APRENDIZADOS.md
+// topo). Único uso é em memWrites (gravação de memórias aprendidas) — nenhum chamador depende do
+// retorno anterior (`undefined`), então, como em sbInsert/sbPatch, a mudança é só de
+// visibilidade: continua sem lançar exceção, passa a logar quando o Supabase recusar.
+async function sbUpsert(t,b){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:'POST',headers:{...H(),'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(b)});
+  if(!r.ok){
+    let motivo=''; try{const j=await r.json(); motivo=j.message||j.hint||j.details||JSON.stringify(j).slice(0,200)}catch(e){}
+    console.error('[agente-chat] sbUpsert falhou — tabela='+t+' status='+r.status+' motivo='+String(motivo).slice(0,200));
+  }
+  return r;
+}
+
+// Nível mínimo de plano por agente
+const NIVEL = { identidade:1, mercado:1, diagnostico:1, estrategia:1, criativo:1, publicacao:2, trafego:3, video:3 };
+const LV = { basico:1, plus:2, pro:3 };
+
+// Persona de cada agente (system prompt base)
+const PERSONAS = {
+  identidade: `IMPORTANTE — ESTILO: escreva limpo e profissional, em texto corrido. NÃO use **negrito**, ###, tabelas ou markdown. Máximo 1 emoji por mensagem (ou nenhum). Tom de consultor por mensagem, não documento.
+Você é o AGENTE DE IDENTIDADE do JUMP OS — consultor sênior de branding (design systems, arquitetura visual, mercado Instagram). Você cria o DNA completo da marca: a ficha técnica (OS_DATA) que TODOS os outros agentes usam.
+
+PRÉ-REQUISITO (acervo): o ideal é ter LOGO + fotos + produtos. Verifique o acervo informado abaixo:
+- Se NÃO houver NENHUMA imagem: oriente a enviar primeiro em "Meus arquivos" (especialmente a LOGO) antes de iniciar.
+- Se houver fotos/produtos mas FALTAR a logo: mencione que a logo é importante para analisar cores e tipografia, convide a enviar, MAS não bloqueie — pode iniciar a consultoria normalmente e seguir.
+- Se houver logo: perfeito, use-a como base principal da análise visual.
+
+PRIMEIRA PERGUNTA (perfil do cliente): logo no início, descubra o nível dele:
+"Para personalizar: você já tem sua marca e posicionamento BEM definidos (sabe seu público, cores, tom de voz), ou está começando e quer minha consultoria completa para construir isso?"
+- INICIANTE → faça a CONSULTORIA COMPLETA guiada (pergunta a pergunta, construindo o OS_DATA com profundidade). Caminho padrão.
+- AVANÇADO → modo OS_DATA EXPRESSO: o cliente já sabe, então colete os dados de forma DIRETA e rápida (peça em poucos blocos: marca/nicho, público, produtos/preços, cores/tipografia, tom de voz, diferenciais). Não faça a consultoria longa — registre o que ele informar e finalize o OS_DATA rápido. Ele pode pular Mercado/Diagnóstico e ir direto à Estratégia se quiser.
+Em ambos os casos, registre TODAS as memórias do OS_DATA/VISUAL_SYSTEM/VIDEO_SYSTEM com valores reais (HEX nas cores).
+
+CONDUÇÃO (uma pergunta por vez, leve e profissional): 1) marca e nicho específico, 2) produto/serviço e preços, 3) público-alvo (dores e desejos), 4) diferenciais reais, 5) faturamento/ticket aproximado e momento (validação/tração/crescimento/escala), 6) tom desejado e como quer ser visto.
+
+ANÁLISE VISUAL (você RECEBE as imagens reais do cliente): extraia as CORES EXATAS da logo (informe os hex aproximados que você observa), a tipografia aparente e o estilo. Seja honesto sobre qualidade, consistência e adequação ao nicho.
+
+DOIS CAMINHOS — após a análise visual, ofereça ao cliente (e aguarde a escolha dele):
+• MANTER IDENTIDADE: se ele quer preservar a marca atual, use as CORES e FONTES REAIS que você extraiu da logo para preencher o OS_DATA. NÃO sugira mudança visual — apenas registre o que já existe e siga para os dados de negócio.
+• SUGERIR NOVA: se ele quer evoluir, proponha paleta/tipografia otimizadas com justificativa, cruzando com benchmarks do nicho.
+Quando o cliente responder "manter" use as cores reais; quando responder "sugerir/nova" proponha as otimizadas. Em ambos os casos o OS_DATA é preenchido e o tema é aplicado.
+
+ENTREGA — REGRA CRÍTICA DE ORDEM: ao concluir a consultoria, comece a resposta JÁ com as tags técnicas (memórias, tema, ordem, checkin) e SÓ DEPOIS escreva o resumo bonito para o cliente. As tags vêm PRIMEIRO para nunca se perderem. 
+Registre CADA campo como tag <memoria> separada (base de todos os agentes):
+<memoria>{"chave":"marca","valor":"..."}</memoria>
+<memoria>{"chave":"nicho","valor":"..."}</memoria>
+<memoria>{"chave":"arquetipo","valor":"..."}</memoria>
+<memoria>{"chave":"posicionamento","valor":"..."}</memoria>
+<memoria>{"chave":"publico_alvo","valor":"..."}</memoria>
+<memoria>{"chave":"produtos_precos","valor":"..."}</memoria>
+<memoria>{"chave":"diferenciais","valor":"..."}</memoria>
+<memoria>{"chave":"emocao_central","valor":"..."}</memoria>
+<memoria>{"chave":"dna_visual","valor":"..."}</memoria>
+<memoria>{"chave":"paleta_primaria","valor":"#HEX,#HEX,#HEX"}</memoria>
+<memoria>{"chave":"paleta_secundaria","valor":"#HEX,#HEX,#HEX"}</memoria>
+<memoria>{"chave":"paleta_terciaria","valor":"#HEX,#HEX (cores de apoio/detalhe; se não houver, repita a secundária)"}</memoria>
+<memoria>{"chave":"cor_cta","valor":"#HEX"}</memoria>
+<memoria>{"chave":"cor_fundo","valor":"#HEX (cor de fundo da zona chapada de texto na composição — se não souber, derive da paleta primária, nunca deixe vazio)"}</memoria>
+<memoria>{"chave":"tipografia_primaria","valor":"..."}</memoria>
+<memoria>{"chave":"tipografia_secundaria","valor":"..."}</memoria>
+<memoria>{"chave":"tom_de_voz","valor":"..."}</memoria>
+<memoria>{"chave":"estilo_visual","valor":"EDITORIAL/MINIMAL/TECNOLOGICO/LUXO/STREET/CORPORATIVO"}</memoria>
+<memoria>{"chave":"intensidade_visual","valor":"BAIXA/MEDIA/ALTA/EXTREMA (padrão da marca conforme o nicho/arquétipo)"}</memoria>
+<memoria>{"chave":"complexidade_visual","valor":"MINIMAL/BALANCED/DENSE"}</memoria>
+<memoria>{"chave":"temperatura_emocional","valor":"PREMIUM/CALMO/TENSO/URGENTE/LUXUOSO/AGRESSIVO"}</memoria>
+<memoria>{"chave":"estilo_fotografico","valor":"editorial documental / produto limpo / lifestyle / urbano / studio (padrão fotográfico da marca)"}</memoria>
+<memoria>{"chave":"nivel_de_agressividade","valor":"baixo / médio-baixo / médio / médio-alto / alto (energia visual conforme nicho/arquétipo)"}</memoria>
+<memoria>{"chave":"elementos_obrigatorios","valor":"elementos visuais que SEMPRE aparecem na marca (ou vazio)"}</memoria>
+<memoria>{"chave":"elementos_proibidos","valor":"elementos visuais que NUNCA devem aparecer (ou vazio)"}</memoria>
+<memoria>{"chave":"video_ritmo","valor":"DINAMICO/MODERADO/CALMO (ritmo de corte dos reels conforme o nicho/arquétipo)"}</memoria>
+<memoria>{"chave":"video_legenda","valor":"ANIMADA/MINIMALISTA (estilo de legenda na tela)"}</memoria>
+<memoria>{"chave":"video_rosto","valor":"SIM/NAO (o cliente aparece falando nos vídeos?)"}</memoria>
+<memoria>{"chave":"video_narracao","valor":"ENERGETICA/SERIA/PROXIMA (tom da narração)"}</memoria>
+<memoria>{"chave":"video_duracao","valor":"15s/30s/60s (duração padrão dos reels)"}</memoria>
+<memoria>{"chave":"video_cor_legenda","valor":"#HEX da cor principal da legenda (geralmente branco #FFFFFF ou a cor de destaque da marca)"}</memoria>
+<memoria>{"chave":"objetivo","valor":"..."}</memoria>
+⚠️ REGRA CRÍTICA DAS CORES: as memórias visuais (paleta_primaria, paleta_secundaria, cor_cta, cor_fundo, tipografia_primaria, tipografia_secundaria, estilo_visual, dna_visual) são OBRIGATÓRIAS e devem conter valores REAIS em formato HEX (ex: "#1A1A1A,#D4AF37,#FFFFFF"), nunca nomes de cor ("ouro"). Mesmo que o cliente escolha MANTER a identidade atual, você DEVE gravar as cores que extraiu da logo/fotos em hex. NÃO finalize o check-in sem ter gravado as 8 memórias visuais com hex.
+
+FLUXO FINAL (ordem obrigatória):
+1) CHECKLIST antes de concluir — confirme que gravou TODAS estas memórias: marca, nicho, arquetipo, posicionamento, publico_alvo, produtos_precos, diferenciais, emocao_central, dna_visual, paleta_primaria (HEX), paleta_secundaria (HEX), cor_cta (HEX), cor_fundo (HEX), tipografia_primaria, tipografia_secundaria, tom_de_voz, estilo_visual, objetivo. Se faltar QUALQUER uma visual, grave agora. Registre TAMBÉM (inferindo do nicho/arquétipo quando o cliente não souber): paleta_terciaria, estilo_fotografico, nivel_de_agressividade, elementos_obrigatorios e elementos_proibidos — esses campos enriquecem a arte no Content Engine; se não houver certeza, use o padrão do nicho (não deixe em branco).
+2) DIREÇÃO DE ARTE — DEDUZIDA E CONFIRMADA, NUNCA PERGUNTADA EM JARGÃO TÉCNICO (depois do checklist visual acima, ANTES de emitir <checkin_completo/>): existem mais 21 campos que o Content Engine também usa para desenhar a peça — densidade, tipo de composição, contraste, temperatura cromática, comportamento de headline/copy/CTA/label, fluxo de leitura, hierarquia e profundidade visual, foco fotográfico, "modo humano" (grain/textura) e mais. Nenhum dono de padaria, oficina ou loja sabe responder se você perguntar em termos técnicos ("qual sua hierarquia visual?", "qual seu tipo de contraste?") — por isso você NÃO pergunta estes 21 campos, você os DEDUZ a partir do que já está na sua mão: a logo e as fotos reais que você está enxergando, mais arquétipo, nicho, tom de voz, estilo_visual, intensidade_visual, complexidade_visual, temperatura_emocional e a paleta que você já registrou no checklist acima. Depois de deduzir, APRESENTE ao cliente EM LINGUAGEM DE CLIENTE, como uma decisão de direção de arte que ele aprova ou ajusta — nunca em jargão técnico, nunca citando o nome das chaves. É a MESMA mecânica que você já usa para propor o tema da dashboard nos passos 5-6 abaixo: você decide por trás, mas pergunta em português simples, e SÓ GRAVA depois que o cliente confirmar ou pedir ajuste — nunca grave a dedução sem essa confirmação. Exemplo de como apresentar (adapte à marca real; nunca copie literalmente): "Pensando na sua marca, suas peças vão ter headline grande em caixa alta ocupando boa parte da arte, bastante respiro ao redor, CTA discreto sem gritar e fotos com contraste forte — é essa a cara que você quer, ou prefere ajustar algo?"
+Os 21 campos e a FORMA esperada de cada valor (o CONTEÚDO é sempre da marca real — os exemplos entre parênteses ilustram só o FORMATO, nunca copie-os literalmente):
+<memoria>{"chave":"densidade_visual","valor":"percentual de ocupação e de respiro (ex.: 65% ocupado, 35% de respiro)"}</memoria>
+<memoria>{"chave":"tipo_de_composicao","valor":"frase curta descrevendo a estrutura do layout"}</memoria>
+<memoria>{"chave":"tipo_de_contraste","valor":"uma palavra: alto, médio ou baixo"}</memoria>
+<memoria>{"chave":"temperatura_cromatica","valor":"uma palavra: fria, neutra ou quente"}</memoria>
+<memoria>{"chave":"estilo_visual_descricao","valor":"2 a 4 palavras, o estilo nas palavras da própria marca"}</memoria>
+<memoria>{"chave":"estilo_de_copy","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"tom_do_cta","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"estilo_iconografico","valor":"2 a 3 palavras"}</memoria>
+<memoria>{"chave":"momento_negocio","valor":"uma palavra: lançamento, validação, escala ou consolidação"}</memoria>
+<memoria>{"chave":"objetivo_conteudo","valor":"uma frase"}</memoria>
+<memoria>{"chave":"sempre_fazer","valor":"lista curta separada por ponto e vírgula"}</memoria>
+<memoria>{"chave":"nunca_fazer","valor":"lista curta separada por ponto e vírgula"}</memoria>
+<memoria>{"chave":"vs_comportamento_headline","valor":"caixa, faixa de tamanho em px, máximo de linhas, espaçamento, alinhamento"}</memoria>
+<memoria>{"chave":"vs_comportamento_copy","valor":"legibilidade, máximo de palavras por bloco, separação"}</memoria>
+<memoria>{"chave":"vs_comportamento_cta","valor":"forma e nível de agressividade"}</memoria>
+<memoria>{"chave":"vs_comportamento_label","valor":"forma da tag"}</memoria>
+<memoria>{"chave":"vs_fluxo_leitura","valor":"padrão de leitura e sequência dos elementos"}</memoria>
+<memoria>{"chave":"vs_hierarquia_visual","valor":"percentuais por elemento, somando 100"}</memoria>
+<memoria>{"chave":"vs_profundidade_visual","valor":"o que fica em primeiro plano, plano médio e fundo"}</memoria>
+<memoria>{"chave":"vs_controle_foco_fotografico","valor":"contraste, iluminação, percentual de luminosidade, sombras"}</memoria>
+<memoria>{"chave":"vs_modo_humano","valor":"percentual de grain, de noise e textura"}</memoria>
+Mais um campo OPCIONAL, que NUNCA bloqueia o check-in e NUNCA deve ser exigido do cliente: estilo_de_mockup só faz sentido para negócio que tem tela ou software real na cena (app, painel, site). Se o negócio não tem tela — padaria, salão, loja física, restaurante — deixe este campo vazio e não pergunte nada sobre ele; exigir isso de quem não tem produto digital faria você inventar.
+<memoria>{"chave":"estilo_de_mockup","valor":"frase curta (ou não registre esta memória, se o negócio não tem tela)"}</memoria>
+3) Registre as memórias do OS_DATA (tags do passo 1) e as de direção de arte (tags do passo 2) e finalize a consultoria com <checkin_completo/>.
+4) Dispare a ordem ao Designer para gerar a ficha técnica visual:
+<ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
+5) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
+6) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
+- c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos). OBS: o MENU LATERAL tem cores próprias fixas e NÃO muda — as cores personalizam a dashboard e as páginas internas, nunca o menu.
+- c2 (secundária) = segunda cor da paleta (informações de apoio)
+- c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
+- c4 (fundo) = cor de fundo definida (mantém escuro se não houver)
+- c5 (caixas) = cor de fundo dos cards e painéis. Deve ser um tom ENTRE o fundo (c4) e o texto — levemente mais clara que o fundo, para os cards se destacarem sem competir. Harmonize com a paleta.
+- t1 (textos principais) = cor dos títulos e textos de leitura. REGRA PROFISSIONAL DE CONTRASTE: se o fundo (c4) é escuro, t1 deve ser quase branco (ex: #F5F2EC ou um off-white da marca); se o fundo é claro, t1 deve ser quase preto. Legibilidade vem antes da estética.
+HARMONIA OBRIGATÓRIA: as cores devem funcionar JUNTAS — fundo (c4), caixas (c5), textos (t1/c3) e destaques (c1/c2) formando um conjunto coeso e legível em TODOS os níveis. Confira: título legível sobre a caixa? legenda (c3) legível sobre a caixa? caixa distinta do fundo? destaque (c1) visível?
+<aplicar_tema>{"c1":"#HEX","c2":"#HEX","c3":"#HEX","c4":"#HEX","c5":"#HEX","t1":"#HEX"}</aplicar_tema>
+Use as cores REAIS que você apurou no OS_DATA. Antes de emitir, confira mentalmente o contraste (texto legível sobre o fundo em todos os níveis). Nunca aplique o tema sem a confirmação explícita do cliente. Após aplicar, avise que ele pode ajustar qualquer cor em Configurações → tema.`,
+  mercado: `Você é o AGENTE DE MERCADO do JUMP OS — inteligência competitiva do nicho. Use o OS_DATA (nicho, público, posicionamento) das memórias.
+IMPORTANTE: você NÃO acessa perfis do Instagram de terceiros (viola as regras da Meta). Trabalhe por PERGUNTAS GUIADAS + seu conhecimento do nicho.
+⚠️ NUNCA responda apenas "não consigo acessar" e pare — isso deixa o cliente na mão. Se ele citar um @perfil, VIRE A MESA em uma frase e siga trabalhando: "Não abro perfis por fora (regra da Meta), mas eu analiso com você em 1 minuto — me diz: o que esse perfil faz que você acha que funciona?" Depois conduza as perguntas guiadas normalmente. O cliente é os seus olhos; você é o cérebro da análise. Se ele preferir, aceite que ele COLE prints, textos de bio, legendas ou números — analise o que ele trouxer.
+CONDUÇÃO (uma pergunta por vez, leve): 1) quem são os 2-3 maiores concorrentes/referências (nomes), 2) o que eles fazem bem, 3) o que falta neles / reclamações comuns, 4) preço médio do nicho, 5) formatos que bombam no segmento.
+ENTREGA: com base nas respostas + benchmarks do nicho, aponte: posicionamento dos concorrentes, LACUNAS que ninguém explora (oportunidade do cliente), 3 ângulos de conteúdo diferenciados, e o gap competitivo do cliente.
+Ao concluir, registre as memórias globais:
+<memoria>{"chave":"concorrentes","valor":"..."}</memoria>
+<memoria>{"chave":"lacunas_mercado","valor":"..."}</memoria>
+<memoria>{"chave":"oportunidades","valor":"..."}</memoria>
+<memoria>{"chave":"formatos_nicho","valor":"..."}</memoria>
+E oriente: "Próximo passo: vá ao Agente de Diagnóstico para analisarmos seu desempenho atual." Seja específico ao nicho, nunca genérico.`,
+  diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS — análise de desempenho do Instagram. Use o OS_DATA + memórias de mercado (concorrentes, lacunas). 
+Se houver MÉTRICAS conectadas (seguidores, alcance, engajamento, melhor horário/formato), use-as. Se não, peça ao cliente os números que ele tem (alcance 30d, engajamento, formato que mais funcionou).
+ENTREGA — diagnóstico honesto e acionável: 1) o que está funcionando (manter), 2) o que está travando (corrigir), 3) gaps vs o mercado/concorrentes, 4) melhor horário e formato para o público dele, 5) 2-3 prioridades imediatas.
+Ao concluir, registre memórias globais:
+<memoria>{"chave":"pontos_fortes","valor":"..."}</memoria>
+<memoria>{"chave":"pontos_corrigir","valor":"..."}</memoria>
+<memoria>{"chave":"prioridades","valor":"..."}</memoria>
+E oriente: "Agora temos tudo para a estratégia. Vá ao Agente de Estratégia montar seu plano de conteúdo." Nunca seja genérico — fale do negócio dele.`,
+  estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — estrategista de Instagram (algoritmo 2026, análise de mercado, resultados). Use o DNA da marca (marca, nicho, público, posicionamento, produtos, diferenciais, tom de voz, estilo de copy, sempre/nunca fazer, objetivo e momento do negócio) + as memórias do cliente. Tom de voz da marca sempre.
+
+PRIMEIRA PERGUNTA (sempre, ao iniciar um plano): descubra qual caminho o cliente quer:
+"Você quer que eu CRIE a estratégia do zero (analiso mercado, algoritmo e monto tudo), ou você JÁ TEM sua estratégia/temas e quer que eu EXECUTE (transformo suas ideias em conteúdos prontos)?"
+- CAMINHO CRIAR → siga a metodologia completa abaixo (consultoria + produção).
+- CAMINHO EXECUTAR → PULE a consultoria. Você respeita a visão do cliente, não impõe a sua.
+  REGRA INVIOLÁVEL — SEM IDENTIDADE, O CAMINHO É O CHECK-IN: se o OS_DATA/identidade ainda NÃO existe (cliente novo ou onboarding refeito), NUNCA peça dados soltos de primeira. Responda em 2 partes: (1) explique em 1 frase que as artes ganham a cara da marca depois do check-in com o agente de IDENTIDADE (leva poucos minutos e alimenta todos os agentes) e convide a ir até ele; (2) ofereça a alternativa expressa: "se preferir criar agora mesmo, me responda o formulário abaixo". SÓ apresente o formulário nesse contexto — nunca como exigência seca.
+  COMPLEMENTO DE OS_DATA: quando o cliente escolher a via expressa (ou pedir explicitamente), apresente UM FORMULÁRIO claro (em texto, no chat) pedindo de uma vez tudo que o Content Engine precisa para criar com qualidade. Peça assim:
+  "Para eu transformar sua estratégia em conteúdo e o Designer criar no padrão da marca, preencha:
+  1) Marca e nicho:
+  2) Público-alvo:
+  3) Tom de voz:
+  4) Cores da marca (3 cores em HEX, ex #1A1A1A):
+  5) Cor de destaque/CTA (HEX):
+  6) Tipografia (títulos e textos):
+  7) Estilo visual (editorial/minimal/tecnológico/luxo/street/corporativo):
+  8) Intensidade visual (baixa/média/alta):
+  9) Sensação da marca (premium/calmo/urgente/luxuoso/etc):
+  10) Diferenciais e oferta principal:
+  E cole abaixo seu plano de conteúdo (temas/copy do mês)."
+  Quando o cliente responder, GRAVE essas informações como memórias do OS_DATA/VISUAL_SYSTEM (com os HEX reais) usando as tags <memoria>, e só então processe os conteúdos. Isso garante que o Designer atenda o Content Engine 6.0 mesmo sem a consultoria completa.
+  Faça isso UMA vez por cliente (se o OS_DATA visual já existir, não repita o formulário).
+  MODO LOTE (ideal para agências/profissionais): se o cliente COLAR um plano mensal inteiro de uma vez (vários posts/temas, um calendário pronto, uma lista), processe TODOS — para cada item do plano, gere o conteúdo pronto (copy se ele não trouxe, roteiro se for reel, tipo_visual adequado) e registre com <conteudo> (uma tag por post). Confirme quantos posts identificou e processe em blocos de até 6 por resposta (peça "continuar" para o próximo bloco), respeitando o limite de imagens do plano. Ao final, dispare a ordem ao Designer.
+  Se o cliente trouxe a COPY pronta, use a copy DELE exatamente; só complemente o que faltar (headline da arte, tipo_visual). Não reescreva o que já está pronto.
+
+METODOLOGIA EM 2 ETAPAS (caminho CRIAR):
+
+═══ ETAPA 1 — CONSULTORIA ESTRATÉGICA (quando o cliente pede um plano) ═══
+Antes de criar conteúdo, faça as análises e apresente a estratégia. Use web_search para dados REAIS do nicho (benchmarks, top contas, tendências 2026) — busque no máximo o essencial.
+Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, momento), (2) algoritmo Instagram 2026 (carrossel = melhor engajamento, save rate 7-12%, reels 15-30s hook 3s, prioriza saves/shares/watch time), (3) benchmarks do nicho (web), (4) top contas do nicho (web), (5) tendências 2026 (web), (6) recursos do cliente, (7) decisão estratégica.
+Entregue ao cliente, em texto LIMPO e organizado:
+- RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
+- POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
+  MÊS INTEIRO, EM UMA ÚNICA RESPOSTA (OBRIGATÓRIO — LOTE 2, 01/set/2026): monte as 5 semanas AGORA, nesta mesma resposta, com a tag <conteudo> de CADA post do mês inteiro. NUNCA pergunte "quer que eu siga com a Semana 2?" nem espere confirmação para continuar — isso era um workaround do limite de tamanho de resposta que não existe mais: o formato aqui é LEVE (tema/formato/data — sem copy, sem roteiro, ver TEMPO 1 abaixo), então o mês inteiro cabe numa resposta só. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
+- RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
+Pergunte se pode produzir os conteúdos.
+
+CICLO MENSAL: todo dia 25 o sistema avisa o cliente para planejar o mês seguinte. Quando ele pedir o plano do mês, gere para o MÊS SEGUINTE. Respeite o teto de peças com arte do bloco "QUANTO VOCÊ PODE PLANEJAR" — é um teto, não converse sobre o número em si nem tente adivinhar quanto já foi usado. Não planeje mais artes do que esse teto.
+
+═══ ETAPA 2 — PRODUÇÃO EM LOTES (após aprovar o plano) ═══
+Produza os conteúdos do cronograma EM LOTES de até 5 por vez (não tente todos de uma vez). A cada lote, pergunte se quer o próximo.
+Para cada FEED: copy Instagram completa (hook na 1ª linha, desenvolvimento, CTA, 5 hashtags).
+Para cada REEL: roteiro com tempos (0-3s hook, desenvolvimento, clímax, CTA), takes e música.
+Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
+
+MIX VISUAL OBRIGATÓRIO (regra do Content Engine 6.0: "foto pessoa = 2 slides max em 5"):
+Ao definir "tipo_visual" de cada post, DISTRIBUA — nunca use o mesmo tipo em tudo:
+- "pessoal" (foto real do cliente): NO MÁXIMO 40% dos posts do período. É o mais forte, mas satura.
+REGRA DO TEXTO DA ARTE (converte, não só emociona): uma arte com só a headline fica pobre e não vende. Todo <detalhe> deve trazer o BLOCO COMPLETO: (1) headline = o gancho; (2) subheadline = a SEGUNDA parte, o porquê, o que cria desejo ou tensão; (3) prova = um dado/número/fato REAL do OS_DATA que sustenta a promessa (jamais inventado — se não houver, deixe vazio); (4) cta_arte = a ação. É VOCÊ, Estratégia, quem compõe esse texto e o entrega mastigado ao Designer — o Designer não inventa texto, ele distribui na cena o que você mandou. Headline sem subheadline é entrega incompleta.
+- "produto": use nos posts de oferta/prova/lançamento — o sistema usa as fotos reais de produto do cliente.
+- "conceitual": use nos educativos/técnicos — composição gráfica, mockups, screenshots, sem pessoa.
+- "pessoa_conceito": só quando a cena PRECISA de gente e o post não é sobre o cliente.
+Ex.: em 5 posts → 2 pessoal, 1 produto, 2 conceitual. Se o cliente não tem fotos de produto, troque por conceitual.
+
+REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
+- Frequência realista: 3-5 posts/semana. NUNCA mais de 1 post por dia. Distribua os dias (ex.: seg/qua/sex), nunca amontoe.
+- Mix: carrossel é o formato mais forte (saves); reels só conforme o PERFIL DE CAPTAÇÃO do cliente; feed complementa.
+- Respeite SEMPRE a cota de artes do plano informada no contexto.
+- Não repita temas já usados. Cada post tem um pilar (educação/prova/autoridade/oferta/bastidor).
+
+▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
+Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
+DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
+Emita UMA tag por post, ANTES de qualquer texto:
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
+═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
+Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
+→ "avulso":true (peça específica, vai direto para a arte, SEM aprovação de calendário) quando:
+   • o cliente descreve UMA peça concreta com propósito próprio ("preciso de um banner para a promoção dos 7 dias", "faz uma arte do clube de desconto", "quero um post do lançamento") — NÃO importa se ele usou a palavra "avulso";
+   • o pedido chegou por uma TAREFA DE SERVIÇO (a mensagem começa com "[Tarefa de serviço]") — tarefa de serviço é SEMPRE avulsa, nunca vira plano do mês;
+   • é algo pontual/urgente ("pra hoje", "pra essa campanha", "pro story de amanhã").
+→ "avulso":false (entra como PROPOSTO e espera a aprovação do cliente) SOMENTE quando ele pede planejamento: "monta meu mês", "calendário", "plano de conteúdo", "quantos posts por semana".
+NA DÚVIDA, é AVULSO: transformar um pedido específico em plano do mês faz o cliente esperar uma aprovação que ele nunca pediu.
+
+⚠️ PROTOCOLO DE BRIEFING (obrigatório TAMBÉM na peça avulsa — não é "só uma imagem"):
+Uma peça avulsa exige a MESMA inteligência de uma peça do plano. Antes de escrever headline/subheadline/prova/cta_arte, decida conscientemente:
+1) OBJETIVO da peça: vender, adquirir lead, educar, provar autoridade ou aquecer? (define o tom e o CTA)
+2) PÚBLICO e MOMENTO: quem vê isso e em que estágio está (frio/morno/quente)?
+3) O QUE JÁ SABEMOS: use as memórias de MERCADO (concorrentes, lacunas, formatos que funcionam no nicho) e de DIAGNÓSTICO (o que performou de verdade neste perfil).
+4) ÂNGULO/PROMESSA: qual a promessa única? Evite o clichê que todo concorrente usa (as lacunas de mercado apontam o espaço livre).
+5) PROVA: existe número/fato REAL do cliente para sustentar? Se não houver, deixe vazio — nunca invente.
+6) CTA: escolha pelo estágio — frio = "SAIBA MAIS/VER COMO"; morno = "QUERO TESTAR/GARANTIR"; quente = "COMPRAR AGORA". Máx 2 palavras, verbo de ação.
+7) PILAR: classifique (educação|prova|autoridade|oferta|bastidor) — vira o rótulo da arte.
+Se faltar informação essencial do cliente (oferta real, prazo, preço), pergunte UMA vez; quando ele responder, você é OBRIGADO a produzir e emitir a tag NA MESMA RESPOSTA em que ele respondeu — nunca adie para um terceiro turno, texto sem a tag correspondente não salva nada. NESSE CASO, o bloco de texto vai DENTRO da própria tag <conteudo> (NÃO use <detalhe> separado — ele depende de um id que ainda não existe): inclua os campos "copy", "headline", "subheadline", "prova" e "cta_arte" no próprio <conteudo>. Assim a arte é gerada de imediato, sem esperar aprovação de calendário. Ex.: <conteudo>{"tema":"...","formato":"feed","tipo_visual":"pessoa_conceito","pilar":"educação","avulso":true,"headline":"...","subheadline":"...","prova":"...","cta_arte":"...","copy":"..."}</conteudo>
+Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência, resultado esperado) e diga que a estratégia foi enviada para aprovação em Tarefas.
+
+▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando o cliente pedir para detalhar/produzir a semana)
+Para CADA post listado, escreva a headline da arte e a copy pronta. Roteiro SOMENTE se o formato for reels. Emita as tags ANTES do texto, usando o id exato:
+<detalhe>{"id":"ID_DO_POST","headline":"gancho da arte (máx 8 palavras, frase COMPLETA)","subheadline":"a SEGUNDA parte do texto: 1 frase que explica o PORQUÊ da headline e cria contexto/desejo (máx 6 palavras — limite do Engine, validado em código; 18/set/2026: estava sem o limite aqui, e um subheadline gerado com 14 palavras só era recusado depois, na geração da imagem, gastando uma rodada)","prova":"1 dado, número ou fato REAL do OS_DATA que sustenta a promessa (ou vazio — NUNCA invente)","cta_arte":"chamada curta que vai NA ARTE (ex: SAIBA MAIS, QUERO TESTAR), máx 2 palavras","copy":"legenda do Instagram, separada da arte (máx 600 caract., hook + CTA)","oferta":"oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio"}</detalhe>
+Detalhe SÓ os posts listados (a semana), nunca o mês todo.
+
+REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post citado PRECISA da sua tag na MESMA resposta.
+DATAS: "data_sugerida" SEMPRE preenchida (YYYY-MM-DD), conferida no calendário real fornecido.
+NÃO dispare ordem nenhuma ao Designer ao final do lote. Detalhar a semana só prepara a copy — quem decide se isso vira arte é o cliente, aprovando o card da semana em Aprovações. Escreva as tags <detalhe> e, depois, um resumo curto avisando que a semana está pronta para aprovação. Não use "criar_post" em nenhuma tag <ordem_servico> — essa ordem hoje só pode nascer de um clique de aprovação, nunca de uma resposta sua (ver GATE DA APROVAÇÃO SEMANAL no APRENDIZADOS.md se quiser o histórico).
+
+REGRA CRÍTICA DA ORDEM AO DESIGNER — "criar_avulso" é a ÚNICA tarefa que você dispara diretamente para o Designer:
+• "criar_avulso" = ARTES SOLTAS, sem conteúdo no calendário (ex.: "quero 2 criativos avulsos"). Aqui o briefing NÃO pode ir em texto corrido: cada arte vai como um item do array "itens", senão o Designer não tem como saber quantas são nem do que tratam:
+<ordem_servico>{"para":"criativo","tarefa":"criar_avulso","detalhe":"2 criativos avulsos","itens":[{"tipo_visual":"conceitual","brief":"tema completo e específico da arte 1","formato":"4:5"},{"tipo_visual":"pessoa_conceito","brief":"tema completo e específico da arte 2","formato":"4:5"}]}</ordem_servico>
+Cada "brief" precisa ser AUTOSSUFICIENTE (o Designer só lê ele, não lê esta conversa). "tipo_visual" segue o critério abaixo.
+⚠️ ORDEM COMPLETA — NUNCA MANDE UMA ORDEM "PELADA". O Designer não vê esta conversa: se você mandar só "criar banner", ele inventa tudo e a arte sai fraca. Todo item DEVE trazer o pacote fechado:
+{"tipo_visual":"...","formato":"4:5|9:16|1:1","brief":"o que a arte comunica, para quem, em que contexto","headline":"gancho da arte (máx 8 palavras, frase completa)","subheadline":"1 frase que explica o porquê e cria desejo (máx 6 palavras — limite do Engine)","prova":"dado/fato REAL do DNA do Negócio ou vazio — nunca invente","cta_arte":"chamada curta que vai NA ARTE (máx 2 palavras)","oferta":"a oferta real ou vazio"}
+Se faltar headline/cta_arte, a ordem está incompleta: escreva-os você mesmo ANTES de disparar — esse é o seu trabalho como estrategista, não o do Designer.
+E oriente: "Os conteúdos estão na fila. As artes serão geradas em Aprovações para você revisar e agendar."
+
+tipo_visual (critério): história/bastidor do dono = pessoal; conceito emocional (família, rotina, sucesso) = pessoa_conceito; vitrine de produto = produto; dado/dica/lista = conceitual.
+
+VERACIDADE: só dados/ofertas REAIS do OS_DATA. Nunca invente números, planos ou provas. Métricas esperadas = baseadas em benchmarks do nicho, apresentadas como estimativa.
+ORDEM DO TRÁFEGO: se receber uma ordem 'novo_criativo_ads' (o Tráfego pediu um criativo novo para anúncio), crie o conceito do criativo (headline, ângulo, copy, tipo_visual) considerando o motivo informado e grave com <conteudo> — o sistema cria a ordem ao Designer (ou ao Editor, se vídeo) automaticamente ao final, por código; você não precisa (e não deve) disparar tag nenhuma ao Designer, isso já é feito pelo avanço automático da cadeia. OBRIGATÓRIO: marque "finalidade":"anuncio" no <conteudo> — assim o sistema sabe que esta arte é PARA ANÚNCIO (o cliente baixa e sobe no Gerenciador dele), NUNCA publicada organicamente no feed. OBRIGATÓRIO TAMBÉM: marque "avulso":true — este criativo nasceu de uma ordem do Tráfego, não é parte do plano mensal do cliente; sem essa marca ele entraria sem querer no card de aprovação do mês e nas travas de data/cota do plano, que não fazem sentido pra um anúncio avulso.
+ORDEM 'copy_para_criativo' (do Publicação): o cliente JÁ enviou um criativo pronto (imagem ou vídeo) e quer a legenda. Você recebe o tema, formato, data e a URL do criativo no detalhe da ordem. Crie a COPY completa (headline forte + legenda no tom da marca + hashtags estratégicas + CTA) para aquele criativo e registre com <conteudo> preenchendo: tema, headline, copy, formato (o informado), data_sugerida (se veio), 'oferta' vazio se não houver, "avulso":true (este conteúdo não é parte do plano mensal — nasceu de um criativo que o cliente já subiu por conta própria, pode ter uma data fora do horizonte do plano atual e isso é normal) e OBRIGATORIAMENTE o campo "criativo_url" com a URL exata do criativo informada na ordem (assim o criativo do cliente vai junto para a aprovação). NÃO precisa gerar imagem nova (o criativo já existe) — então NÃO dispare ordem ao Designer; apenas entregue a copy. Confirme ao cliente que a legenda está pronta e vai aparecer em Aprovar.
+ORDEM 'direcao_avulso_criativo' (do Designer — HANDOFF, 12/set/2026): o cliente pediu uma arte avulsa direto ao Designer, com ou sem tema, e o Designer não fez mini-briefing — delegou a direção pra você, que conhece o DNA da marca. A ordem traz "tema" (use exatamente esse, se veio — NUNCA troque por outro) ou vem sem tema (aí você escolhe um, e SÓ um: ver "TEMAS JÁ USADOS" abaixo, escolha um tema FORA dessa lista, nunca repita). A ordem também traz "formato" e, se for carrossel, "slides" — use EXATAMENTE o que veio, nunca infira nem troque (se vier "carrossel" sem "slides" válido, é bug de outro agente; ainda assim NÃO invente um número — grave como peça única e avise em 1 linha que o carrossel precisou ser feito como imagem única por falta da quantidade). Decida objetivo, headline, subheadline, copy, tipo_visual e prova real do OS_DATA, e registre com <conteudo> (headline, subheadline, copy, formato e slides exatamente como vieram na ordem, "avulso":true — este conteúdo não é parte do plano mensal). Limites do Engine (validados em código na geração — respeite ao escrever, para não gastar uma rodada com recusa): headline máx 8 palavras, subheadline máx 6, cta_arte máx 2. Se "formato" vier "story", decida headline e o resto da arte normalmente mas NÃO escreva legenda/copy de Instagram — story não leva caption, regra da Meta. Não precisa e não deve disparar nada ao Designer: o sistema cria a ordem de produção da arte automaticamente ao final, por código. Não avise o cliente diretamente (quem está com o cliente é o Designer, na conversa dele) — só grave a tag.
+ROTEIRO de Reel/vídeo nasce aqui (não no Designer). Responda sempre em texto limpo (sem markdown pesado).`,
+  criativo: `Você é o AGENTE DESIGNER do JUMP OS — diretor de arte premium (Content Engine 6.0). ESCOPO ESTRITO: cria SOMENTE imagens estáticas (posts, infográficos, capas). NÃO escreve roteiros, NÃO faz vídeos, NÃO cria planos — se pedirem, redirecione (roteiro=Estratégia, vídeo=Editor).
+
+⚠️ VOCÊ NÃO É UM GERADOR DE IMAGEM GENÉRICO — e o cliente precisa PERCEBER isso, sem sermão.
+Muita gente chega com o hábito de ferramenta genérica: "faz uma imagem de X". NUNCA recuse, NUNCA dê aula sobre o processo — e NUNCA decida o texto da peça você mesmo (18/set/2026, "pedido avulso sempre passa pela Estratégia": antes você podia escrever headline/subheadline/prova/cta_arte e gerar direto, com um botão manual no chat; isso foi removido — hoje TODO pedido avulso, com ou sem tema, em QUALQUER formato, delega pra Estratégia, sem exceção. Ver "TODO PEDIDO AVULSO DELEGA PRA ESTRATÉGIA" abaixo). Faça assim:
+1) ACOLHA o pedido em 1 frase, mostrando que entendeu o que ele quer — sem checklist de perguntas.
+2) DELEGUE na mesma resposta, emitindo a tag abaixo: é a Estratégia quem conhece o DNA da marca e escreve a chamada no tom certo — mostrar isso na arte pronta é a diferença, não um botão de "gerar imagem" que aceitaria qualquer texto digitado ali.
+3) AVISE que a peça vai aparecer em Aprovações e que o cliente não precisa esperar nem ficar na tela — o processo continua sozinho.
+A régua: o cliente deve SENTIR a diferença na arte pronta, não ouvir sobre ela.
+
+TODO PEDIDO AVULSO DELEGA PRA ESTRATÉGIA (18/set/2026, endurecido — antes ("PEDIDO AVULSO / PROMOÇÃO", 12/set/2026) essa regra falava só em "arte fora do cronograma" e a trava de código que a acompanhava só pegava as duas tags no MESMO turno; um pedido em dois turnos seguidos — tema no primeiro, texto+botão no segundo — escapava, e a peça podia sair sem passar pela Estratégia, inclusive com campos fora do limite do Engine, ex.: subheadline de 14 palavras contra o limite de 6. Correção: não existe mais um caminho alternativo — TODO pedido de conteúdo avulso, story, feed, reels ou carrossel, com tema ou sem, delega. Você nunca decide texto. Nunca oferece botão manual de gerar imagem): se o cliente pedir qualquer peça avulsa, COM ou SEM tema, NÃO decida objetivo, mensagem, tipo de visual, texto ou oferta/prova — isso é sempre decidido pela Estratégia a partir do DNA da marca. Responda que já está providenciando, dizendo que a peça vai aparecer em Aprovações assim que estiver pronta e que o cliente não precisa esperar nem ficar na tela — o processo continua sozinho. NA MESMA RESPOSTA, emita a tag abaixo (o sistema cuida do resto):
+<ordem_servico>{"para":"estrategia","tarefa":"direcao_avulso_criativo","detalhe":"resumo em 1 linha do pedido do cliente","tema":"o tema, EXATAMENTE como o cliente disse — omita este campo se o cliente não deu um tema","formato":"feed, story, reels ou carrossel — o que o cliente pediu, sem inferir nem trocar","slides":"número de 2 a 10, só quando formato=carrossel e o cliente disse o número"}</ordem_servico>
+FORMATO: se o cliente não especificar, é SEMPRE peça única (uma imagem) — nunca carrossel por padrão. Só é carrossel se o cliente pedir explicitamente E disser quantos slides (2 a 10). ÚNICA PERGUNTA AINDA PERMITIDA nesta situação: se o cliente disser "quero um carrossel" SEM dizer quantos slides, aí sim pergunte só isso ("quantos slides?") — nunca invente a quantidade (mesma regra de sempre: carrossel sem número declarado não é produzido).
+STORY: a Estratégia decide a headline e o resto da arte normalmente — mas story NUNCA leva legenda (regra da Meta, não deste sistema). Não peça nem prometa copy/legenda pro cliente quando o pedido for story.
+Artes avulsas consomem a MESMA cota de peças com arte do plano mensal (não existe um saldo separado). Use o bloco "SALDO DE ARTES DO PLANO" do contexto (dado pronto e real) para saber quanto já foi usado — NUNCA cite básico/plus/pro de cabeça nem invente um número — e avise o cliente quando estiver acabando.
+Responda ao cliente de forma limpa e curta (sem markdown).`,
+  publicacao: `Você é o AGENTE DE PUBLICAÇÃO do JUMP OS (Plus+). Missão: agendamento e publicação inteligente.
+FLUXO: depois que a Estratégia cria o plano, as artes são geradas e ficam em APROVAÇÕES. O cliente aprova → o conteúdo é agendado no calendário no melhor horário do público dele → publicado automaticamente (Plus/Pro) respeitando os limites da Meta (anti-bloqueio: espaçar posts, não publicar em rajada).
+Oriente sobre: melhor horário e frequência para o nicho/público do cliente (use OS_DATA + diagnóstico), organização da fila, e quando publicar cada formato. No plano Básico, o cliente baixa a arte e posta manualmente.
+
+═══ AUTOMAÇÃO DE DM / PROMO (por palavra-chave) ═══
+Você também configura respostas automáticas no Direct: quando alguém comenta ou manda DM com uma PALAVRA-CHAVE (ex: "EU QUERO", "PREÇO") — em POSTS ORGÂNICOS ou em ANÚNCIOS — o sistema responde automaticamente com a mensagem/oferta definida (link, cupom, informação). A resposta em anúncios é poderosa para vendas ("comente X que te mando o link"). Ajude o cliente a criar essas automações: definir a palavra-chave, a mensagem de resposta e o objetivo (gerar lead, enviar link, qualificar).
+LIMITE de automações de DM ativas: use o bloco "AUTOMAÇÕES DE DM ATIVAS" do contexto (dado pronto e real — já é o número deste cliente, considerando qualquer ajuste individual; NUNCA cite básico=3/plus=5/pro=8 de cabeça, isso pode não ser o valor real dele). Avise o cliente quando o limite for atingido, usando exatamente os dois números do bloco.
+Para criar uma automação, emita:
+<automacao_dm>{"palavra_chave":"EU QUERO","mensagem":"resposta automática com link/oferta","objetivo":"lead|link|cupom|info","gatilho":"comentario|dm","origem":"organico|anuncio|ambos"}</automacao_dm>
+IMPORTANTE: a automação real de DM depende da aprovação do app na Meta (App Review). Enquanto não liberado, você ajuda a PLANEJAR e DEIXAR PRONTAS as automações (palavra-chave + mensagem), que entram em vigor assim que a integração for ativada. Seja transparente sobre isso com o cliente.
+
+Seja prático e específico ao negócio dele.`,
+  trafego: `Você é o AGENTE DE TRÁFEGO do JUMP OS (plano Pro) — gestor de Meta Ads orientado a resultado. Use o OS_DATA (público, produto, oferta) + memórias de diagnóstico/mercado.
+
+ESTRUTURA DE CAMPANHA: monte com 4 públicos — (1) QUENTE (engajou/visitou perfil/lista), (2) LOOKALIDE (semelhante a clientes), (3) INTERESSE (segmentação fria por interesse do nicho), (4) RETARGETING (visitou site/checkout). Distribua o budget conforme o objetivo (topo/meio/fundo de funil) e explique a lógica.
+
+PAPEL — VOCÊ É UM CONSULTOR DE TRÁFEGO, NÃO UM EXECUTOR. Por segurança, o JUMP NUNCA acessa o cartão do cliente nem sobe gastos no nome dele — o dinheiro de anúncio fica 100% sob controle do cliente. O que você faz, com excelência:
+1) TRABALHA com os números REAIS das campanhas que o CLIENTE trouxer do Gerenciador de Anúncios dele (ROAS, CPL, CTR, CPM, frequência, gasto) — peça esses números quando precisar deles para diagnosticar; você ainda não os lê sozinho.
+2) DIAGNOSTICA o que está travando (público saturado, oferta fraca, criativo fatigado, lance errado).
+3) ENTREGA a estratégia pronta e mastigada: estrutura de campanha, públicos, budget sugerido, copy do anúncio, e qual criativo usar.
+4) O CLIENTE EXECUTA no Gerenciador de Anúncios dele — você o guia passo a passo, mas quem aperta o botão é ele.
+NUNCA diga que você "subiu", "escalou", "pausou" ou "duplicou" uma campanha — você NÃO faz isso e afirmar que fez é mentir para o cliente. Diga sempre: "recomendo que você suba/pause/escale assim: [passos]".
+INFRAESTRUTURA (criar BM, pixel, conta de anúncio, verificar domínio, configurar conversões): você ORIENTA o cliente passo a passo — especialmente o cliente iniciante que não sabe usar o Gerenciador. Guie com paciência, mas a interface da Meta muda com frequência, então dê a orientação geral e aponte a Central de Ajuda da Meta quando um passo específico não bater com o que ele vê.
+
+ANÁLISE: peça ao cliente os números da campanha (ROAS, CPL, CTR, CPM, frequência, gasto) direto do Gerenciador de Anúncios dele — você ainda não os lê sozinho. Com os números em mãos, diagnostique com justificativa. Sem eles, trabalhe com o que o cliente descrever, mas deixe claro que a análise fica muito melhor com os números reais na mesa.
+
+═══ ECONOMIA DE CRIATIVO (REGRA IMPORTANTE — anúncios consomem saldo) ═══
+Na maioria das vezes o problema NÃO é a arte — é segmentação, oferta ou público. ANTES de pedir um criativo novo, ESGOTE os ajustes que NÃO consomem saldo:
+1) Ajustar PÚBLICO (segmentação, idade, interesses, lookalike %)
+2) Ajustar BUDGET e estratégia de lance
+3) Mudar a COPY e o CTA do anúncio (o texto, não a arte)
+4) Testar POSICIONAMENTOS (feed/stories/reels) e objetivo de campanha
+5) REAPROVEITAR artes JÁ APROVADAS (biblioteca/calendário do cliente) como criativo — não gere nova se já existe algo que serve
+6) VARIAÇÕES da mesma arte: um criativo vira vários anúncios mudando só copy/CTA/público (teste A/B sem gastar imagem)
+Só peça criativo NOVO quando houver DADO concreto de fadiga (ex: CTR < 1% após ~1000 impressões, frequência > 3, queda de performance comprovada) — nunca por achismo.
+
+CADEIA DE CORREÇÃO: você NUNCA cria/edita o criativo. Quando (e só quando) um criativo novo se justificar, abra ordem para a ESTRATÉGIA:
+<ordem_servico>{"para":"estrategia","tarefa":"novo_criativo_ads","detalhe":"resumo em 1 linha","itens":[{"formato":"4:5|9:16","angulo":"o ângulo/promessa que deve mudar","motivo_dado":"o número que prova a necessidade (ex: CTR 0,7% após 1500 impressões = fadiga)","publico":"o público-alvo da campanha","oferta":"a oferta real em teste"}]}</ordem_servico>
+⚠️ ORDEM COMPLETA: a Estratégia não vê a sua análise — se você mandar só "criar criativo novo", ela inventa o ângulo e o problema não é resolvido. Cada item precisa do pacote acima, com o DADO que justifica.
+Avise que o novo criativo virá pela Estratégia → Aprovações. Respeite o saldo de imagens do plano.
+VERACIDADE: só use números/ofertas reais do cliente. Nunca invente métricas. Responda em texto limpo.`,
+  video: `Você é o AGENTE EDITOR DE VÍDEO do JUMP OS (plano Pro) — editor de Reels profissional. 
+
+IMPORTANTE: você EDITA o vídeo CRU que o cliente gravou (não cria vídeo do zero). O cliente envia a captação bruta; você transforma em um Reel pronto.
+
+Use o VIDEO_SYSTEM do OS_DATA (memórias): video_ritmo (dinâmico/moderado/calmo), video_legenda (animada/minimalista), video_rosto (aparece falando?), video_narracao (tom), video_duracao (15/30/60s). Use também paleta/estilo/dna da marca e o roteiro da Estratégia (se houver).
+
+O QUE VOCÊ ENTREGA (direção de edição clara para executar):
+- Pontos de CORTE (timestamps): onde cortar pausas, erros, partes mortas
+- LEGENDAS: texto sincronizado (a maioria assiste sem som) no estilo da marca
+- HOOK nos 3 primeiros segundos (retenção)
+- RITMO conforme video_ritmo; trilha/música que combina com o nicho
+- Texto na tela, destaques, CTAs visuais
+- Versões por plataforma (Reels 9:16, Stories, etc.)
+
+FLUXO: o cliente sobe o vídeo cru em Meus Arquivos → você EDITA automaticamente.
+
+DICA IMPORTANTE DE CORTE (oriente o cliente): o corte automático de silêncios/pausas não é 100% preciso. Para o melhor resultado, oriente o cliente a JÁ SUBIR o vídeo com os cortes principais feitos (remover pausas longas, "é...", erros e partes mortas) usando o próprio celular (apps como CapCut, ou o editor da galeria) OU informando os timestamps de início/fim que ele quer manter. Você faz o restante (legenda, corte de silêncio, formato). Explique isso de forma leve quando fizer sentido — assim o Reel fica com ritmo profissional sem risco de cortes errados. Passo a passo rápido que você pode dar: 1) abra o vídeo no editor do celular; 2) corte as pausas e erros; 3) exporte; 4) suba aqui que eu finalizo com legendas e ritmo.
+
+EDIÇÃO AUTOMÁTICA (você EXECUTA, não só orienta):
+Quando o cliente pedir para editar e houver um vídeo cru disponível, você:
+1. Explica em 2-3 linhas o que vai fazer (estilo, legenda, formato), no estilo da marca.
+2. Emite a tag <editar_video> com as opções decididas. O sistema edita e entrega o Reel pronto.
+A tag (preencha conforme o pedido e o VIDEO_SYSTEM da marca):
+<editar_video>{"legenda":true,"formato":"reels","cortar_silencio":false,"vsl":false}</editar_video>
+- legenda: true se o vídeo tem fala (legenda automática sincronizada em português). Quase sempre true.
+- formato: "reels" (9:16 vertical, padrão para Reels/Stories/TikTok) ou "wide" (16:9).
+- cortar_silencio: true se o cliente pedir para remover pausas/respirações (deixa o ritmo dinâmico).
+- vsl: true se for vídeo de vendas (legenda mais ao centro da tela).
+Estilo da legenda, cor, trilha, filtro e logo no canto: o cliente escolhe na TELA DO EDITOR (pop-up de upload) — oriente-o a usar por lá quando quiser personalizar; a prévia mostra como fica.
+REGRAS: só emita a tag se houver vídeo cru disponível. Se não houver, peça para o cliente enviar em Meus Arquivos. Após emitir, avise que o vídeo está sendo processado e aparece pronto em "Tarefas de Serviço → Vídeos por IA" em alguns minutos. NÃO emita a tag mais de uma vez por resposta.
+
+APRENDIZADO E PERSONALIZAÇÃO (importante):
+Quando o cliente demonstrar uma PREFERÊNCIA de edição (ex: "gosto de legenda amarela", "sempre corte as pausas", "prefiro Reels", "use minha trilha tal", "meu estilo é dinâmico com cortes rápidos"), você PERGUNTA se pode guardar isso para os próximos vídeos: algo como "Quer que eu guarde essa preferência para personalizar suas próximas edições?". Se ele confirmar, emita <memoria>{"chave":"video_estilo_legenda","valor":"amarela, fonte bold, embaixo"}</memoria> (use chaves como video_estilo_legenda, video_corte_preferido, video_formato_padrao, video_trilha_preferida, video_ritmo). Assim, nos próximos projetos você já aplica o estilo do cliente automaticamente. Sempre que for editar, leve em conta o que já aprendeu sobre as preferências dele.
+
+ESCOPO: você cuida só de VÍDEO. Arte estática é com o Designer; estratégia/roteiro com a Estratégia. Responda em texto limpo e prático.`,
+};
+
+// ESCOPO ESTRUTURAL — PEDIDO AVULSO SÓ PARA QUEM O RESOLVE (HANDOFF CRIATIVO→ESTRATÉGIA, SEXTO
+// CASO, 14/set/2026, ver APRENDIZADOS.md): até aqui, o parágrafo "PEDIDO AVULSO — APRESENTE,
+// DEPOIS CONFIRME, DEPOIS EMITA" (LOTE 2, 01/set) era injetado por REGRAS_GERAIS igual pra TODOS
+// os 8 agentes, sem exceção. Na prática, só a ESTRATÉGIA o exercita de verdade — é a única que
+// emite <conteudo> em resposta a pedido avulso direto no chat (ver "Mapa de funções" abaixo: só
+// ela escreve texto/conteúdo; os outros redirecionam ou não têm código nenhum ouvindo essa tag).
+// Pros outros 6 (identidade/mercado/diagnóstico/publicação/tráfego/video), a regra era só ruído —
+// nunca tinha como chegar ao Turno 2, porque nenhum deles produz <conteudo>. Pro Designer
+// (criativo) especificamente, deixou de ser ruído inofensivo quando ganhou instrução PRÓPRIA de
+// pedido avulso (linha ~494, 12/set): "não pergunte nada, emita <ordem_servico> no mesmo turno" —
+// direto oposto de "Turno 1: pergunte, não emita". Resultado documentado: o cliente pediu arte
+// avulsa, o Designer obedeceu a regra genérica (perguntar) em vez da específica (não perguntar) —
+// nunca emitiu a tag, nenhuma ordem nasceu. Duas regras em prosa, mesmo julgamento, sem uma citar
+// a outra — Família 2. Fix estrutural, não frase de exceção: o parágrafo do avulso só é injetado
+// quando `agente==='estrategia'`, onde continua com o texto IDÊNTICO de sempre (nada reescrito,
+// nada removido — ela nasceu pra esse caso e continua resolvendo exatamente esse caso). Pros
+// outros 7 agentes (incluindo o Designer), REGRAS_GERAIS deixa de carregar essa instrução —
+// silêncio estrutural, não frase dizendo "isso não vale aqui". Isso também fecha a porta pra
+// QUALQUER agente futuro que ganhe caminho próprio de avulso (como o Designer ganhou): ele só
+// herda o conflito se alguém decidir explicitamente incluí-lo aqui — nunca por default.
+const REGRAS_PEDIDO_AVULSO_ESTRATEGIA = `PEDIDO AVULSO — APRESENTE, DEPOIS CONFIRME, DEPOIS EMITA (LOTE 2, 01/set/2026 — reescrito de proibição pra obrigação: a versão antiga só dizia QUANDO NÃO emitir a tag, nunca mandava explicitamente emiti-la no turno da confirmação — isso deixava o agente dizer "enviado para produção" numa resposta em que NENHUMA tag saía, e o banco ficava vazio; ver APRENDIZADOS.md, "LOTE 2 — prioridade absoluta"):
+TURNO 1 (o cliente pede UMA peça específica, ex.: "quero um post sobre X"): APRESENTE a proposta no chat (tema, formato, headline e ângulo) e PERGUNTE se está bom. NÃO emita a tag <conteudo> neste turno — a proposta ainda não foi confirmada.
+TURNO 2 (o cliente CONFIRMA — "sim", "pode", "manda", "tá bom" ou equivalente): NESTA MESMA RESPOSTA, SEM EXCEÇÃO, você é OBRIGADO a emitir a tag <conteudo> completa (com "avulso":true e, dentro dela, os campos de texto — ver "PROTOCOLO DE BRIEFING" acima). Texto dizendo "enviado para produção", "está na fila do Designer", "vai aparecer em Aprovações" ou qualquer variação disso SEM a tag <conteudo> na mesma resposta não tem NENHUM efeito no sistema — nada é salvo, nada chega ao Designer, e você terá afirmado ao cliente algo que não aconteceu. Confirmação do cliente sem a tag correspondente na mesma resposta é uma falha crítica: nunca prometa e adie para depois — confirmou, você emite, agora.
+Em ambos os turnos, avulso NUNCA é um plano do mês: marque sempre "avulso":true e jamais planeje o mês inteiro por conta disso.
+`;
+
+function REGRAS_GERAIS(agente){
+  return `
+NOME PÚBLICO: internamente a base do cliente se chama OS_DATA, mas ao FALAR com o cliente chame SEMPRE de "DNA do Negócio". Nunca escreva "OS_DATA" numa resposta visível — soa técnico e o cliente não sabe o que é.
+REGRAS DO JUMP OS:
+- Responda SEMPRE em português brasileiro, direto e aplicável ao nicho do cliente (use as MEMÓRIAS abaixo).
+- ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
+- ENTREGUE PRIMEIRO, PERGUNTE DEPOIS: se as memórias dão base mínima, produza a entrega completa AGORA assumindo o mais provável (deixe claro o que assumiu). No máximo 1 pergunta opcional AO FINAL para refinar. NUNCA responda só com lista de perguntas — exceto o check-in do Agente de Identidade, que é guiado.
+- Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
+- ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere nenhuma arte NESTE turno: PERGUNTE, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?" — sem emitir nenhuma tag agora. QUANDO ELE RESPONDER (escolher uma opção, ou mandar seguir sem escolher — nesse caso o padrão é UMA arte para os dois), você é OBRIGADO a emitir a tag correspondente NA MESMA RESPOSTA em que ele respondeu — nunca pergunte de novo, nunca adie. Nunca gaste duas imagens do saldo dele sem autorização explícita para "uma para cada".
+- Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
+- RESPOSTA LONGA = DIVIDIR, NUNCA CORTAR: se uma entrega for ficar muito extensa (diagnóstico completo, plano detalhado, análise de mercado), entregue o ESSENCIAL de forma organizada, feche com o próximo passo e ofereça aprofundar em qualquer ponto ("quer que eu detalhe a parte X?"). Uma entrega redonda + convite a continuar é melhor que um texto que corta no meio. Se o cliente pedir "continue", retome EXATAMENTE de onde parou, sem repetir o que já foi dito.
+- FORMATAÇÃO LIMPA E PROFISSIONAL (economiza tokens e fica elegante): escreva em texto corrido, natural. NÃO use markdown decorativo — proibido: ###, ##, **negrito**, tabelas com |, linhas de --- ou ═══, blocos de código com crases. Evite emojis (no máximo 1 quando fizer sentido real). Use frases e parágrafos curtos. Para listas, use traço simples "- item" só quando necessário. Pense: conversa de consultor por mensagem, não documento formatado.
+- AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
+<memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
+(uma tag por aprendizado, no máximo 8 por resposta; não repita memórias já listadas)
+- FECHAMENTO COM APRENDIZADO (ao CONCLUIR uma entrega): sempre que você ENTREGAR algo concreto (um calendário, uma arte, uma campanha, um diagnóstico, o OS_DATA), faça um fechamento curto consolidando o que ficou definido e registre na memória o que for durável (preferências, decisões, dados confirmados). Isso economiza tokens nas próximas conversas (você não re-pergunta o que já sabe) e melhora os resultados. Não precisa anunciar "vou salvar" — só emita a(s) tag(s) <memoria> ao final, de forma natural.
+
+═══ VERACIDADE (REGRA ABSOLUTA — nunca invente) ═══
+Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNCA invente nomes de planos, ofertas, números, garantias, preços, prêmios ou benefícios que o cliente não informou. Se uma informação não existe, NÃO crie — deixe de fora ou pergunte. Exemplos PROIBIDOS: inventar "PLANO PLUS", "50% OFF", "+1000 clientes", "cobertura total" se isso não veio do cliente. Em artes/selos, só inclua provas/ofertas REAIS confirmadas. Marca pessoal: use o nome exato da marca do OS_DATA, nunca um genérico.
+
+═══ FRONTEIRA DE ESCOPO (REGRA ABSOLUTA — vale para TODOS os agentes) ═══
+Cada agente executa SOMENTE a sua função. Se o cliente pedir algo que é de OUTRO agente, você NÃO faz — explique em 1 linha, de forma gentil, e indique o agente certo. NUNCA improvise a função de outro agente.
+${agente==='estrategia' ? REGRAS_PEDIDO_AVULSO_ESTRATEGIA : ''}NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
+Mapa de funções (quem faz o quê):
+- IDENTIDADE: consultoria de marca, OS_DATA (cores, fontes, posicionamento).
+- MERCADO: análise de concorrentes e oportunidades do nicho.
+- DIAGNÓSTICO: análise de desempenho do Instagram (métricas).
+- ESTRATÉGIA: planos, calendários, COPIES e ROTEIROS (de Reels/vídeo/carrossel). Todo TEXTO/roteiro nasce aqui.
+- DESIGNER (criativo): SOMENTE imagens estáticas (posts, infográficos). NÃO escreve roteiro, NÃO faz vídeo. Se pedirem roteiro/vídeo → manda para Estratégia (roteiro) ou Editor de Vídeo (vídeo).
+- PUBLICAÇÃO: agendamento e postagem.
+- TRÁFEGO: consultor de anúncios — lê seus números reais, diagnostica e entrega a estratégia (você executa no seu Gerenciador).
+- EDITOR DE VÍDEO: edição/montagem de vídeos e Reels (a partir do roteiro da Estratégia).
+Exemplo correto (Designer recebe "cria imagem para um reels"): "Posso criar a arte de capa/post estático. O roteiro do Reel é com o Agente de Estratégia, e a edição do vídeo com o Editor de Vídeo. Quer que eu crie a arte estática agora?" — e só gera imagem se confirmado.`;
+}
+
+const handler = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
+  if (req.method==='OPTIONS') return res.status(200).end();
+
+  // DIAGNÓSTICO: GET ?diag=1 → mostra QUAL versão está no ar (fim do "testar código que não subiu").
+  if (req.method==='GET' && req.query && req.query.diag) {
+    const TZ='America/Sao_Paulo';
+    const d=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+    const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    // O banco aceita as colunas que o sistema grava? (se false → rodar sql/fix-conteudos.sql)
+    let banco='?';
+    try{
+      const t=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?select=tema,copy,formato,data_sugerida,midia_url,tipo_visual,meta,origem_agente,created_at&limit=1`,{headers:H()});
+      if(t.ok)banco='alinhado ✅';
+      else{const j=await t.json().catch(()=>({}));banco='DESALINHADO ❌ → rode sql/fix-conteudos.sql ('+String(j.message||'').slice(0,90)+')'}
+    }catch(e){banco='erro ao checar: '+e.message}
+    return res.status(200).json({
+      diagnostico:true,
+      versao:VERSAO,
+      banco_conteudos:banco,
+      data_do_servidor:`${dias[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
+      correcoes_ativas:{
+        data_injetada_no_prompt:true,
+        calendario_40_dias_estrategia:true,
+        tags_antes_da_prosa:true,
+        max_tokens_estrategia:8000,
+        detecta_truncamento:true,
+        estrategia_grava_como_proposto:true,
+        tarefa_aprovar_estrategia:true,
+        estrategia_ciclo_2_tempos:true,
+        detalhamento_semanal:true,
+        lote2_vencimento_semana_nao_cumulativa:true,
+        lote2_obrigacao_emissao_tag_avulso:true,
+        lote2_deteccao_falha_silenciosa:true,
+        avisos_persistidos_no_historico:true,
+        reparo_segunda_chamada_avulso:true,
+        sbinsert_sbpatch_logam_falha:true,
+        gravacao_conversa_isolada_do_promise_all:true,
+        chat_mensagens_linha_usuario_avisos_null:true,
+        sexta_porta_garante_card_aprovar_semana_no_detalhe:true,
+        sexta_porta_dedup_extraida_semana_lib:true,
+        sbget_loga_falha_sem_mudar_retorno:true,
+        garantia_do_card_independente_da_leitura_de_material:true,
+        clientes_elegiveis_semana_fonte_unica_cron:true,
+        clientes_elegiveis_semana_loga_falha_da_consulta:true,
+        clientes_elegiveis_semana_criterio_sem_role:true,
+        falha3_origem_gravado_no_insert:true,
+        falha3_backstop_filtra_por_origem:true,
+        falha3_card_semana1_exclui_avulso_por_origem:true,
+        postura_frente3_tempo2_texto_designer_corrigido:true,
+        postura_frente1_bloco_estado_real_por_semana:true,
+        postura_frente1_cota_informa_teto_e_consumido:true,
+        postura_frente1_bloco_sem_ordem_frenteA:true,
+        frente2_nivel3_painel_estrategia_agregacao_extraida_pra_classificacao:true,
+        frente2_painel_estrategia_linha_avulsos_aguardando_aprovacao:true,
+        frente2_status_ativos_conteudo_allowlist_via_constantes:true,
+        frente2_avulsos_e_legado_sem_origem_no_bloco_do_prompt:true,
+        fila_tecnica_jobordens_dasemana_loga_falha_da_consulta:true,
+        fila_tecnica_jobordens_blocos_1_e_1_5_isolados_em_try_catch:true,
+        fila_tecnica_datas_cron_via_hojeisobrasil_metricas_seguranca_ordens:true,
+        fila_tecnica_jobproduzir_ehbrief_grava_origem_avulso:true,
+        fila_tecnica_detalhe_id_invalido_loga_e_conta:true,
+        handoff_cadeia_avanco_generico_cadeia_lib:true,
+        handoff_cadeia_idempotencia_por_ordem_pai:true,
+        handoff_cadeia_timeout_passagem_2min_dois_estouros:true,
+        handoff_cadeia_prazo_total_por_formula:true,
+        handoff_cadeia_chamada_retorno_generica:true,
+        handoff_cadeia_ponte_formato_antigo_removida_condicao_verificada_zero_ordens:true,
+        handoff_criativo_sem_mini_briefing_delega_estrategia:true,
+        handoff_criativo_avisa_aprovacoes_e_nao_precisa_esperar_na_tela:true,
+        handoff_criativo_temas_usados_como_dado_nao_prosa:true,
+        handoff_criativo_formato_slides_explicitos_na_cadeia:true,
+        handoff_criativo_ordem_direcao_avulso_excluida_da_fila_generica:true,
+        sexta_regra_avulso_606_escopada_so_estrategia:true,
+        sexta_regra_avulso_nao_injetada_pra_designer_nem_demais_agentes:true,
+        setimo_caso_designer_nao_delega_e_produz_no_mesmo_turno:true,
+        setimo_caso_trava_em_codigo_gerar_imagem_descartada_se_direcao_avulso_criativo:true,
+        setimo_caso_descarte_avisa_cliente_e_loga_nunca_silencioso:true,
+        arte_criada_descreve_conceito_pendente_nunca_producao_confirmada:true,
+        worker_direcao_avulsa_auth_interna_x_internal_secret:true,
+        worker_direcao_avulsa_auth_interna_escopada_so_estrategia_e_ordem_validada_no_banco:true,
+        worker_direcao_avulsa_auth_interna_falha_nunca_degrada_pra_jwt:true,
+        entrega1_15_09_limpeza_divida_acumulada:true,
+        // Marcas de rastreio (15/set/2026, "Parte 1" e "Parte 2") — nenhuma mexe neste arquivo,
+        // ambas em dashboard-usuario.html/calendario.html; registradas aqui só pra manter o
+        // diagnóstico (/api/agente-chat?diag=1) como o painel único de "o que já subiu".
+        parte1_dashboard_recado_aprovacao_duplicado_removido:true,
+        parte1_dashboard_headline_sem_quebra_forcada:true,
+        parte2_calendario_publicacao_manual_reaproveita_infra_etapa2:true,
+        parte2_calendario_publicacao_manual_origem_avulso_sem_migration:true,
+        parte2_calendario_excluir_direto_do_dia:true,
+        // Marcas de rastreio (15/set/2026, correção de rumo + item 2 + item 3, mesmo dia da
+        // entrega de Parte 1/Parte 2 acima) — itens 1 e 3 tocam dashboard-usuario.html,
+        // aprovar.html, calendario.html e api/cron.js; registradas aqui pelo mesmo motivo das
+        // marcas de Parte 1/Parte 2: manter o diagnóstico como painel único de "o que já subiu".
+        correcao_rumo_recado_aprovacao_restaurado_em_recados_e_alertas:true,
+        correcao_rumo_proximo_passo_caso_aprovacao_removido_demais_casos_intactos:true,
+        gerar_copy_ia_visao_estrategia_bloco_imagem_compartilhado_com_identidade:true,
+        gerar_copy_ia_botao_card_aprovacao_so_quando_falta_copy_qualquer_origem:true,
+        gerar_copy_ia_chamada_direta_estrategia_sem_cadeia_nova_sem_cota_nova:true,
+        story_sem_campo_copy_na_criacao_manual_e_no_card_de_aprovacao:true,
+        story_sem_botao_gerar_copy_ia:true,
+        story_publicador_nunca_envia_caption_pra_meta_mesmo_com_copy_gravada:true,
+        // Marca de rastreio (15/set/2026, "Publicação de Stories — tipo de mídia ausente") — não
+        // toca api/agente-chat.js, vive em assets/classificacao.js (fonte única, ehStory nova) e
+        // api/cron.js (jobPublicar agora declara media_type:'STORIES'); registrada aqui pelo
+        // mesmo motivo das marcas anteriores no mesmo dia.
+        publicador_story_media_type_stories_imagem_e_video_via_fonte_unica:true,
+        // Marcas de rastreio (15/set/2026, "Cadeia copy_para_criativo órfã") — tocam
+        // api/admin-users.js (nascimento da ordem, payload.cadeia de 1 elo), este arquivo (portão
+        // de auth interna ampliado + novo HANDOFF de fechamento), api/cron.js (bloco próprio do
+        // worker) e agentes.html (retirada de ehFluxoSemanal); registradas aqui pelo mesmo padrão
+        // de rastro único das rodadas anteriores do dia.
+        copy_para_criativo_cadeia_elo_unico_worker_processa_sozinho:true,
+        copy_para_criativo_auth_interna_ampliada_no_mesmo_portao_sem_duplicar:true,
+        copy_para_criativo_fechamento_por_criativo_url_nao_so_avulso:true,
+        copy_para_criativo_removida_de_ehfluxosemanal_agentes_html:true,
+        // Marca de rastreio (15/set/2026, "Fila técnica — seis itens numa entrega", item 6) — não
+        // toca este arquivo, vive em calendario.html (editarConteudo/salvarConteudo/regerarImg
+        // removidas, código morto sem nenhum chamador no repo desde que o calendário virou
+        // visualização); registrada aqui pelo mesmo motivo das marcas de Parte 1/Parte 2 acima —
+        // manter o diagnóstico como painel único de "o que já subiu".
+        fila_tecnica_calendario_editarconteudo_salvarconteudo_regerarimg_removidas_codigo_morto:true,
+        // Marcas de rastreio (15/set/2026, itens 1 e 4 da fila técnica — autorizados pelo João
+        // após proposta reportada) — item 1 vive em api/cron.js e vercel.json (não toca este
+        // arquivo); item 4 vive aqui mesmo (bloco de fato explícito quando a lista de detalhar
+        // vem vazia). Registradas juntas pelo mesmo motivo de sempre — painel único.
+        fila_tecnica_watchdog_e_orfa_extraidos_pra_cron_dedicado_frequencia_intermediaria:true,
+        fila_tecnica_detalhe_lista_vazia_vira_fato_explicito_nao_instrucao:true,
+        // Marcas de rastreio (15/set/2026, "Postura dos agentes — estado real e regra em
+        // código", sétima rodada do dia, autorizada pelo João) — Parte 1 (painéis) toca
+        // agentes.html (não este arquivo); Parte 2 (cota + horário) toca este arquivo e
+        // aprovar.html. Registradas juntas pelo mesmo padrão de painel único de sempre.
+        postura_agentes_parte1_painel_criativo_sua_fila_ordens_servico_por_status:true,
+        postura_agentes_parte1_painel_publicacao_suas_publicacoes_agendados_publicados_falhas:true,
+        postura_agentes_parte1_botao_criativos_pendentes_vira_painel_acao_move_pra_dentro:true,
+        postura_agentes_parte2_cota_criativo_recebe_saldo_real_sem_numeros_fixos_inventados:true,
+        postura_agentes_parte2_cota_publicacao_recebe_automacoes_dm_ativas_fonte_unica_limiteativodm:true,
+        postura_agentes_parte2_criativo_fila_vazia_vira_fato_explicito_mesmo_padrao_item4:true,
+        postura_agentes_parte2_horario_nao_definido_aprovar_seta_data_agendada_09h_padrao_sistema:true,
+        // Marcas de rastreio (16/set/2026, "Unificação das arquiteturas de prompt de imagem" —
+        // antes das Etapas 1/2 do Engine 6.0, autorizada pelo João após o mapa reportado). Toca
+        // este arquivo (persona do Criativo reescrita + gap do conteudo_id na cadeia
+        // criar_criativo_ads), api/gerar-imagem.js (gosto do cliente como fato no Diretor),
+        // api/cron.js (soArquivo busca o conteúdo real quando há payload.ids), agentes.html
+        // (gerarImagem repassa campos estruturados, executarLoteCriativos usa payloadDoConteudo,
+        // exceção nomeada nos 2 ramos sem headline) e assets/classificacao.js (prontoParaArte,
+        // fonte única do gate "copy+headline", consumida em cron.js/agentes.html/aprovar.html).
+        unificacao_prompt_criativo_nao_compoe_mais_prompt_visual_so_decide_texto:true,
+        unificacao_prompt_tag_gerar_imagem_estruturada_headline_subheadline_prova_cta_pilar:true,
+        unificacao_prompt_gerarimagem_agenteshtml_repassa_campos_estruturados_novos:true,
+        unificacao_prompt_gosto_cliente_migrado_da_persona_pro_diretor_como_dado_nao_instrucao:true,
+        unificacao_prompt_gap_conteudo_id_cadeia_criar_criativo_ads_corrigido_payloadextra:true,
+        unificacao_prompt_cron_soarquivo_usa_conteudo_real_quando_ha_payload_ids:true,
+        unificacao_prompt_fallbacks_ordem_sem_headline_registrados_como_excecao_nomeada:true,
+        unificacao_prompt_gate_pronto_para_arte_fonte_unica_classificacao_js:true,
+        unificacao_prompt_executarlotecriativos_usa_payloaddoconteudo_sem_duplicar:true,
+        unificacao_prompt_gerarpordordem_mantido_como_esta_decisao_estrutural_propria:true,
+        // Marcas de rastreio (16/set/2026, "Engine — Etapas 1 e 2, sobre pipeline único") —
+        // Etapa 1 e 2 tocam só api/gerar-imagem.js, api/cron.js e agentes.html; registradas aqui
+        // pelo mesmo motivo das marcas anteriores: manter o diagnóstico como painel único.
+        etapa1_gerarimagem_valida_palavras_headline_subheadline_cta_em_codigo:true,
+        etapa1_headline_obrigatoria_recusa_peca_inteira_nunca_so_campo:true,
+        etapa1_prova_sem_limite_de_palavras_por_nao_existir_no_engine:true,
+        etapa1_cron_soarquivo_precedencia_headline_antes_de_tema_linha803:true,
+        etapa1_cron_loteprincipal_precedencia_headline_antes_de_tema_linha887:true,
+        etapa1_cron_placeholder_post_removido_sem_texto_e_erro_nao_placeholder:true,
+        etapa2_diretor_perde_reescrita_por_excesso_de_palavras_codigo_ja_garante:true,
+        etapa2_diretor_invencao_de_headline_condicionada_a_permitir_invencao_headline:true,
+        etapa2_excecao_nomeada_permitir_invencao_headline_so_dois_ramos_agenteshtml_e_cron_soarquivo:true,
+        etapa2_diretor_recebe_lista_de_texto_fechada_proibido_alterar_caractere:true,
+        // Marcas de rastreio (17/set/2026, "qualidade da arte — diagnóstico", rodada 2 —
+        // investigação da falha do Diretor em produção, confirmada via ?diag=1 real).
+        diagnostico_qualidade_diag_reporta_error_type_da_anthropic_nao_so_message:true,
+        diagnostico_qualidade_diretordearte_loga_type_e_message_sem_engolir_motivo:true,
+        diagnostico_qualidade_model_diretor_e_chamada_nao_alterados_so_instrumentacao:true,
+        // Autorizado pelo João nesta mesma rodada: PROOF POINT do engine6() cortava no meio da
+        // palavra (String(o.prova).slice(0,90), cru) — agora usa cortarFrase(o.prova,90), o mesmo
+        // helper com corte por limite de frase/palavra que a copy já usava. Padrão unificado.
+        diagnostico_qualidade_prova_usa_cortarfrase_como_copy_nao_slice_cru:true,
+        // Marcas de rastreio (18/set/2026, "qualidade da arte — diagnóstico", rodada 4 — causa
+        // real confirmada ao vivo: o literal do modelo já era válido, faltava output_config).
+        diagnostico_qualidade_causa_real_nao_e_nome_do_modelo_e_sim_output_config_ausente:true,
+        diagnostico_qualidade_diretordearte_manda_output_config_e_repete_sem_ele_se_recusado:true,
+        diagnostico_qualidade_diag_diretor_reporta_3_estados_direto_repeticao_ou_falhou:true,
+        diagnostico_qualidade_literal_do_modelo_nao_alterado_autorizacao_foi_so_output_config:true,
+        // Marca de rastreio (18/set/2026, rodada 6) — causa raiz REAL era configuração, não
+        // código: AGENT_MODEL_DIRETOR na Vercel tinha espaço à direita. trimEnv() defende as
+        // duas variáveis deste arquivo (AGENT_MODEL, AGENT_MODEL_ESTRATEGIA) e a de gerar-imagem.js
+        // (AGENT_MODEL_DIRETOR) do mesmo bug — espaço invisível de configuração nunca mais vira
+        // "modelo não encontrado" em silêncio.
+        diagnostico_qualidade_trimenv_nas_variaveis_de_nome_de_modelo_causa_raiz_era_espaco_na_vercel:true,
+        // Marca de rastreio (18/set/2026) — "pedido avulso sempre passa pela Estratégia": removida
+        // a tag <gerar_imagem> do Designer (e o botão manual em agentes.html que ela alimentava) —
+        // a trava do sétimo caso só pegava as duas tags no MESMO turno, então um pedido em dois
+        // turnos seguidos (tema no 1º, texto+botão no 2º) escapava da delegação. Agora
+        // direcao_avulso_criativo é o ÚNICO caminho, sem exceção de formato (story/feed/reels/
+        // carrossel) nem de "com ou sem tema". Subheadline (limite de 6 palavras do Engine) agora
+        // é informada como dado no prompt da Estratégia (<detalhe>, ordem direta ao Designer e no
+        // handler de direcao_avulso_criativo) — antes só existia em código (validarTextoDaPeca,
+        // gerar-imagem.js), e a Estratégia só descobria o estouro por recusa, depois de já ter
+        // escrito. A trava do sétimo caso, o parsing de <gerar_imagem> e o campo gerar_imagem no
+        // JSON de resposta continuam no código (não removidos) — defesa contra deriva de prompt ou
+        // alucinação do modelo reintroduzindo a tag; hoje ficam inertes por não haver mais emissor.
+        pedido_avulso_sempre_passa_pela_estrategia_tag_gerar_imagem_removida_do_designer:true,
+        // Marca de rastreio (18/set/2026) — "duplicação — ordem de produção fora da cadeia":
+        // o REPARO DE SEGUNDA CHAMADA (avulso) — a chamada que inventa e grava um <conteudo> na
+        // hora quando o texto "declara uma ação" sem tag — era agnóstico de agente por decisão
+        // antiga (01/set). Isso fazia toda delegação do Designer (que diz "vai aparecer em
+        // Aprovações" e nunca emite <conteudo>, de propósito) acionar uma SEGUNDA chamada pedindo
+        // pro próprio Designer inventar o texto da peça — criando um <conteudo> órfão que o
+        // backstop genérico encontrava e tentava produzir, duplicando a peça que a cadeia real ia
+        // produzir segundos depois com o texto de verdade da Estratégia. Mesmo bug, mesma
+        // correção, pro Editor de Vídeo (também "declara ação" sem <conteudo>, nunca precisou
+        // deste reparo). Agora a segunda chamada só roda para agente==='estrategia' — o único
+        // cenário (confirmação de proposta avulsa, TURNO 1/TURNO 2) para o qual foi desenhada.
+        duplicacao_reparo_segunda_chamada_avulso_restrito_a_estrategia_causa_raiz_era_agnostico_de_agente:true,
+        // RECUSA POR EXCESSO DE PALAVRAS — REESCRITA ÚNICA (19/set/2026): validarTextoDaPeca
+        // (gerar-imagem.js, intocada) recusava a peça inteira por um campo passar do limite, e o
+        // retry genérico do worker (cron.js) reenviava o MESMO texto até esgotar as 3 tentativas —
+        // o pedido morria sem o cliente receber nada. Agora, só para este formato de erro, o
+        // worker pede à Estratégia (chamada interna, mesmo mecanismo de direcao_avulso_criativo)
+        // uma reescrita única do campo específico, via nova tag <correcao_texto> (canal próprio,
+        // separado de <detalhe> — que tem travas incompatíveis com este caso e não podem ser
+        // tocadas), e tenta de novo. Se a reescrita também estourar, recusa de verdade, motivo
+        // visível. Não consome cota de imagem (chamada de texto, sem gerar-imagem).
+        recusa_por_excesso_de_palavras_reescrita_unica_via_correcao_texto:true,
+        // PRESERVAÇÃO DE MATERIAL REAL (20/set/2026, item 2 da rodada, autorizado pelo João):
+        // 'pessoa_conceito' (gerar-imagem.js) puxava a foto real do cliente sempre que ela
+        // existia, o mesmo comportamento de 'pessoal' — o nome promete pessoa GENÉRICA de IA,
+        // nunca uma foto real. Corrigido: 'pessoa_conceito' agora nunca puxa foto real (sempre
+        // gente genérica, mesmo com foto disponível); quem quiser a foto real usa 'pessoal', sem
+        // campo novo. Nenhum ponto do sistema dependia do comportamento antigo (a própria persona
+        // da Estratégia já instruía usar pessoa_conceito só como alternativa SEM foto). Efeito
+        // colateral reportado, não corrigido: o teto de 40% do lote (agentes.html) ainda conta
+        // pessoa_conceito junto com pessoal para o mesmo teto, mais apertado que precisa agora.
+        pessoa_conceito_nunca_usa_foto_real:true,
+        // PRESERVAÇÃO DE MATERIAL REAL — DOUTRINA DE CENA SUPRIMIDA (20/set/2026, desenho
+        // aprovado pelo João, com alteração — texto final em APRENDIZADOS.md): BLOCO_CENA
+        // (gerar-imagem.js) mandava deduzir e construir um lugar físico novo do zero — competia
+        // com o contrato de preservação e causava distorção mesmo com foto real ativa. Agora,
+        // sempre que há pessoa OU produto real preservado (ctx.temFoto||ctx.temProduto) e o modo
+        // é 'cena', uma doutrina curta substitui BLOCO_CENA: o ambiente cresce a partir da foto
+        // já existente, nunca de um lugar deduzido concorrente; luz prática, câmera e cor de
+        // destaque continuam orientando a composição; todo texto renderizado passa a ser CHAPADO
+        // (sem perspectiva/relevo/integração física — alteração pedida pelo João: texto com
+        // volume 3D é onde as letras mais derretem, confirmado em teste real). Condicionado à
+        // EXISTÊNCIA do material (temFoto||temProduto), não ao modo escolhido — cobre também o
+        // caso raro de recriação radical (variacao 100%) que inverte cena↔editorial. BLOCO_EDITORIAL
+        // fica de fora desta correção — investigação própria (E3 tem o mesmo padrão de instrução
+        // concorrente para produto), registrada, decisão pendente.
+        preservacao_material_real_doutrina_de_cena_suprimida_quando_ha_pessoa_ou_produto:true,
+        // WORKER PARADO — REGRESSÃO (20/set/2026, achado do João: "reescrita não persiste"): a
+        // correção de texto aceita (ver <correcao_texto> acima) vivia só nas variáveis locais do
+        // loop de slides em cron.js — nada gravava em conteudos.meta. Se a retentativa de imagem
+        // falhasse por qualquer motivo alheio à validação de palavras, o próximo ciclo lia o texto
+        // ANTIGO de volta do banco e repetia a mesma recusa indefinidamente (caso real: conteúdo
+        // f74ab3b4, mesmo erro em 3 ordens distintas recriadas pelo backstop). Corrigido em
+        // cron.js: o campo aceito é gravado em conteudos.meta antes da retentativa de imagem.
+        // ACHADO SEPARADO, CORRIGIDO EM COMMIT PRÓPRIO NA MESMA RODADA: a causa mais funda de o
+        // campo nunca ter sido corrigido de fato era anterior a esta — a chamada de
+        // <correcao_texto> passa `ordem_id` de uma ordem de produção (criar_post/criar_avulso —
+        // para_agente:'criativo'), mas o gate de autenticação interna só aceitava ordem_id de
+        // tarefa IN (direcao_avulso_criativo, copy_para_criativo) com para_agente='estrategia' —
+        // confirmado por consulta direta ao banco que o filtro nunca casava para este caminho.
+        // Toda chamada de correcao_texto recebia 403 antes de chegar ao modelo.
+        reescrita_unica_persiste_em_conteudos_meta_antes_da_retentativa:true,
+        // AUTENTICAÇÃO INTERNA — VALIDA POSSE DO DADO, NÃO RÓTULO DE TAREFA (20/set/2026,
+        // autorizado pelo João depois do achado acima ser reportado — opção 3, "validar o
+        // conteúdo, não a ordem": "a lista protege o desenho, não impede corrigir o que o
+        // desenho não previu"). O gate deixou de validar `ordem_id` contra uma lista fixa de
+        // tarefas (direcao_avulso_criativo, copy_para_criativo) e passou a validar POSSE do dado
+        // que a chamada de fato toca: `conteudo_id` (quando presente — caso da reescrita única,
+        // que corrige `conteudos.meta`) confirmado contra `user_id`, sem filtro de tarefa; senão
+        // `ordem_id` confirmado contra `user_id` + status pendente/processando, também sem
+        // filtro de tarefa. Motivo do João, registrado: uma lista de tarefas aceitas quebra a
+        // cada caminho interno novo — a pergunta certa de segurança é "este dado é deste
+        // cliente", não "que tarefa é esta ordem". Não afrouxa nada (ainda exige match exato de
+        // id+user_id, e ordem ainda precisa estar ativa) — só deixou de exigir um rótulo que
+        // nunca devia ter sido a garantia. Modo interno continua restrito ao agente Estratégia,
+        // sem impersonação (targetId só vem do user_id do chamador, nunca de ver_id); falha de
+        // posse loga a origem com [auth-interno] e responde 403, sem degradar para outro modo.
+        autenticacao_interna_valida_posse_do_dado_nao_lista_de_tarefas:true,
+        // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar
+        // a aposta"): a chamada interna do worker a direcao_avulso_criativo não depende mais de o
+        // modelo obedecer a instrução em prosa pra emitir <conteudo> — tool_choice força a
+        // ferramenta, decidido pela `tarefa` real da ordem no banco. copy_para_criativo e
+        // <correcao_texto> ficam de fora desta entrega (mesma classe de risco, reportado, não
+        // implementado — ver relatório da rodada).
+        direcao_avulso_criativo_forca_tool_choice_nao_depende_mais_de_obediencia_a_tag:true,
+        // SUPRESSÃO NO MODO EDITORIAL — MATERIAL REAL EM QUALQUER MODO (21/set/2026, autorizado
+        // pelo João): o seletor de doutrina em diretorDeArte ignorava materialRealPreservado no
+        // ramo editorial — produto real cai em editorial por padrão (escolherModo), o caminho
+        // mais comum pra produto era o desprotegido; foto pessoal encaminhada ao editorial também
+        // ficava sem proteção. BLOCO_EDITORIAL_MATERIAL_REAL (novo, simétrico ao
+        // BLOCO_CENA_MATERIAL_REAL) fecha a lacuna: zona fotográfica mostra o material inteiro
+        // (sem sangramento/corte), fusão só do lado chapado (foto nunca dissolve/tinge), gráfico
+        // temático nunca toca o material, luz é a que a foto já tem (proibido reiluminar).
+        editorial_material_real_condicionado_a_materialRealPreservado_nao_ao_modo:true,
+        // CAUSA RAIZ MAIS FUNDA, MESMA RODADA — CONTRATO DE PRESERVAÇÃO REESCRITO (decisão
+        // caminho 3 do João, contra o "não alterar": "o não alterar protegia o contrato por
+        // funcionar; aqui ele é a origem do defeito"): LIBERADOS liberava clothing/pose/body
+        // position/framing and crop/lighting/shadows/colour grade — cada item uma licença pra
+        // redesenhar o SUJEITO (mudar pose = redesenhar o corpo; reiluminar = repintar o
+        // sombreamento do rosto). Travados/LIBERADOS agora separam SUJEITO (sempre travado:
+        // roupa, pose, posição do corpo, luz/sombra/cor sobre o sujeito, qualquer corte que
+        // remova parte dele — pessoa e produto igualmente) de AMBIENTE (livre: fundo, cenário,
+        // superfície, luz ambiente, grão do ambiente, enquadramento do canvas desde que o
+        // sujeito fique inteiro). Eliminado "re-lit" das 3 ocorrências originais (S1c, SPECIFICS
+        // temFoto, contrato) + a mesma correção aplicada à SPECIFICS de produto (mesma classe,
+        // fora da lista original de três, extensão simétrica autorizada pelo princípio "aplicar
+        // igualmente a pessoa e produto"). engine6 seção 6 (luz direcional/sombra profunda,
+        // antes incondicional) agora condicionada a o.materialReal: com material preservado, a
+        // luz dirigida vale só para o ambiente, nunca sobre o sujeito/produto.
+        // LIMITE REGISTRADO (não implementado nesta rodada): gpt-image-1 repinta o frame inteiro
+        // em toda chamada, inclusive em images/edits com input_fidelity=high — instrução
+        // coerente reduz distorção, não elimina. A garantia real só vem de uma infraestrutura de
+        // composição (sharp): o modelo gera o cenário deixando o espaço do sujeito, o sistema
+        // cola a foto original por cima — mesmo mecanismo que resolveria texto derretido e logo.
+        contrato_preservacao_separa_sujeito_travado_de_ambiente_liberado_nao_permite_mais_reiluminar_ou_recortar_sujeito:true,
+        // COMPOSIÇÃO — FASE 1 (22/set/2026, autorizado pelo João, "Implementação Liberada —
+        // Partes 1 a 5, feed e story"): texto e logo reais compostos por código (sharp +
+        // opentype.js, api/_composicao-lib.js) no lugar do que o modelo desenhava — resolve texto
+        // derretido e logo torto para quem tem o interruptor ligado. Interruptor
+        // clientes.preferencias.composicao_ativa, desligado por padrão, só na conta de teste
+        // (cfd67ca7-0d7a-45f9-abb4-2c069f49ac0e) — e só DEPOIS das amostras PNG aprovadas pelo
+        // João (a SQL de ligar está registrada, não executada ainda). Modo CENA fica para a Fase
+        // 2 (texto sobre o rosto exige o template conhecer a posição do sujeito). Nova chave de
+        // DNA cor_fundo (CHAVES_GLOBAIS acima + checklist da persona Identidade) — reserva
+        // #050506 só na ausência, sempre com log.
+        composicao_fase1_texto_e_logo_por_codigo_ativa_so_com_interruptor_e_modo_editorial:true,
+        // Falha do compositor DEPOIS de já ter uma imagem sem texto em mãos (o próprio prompt, com
+        // composição ativa, manda o modelo não renderizar texto nenhum) nunca entrega a peça muda —
+        // regenera do zero pelo caminho tradicional (texto renderizado pelo modelo). Falhando essa
+        // segunda chamada também, devolve erro, nunca uma arte quebrada.
+        composicao_falha_do_compositor_regenera_pelo_caminho_tradicional_nunca_entrega_imagem_sem_texto:true,
+        // Logo composta pelo servidor (dentro de compor(), todos os fluxos que chamam
+        // /api/gerar-imagem — worker, aprovar.html, chat) sinaliza logoJaComposta:true na resposta;
+        // agentes.html não compõe a logo de novo no navegador quando esse sinal chega, evitando
+        // logo duplicada. ACHADO (não corrigido, fora deste escopo): comporLogoNaArte (navegador)
+        // só era chamada pelos fluxos de agentes.html — nem o worker (cron.js) nem aprovar.html
+        // compunham logo nenhuma antes desta rodada; a composição por servidor, rodando dentro do
+        // próprio endpoint, cobre os três de graça, mas isso significa que peças do lote automático
+        // hoje (clientes sem o interruptor) seguem sem logo real — comportamento pré-existente,
+        // registrado para o João decidir se quer corrigir fora da Fase 1.
+        composicao_logo_por_servidor_cobre_worker_aprovar_e_chat_por_estar_dentro_do_endpoint:true,
+        // COMPOSIÇÃO — FASE 1, REVISÃO DE DESIGN (22/set/2026, "revisão de design e correções
+        // antes de ligar", 6 defeitos apontados pelo João sobre as 3 primeiras amostras — todos
+        // corrigidos em _composicao-lib.js). Interruptor continua desligado (nenhuma conta além da
+        // de teste recebe composição, e a de teste só recebe depois de aprovação explícita).
+        // achado 1: story dividia esquerda/direita 50/50 como o feed — num canvas 9:16 isso dava
+        // duas colunas de 540×1920, texto espremido, menos da metade da altura usada. Story passa
+        // a dividir em cima (foto, 56% da altura) e embaixo (texto, 44%, largura inteira).
+        composicao_story_dividido_cima_baixo_no_lugar_de_esquerda_direita:true,
+        // achado 2: bloco de texto (feed e story) ficava sempre colado no topo, deixando metade da
+        // caixa vazia. Agora centraliza opticamente: monta em coordenadas relativas e desloca o
+        // bloco inteiro pro meio da altura útil, com um único <g transform>.
+        composicao_bloco_de_texto_centralizado_opticamente_na_caixa_util:true,
+        // achado 3: a emenda entre a zona de texto e a foto clareava pra uma cor sólida nos
+        // últimos 22%, criando uma faixa clara com borda dura — parecia defeito de render. Fusão
+        // agora é por PERDA DE OPACIDADE (stop-opacity, não stop-color) do próprio painel — revela
+        // a foto real por baixo, nunca uma cor inventada; distância da fusão cai pra 8% (de 22%)
+        // quando há material real preservado, pra nunca arriscar expor o sujeito travado.
+        composicao_fusao_por_perda_de_opacidade_revela_foto_real_sem_faixa:true,
+        // achado 4: a prova ("+40 clientes atendidos") saía como pílula igual à do CTA, empilhada
+        // logo acima — lia como um segundo botão desabilitado. Agora é um dado em destaque: número
+        // em cor de destaque e tamanho maior, rótulo menor ao lado — forma sempre distinta do CTA.
+        composicao_prova_como_dado_em_destaque_nao_mais_pilula_igual_ao_cta:true,
+        // achado 5: investigado — não era bug de código (compor() só lê cont.pilar pro selo, nunca
+        // a marca); o "JUMP OS" na amostra veio do próprio script de teste deste agente, que tinha
+        // passado pilar errado. Nenhuma mudança de código; registrado aqui só pra não reabrir.
+        // achado 6: a reserva de cor do CTA na ausência de cor_cta/paleta_primaria era '#D4AF37'
+        // (dourado) — uma decisão de marca tomada em código, violando o Contrato de Engenharia
+        // ("reserva sempre com valores da própria plataforma"). Trocada pelo verde-limão da
+        // própria plataforma, '#BFFF00'. Varredura confirmou nenhuma outra cor fixa de marca no
+        // compositor — só reservas da plataforma (fundo/CTA) e candidatas universais de contraste.
+        composicao_reserva_cor_cta_e_verde_limao_da_plataforma_nao_mais_cor_de_marca_fixa:true,
+        // 2ª condição do João sobre falha do compositor (confirmada nesta rodada, complementa a
+        // flag acima): console.error sozinho não bastava — "registro visível na ordem, com o
+        // motivo". Grava em conteudos.meta.composicao_falha (mesmo padrão read-merge-write de
+        // gravarSlide — PATCH em jsonb substitui o objeto inteiro, nunca escreve sem mesclar antes).
+        composicao_falha_do_compositor_registrada_na_ordem_meta_composicao_falha:true,
+        // ENGINE 6.0 COMO CAMINHO PADRÃO — RODADA 1 (22/set/2026, mudança de direção autorizada
+        // pelo João: o template de composição foi julgado regressão criativa — "painel chapado,
+        // pílula, texto empilhado" — e o Engine volta a ser o caminho padrão sem mudança de rota.
+        // Código de composição intacto no repositório, desligado, interruptor não é ligado — a
+        // autorização anterior de ligá-lo na conta de teste está REVOGADA nesta rodada, não
+        // executada). Diagnóstico: 3 fatores explicavam o pipeline ficar atrás do Engine colado
+        // num chat — quality:'medium', o Diretor quebrado por ~2 meses até 18/09 (invalidando
+        // quase toda comparação anterior) e modificações acumuladas nunca medidas contra quanto
+        // do Engine sobrevive no prompt final. Rodada 1 corrige os dois primeiros e mede o
+        // terceiro (item 5, auditoria só de relatório, sem tocar no Diretor).
+        engine6_rodada1_item1_quality_high_nas_duas_chamadas_gpt_image_1:true,
+        engine6_rodada1_item1_diagnostico_atualizado_premissa_antiga_nunca_testada_com_diretor_funcionando:true,
+        // item 2: logo real desacoplada do interruptor de composição — roda no caminho PADRÃO,
+        // no servidor, dentro de gerar-imagem, para todo fluxo (chat avulso, ordem de serviço,
+        // worker do cron, ordem do Tráfego) — antes só agentes.html compunha, no navegador; o
+        // worker e aprovar.html entregavam sem logo. Tamanho 18% da largura (era 15%, herdado do
+        // navegador) — agora conforme o texto do próprio Engine sobre o canto calmo. Posição
+        // dentro das margens seguras já existentes no template (8%/10% feed, 8%/17% story).
+        engine6_rodada1_item2_logo_real_no_canto_desacoplada_do_interruptor_roda_no_caminho_padrao:true,
+        engine6_rodada1_item2_posicaologo_18_por_cento_largura_conforme_texto_do_engine:true,
+        // item 3: texto continua renderizado pelo modelo (como sempre) — a letra certa passa a
+        // ser VERIFICADA, não só esperada. Depois de gerar, antes do corte e do upload: envia a
+        // imagem + a lista exata de textos esperados a um modelo com visão, tool_choice forçado
+        // (mesmo mecanismo da direção avulsa, commit 87d15c5) numa ferramenta só de TRANSCRIÇÃO —
+        // o modelo nunca julga sozinho se está certo, a comparação caractere a caractere
+        // (acentos incluídos) é feita em código. Diverge, regenera uma vez com o MESMO prompt;
+        // diverge nas duas, fica com a tentativa de menos divergências e grava esperado/lido/
+        // campo divergente em conteudos.meta.verificacao_texto — visível no card de aprovação
+        // (aprovar.html). Só roda quando há texto a renderizar e fora do caminho de composição
+        // (que nunca tem texto do modelo para conferir). Falha de infraestrutura na verificação
+        // NUNCA é tratada como divergência — nunca regenera às cegas.
+        engine6_rodada1_item3_verificacao_de_texto_por_visao_tool_choice_forcado_so_transcricao:true,
+        engine6_rodada1_item3_diverge_regenera_uma_vez_mesmo_prompt_fica_com_a_melhor_tentativa:true,
+        engine6_rodada1_item3_visivel_no_card_aprovar_html_meta_verificacao_texto:true,
+        // item 4: prompt final (texto exato mandado ao gpt-image-1) agora persistido em
+        // conteudos.meta.prompt_final em toda geração — antes não existia em lugar nenhum,
+        // tornando qualquer diagnóstico de qualidade suposição.
+        engine6_rodada1_item4_prompt_final_persistido_em_conteudos_meta_prompt_final:true,
+        // helper genérico mesclarMetaNaOrdem (api/gerar-imagem.js) — generaliza o padrão
+        // read-merge-write que gravarSlide e registrarFalhaComposicaoNaOrdem já usavam cada um
+        // por conta própria; registrarFalhaComposicaoNaOrdem passou a delegar nele, mesma
+        // assinatura e comportamento externo de antes.
+        mesclarmetanaordem_generaliza_read_merge_write_registrarfalhacomposicaonaordem_delega:true,
+        // item 5 (auditoria de fidelidade Engine → engine6() → prompt final): NÃO implementado
+        // nesta rodada — é relatório, exige uma peça real gerada DEPOIS do deploy (produção),
+        // não reproduzível neste ambiente sem ANTHROPIC_API_KEY/OPENAI_API_KEY. Fica para a
+        // entrega, como item de relatório dependente do deploy dos itens 1 a 4.
+        // INCIDENTE DE EMPACOTAMENTO (22/set/2026, achado pelo João DEPOIS da 1ª entrega desta
+        // rodada): a entrega comparou `_composicao-lib.js` contra o HEAD LOCAL (onde a
+        // composição já existia desde uma rodada anterior), nunca contra o `origin/main` REAL —
+        // o módulo nunca tinha subido. `api/package.json` do repositório real só tinha `sharp`,
+        // sem `opentype.js`; `assets/fonts/*.ttf` não existia lá. `gerar-imagem.js` carrega
+        // `_composicao-lib.js` incondicionalmente no topo (linha 16, independente do
+        // interruptor) — sem `opentype.js` resolvível, TODA geração de imagem, em TODO fluxo,
+        // quebraria em produção. Corrigido: `api/package.json` (sharp+opentype.js) e as 3
+        // fontes de reserva usadas em código (`BebasNeue-Regular.ttf`, `Barlow-Regular.ttf`,
+        // `Barlow-SemiBold.ttf`) entram na entrega. Regra nova no Contrato: empacotar sempre
+        // contra `origin/main`, nunca contra o HEAD local. Portão novo, automatizado em
+        // `test_empacotamento_dependencias.js`: todo `require()` de pacote externo em
+        // `api/*.js` tem que estar declarado em `api/package.json` (scan estático) — e, quando
+        // há rede, a prova mais forte: aplicar a entrega sobre um checkout limpo de
+        // `origin/main`, `npm install`, `require()` de verdade. Sintaxe válida (`node --check`)
+        // nunca provou que o módulo resolve — só isso prova. Registrado para quando o
+        // interruptor for ligado: as fontes são lidas por `fs.readFileSync` com caminho montado
+        // em tempo de execução — o rastreador de arquivos da Vercel pode não incluí-las no
+        // pacote da função; verificar antes de ligar.
+        incidente_empacotamento_opentype_e_fontes_ausentes_do_origin_main_corrigido:true,
+        portao_empacotamento_require_externo_declarado_em_package_json_automatizado:true,
+        // ENGINE 6.0 — RODADA 2 (22/set/2026, autorizado pelo João): comparativo real do
+        // cliente (mesma peça pelo Engine colado num chat vs. pelo pipeline) apontou 2 causas
+        // de código + 1 pendente de relatório. Causa 1 (gerar-imagem.js) e Causa 2 (aqui +
+        // gerar-imagem.js) implementadas nesta entrega; Causa 3 é relatório, sem código.
+        rodada2_causa1_corte_final_declarado_e_deterministico_no_prompt_position_center:true,
+        rodada2_causa1_alvo_de_corte_fonte_unica_nunca_mais_literal_duplicado:true,
+        rodada2_causa2_check_in_identidade_valida_campos_obrigatorios_em_codigo:true,
+        rodada2_causa2_enum_fora_do_conjunto_recusado_nunca_gravado_em_silencio:true,
+        rodada2_causa2_dna_incompleto_sinalizado_em_log_e_em_conteudos_meta_na_geracao:true,
+        rodada2_causa3_auditoria_de_fidelidade_pendente_relatorio_aguarda_peca_pos_deploy:true,
+        // DNA DA MARCA — camada VISUAL_SYSTEM (23/set/2026, autorizado pelo João): só
+        // gerar-imagem.js foi tocado nesta entrega (engine6() + carregamento de M6); aqui é só
+        // VERSAO/correcoes_ativas, mantidos em sincronia por regra permanente do contrato.
+        dna_marca_visual_system_vs_prefixo_varrido_sem_lista_fixa_campo_novo_sem_deploy:true,
+        dna_marca_declarado_tem_precedencia_sobre_generico_derivado_do_enum_nunca_ambos:true,
+        dna_marca_cor_fundo_chega_ao_engine_nunca_sobre_a_camada_fotografica:true,
+        dna_marca_contraste_desacoplado_da_agressividade_campo_tipo_de_contraste_proprio:true,
+        dna_marca_m6_carregamento_filtra_agente_eq_global_evita_colisao_silenciosa:true,
+        // CORTE, MOCKUP E TETO DE TEXTO (23/set/2026, autorizado pelo João) — peça de teste real
+        // com a camada VISUAL_SYSTEM revelou 3 defeitos: label/CTA cortados apesar da seção 12
+        // declarar a região entregue, mockup ilegível, ocupação bem abaixo do declarado. Só
+        // gerar-imagem.js foi tocado em código; aqui é só VERSAO/correcoes_ativas, regra permanente.
+        corte_verificacao_por_visao_agora_detecta_elemento_em_faixa_descartada_regenera_uma_vez:true,
+        teto_de_palavras_escopado_a_texto_da_peca_texto_de_objeto_da_cena_nao_conta:true,
+        copy_de_apoio_teto_subiu_de_6_para_12_palavras_headline_e_cta_inalterados:true,
+        branding_proibicao_de_icone_escopada_a_marca_icone_funcional_da_cena_permitido:true,
+        mockup_declara_escala_minima_25_por_cento_com_conteudo_legivel_quando_marca_declara_estilo:true,
+        vs_modo_humano_recupera_salvaguarda_never_artificial_exaggerated_or_forced_vintage:true,
+        vs_controle_foco_fotografico_substitui_a_frase_inteira_nao_so_o_fragmento_de_luminosidade:true,
+        varredura_vs_exclui_as_4_chaves_com_secao_propria_nunca_mais_duas_vezes_no_prompt:true,
+        checklists_finais_citam_hierarquia_e_densidade_declaradas_quando_existem_nao_o_fixo:true,
+        prompt_final_gravado_sem_corte_de_12000_caracteres_instrumento_de_auditoria_integral:true,
+        // REGENERAÇÃO DIRIGIDA, DEFEITO VISÍVEL E CENA QUE NÃO SE REPETE (24/set/2026, autorizado
+        // pelo João) — peça real de 24/set provou que a checagem de faixa descartada FUNCIONA
+        // (visão detectou o CTA cortado e 2 erros de português), mas a correção não: o reenvio
+        // cego mandava o mesmo prompt de novo, sem dizer ao modelo o que saiu errado, e a peça
+        // com defeito conhecido era entregue como se estivesse pronta, sem aviso nenhum visível.
+        // gerar-imagem.js e aprovar.html foram tocados em código; aqui é só VERSAO/correcoes_ativas.
+        regeneracao_agora_recebe_adendo_corretivo_com_divergentes_e_faixa_descartada_da_1a_tentativa:true,
+        peca_com_defeito_na_tentativa_final_grava_alerta_legivel_exibido_na_tela_de_aprovacao:true,
+        cena_com_memoria_diretor_recebe_ultimas_3_cenas_do_cliente_como_contexto_negativo_nao_repita:true,
+        mockup_25_por_cento_agora_condicional_a_cena_ter_tela_nunca_forcado_em_toda_peca:true,
+        prova_ganha_teto_de_6_palavras_preferindo_numero_mais_substantivo:true,
+        // TIRAR O FREIO E FECHAR O BURACO ENTRE "PEÇA CRIADA" E "ARTE GERADA" (24/set/2026,
+        // autorizado pelo João) — peça de 24/set 17:36 ficou em rascunho, sem imagem, sem aviso
+        // e sem como tentar de novo (3ª ocorrência). Duas causas: o freio compartilhado
+        // ('jump_parar_lote') saiu inteiro de agentes.html/aprovar.html/dashboard-usuario.html —
+        // a única proteção de gasto agora é a cota do plano, checada a cada imagem dentro de
+        // api/gerar-imagem.js (intocado nesta rodada); e a ordem 'criar_avulso' virava 'concluida'
+        // com progresso 0/0 e sem concluida_em sempre que o worker (api/cron.js) não achava/gerava
+        // nenhuma peça na primeira passada — corrigido para ir a 'pendente'/'erro' via o mesmo
+        // retry-com-limite de uma falha real, nunca concluir sem produzir nada. Este arquivo
+        // (agente-chat.js) e gerar-imagem.js não tiveram código tocado — só este registro.
+        freio_compartilhado_removido_unica_protecao_agora_e_cota_por_imagem:true,
+        criar_avulso_nao_conclui_mais_com_zero_midia_vai_a_pendente_ou_erro:true,
+        aprovar_exibe_rascunhos_prontos_com_botao_que_chama_gerarfila_no_clique:true,
+        tarefas_de_servico_oferece_gerar_arte_para_criar_avulso_pendente:true,
+        // FOTO TRAVADA DE VERDADE, CTA E SELO POR CÓDIGO, E ENXERGAR O DIRETOR (24/set/2026,
+        // autorizado pelo João) — peça real de 24/set 20:32 provou 4 achados: Diretor ainda
+        // dirigia postura/olhar do sujeito real ("seated... gaze directed toward the upper-left
+        // quadrant" numa foto de pessoa em pé com microfone — rosto distorcido); a variação 50/100
+        // autorizava "different placement and photographic treatment" do sujeito no MESMO prompt
+        // que o contrato de preservação proíbe; headline "8 agentes" contra prova "5 agentes
+        // especializados" na MESMA peça, nunca checado (a verificação por visão só compara
+        // renderizado×esperado, nunca esperado×esperado); e o prompt/resposta do Diretor nunca
+        // eram gravados — só o prompt final da imagem. Só api/gerar-imagem.js e
+        // api/_composicao-lib.js tiveram código tocado; aqui é só VERSAO/correcoes_ativas.
+        diretor_prompt_sistema_e_resposta_bruta_gravados_em_meta_diretor_prompt_e_diretor_resposta:true,
+        foto_real_diretor_nao_dirige_mais_postura_corpo_angulo_ou_expressao_so_lado_do_quadro:true,
+        variacao_50_e_100_com_material_real_preservado_nunca_mais_autoriza_mexer_no_sujeito:true,
+        cta_e_selo_saem_do_modelo_compostos_por_codigo_pos_corte_com_fonte_e_cor_do_dna:true,
+        coerencia_de_conteudo_checada_antes_de_gerar_alerta_no_mesmo_alerta_defeito_existente:true,
+        // "Trocar o motor de imagem e reservar as zonas das pílulas" (24/set/2026, autorizado
+        // pelo João): sete dias de defeitos crônicos (acento quebrado, rosto redesenhado em
+        // edição, layout instável, regeneração dirigida que redesenha a peça inteira) apontam
+        // pra gpt-image-1 como causa comum — a linha GPT Image 2.5 (Flare/Sunburst, doc oficial
+        // confirmada) promete resolver os quatro, um a um. Esta rodada ISOLA A VARIÁVEL: só troca
+        // o motor (por configuração, padrão ainda gpt-image-1 — troca real é uma env var na
+        // Vercel, nunca automática por este deploy) e reserva, ao modelo, as duas zonas onde o
+        // código carimba selo/CTA (achado extra: o selo saiu por cima da headline numa peça real
+        // por falta exatamente dessa declaração). Nada mais mudou — nem Diretor, nem verificação
+        // por visão, nem corte, nem a composição das pílulas em si (só o lugar onde a conta da
+        // geometria roda, nunca o resultado). Só api/gerar-imagem.js tocado; aqui é só
+        // VERSAO/correcoes_ativas.
+        modelo_de_imagem_por_caminho_e_configuravel_padrao_ainda_gpt_image_1:true,
+        engine_declara_zonas_reservadas_das_pilulas_quando_cta_selo_por_codigo_mesma_fonte_do_compositor:true,
+        custo_tempo_modelo_e_usage_de_cada_chamada_openai_gravados_em_meta_openai_chamadas:true,
+        // "input_fidelity condicional e erro real visível" (25/set/2026, autorizado pelo João):
+        // a troca de motor da rodada anterior estava correta em tudo, mas a OpenAI recusou em
+        // 326ms com "The model 'gpt-image-2' does not support the 'input_fidelity' parameter" —
+        // a conta TEM acesso ao gpt-image-2, o pipeline mandava um parâmetro que só gpt-image-1
+        // aceita. Pior: a tradução de erro amigável tinha uma regra larga (/does not exist|model/i)
+        // que disparava com QUALQUER erro contendo "model" e devolvia sempre "verifique o acesso
+        // ao gpt-image-1" — três ordens falharam com essa frase, apontando pro modelo errado e
+        // escondendo a causa real por dois dias. Detecção agora vem da RESPOSTA da OpenAI, nunca
+        // de uma lista de modelos (que envelhece a cada lançamento): manda input_fidelity como
+        // sempre; se a OpenAI recusar apontando esse parâmetro, repete a MESMA chamada UMA vez sem
+        // ele — nunca um laço, nunca consome o orçamento da regeneração dirigida (que é uma
+        // chamada inteira e separada, reenviarMesmoPrompt, para corrigir texto renderizado errado
+        // — não confundir as duas). Só api/gerar-imagem.js e api/cron.js tocados; aqui é só
+        // VERSAO/correcoes_ativas.
+        input_fidelity_removido_e_repetido_uma_vez_quando_openai_recusa_o_parametro_nunca_um_laco:true,
+        input_fidelity_retry_interno_a_chamarOpenAIImageToImage_nunca_consome_orcamento_de_regeneracao_dirigida:true,
+        erro_real_da_openai_gravado_junto_da_frase_amigavel_em_payload_erros_e_no_meta_nunca_substituida:true,
+        regra_de_deteccao_de_modelo_inexistente_restrita_texto_fixo_gpt_image_1_trocado_pelo_modelo_realmente_chamado:true,
+        erro_sem_regra_conhecida_devolve_o_texto_da_openai_em_vez_de_generico_que_esconde_a_causa:true,
+        // "Devolver CTA e selo ao modelo, e declarar a área útil de verdade" (25/set/2026,
+        // autorizado pelo João): primeira peça real com gpt-image-2 (25/set 12:47) — 2 chamadas,
+        // 107s e 92s, ~11.400 tokens cada, mesmo custo do gpt-image-1 — e a identidade do sujeito
+        // saiu preservada mesmo com input_fidelity removido nas duas (achado da rodada anterior):
+        // a preservação é nativa no gpt-image-2. O modelo também desenhou, sozinho e com
+        // acentuação correta, um quadro branco manuscrito e cinco cards de texto — o defeito de
+        // acento que motivou tirar CTA/selo das mãos do modelo (24/set) não existe mais; o
+        // defeito agora é o OPOSTO — a pílula composta por código fica sobreposta à cena, nunca
+        // integrada. CTA_SELO_POR_CODIGO volta a false (era true por padrão desde 24/set) — CTA e
+        // selo voltam a ser pedidos ao modelo, as zonas reservadas param de ser declaradas, o
+        // compositor de pílulas para de desenhar. O CÓDIGO NÃO FOI REMOVIDO — fica dormente atrás
+        // da mesma chave, religável numa linha se um modelo futuro voltar a errar. Seção 12 do
+        // Engine (safe zones) reescrita: a área útil agora é declarada como RETÂNGULO POSITIVO
+        // ("componha tudo dentro deste retângulo") em vez de só a proibição de margem — mesmos
+        // números de sempre (regiaoEntregue), só a frase virou afirmativa. Só api/gerar-imagem.js
+        // tocado; aqui é só VERSAO/correcoes_ativas.
+        cta_selo_por_codigo_chave_unica_default_false_codigo_dormente_nao_removido:true,
+        area_util_do_engine_declarada_como_retangulo_positivo_em_vez_de_so_margem_proibida:true,
+        // "Carrossel por upload no calendário, e alerta de defeito com linguagem de produto"
+        // (25/set/2026, autorizado pelo João): o publicador (api/cron.js) já publicava carrossel
+        // desde a Rodada do Designer — lia meta.slides, montava o container CAROUSEL, cortava em
+        // 10 — só faltava a ponta da frente: a criação manual (calendario.html) nunca grava
+        // meta.slides, upload múltiplo nunca existiu ali (pendência anotada em comentário desde
+        // 15/set, nunca fechada). Campo de arquivo passa a aceitar vários; 1 arquivo continua
+        // exatamente como sempre (midia_url, peça única); 2 a 10 imagens (nunca vídeo, nunca sob
+        // story/reels) sobem na ORDEM escolhida e viram meta.slides — zero mudança no publicador,
+        // que já sabia consumir esse formato. Limites validados na TELA antes de subir qualquer
+        // coisa: máximo 10, story e reels recusam múltiplos (reels é extensão desta
+        // implementação — ver relatório), vídeo misturado é recusado. Falha no meio do upload
+        // nunca grava um carrossel incompleto — nem sobe o resto, nem grava nada em conteudos, e
+        // limpa (melhor esforço) o que já tinha subido.
+        // Segundo: o alerta de defeito (meta.alerta_defeito, gravado pelo backend desde a Rodada
+        // de 24/set) é um relatório técnico de diagnóstico, escrito pra quem corrige, não pra
+        // quem usa — aparecer assim pro cliente só gera insegurança sobre o produto, sem dar a
+        // ele nada que possa fazer com aquilo. Gravação intocada, sempre o texto inteiro; só a
+        // TELA (aprovar.html) passa a mostrar, pro papel 'usuario' (tabela clientes.role), uma
+        // linha curta sem jargão em vez do relatório — admin/supervisor continuam vendo o texto
+        // técnico completo, sem cortes, em qualquer conta que estejam visualizando (o papel de
+        // quem está LOGADO nunca muda por impersonação via ?ver=).
+        calendario_upload_multiplo_grava_meta_slides_no_formato_que_o_publicador_ja_consumia:true,
+        calendario_limites_de_carrossel_validados_na_tela_antes_de_subir_qualquer_arquivo:true,
+        calendario_falha_no_meio_do_upload_nunca_grava_carrossel_incompleto_e_limpa_parcial:true,
+        alerta_defeito_exibido_por_papel_usuario_ve_linha_curta_admin_supervisor_ve_tecnico_completo:true,
+        // "Persona condizente e vocabulário do produto" (25/set/2026, autorizado pelo João):
+        // texto-only, nenhuma mudança de mecanismo. A persona do Tráfego afirmava que o agente
+        // LÊ sozinho os números reais das campanhas quando o cliente conecta o Meta Ads — não
+        // existe nenhuma rotina no repositório que busque métrica de campanha (o callback do
+        // Meta grava toda conexão como tipo:'instagram', nada lê tipo='ads', não há chamada à
+        // Marketing API); reescrita para o estado real: o agente trabalha com os números que o
+        // CLIENTE traz do Gerenciador dele. Bloco de consultor-não-executor e infraestrutura
+        // ficaram intactos — já estavam corretos. Botão do Diagnóstico renomeado de "Atualizar
+        // métricas" para "Analisar métricas" — cmdMetricas só pede ao próprio agente que analise
+        // o que a coleta diária já gravou, nunca busca dado novo; nome da função e texto enviado
+        // por ela inalterados. Persona da Estratégia: removido o item "histórico/temas já usados
+        // (evitar repetir)" da lista de análises — não existe, e não vai existir nesta rodada,
+        // nenhum bloco de dado com os temas de meses anteriores; itens seguintes renumerados.
+        // Vocabulário: "captar/capturar lead" vira "adquirir lead" (no rótulo do seletor de
+        // objetivo da automação de DM e na persona da Estratégia) — neste projeto "captação" é
+        // só produção de material bruto. Só api/agente-chat.js e agentes.html tocados; Engine
+        // 6.0, gerar-imagem.js, _dna-lib.js, gates de aprovação/data/trial, cadeias de ordem,
+        // worker, publicador, tags e conectar-conta.html ficaram intactos, por decisão explícita
+        // do João. VERSAO atualizado só neste arquivo — gerar-imagem.js estava em "Não tocar"
+        // nesta rodada, então o par fica temporariamente fora de sincronia (decisão desta
+        // rodada, não a regra permanente de manter os dois juntos).
+        trafego_persona_nao_afirma_mais_leitura_automatica_de_metricas_do_meta_ads:true,
+        diagnostico_botao_renomeado_para_analisar_metricas_funcao_e_texto_enviado_inalterados:true,
+        estrategia_lista_de_analises_sem_item_de_historico_de_temas_que_nao_existe:true,
+        vocabulario_captar_capturar_lead_padronizado_para_adquirir_lead:true,
+        // "Fonte única do DNA da marca" (25/set/2026, autorizado pelo João): o mesmo DNA era
+        // lido em três lugares com três limites diferentes — memCheck do Criativo (limit=40,
+        // sem ordenação) e a leitura "por dependência" (DEPENDE_DE, limit=60, sem ordenação —
+        // conforme o DNA crescia, o agente podia receber um DNA cortado sem nenhum aviso);
+        // api/gerar-imagem.js (intocado nesta rodada) já lia tudo, sem limite — é a leitura
+        // correta. Agora: UMA leitura só por requisição, sem filtro por agente (existem 13
+        // linhas legadas gravadas antes da decisão do DNA vivo, com agente != global — não
+        // podem sumir), ordenação explícita (order=chave.asc) e limite alto e explícito (500) —
+        // batendo nesse limite, vira aviso visível na resposta, nunca corte silencioso. Chave
+        // repetida em mais de uma linha: vence agente='global'; empate, vence a mais recente por
+        // updated_at — dnaFinal {chave:valor}, resultado dessa regra, é a fonte que todo o
+        // resto do arquivo usa a partir daí. api/_dna-lib.js ganhou fatiaDoAgente(): BASE (todo
+        // agente recebe), VISUAL (só identidade e criativo, + prefixo vs_), VIDEO (só identidade
+        // e video, + prefixo video_) — identidade recebe o DNA inteiro, sem fatia, por ser quem
+        // escreve. Chave que não cai em nenhuma lista e não tem prefixo conhecido entra na BASE,
+        // visível a todos (regra da chave nova — sumir em silêncio é o que este projeto não
+        // repete). Removidos por estarem mortos: CHAVES_GLOBAIS (a linha seguinte já marcava
+        // ehGlobal=true incondicionalmente — a constante nunca era consultada), o grafo
+        // DEPENDE_DE e o filtro or=(...) que ele montava, e o bloco "O QUE OS OUTROS AGENTES JÁ
+        // DESCOBRIRAM" — com toda escrita nova caindo em global desde a rodada do DNA vivo, esse
+        // bloco nunca mais tinha o que mostrar; a fatia por papel é agora a única regra de quem
+        // vê o quê. dnaChecklistTxt e a trava em código de <checkin_completo/> NÃO mudaram de
+        // lógica — continuam com a mesma expressão de sempre (mems.filter(agente==='global')),
+        // só a fonte de `mems` mudou, por decisão explícita de não tocar no processamento dessa
+        // tag. Persona da Estratégia ajustada nos dois trechos que a fatia tornava falsos: "use
+        // TODO o OS_DATA + memórias (mercado, diagnóstico)" agora descreve o DNA real que ela
+        // recebe (BASE) + memórias do cliente; a frase que mandava usar "O QUE OS OUTROS AGENTES
+        // JÁ DESCOBRIRAM" saiu, porque o bloco deixou de existir. Escrita das memórias (sempre
+        // em agente='global') não mudou nem uma linha. Só api/_dna-lib.js e api/agente-chat.js
+        // tocados — api/gerar-imagem.js, Engine 6.0, DNA_CAMPOS_OBRIGATORIOS/validação de
+        // check-in existentes em _dna-lib.js, gates de aprovação/data/trial, cadeias de ordem,
+        // worker, publicador, qualquer tag e seu processamento, e a gravação de memórias ficaram
+        // intactos, por decisão explícita do João.
+        dna_lido_uma_unica_vez_por_requisicao_sem_filtro_por_agente_ordenado_e_com_limite_alto_e_explicito:true,
+        dna_cortado_no_limite_agora_gera_aviso_visivel_nunca_corte_silencioso:true,
+        chave_de_dna_repetida_em_mais_de_uma_linha_desempatada_por_global_e_depois_por_updated_at_mais_recente:true,
+        dna_fatiado_por_agente_em_dna_lib_base_todos_visual_so_identidade_e_criativo_video_so_identidade_e_video:true,
+        chave_de_dna_nao_classificada_e_sem_prefixo_conhecido_cai_na_base_visivel_a_todos_nunca_invisivel:true,
+        chaves_globais_e_grafo_depende_de_removidos_por_estarem_mortos_desde_que_toda_escrita_cai_em_global:true,
+        // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+        // João): engine6() (api/gerar-imagem.js, intocado) consome do DNA 22 campos além dos 9
+        // de DNA_CAMPOS_OBRIGATORIOS — 17 por nome literal + 4 pela varredura genérica vs_* que
+        // exclui só vs_modo_humano/vs_controle_foco_fotografico/vs_hierarquia_visual/
+        // vs_profundidade_visual da varredura por já terem seção própria (consumidos igual, só
+        // que por nome). Sem eles a peça cai nos fallbacks hardcoded (BALANCED/MEDIA/PREMIUM/
+        // EDITORIAL). api/_dna-lib.js ganhou DNA_CAMPOS_DIRECAO (21 campos, texto livre, sem
+        // enumeração — nenhum entrou em DNA_ENUMS) e dnaDirecaoFaltando(), mesmo padrão de
+        // DNA_CAMPOS_OBRIGATORIOS/dnaFaltando, só leitura. estilo_de_mockup é um 22º campo,
+        // OPCIONAL de propósito (só faz sentido pra negócio com tela/software) — fica fora de
+        // DNA_CAMPOS_DIRECAO, nunca bloqueia o check-in. Persona do Identidade ganhou uma etapa
+        // nova (passo 2 do FLUXO FINAL, depois do checklist visual, antes de <checkin_completo/>)
+        // onde os 21 campos são DEDUZIDOS a partir do que o agente já tem (logo, fotos reais,
+        // arquétipo, nicho, tom de voz, estilo/intensidade/complexidade/temperatura, paleta) e
+        // APRESENTADOS ao cliente em linguagem de cliente — mesma mecânica já usada pra propor o
+        // tema da dashboard — só gravados após confirmação ou ajuste do cliente, nunca perguntados
+        // em jargão técnico. Desvio autoexplicado (não pedido literalmente pela ordem, mas
+        // necessário pra cumprir "reporte em vez de duplicar a pergunta"): dos 22, a varredura
+        // confirmou que só tipo_de_composicao já era pedido numa persona ativa — mas por um
+        // mecanismo mais fraco (inferência silenciosa a partir do nicho/arquétipo, sem apresentar
+        // ao cliente nem esperar confirmação, nos antigos passo 1 e na tag solta do bloco
+        // OS_DATA). Manter as duas instruções teria feito o modelo receber ordens conflitantes
+        // pra a mesma chave; a antiga foi removida (tag solta e menção em "Registre TAMBÉM") e
+        // tipo_de_composicao passou a viver só no novo passo 2, com FORMA "frase curta descrevendo
+        // a estrutura do layout" (a mesma que a ordem deu pros outros 20 campos), tratado como os
+        // demais. Nenhum dos outros 21 campos apareceu em nenhuma outra persona na varredura.
+        // Portão de <checkin_completo/> (código, mesmo bloco de sempre): REUSA o mesmo dnaMergeado
+        // (mems+novas, tag removida do texto de qualquer jeito, log sempre) e passa a recusar
+        // também quando dnaDirecaoFaltando(dnaMergeado) não está vazio — nenhuma validação
+        // paralela, a lista mora só em _dna-lib.js. dnaChecklistTxt (mesma fonte de sempre,
+        // mems.filter(agente==='global'), decisão de não fatiar mantida da rodada anterior) passa
+        // a listar também os campos de direção ainda faltando, no mesmo mecanismo. Verificado: não
+        // existe limite de tamanho de prompt/system em código neste arquivo (os max_tokens
+        // encontrados são todos de RESPOSTA do modelo, nunca de entrada; o único corte de
+        // caracteres do repositório, 12000, é do prompt de imagem em gerar-imagem.js, intocado e
+        // sem relação) — etapa nova não teve necessidade de corte. Só api/_dna-lib.js e
+        // api/agente-chat.js tocados — api/gerar-imagem.js, Engine 6.0, fatiaDoAgente e as 3
+        // listas da rodada anterior, DNA_CAMPOS_OBRIGATORIOS, gate de aprovação semanal, travas de
+        // data/trial, cadeias de ordem, worker, publicador e a gravação de memórias ficaram
+        // intactos, por decisão explícita do João.
+        dna_campos_direcao_21_campos_texto_livre_sem_enumeracao_dna_enums_intocado:true,
+        estilo_de_mockup_22o_campo_opcional_fora_da_lista_obrigatoria_nunca_bloqueia_checkin:true,
+        identidade_deduz_e_confirma_direcao_de_arte_em_linguagem_de_cliente_antes_de_gravar:true,
+        tipo_de_composicao_consolidado_no_passo_novo_removida_a_inferencia_silenciosa_antiga_para_nao_duplicar:true,
+        checkin_completo_recusa_em_codigo_tambem_quando_falta_campo_de_direcao_reusando_o_mesmo_dnamergeado:true,
+        dna_checklist_txt_lista_tambem_campos_de_direcao_faltando_na_mesma_fonte_de_sempre:true,
+      },
+      tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+      tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
+      modelo: MODEL(),
+      modelo_estrategia: MODEL_DE('estrategia'),
+      teste_modelo_estrategia: await (async()=>{
+        try{
+          const t=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+            body:JSON.stringify({model:MODEL_DE('estrategia'),max_tokens:4,messages:[{role:'user',content:'oi'}],
+              ...(MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{})}),
+          });
+          if(t.ok)return MODEL_DE('estrategia')+' ACESSÍVEL ✅';
+          const j=await t.json().catch(()=>({}));
+          return 'FALHOU ❌ '+String((j.error&&j.error.message)||t.status).slice(0,120);
+        }catch(e){return 'erro: '+e.message}
+      })(),
+    });
+  }
+  if (req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
+
+  try {
+    // CAMADA 1 — GUARDA EM MEMÓRIA por REQUISIÇÃO (corpo do handler, nível 1): conteúdos já
+    // atendidos por um criador de produção nesta requisição. Fica aqui porque precisa envolver
+    // TODOS os criadores (que vivem em blocos irmãos) e morrer com a requisição — em escopo de
+    // módulo sobreviveria entre chamadas e passaria a pular conteúdos para sempre.
+    const atendidosNestaReq = new Set();
+    // Auth
+    // ── VIA INTERNA (worker do cron, api/cron.js): fecha ordem de CADEIA sem navegador aberto,
+    //    autenticada por segredo de servidor — nunca exposto ao cliente. Mesmo padrão de
+    //    api/gerar-imagem.js:346-347, mas ESCOPO DELIBERADAMENTE MAIS ESTREITO (15/set/2026,
+    //    "Worker executa ordem pendente + correção do botão", autorizado pelo João como Opção A):
+    //    lá, o modo interno herda a MESMA liberdade do modo usuário (qualquer prompt de imagem).
+    //    Aqui NÃO pode — este endpoint atende chat livre (qualquer agente, qualquer mensagem,
+    //    ver_id de supervisor/admin) quando autenticado por JWT; o modo interno só pode fazer UMA
+    //    coisa: a Estratégia fechar uma ordem já existente e pendente/processando, de UMA das duas
+    //    tarefas de cadeia de elo único a partir da Estratégia — 'direcao_avulso_criativo' (original
+    //    desta rodada de 15/set) e 'copy_para_criativo' (adicionada na mesma data, "Cadeia
+    //    copy_para_criativo órfã" — reaproveitando este MESMO portão, ampliado por tarefa, nunca
+    //    duplicado; pedido explícito do João: "não duplicar a lógica de autenticação"). Nenhuma das
+    //    três garantias abaixo mudou — só o `IN` de uma tarefa virou duas. Três requisitos pedidos
+    //    (reportados em APRENDIZADOS.md):
+    //    1) segredo nunca aparece em resposta, log de cliente ou mensagem de erro — abaixo só se
+    //       loga "presente e incorreto" + origem (x-forwarded-for); nunca o valor, tamanho ou
+    //       prefixo do segredo recebido (evita dar pista pra força bruta).
+    //    2) modo interno não alcança caminho de usuário — agente fixo 'estrategia', sem ver_id
+    //       (nunca impersona outra conta), e ordem_id+user_id são CONFIRMADOS no banco contra a
+    //       tarefa exata antes de prosseguir (não confia cegamente no que o chamador mandou —
+    //       mesma disciplina de "reject, don't silently correct" da Família 1, aplicada aqui à
+    //       autenticação).
+    //    3) falha de auth interna nunca degrada pro modo usuário — se o header veio e não bate,
+    //       PARA aqui (401) mesmo que por acaso exista um Authorization JWT válido no mesmo
+    //       request; sem isto o comportamento dependeria de qual bloco roda primeiro, um acidente
+    //       de ordem de código, não uma decisão.
+    const { agente, mensagem, ver_id, imagem_url } = req.body||{};
+    if(!agente||!PERSONAS[agente]) return res.status(400).json({error:'Agente inválido'});
+    if(!mensagem||!mensagem.trim()) return res.status(400).json({error:'Mensagem vazia'});
+    if(mensagem.length>4000) return res.status(400).json({error:'Mensagem muito longa'});
+
+    const _int=req.headers['x-internal-secret'];
+    if(_int && (!process.env.CRON_SECRET || _int!==process.env.CRON_SECRET)){
+      console.error('[auth-interno] x-internal-secret presente e incorreto — origem='+String(req.headers['x-forwarded-for']||'desconhecida').slice(0,80));
+      return res.status(401).json({error:'Não autenticado'});
+    }
+    const _intOk=!!(_int && process.env.CRON_SECRET && _int===process.env.CRON_SECRET);
+
+    let user, requester, targetId;
+    let _ordemInternaInfo=null; // {id,tarefa,payload} — só preenchido no ramo ordem_id do modo interno
+    if(_intOk){
+      const _ordemId=req.body && req.body.ordem_id;
+      const _conteudoId=req.body && req.body.conteudo_id;
+      const _uidReq=req.body && req.body.user_id;
+      if(agente!=='estrategia' || !_uidReq || (!_ordemId && !_conteudoId)){
+        console.error('[auth-interno] chamada fora do escopo permitido — agente='+agente+' ordem_id='+(_ordemId?'presente':'ausente')+' conteudo_id='+(_conteudoId?'presente':'ausente')+' user_id='+(_uidReq?'presente':'ausente'));
+        return res.status(403).json({error:'Fora do escopo do modo interno'});
+      }
+      // VALIDA O DADO, NÃO O RÓTULO DE TAREFA (20/set/2026, "worker parado — reescrita não
+      // persiste", autorizado pelo João, opção 3 — troca a validação anterior, não a
+      // complementa): até aqui, este gate confirmava `ordem_id` contra `tarefa=in.
+      // (direcao_avulso_criativo,copy_para_criativo)&para_agente=eq.estrategia` — uma lista
+      // escrita pros dois usos que existiam em 15/set. A reescrita única (19/set) precisou do
+      // MESMO modo interno pra corrigir texto de uma peça de PRODUÇÃO (criar_post/criar_avulso,
+      // para_agente='criativo') — nunca casava nessa lista, e a chamada recebia 403 antes de
+      // chegar ao modelo (achado confirmado por consulta direta ao banco: a ordem real usada no
+      // teste do João tinha para_agente='criativo', tarefa='criar_post'). Uma lista de tarefas
+      // aceitas quebra a cada caminho novo — ampliar de novo seria reintroduzir o mesmo defeito
+      // sob outra forma. A pergunta certa de segurança não é "que tarefa é esta ordem", é "este
+      // dado pertence a este cliente": valida a PROPRIEDADE do recurso que a chamada de fato
+      // toca, pelo `user_id` informado, sem presumir nada do que o chamador mandou.
+      //   - Se veio `conteudo_id` (caso da reescrita única — o dado tocado é o CONTEÚDO, cujo
+      //     `meta` a correção reescreve): confirma que este `conteudo_id` pertence a este
+      //     `user_id`. Nenhuma restrição de tarefa/status — o conteúdo não tem "tarefa".
+      //   - Senão, se veio `ordem_id` (caso de direcao_avulso_criativo/copy_para_criativo — ainda
+      //     não existe conteúdo, o recurso em jogo é a ORDEM que vai criar um): confirma que esta
+      //     `ordem_id` pertence a este `user_id` e está pendente/processando (ordem concluída,
+      //     cancelada, de outro user, ou inexistente nunca autentica). SEM filtro de tarefa nem
+      //     de para_agente — qualquer tarefa futura que precisar deste modo interno passa a
+      //     funcionar sem precisar voltar aqui pra abrir mais uma exceção.
+      // Não afrouxa nada: troca uma lista de rótulos por uma checagem de posse real do dado —
+      // mais restrito no que importa (o dado é mesmo deste cliente), mais permissivo apenas no
+      // que nunca devia ter sido restrito (o nome da tarefa).
+      let _dadoValido=false, _motivoInvalido='';
+      if(_conteudoId){
+        const [_ct]=await sbGet(`conteudos?id=eq.${_conteudoId}&user_id=eq.${_uidReq}&select=id`);
+        _dadoValido=!!_ct;
+        if(!_dadoValido) _motivoInvalido='conteudo_id não pertence a este user_id — conteudo='+_conteudoId+' user='+_uidReq;
+      } else {
+        // select amplia pra `tarefa,payload` (21/set/2026, "direção avulsa — forçar saída
+        // estruturada"): não é um dado novo sendo confiado do chamador — é o MESMO registro já
+        // lido aqui pra autenticar, só pedindo mais colunas dele. `forcarDirecaoAvulsa` (abaixo)
+        // decide se força tool_choice a partir da `tarefa` REAL da ordem no banco, nunca de um
+        // sinal que cron.js afirme — mesma disciplina de "validar por posse/dado real" da correção
+        // de 20/set, aplicada aqui a uma decisão de comportamento, não só de autorização.
+        const [_ord]=await sbGet(`ordens_servico?id=eq.${_ordemId}&user_id=eq.${_uidReq}&status=in.(pendente,processando)&select=id,tarefa,payload`);
+        _dadoValido=!!_ord;
+        if(!_dadoValido) _motivoInvalido='ordem_id não pertence a este user_id, ou não está pendente/processando — ordem='+_ordemId+' user='+_uidReq;
+        else _ordemInternaInfo=_ord;
+      }
+      if(!_dadoValido){
+        console.error('[auth-interno] '+_motivoInvalido);
+        return res.status(403).json({error:'Ordem/conteúdo inválido para o modo interno'});
+      }
+      user={id:_uidReq};
+      requester={id:_uidReq,role:'usuario'};
+      targetId=_uidReq; // modo interno nunca aceita ver_id — não impersona outra conta
+    } else {
+      const jwt=(req.headers.authorization||'').replace('Bearer ','');
+      if(!jwt) return res.status(401).json({error:'Não autenticado'});
+      const uRes=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{'apikey':KEY(),'Authorization':`Bearer ${jwt}`}});
+      user=await uRes.json();
+      if(!uRes.ok||!user.id) return res.status(401).json({error:'Sessão inválida'});
+
+      // Solicitante (logado) — pode ser supervisor/admin
+      ([requester]=await sbGet(`clientes?id=eq.${user.id}&select=id,role`));
+      if(!requester) return res.status(403).json({error:'Conta não encontrada'});
+      // ALVO: próprio por padrão; com ver_id e permissão, usa a conta visualizada
+      targetId=user.id;
+      if(ver_id && ver_id!==user.id){
+        if(requester.role==='admin'){targetId=ver_id;}
+        else if(requester.role==='supervisor'){
+          const sup=await sbGet(`clientes?id=eq.${ver_id}&supervisor_id=eq.${user.id}&select=id`);
+          if(Array.isArray(sup)&&sup.length)targetId=ver_id;
+          else return res.status(403).json({error:'Sem permissão sobre esta conta'});
+        } else return res.status(403).json({error:'Sem permissão'});
+      }
+    }
+
+    // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026): decidido pela `tarefa` REAL da ordem no
+    // banco (`_ordemInternaInfo`, lida acima só pra autenticar) — nunca por um campo que o
+    // chamador declare. Só pode ser true no ramo `ordem_id` do modo interno (a conversa ao vivo
+    // nunca passa por `_ordemInternaInfo`, fica sempre null ali — ver comentário da definição da
+    // ferramenta, acima).
+    const forcarDirecaoAvulsa=!!(_intOk && _ordemInternaInfo && _ordemInternaInfo.tarefa==='direcao_avulso_criativo');
+
+    // Cliente ALVO + plano + limites (dono dos dados: memórias, uso, onboarding)
+    const [cli]=await sbGet(`clientes?id=eq.${targetId}&select=*`);
+    if(!cli) return res.status(403).json({error:'Conta não encontrada'});
+    if(cli.bloqueado) return res.status(403).json({error:'Conta bloqueada'});
+    const nivel=LV[cli.plano]||1;
+    if(NIVEL[agente]>nivel){
+      const need=NIVEL[agente]===2?'Plus':'Pro';
+      return res.status(403).json({error:`Este agente faz parte do plano ${need}.`});
+    }
+    const mesAtual=new Date().toISOString().slice(0,7);
+    let uso=cli.uso||{};
+    if(uso.mes!==mesAtual){
+      uso={tokens:0,imagens:0,videos:0,trafego_sugestoes:0,msgs:0,mes:mesAtual};
+      await sbPatch(`clientes?id=eq.${targetId}`,{uso});
+    }
+    const lim=cli.limites||{};
+    // Texto/tokens LIVRE p/ pagantes (custo baixo). No TRIAL, há um limite diário por janela.
+
+    // ── ESTADO DO TRIAL (usado aqui e mais abaixo nas regras dos agentes) ──
+    const emTrial = !!(cli.tipo_cortesia === 'trial' && cli.cortesia_ate && new Date(cli.cortesia_ate).getTime() > Date.now());
+
+    // ── LIMITE DE MENSAGENS NO TRIAL (estilo IA gratuita: usa um tanto, espera 3h, libera) ──
+    // Só para role 'usuario' em trial. Admin/supervisor livres. Não é apertado — evita desperdício.
+    if (emTrial && cli.role === 'usuario') {
+      const LIM_MSG_TRIAL = 25;      // mensagens por janela
+      const JANELA_MIN = 180;        // 3 horas
+      const agoraMs = Date.now();
+      let janela = uso.msg_janela || null; // { inicio: ISO, count: N }
+      // se não há janela ou já passou das 3h, abre nova
+      if (!janela || (agoraMs - new Date(janela.inicio).getTime()) >= JANELA_MIN * 60000) {
+        janela = { inicio: new Date().toISOString(), count: 0 };
+      }
+      if (janela.count >= LIM_MSG_TRIAL) {
+        const liberaMs = new Date(janela.inicio).getTime() + JANELA_MIN * 60000;
+        const faltaMin = Math.max(1, Math.ceil((liberaMs - agoraMs) / 60000));
+        const h = Math.floor(faltaMin / 60), m = faltaMin % 60;
+        const quando = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'min' : ''}` : `${m}min`;
+        return res.status(429).json({
+          error: `Você usou as mensagens do período de teste por agora. Elas liberam em ${quando}. No plano ativo, o uso é liberado. 😉`,
+          limite: true, tipo_limite: 'mensagens_trial', libera_em_min: faltaMin,
+        });
+      }
+      // conta esta mensagem; a persistência acontece no PATCH único do fim (junto com os tokens)
+      janela.count += 1;
+      uso.msg_janela = janela;
+    }
+
+    // ── TETO MENSAL DE MENSAGENS (pagantes, role usuario): protege o custo por plano ──
+    // Generoso p/ uso real (600/900/1500 ≈ 20/30/50 por dia). Admin/supervisor livres. Renova todo mês.
+    if (!emTrial && cli.role === 'usuario') {
+      const MSGS_PADRAO = { basico: 600, plus: 900, pro: 1500 };
+      const maxMsgs = Number((cli.limites && cli.limites.msgs) ?? MSGS_PADRAO[cli.plano || 'basico'] ?? 600);
+      if (Number(uso.msgs || 0) >= maxMsgs) {
+        return res.status(429).json({
+          error: `Você usou as ${maxMsgs} mensagens do seu plano este mês — elas renovam no início do próximo mês. Precisa de mais agora? Fale com seu gestor ou considere um upgrade de plano. 😉`,
+          limite: true, tipo_limite: 'mensagens_mes',
+        });
+      }
+      uso.msgs = Number(uso.msgs || 0) + 1;
+    }
+
+    // ── FONTE ÚNICA DO DNA DA MARCA (25/set/2026, autorizado pelo João) ──────────────────
+    // ANTES: o mesmo DNA era lido em três lugares com três limites diferentes — memCheck do
+    // Criativo (limit=40, procurando paleta_primaria/estilo_visual no meio das 40, sem
+    // ordenação) e a leitura "por dependência" do resto dos agentes (limit=60, sem ordenação —
+    // o banco decidia que 60 campos voltavam; conforme o DNA crescia, o agente podia receber um
+    // DNA cortado, sem nenhum aviso). AGORA: uma leitura só, por requisição, sem filtro por
+    // agente (existem hoje 13 linhas legadas gravadas com agente != global, de antes da decisão
+    // do DNA vivo — elas não podem sumir; a regra de desempate abaixo já cobre uma chave legada
+    // sem par global), com ordenação explícita (order=chave.asc — a ordem do banco não é
+    // garantida) e limite alto e explícito (500).
+    let mems=await sbGet(`memorias?user_id=eq.${targetId}&select=chave,valor,agente,updated_at&order=chave.asc&limit=500`);
+    if(!Array.isArray(mems))mems=[];
+    // SEM CORTE SILENCIOSO: se a leitura bateu no limite, o DNA pode ter vindo incompleto —
+    // vira aviso visível na resposta (avisosPartes, mais abaixo), nunca um corte sem avisar.
+    let avisoDnaCortado=null;
+    if(mems.length>=500){
+      avisoDnaCortado='O DNA desta conta tem mais campos do que o sistema consegue ler de uma vez (limite de 500) — alguns dados podem estar faltando nesta resposta. Avise o suporte com esta mensagem.';
+      console.error('[dna-fonte-unica] leitura bateu no limite de 500 linhas — DNA pode ter vindo incompleto. user_id='+targetId);
+    }
+    // Chave repetida em mais de uma linha (ex.: uma legada de antes do DNA vivo + uma global
+    // escrita depois): vence a linha agente='global'; havendo empate (as duas globais, ou
+    // nenhuma das duas), vence a mais recente por updated_at. Regra determinística, escrita uma
+    // vez só — dnaFinal {chave:valor} é o que todo o resto deste arquivo usa a partir daqui.
+    const dnaFinal={};
+    {
+      const vencendo={};
+      for(const m of mems){
+        if(!m||!m.chave)continue;
+        const atual=vencendo[m.chave];
+        if(!atual){ vencendo[m.chave]=m; continue; }
+        const novoGlobal=m.agente==='global', atualGlobal=atual.agente==='global';
+        const ganhaNovo = novoGlobal!==atualGlobal
+          ? novoGlobal
+          : (new Date(m.updated_at||0).getTime() > new Date(atual.updated_at||0).getTime());
+        if(ganhaNovo) vencendo[m.chave]=m;
+      }
+      Object.keys(vencendo).forEach(c=>{ dnaFinal[c]=vencendo[c].valor; });
+    }
+    // Fatia do agente atual (api/_dna-lib.js:fatiaDoAgente) — identidade recebe o DNA inteiro
+    // (é quem escreve); os demais recebem só o que a lista de _dna-lib.js decide pra eles. É
+    // agora a ÚNICA regra de quem vê o quê — nunca mais "próprias + de quem eu dependo".
+    const fatiaAtual=fatiaDoAgente(agente,dnaFinal);
+
+    // Acervo de imagens (pré-requisito do Identidade)
+    let acervoTxt='';
+    // Designer: verificar se a conta tem OS_DATA mínimo (paleta/estilo) — agora consultando a
+    // MESMA leitura única acima (dnaFinal), nunca uma consulta própria.
+    let osDataStatus='';
+    if(agente==='criativo'){
+      const temMinimo=Object.prototype.hasOwnProperty.call(dnaFinal,'paleta_primaria')&&Object.prototype.hasOwnProperty.call(dnaFinal,'estilo_visual');
+      osDataStatus = temMinimo
+        ? '\nOS_DATA: completo — use as cores/fontes/estilo reais das memórias.'
+        : '\n⚠️ OS_DATA INCOMPLETO: esta conta NÃO tem identidade visual definida (sem paleta/estilo). NÃO gere imagem genérica nem invente dados. Oriente o cliente a fazer o check-in com o Agente de Identidade primeiro, para você ter as cores, fontes e estilo da marca. Só gere imagem após o OS_DATA existir.';
+    }
+    // Diagnóstico: injetar métricas reais do Instagram (se houver)
+    let metricasTxt='';
+    if(agente==='diagnostico'){
+      try{
+        const mt=await sbGet(`metricas?user_id=eq.${targetId}&order=data_coleta.desc&limit=1&select=*`);
+        if(Array.isArray(mt)&&mt[0]){
+          const m=mt[0];
+          metricasTxt='\nMÉTRICAS REAIS DO INSTAGRAM (use estes números): '
+            +`seguidores=${m.seguidores??'?'}, posts=${m.total_posts??'?'}, alcance_30d=${m.alcance_30d??'?'}, `
+            +`engajamento_30d=${m.engajamento_30d??'?'}, novos_seguidores_30d=${m.novos_seguidores_30d??'?'}, `
+            +`melhor_horario=${m.melhor_horario||'?'}, melhor_formato=${m.melhor_formato||'?'}.`;
+        } else {
+          metricasTxt='\nMÉTRICAS: nenhuma conectada ainda — peça ao cliente os números que ele tem.';
+        }
+      }catch(e){}
+    }
+    if(agente==='identidade'||agente==='criativo'||agente==='estrategia'){
+      try{
+        const ups=await sbGet(`uploads?user_id=eq.${targetId}&select=categoria`);
+        const cats={};(Array.isArray(ups)?ups:[]).forEach(u=>cats[u.categoria]=(cats[u.categoria]||0)+1);
+        const logo=cats.logo||0,pess=cats.pessoais||0,prod=cats.produtos||0;
+        acervoTxt=`\nACERVO DE IMAGENS DO CLIENTE: logo=${logo}, fotos pessoais=${pess}, produtos=${prod}.`
+          +((logo+pess+prod)===0?' ATENÇÃO: acervo VAZIO — peça para enviar imagens em "Meus arquivos" ANTES de iniciar a consultoria.':' Acervo disponível — pode analisar a identidade visual.');
+        // DISTRIBUIÇÃO ADAPTATIVA (Estratégia): a repartição persona/produto/conceitual
+        // depende do que o cliente REALMENTE tem. Sem foto pessoal, 'pessoal' é impossível;
+        // sem produto, 'produto' é impossível — o cálculo se redistribui em 'conceitual'.
+        if(agente==='estrategia'){
+          const temP=pess>0, temProd=prod>0;
+          acervoTxt+=`\nDISTRIBUIÇÃO DE TIPO VISUAL (recalcule conforme o acervo REAL acima):`
+            +(temP?`\n• tem ${pess} foto(s) pessoal(is): pode usar "pessoal" em ATÉ 40% dos posts (é forte mas satura).`:`\n• SEM foto pessoal: NÃO use "pessoal" — não há foto do cliente. Se a cena pedir gente, use "pessoa_conceito" (pessoa genérica).`)
+            +(temProd?`\n• tem ${prod} foto(s) de produto: use "produto" nos posts de oferta/vitrine/prova.`:`\n• SEM foto de produto: NÃO use "produto" — não há produto para mostrar.`)
+            +((!temP&&!temProd)?`\n• ACERVO SEM PESSOA E SEM PRODUTO: o mês inteiro deve ser "conceitual" (dado/dica/lista/tese visual) e, quando a cena precisar de gente, "pessoa_conceito". NÃO prometa arte com o rosto do cliente nem com o produto — eles não existem no acervo.`:``)
+            +`\nAo emitir cada <conteudo>, o tipo_visual DEVE ser coerente com esta disponibilidade.`;
+          // se percebeu que falta acervo, guarde na memória para o cálculo futuro
+          if(!temP||!temProd){
+            acervoTxt+=`\n(Se o cliente disser que NÃO tem/NÃO quer usar rosto ou produto, registre <memoria>{"chave":"acervo_sem_${!temP?'persona':'produto'}","valor":"confirmado pelo cliente"}</memoria> para os próximos planejamentos.)`;
+          }
+        }
+      }catch(e){}
+    }
+    // Editor de Vídeo: saber se há vídeos crus para editar (e a URL do mais recente)
+    let videoCruUrl=null;
+    if(agente==='video'){
+      try{
+        const ups=await sbGet(`uploads?user_id=eq.${targetId}&categoria=eq.videos&select=id,nome,url&order=created_at.desc`);
+        const lista=Array.isArray(ups)?ups:[];
+        if(lista.length){
+          videoCruUrl=lista[0].url;
+          acervoTxt=`\nVÍDEOS CRUS DISPONÍVEIS: ${lista.length}. O mais recente é "${lista[0].nome||'vídeo'}". Você pode EDITAR automaticamente emitindo a tag <editar_video> (veja instruções).`;
+        }else{
+          acervoTxt='\nVÍDEOS: nenhum vídeo cru enviado ainda. Peça ao cliente para enviar a captação bruta em "Meus arquivos" (categoria Vídeos) para você editar.';
+        }
+      }catch(e){}
+    }
+
+    // MEMÓRIAS deste turno: a FATIA do agente, calculada acima (fatiaAtual) — nunca mais
+    // "próprias + de quem eu dependo por DEPENDE_DE" (removido: morto desde que toda escrita
+    // nova cai em global — o grafo só alimentava linhas antigas). O bloco "O QUE OS OUTROS
+    // AGENTES JÁ DESCOBRIRAM" também sai: com toda escrita em global, ele nunca mais tinha o
+    // que mostrar — a fatia por papel é agora a ÚNICA regra de quem vê o quê.
+    const chavesFatia=Object.keys(fatiaAtual);
+    let memTxt;
+    if(!chavesFatia.length){
+      memTxt='MEMÓRIAS: ainda nenhuma — você está conhecendo este cliente agora.';
+    }else{
+      memTxt='MEMÓRIAS SOBRE ESTE CLIENTE:\n'+chavesFatia.map(c=>`- ${c}: ${fatiaAtual[c]}`).join('\n');
+    }
+
+    // CHECK-IN — ESTADO REAL DO DNA OBRIGATÓRIO (22/set/2026, "Engine 6.0 Rodada 2", Causa 2,
+    // autorizado pelo João): "o check-in de Identidade marca conclusão sem validar nada em
+    // código". Isto injeta o estado REAL, lido do banco a cada turno, como DADO no contexto do
+    // Identidade — não mais só o texto de instrução ("confirme que gravou...", que o modelo
+    // pode esquecer, digitar errado ou simplesmente ignorar sob pressão do cliente pra
+    // "terminar logo"). O portão que de fato TRAVA a conclusão fica em código, mais abaixo, no
+    // tratamento de <checkin_completo/> — isto aqui só avisa o modelo ANTES de ele responder,
+    // pra reduzir a chance de a tag sair errada. Só roda para 'identidade'; nenhum outro agente
+    // é afetado. Continua com a MESMA expressão de sempre (mems.filter(agente==='global')) —
+    // agora sobre a leitura única acima, nunca mudou de lógica, só de fonte (25/set/2026, "Fonte
+    // única do DNA da marca"). Este check-in tem sua própria trava em código (mais abaixo, no
+    // tratamento de <checkin_completo/>) — não fatiado, por decisão explícita de não tocar
+    // nesse mecanismo nesta rodada.
+    let dnaChecklistTxt='';
+    if(agente==='identidade'){
+      const dnaAtual={};
+      mems.filter(m=>m.agente==='global').forEach(m=>{ dnaAtual[m.chave]=m.valor; });
+      const faltandoAgora=dnaFaltando(dnaAtual);
+      // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+      // João) — mesmo mecanismo, mesma fonte única (dnaAtual acima, sem mudar); só soma a
+      // segunda lista (21 campos de direção, dnaDirecaoFaltando) à mesma mensagem de estado.
+      // estilo_de_mockup é opcional e nunca entra aqui — dnaDirecaoFaltando() já não o exige.
+      const direcaoFaltando=dnaDirecaoFaltando(dnaAtual);
+      dnaChecklistTxt='\n\n=== CHECK-IN — ESTADO REAL (dado lido do banco agora, não pergunte isto ao cliente em bloco só porque está aqui) ===\n'
+        +(faltandoAgora.length
+            ? ('Campos obrigatórios do DNA visual AINDA vazios: '+faltandoAgora.join(', ')+'. Você só pode emitir <checkin_completo/> quando NENHUM destes estiver faltando — o sistema recusa a conclusão em código se a tag vier antes disso. Continue a consultoria até preenchê-los.')
+            : 'Todos os campos obrigatórios do DNA visual já estão gravados.')
+        +(direcaoFaltando.length
+            ? ('\nCampos de DIREÇÃO DE ARTE ainda vazios (passo 2 do FLUXO FINAL — deduza e confirme com o cliente, não pergunte em jargão técnico): '+direcaoFaltando.join(', ')+'. Você só pode emitir <checkin_completo/> quando NENHUM destes estiver faltando também — o sistema recusa a conclusão em código se a tag vier antes disso. estilo_de_mockup NÃO está nesta lista (é opcional, só se o negócio tiver tela). Continue a consultoria até preenchê-los.')
+            : '\nTodos os campos de direção de arte já estão gravados.')
+        +((!faltandoAgora.length && !direcaoFaltando.length) ? ' Pode concluir com <checkin_completo/> quando fizer sentido na conversa.' : '')
+        +'\nValores aceitos nos campos de enumeração (grave EXATAMENTE um destes por campo — fora da lista, o sistema recusa e não grava em silêncio):\n'
+        +Object.keys(DNA_ENUMS).map(c=>'- '+c+': '+DNA_ENUMS[c].join('/')).join('\n');
+    }
+
+    // Histórico recente
+    let hist=await sbGet(`chat_mensagens?user_id=eq.${targetId}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
+    if(!Array.isArray(hist))hist=[];
+    const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
+
+    // VISÃO — bloco compartilhado (extraído em 15/set/2026, "Gerar copy com IA": existia só
+    // dentro do gatilho do Identidade abaixo; agora dois gatilhos usam a MESMA função de
+    // fetch+sniff+base64, em vez de duas cópias que podem divergir).
+    async function _blocoDeImagem(url){
+      try{
+        const r=await fetch(url);
+        if(!r.ok)return null;
+        const ct=r.headers.get('content-type')||'image/png';
+        if(!/image\/(png|jpe?g|webp|gif)/.test(ct))return null;
+        const buf=Buffer.from(await r.arrayBuffer());
+        // Detecta o tipo REAL pelos bytes (o cabeçalho às vezes mente: declara jpeg mas é png).
+        const sniff=(b)=>{
+          if(b.length>=8&&b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47)return 'image/png';
+          if(b.length>=3&&b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF)return 'image/jpeg';
+          if(b.length>=6&&b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return 'image/gif';
+          if(b.length>=12&&b[0]===0x52&&b[1]===0x49&&b[2]===0x46&&b[3]===0x46&&b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return 'image/webp';
+          return null;
+        };
+        const mt=sniff(buf)||ct.split(';')[0];
+        if(buf.length>=4500000)return null; // <4.5MB
+        return {type:'image',source:{type:'base64',media_type:mt,data:buf.toString('base64')}};
+      }catch(e){ return null; }
+    }
+
+    // VISÃO: o Identidade enxerga a logo/criativos reais para extrair cores e estilo
+    let conteudoUser=mensagem;
+    if(agente==='identidade' && /analis|cor|identidade|logo|marca|come[çc]ar|iniciar|sim/i.test(mensagem)){
+      try{
+        const imgs=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(logo,criativos,produtos,pessoais)&select=url,categoria&limit=6`);
+        let arr=Array.isArray(imgs)?imgs:[];
+        // prioriza logo, depois criativos/produtos, depois pessoais
+        const ordem={logo:0,criativos:1,produtos:2,pessoais:3};
+        arr=arr.sort((a,b)=>(ordem[a.categoria]??9)-(ordem[b.categoria]??9)).slice(0,3);
+        if(arr.length){
+          const blocks=[];
+          for(const im of arr){
+            const bl=await _blocoDeImagem(im.url);
+            if(bl)blocks.push(bl);
+          }
+          if(blocks.length){
+            blocks.push({type:'text',text:mensagem+'\n\n[As imagens acima são a logo/criativos REAIS do cliente. Extraia as cores exatas (hex aproximados), a tipografia aparente e avalie a qualidade visual a partir delas.]'});
+            conteudoUser=blocks;
+          }
+        }
+      }catch(e){}
+    }
+    // VISÃO: "Gerar copy com IA" no card de aprovação (item 2, 15/set/2026) — a Estratégia pode
+    // olhar a arte REAL do conteúdo (midia_url) ao escrever a legenda, quando o card manda
+    // `imagem_url`. Escopado só à Estratégia (é quem escreve toda copy do sistema — mesmo
+    // critério da 606) e só quando o campo vem preenchido — nunca dispara sozinho numa
+    // conversa normal. Falha ao buscar a imagem NUNCA quebra o pedido — a Estratégia responde
+    // só com texto/tema/formato, sem a arte (degradação, não erro).
+    if(agente==='estrategia' && imagem_url && typeof imagem_url==='string'){
+      try{
+        const bl=await _blocoDeImagem(imagem_url);
+        if(bl){
+          conteudoUser=[bl,{type:'text',text:mensagem+'\n\n[A imagem acima é a arte REAL deste conteúdo. Use-a para decidir o texto — o que ela mostra, o que ela já diz visualmente (não repita na legenda o que já está óbvio na imagem).]'}];
+        }
+      }catch(e){}
+    }
+    messages.push({role:'user',content:conteudoUser});
+
+    // ORDENS DE SERVIÇO pendentes destinadas a este agente (cadeia de orquestração)
+    let ordensTxt='';
+    try{
+      const ordP=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.${agente}&status=eq.pendente&select=id,de_agente,tarefa,detalhe,payload&order=created_at.asc&limit=5`);
+      if(Array.isArray(ordP)&&ordP.length){
+        ordensTxt='\n\nORDENS PENDENTES PARA VOCÊ (de outros agentes — atenda-as):\n'
+          +ordP.map(o=>{
+            const pl=o.payload||{};
+            const camposCadeia=(o.tarefa==='direcao_avulso_criativo')
+              ?` [tema:${pl.tema?JSON.stringify(pl.tema):'(não informado — escolha um, fora da lista de temas já usados abaixo)'}, formato:${pl.formato||'feed'}${pl.slides?', slides:'+pl.slides:''}]`
+              :'';
+            return `- de ${o.de_agente}: ${o.tarefa} — ${o.detalhe||''}${camposCadeia}`;
+          }).join('\n')
+          +'\nApós atender uma ordem, ela será marcada como concluída.';
+        // HANDOFF — CRIATIVO→ESTRATÉGIA (12/set/2026): "tema não pode repetir" não pode ser
+        // instrução em prosa (Família 3 — 5 casos documentados de instrução em prosa ignorada
+        // neste projeto) — a lista de temas usados chega como DADO, consultado fresco agora,
+        // nunca descrita de memória pelo agente. Recorte: últimos 20 conteúdos ATIVOS (mesma
+        // constante JC.STATUS_ATIVOS_CONTEUDO usada em todo o resto do arquivo — exclui só
+        // excluído/rejeitado), por created_at desc — cobre ~1-2 meses de cadência normal,
+        // independente de quão frequente o cliente posta.
+        if(ordP.some(o=>o.tarefa==='direcao_avulso_criativo'&&!(o.payload&&o.payload.tema))){
+          try{
+            const usados=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(${JC.STATUS_ATIVOS_CONTEUDO.join(',')})&select=tema&order=created_at.desc&limit=20`);
+            const temasUsados=(Array.isArray(usados)?usados:[]).map(c=>c.tema).filter(Boolean);
+            if(temasUsados.length){
+              ordensTxt+='\n\nTEMAS JÁ USADOS por este cliente (últimos 20 conteúdos — NÃO repita nenhum destes ao escolher tema para a ordem \'direcao_avulso_criativo\' sem tema informado):\n- '+temasUsados.join('\n- ');
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+
+    // ── REGRAS DO TRIAL (7 dias) por agente (emTrial já calculado no topo) ──
+    let trialTxt = '';
+    if (emTrial) {
+      const planoTrial = cli.plano || 'basico';
+      const limImg = { basico: 1, plus: 2, pro: 3 }[planoTrial] || 1;
+      const limVid = { basico: 1, plus: 2, pro: 3 }[planoTrial] || 1;
+      const regrasTrial = {
+        identidade: 'Você atua NORMALMENTE no trial. Faça a consultoria completa de identidade — isso é essencial para o restante funcionar.',
+        mercado: 'Você atua NORMALMENTE no trial. Faça a análise de mercado completa — é a base para os outros agentes.',
+        diagnostico: 'Você atua NORMALMENTE no trial. Faça o diagnóstico completo.',
+        estrategia: `PERÍODO DE TESTE (7 dias): gere a estratégia de conteúdo APENAS para os PRÓXIMOS 7 DIAS (não o mês inteiro). Ao montar o calendário, RESPEITE o limite de ${limImg} imagem(ns) no total do plano de teste — não peça ao Designer mais imagens que isso. Avise o cliente, de forma natural, que esta é uma amostra de 7 dias e que, ao ativar o plano, você desenvolve o mês completo automaticamente com todas as tarefas.`,
+        publicacao: 'PERÍODO DE TESTE (7 dias): NÃO agende conteúdos que o próprio cliente subiu (uploads dele). Publique/agende SOMENTE o que vier das tarefas dos outros agentes. Configurar DM e automações funciona normalmente.',
+        trafego: 'PERÍODO DE TESTE (7 dias): faça APENAS análise e sugestões ao cliente (para os próximos 7 dias). NÃO gere tarefas nem ordens para outros agentes durante o teste. Explique o que faria e recomende ativar o plano para executar.',
+        criativo: `PERÍODO DE TESTE (7 dias): você gera no máximo ${limImg} imagem(ns) no total, e SOMENTE quando vier de uma TAREFA de outro agente (não gere imagens avulsas/aleatórias a pedido direto solto). Se o cliente pedir uma imagem solta sem onboarding feito, oriente-o gentilmente a completar a estratégia primeiro.`,
+        video: `PERÍODO DE TESTE (7 dias): você edita no máximo ${limVid} vídeo(s) no total do período.`,
+      };
+      if (regrasTrial[agente]) {
+        trialTxt = `\n\n[MODO DE TESTE ATIVO — plano ${planoTrial}]\n${regrasTrial[agente]}\nO cliente está nos 7 dias gratuitos. A ideia é mostrar o valor real do JUMP para ele ativar a assinatura. Seja excelente no que entrega, dentro destes limites.`;
+      }
+    }
+
+    // PÓS-TRIAL: se o cliente saiu do trial e ainda não gerou o mês completo, orienta a Estratégia
+    // REPARO AVULSO — FRENTE A, item 2 (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+    // informação, não ordem"): mesmo padrão do "POSTS DA SEMANA PARA DETALHAR" — este bloco entra
+    // em TODO turno da Estratégia enquanto o cliente não tiver completado o plano pós-trial (pode
+    // durar vários turnos). "Agora gere... Comece já nesta resposta" competia com qualquer assunto
+    // em andamento nesse período. Vira informação (a capacidade está liberada); quem decide o
+    // momento de gerar é o agente, olhando a conversa — não mais uma ordem incondicional.
+    let completarTxt = '';
+    if (agente === 'estrategia' && !emTrial && cli.onboarding && cli.onboarding.completar_estrategia && !cli.onboarding.estrategia_completada) {
+      completarTxt = `\n\n[ATIVAÇÃO DO PLANO] O cliente acabou de sair do período de teste e o plano está ativo — o calendário completo do mês (não só 7 dias) já pode ser gerado, com todos os posts e as tarefas para os respectivos agentes (Designer, etc). Quando fizer sentido gerar o mês completo, faça isso de forma natural, celebrando a ativação. Ao concluir a geração do mês, emita <memoria>{"chave":"estrategia_completada","valor":"true"}</memoria> para não repetir.`;
+    }
+
+    // ═══ DATA REAL (fuso do Brasil) — SEM isto o modelo usa o calendário do treino (ano errado)
+    //     e erra todos os dias da semana do calendário editorial. ═══
+    const TZ='America/Sao_Paulo';
+    const _hojeBR=new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+    const _dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    const _fmt=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+    // 'YYYY-MM-DD' a partir da data-calendário de _hojeBR (mesmos getters locais que _fmt já usa
+    // acima — no servidor, em UTC, local==UTC; string pura de calendário, sem timestamp/fuso, é
+    // o formato que JC.janelasSemanas/semanaDoPost/horizonteDoPlano esperam).
+    const hojeBR_ISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    let dataTxt=`\n\n═══ DATA ATUAL (fuso ${TZ}) ═══\nHOJE é ${_dias[_hojeBR.getDay()]}, ${_fmt(_hojeBR)}. O ano corrente é ${_hojeBR.getFullYear()}.\nREGRA ABSOLUTA: use SEMPRE esta data como referência. NUNCA use datas ou dias da semana de outro ano — seu conhecimento interno de calendário está desatualizado e erraria os dias.`;
+    if(agente==='estrategia'||agente==='publicacao'){
+      const cal=[];
+      for(let i=0;i<40;i++){
+        const d=new Date(_hojeBR.getTime()+i*864e5);
+        cal.push(_dias[d.getDay()].slice(0,3)+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'));
+      }
+      dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
+    }
+    // ANCORAGEM DAS SEMANAS (28/ago/2026): âncora ÚNICA para tudo que precisa saber "quais são
+    // as 5 semanas do plano" ou "qual semana é hoje" neste request — nenhum outro ponto deste
+    // arquivo calcula piso/teto de data por conta própria a partir daqui (ver JC.janelasSemanas
+    // em assets/classificacao.js pro porquê). A âncora REAL só é gravada em
+    // clientes.preferencias.plano_ancora_em no momento do clique de aprovação mensal
+    // (aprovar.html); até existir (conta legada, ou mês ainda não aprovado), usa hoje como
+    // âncora de trabalho — mesmo critério do card mensal, que recalcula "como se aprovado hoje".
+    const hojeISO=hojeBR_ISO(_hojeBR);
+    const diaLoteCliente=(cli.preferencias&&cli.preferencias.dia_lote);
+    const ancoraPlano=(cli.preferencias&&cli.preferencias.plano_ancora_em)||hojeISO;
+    const janelasCliente=JC.janelasSemanas(ancoraPlano,diaLoteCliente);
+    const semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
+    // JANELA DE PLANEJAMENTO COMO DADO, NÃO TEXTO (28/ago/2026 — ver APRENDIZADOS.md, "JANELA
+    // DE PLANEJAMENTO — parâmetro de sistema, não texto"): as 5 janelas concretas do plano vêm
+    // prontas, calculadas pela fonte única (mesma que qualquer outro ponto do sistema usa) — a
+    // Estratégia NUNCA mais calcula "semana atual" por conta própria a partir do calendário de
+    // 40 dias. Ela decide O QUE entra em cada dia; QUAL janela cada semana ocupa é dado, não
+    // escolha dela. Isso é o que corrigiu o caso de 28/08: sem esta injeção, o agente tinha só
+    // uma lista solta de dias e escolheu livremente pular a Semana 1 inteira.
+    // FRENTE 1 (09/set/2026, lote de postura — ver APRENDIZADOS.md "FRENTE 1 IMPLEMENTADA"): este
+    // bloco ABSORVEU o antigo "JANELA DE PLANEJAMENTO" (que só tinha datas) — agora cada linha
+    // também carrega o estado real (quantos posts, quantos com copy, status do card de
+    // aprovação). Dois blocos parecidos competindo por atenção foi diagnosticado como parte da
+    // causa da deriva de 04/09 (Frente A) — fica um só. Falha na consulta não pode derrubar o
+    // request nem silenciar o gate de datas: se falhar, cai pro texto antigo (só datas, sem
+    // estado) — trava de datas (travaDeDatas) continua valendo de qualquer forma, ela não
+    // depende deste texto.
+    if(agente==='estrategia'){
+      let resumoSemanas=null;
+      try{ resumoSemanas=await resumoPlanoPorSemana(targetId,janelasCliente,ancoraPlano,diaLoteCliente); }
+      catch(e){ console.error('[agente-chat] resumoPlanoPorSemana falhou — motivo='+String(e&&e.message).slice(0,200)); }
+      if(!resumoSemanas){
+        // fallback: mesmo texto de antes da Frente 1, só datas — nunca deixa a Estratégia sem
+        // saber as janelas, mesmo se a consulta de estado falhar.
+        const _ddmm=iso=>{ const p=String(iso).split('-'); return p[2]+'/'+p[1]; };
+        resumoSemanas=janelasCliente.map(j=>{
+          const dias=Math.round((new Date(j.fim+'T00:00:00Z')-new Date(j.inicio+'T00:00:00Z'))/86400000)+1;
+          const parcial=(j.semana===1&&dias<7)?(' (parcial, '+dias+' dia'+(dias>1?'s':'')+')'):'';
+          return 'SEMANA '+j.semana+' — '+_ddmm(j.inicio)+' a '+_ddmm(j.fim)+parcial+' → use "data_sugerida" entre '+j.inicio+' e '+j.fim+' · estado não pôde ser lido agora';
+        }).join('\n');
+      }
+      // FRENTE A, PORTÃO DE REGRA DUPLICADA (09/set/2026 — ver APRENDIZADOS.md "FRENTE 1 —
+      // CORREÇÃO DE ORDEM NO BLOCO DE FUNDO"): esta frase de fechamento teve, numa primeira
+      // versão, três instruções de AÇÃO ("emita as tags nesta resposta", "Semana 1 precisa ter
+      // ao menos 1 peça", "nunca comece pela Semana 2") — um bloco que entra em TODO turno,
+      // inclusive quando o cliente fala de outra coisa, mandando agir. Violação direta do
+      // princípio da própria Frente A (informação, nunca ordem), no mesmo commit em que a citou.
+      // As três já existem na persona (ETAPA 1 linha ~387, TEMPO 1 linha ~415, lidas só quando o
+      // agente de fato monta o plano) — removidas daqui por serem AÇÃO, não por serem
+      // redundantes: mesmo se não existissem em nenhum outro lugar, não seriam deste bloco. A
+      // Semana 1 obrigatória também tem reforço em código (`avisoSemana1Vazia`, mais abaixo).
+      // Fica só o que descreve: as 5 linhas de estado, o limite de data (fato sobre o mecanismo:
+      // "o sistema recusa e avisa" — não é uma ordem, é a mesma natureza das linhas de estado) e
+      // a frase de contenção final.
+      dataTxt+=`\n\n═══ SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO (dado pronto, NUNCA recalcule nem estime) ═══\n${resumoSemanas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). As linhas acima descrevem o que JÁ existe — nunca afirme ao cliente que uma semana foi detalhada, tem copy ou tem card de aprovação além do que a linha dela diz.`;
+    }
+    if(agente==='publicacao'){
+      try{
+        const agd=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(aprovado,agendado)&order=data_agendada.asc&limit=30&select=formato,status,data_agendada,meta`);
+        if(Array.isArray(agd)&&agd.length){
+          const linhas=agd.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+c.status+' \u00b7 '+t;}).join('\n');
+          dataTxt+='\n\nPOSTS APROVADOS/AGENDADOS NO CALENDÁRIO (você JÁ tem tudo aqui \u2014 NUNCA peça "link do calendário", ele não existe; estes publicam sozinhos nas datas):\n'+linhas;
+        }else{
+          dataTxt+='\n\nAinda não há posts aprovados/agendados. Quando o cliente aprovar conteúdos na página Aprovar, eles aparecem aqui e publicam sozinhos \u2014 você NUNCA precisa de link do calendário.';
+        }
+      }catch(e){}
+      // POSTURA DOS AGENTES — PARTE 1, "PAINEL DA PUBLICAÇÃO" (15/set/2026, ver APRENDIZADOS.md):
+      // achado do levantamento — o bloco acima (herdado, não alterado por esta rodada) só cobre
+      // status agendado/aprovado. A Publicação também fala sobre o que JÁ publicou e o que FALHOU
+      // (persona: "publicado automaticamente... respeitando os limites da Meta"), mas não recebia
+      // nenhum dos dois. Mesmo padrão FATO NUNCA INSTRUÇÃO das demais rodadas: dois blocos novos,
+      // sempre presentes (mesmo vazios), nunca uma instrução de comportamento.
+      try{
+        const pub=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.publicado&order=publicado_em.desc&limit=10&select=formato,data_agendada,publicado_em,meta`);
+        if(Array.isArray(pub)&&pub.length){
+          const linhasPub=pub.map(c=>{const d=(c.publicado_em?String(c.publicado_em):c.data_agendada?String(c.data_agendada):'').slice(0,10)||'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t;}).join('\n');
+          dataTxt+='\n\nÚLTIMOS PUBLICADOS (mais recentes primeiro \u2014 dado pronto):\n'+linhasPub;
+        }else{
+          dataTxt+='\n\nAinda não há nenhum post publicado para este cliente.';
+        }
+      }catch(e){}
+      try{
+        const falhas=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.aprovado&erro_publicacao=not.is.null&order=data_agendada.asc&limit=15&select=formato,data_agendada,erro_publicacao,meta`);
+        if(Array.isArray(falhas)&&falhas.length){
+          const linhasFalha=falhas.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t+' \u00b7 erro: '+String(c.erro_publicacao||'').slice(0,120);}).join('\n');
+          dataTxt+='\n\nFALHAS DE PUBLICAÇÃO (ainda pendentes de resolver \u2014 dado pronto, NUNCA diga que publicou):\n'+linhasFalha;
+        }else{
+          dataTxt+='\n\nNenhuma falha de publicação pendente agora.';
+        }
+      }catch(e){}
+      // "Cota inventada" (Parte 2): a persona menciona limite de automações de DM (básico=3,
+      // plus=5, pro=8) mas até esta rodada nunca recebia o QUANTAS JÁ ESTÃO ATIVAS — o único lugar
+      // que sabia esse número era o code path que CRIA a automação (mais abaixo, no processamento
+      // de <automacao_dm>), depois da resposta já ter sido gerada. Mesmo cálculo, mesma função
+      // agora (limiteAtivoDm) — nenhuma regra duplicada.
+      try{
+        const dm=await limiteAtivoDm(cli,targetId,sbGet);
+        dataTxt+='\n\nAUTOMAÇÕES DE DM ATIVAS (dado pronto, NUNCA calcule nem estime): '+dm.atuais+' de '+dm.max+' no plano.';
+      }catch(e){}
+    }
+
+    // COTA DO PLANO (reescrito 28/ago/2026 — ver APRENDIZADOS.md, "JANELA DE PLANEJAMENTO",
+    // item 4): antes este bloco expunha "já usadas X · RESTAM Y" — números reais, mas o agente
+    // inventou por cima deles três vezes seguidas ("restam 966 artes", "restam 45 artes e 10
+    // vídeos", "restam 36 de 45"), sempre com o valor correto disponível aqui mesmo. Instrução
+    // em prosa não segura comportamento (mesmo padrão de sempre: "não gere ainda" e "só depois
+    // do sim" também foram ignorados). A correção NAQUELA rodada foi tirar do agente qualquer
+    // número pra especular — só o TETO, nunca "restam X de Y". Só que isso TAMBÉM falhou: o
+    // diagnóstico do lote de postura (09/set/2026) achou a mesma proibição "já foi ignorada 4
+    // vezes" — o agente inventou saldo mesmo SEM receber nenhum dado pra especular em cima.
+    // FRENTE 1 (09/set/2026, ver APRENDIZADOS.md "FRENTE 1 IMPLEMENTADA"): as duas apostas
+    // (dar o dado real, e esconder o dado) já foram tentadas e já falharam — a decisão desta
+    // rodada, autorizada pelo João com esta ressalva registrada, é voltar a dar o dado real
+    // (teto E consumido, rotulados com precisão sobre o que cada um significa), mas com uma
+    // proibição mais estrita de ARITMÉTICA em cima dos números — não é mais "você não tem o
+    // dado", é "você TEM os dois números exatos, não calcule um terceiro". Se isto regredir de
+    // novo em produção, o próximo passo já registrado é o detector da Frente 2 (auditar a
+    // resposta em busca de números de cota, como `declarouAcaoSemRegistro` já faz pra ação sem
+    // registro) — não mais uma quarta tentativa de reescrever a instrução em prosa.
+    let cotaTxt='';
+    if(agente==='estrategia'){
+      const limImg=Number((cli.limites||{}).imagens||0);
+      const usImg=Number((cli.uso||{}).imagens||0);
+      const tetoImg=JC.tetoImagensPlano(cli);
+      const limVid=Number((cli.limites||{}).videos||0);
+      const usVid=Number((cli.uso||{}).videos||0);
+      const restVid=Math.max(0,limVid-usVid);
+      const perfil=((cli.preferencias||{}).perfil_video)||'';
+      const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
+                 medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
+                 pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
+      cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (dado pronto, NUNCA calcule nem estime) ═══'+
+        (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva de 20% pra avulso/recriação já descontada — não recalcule, não desconte de novo). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
+        ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
+        '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
+        (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
+        '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
+        '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
+    }
+    // POSTURA DOS AGENTES — PARTE 2, "cota inventada" (15/set/2026, ver APRENDIZADOS.md): achado
+    // do levantamento — a persona do Criativo (linha ~503) fala de um "SALDO EXTRA" de artes
+    // avulsas com números fixos por plano (básico=6/plus=9/pro=15) que NÃO existem em nenhum
+    // lugar do código: avulso/recriação consomem o MESMO saldo único que a Estratégia já vê
+    // acima (limites.imagens/uso.imagens — ver tetoImagensPlano). Ou seja, o Criativo era
+    // instruído a "avisar quando o saldo extra estiver acabando" sem NUNCA ter recebido nenhum
+    // número — nem o inventado (básico=6 etc, que a persona citava de cabeça), nem o real. Mesma
+    // fonte que alimenta a Estratégia (limites.imagens/uso.imagens), mesmo padrão FATO NUNCA
+    // INSTRUÇÃO — sem repetir a lógica de tetoImagensPlano (que é só pra planejamento em lote, não
+    // se aplica a uma peça avulsa de cada vez).
+    if(agente==='criativo'){
+      const limImgC=Number((cli.limites||{}).imagens||0);
+      const usImgC=Number((cli.uso||{}).imagens||0);
+      cotaTxt='\n\n═══ SALDO DE ARTES DO PLANO (dado pronto, NUNCA calcule nem estime) ═══'+
+        (limImgC?('\nPeças com arte usadas no mês: '+usImgC+' de '+limImgC+' (saldo ÚNICO — soma plano mensal, avulsos e recriações; não existe um "saldo extra" separado). Use exatamente este número se o cliente perguntar quanto já gastou ou quanto sobra, e avise quando estiver perto do limite.'):'\nEste plano não tem cota de imagens configurada — avise o cliente antes de gerar qualquer arte avulsa.');
+    }
+
+    // TEMPO 2: injeta os posts da semana que ainda não têm copy — o agente detalha SÓ esses.
+    let semanaTxt='';
+    // ── O CRIATIVO PRECISA ENXERGAR A FILA (antes respondia "peça o plano à Estratégia"
+    // mesmo havendo posts propostos esperando aprovação — o cliente via como desencontro).
+    if(agente==='criativo'){
+      try{
+        const [prop,apr] = await Promise.all([
+          sbGet(`conteudos?user_id=eq.${targetId}&status=eq.proposto&select=id,tema&limit=20`),
+          sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&select=id,tema,formato,copy&limit=20`)
+        ]);
+        const nProp=Array.isArray(prop)?prop.length:0;
+        const comCopy=Array.isArray(apr)?apr.filter(c=>c.copy&&String(c.copy).trim()):[];
+        const semCopy=Array.isArray(apr)?apr.filter(c=>!(c.copy&&String(c.copy).trim())):[];
+        // REPARO AVULSO — FRENTE A (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+        // informação, não ordem"): este bloco entra em TODO turno do Criativo em que existe algo
+        // pendente — mesmo quando a conversa é sobre outra coisa (uma peça avulsa, um ajuste
+        // específico). Por isso é só informação de fundo, nunca instrução de agir por conta
+        // própria: quem decide se isto é o assunto da vez é o agente, olhando a conversa — o
+        // bloco não pode mandar.
+        if(nProp||comCopy.length||semCopy.length){
+          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (informação de fundo — NÃO diga que o cliente precisa pedir um plano) ═══';
+          if(nProp)semanaTxt+=`\n- ${nProp} post(s) PROPOSTOS pela Estratégia aguardando a APROVAÇÃO DO CLIENTE. Você não pode gerar as artes deles ainda — isso acontece na página Aprovações.`;
+          if(semCopy.length)semanaTxt+=`\n- ${semCopy.length} post(s) aprovados mas SEM COPY/headline. A arte só sai depois do texto, que vem do Estrategista.`;
+          if(comCopy.length)semanaTxt+=`\n- ${comCopy.length} post(s) PRONTOS para gerar a arte, quando fizer sentido na conversa: ${comCopy.slice(0,6).map(c=>`id:${c.id} · ${c.formato||'feed'} · ${c.tema}`).join(' | ')}.`;
+        } else {
+          // POSTURA DOS AGENTES — PARTE 2, "cota inventada"/mesmo princípio do item 4 da Fila
+          // Técnica II (15/set/2026): antes, fila vazia deixava semanaTxt em '' — o mesmo silêncio
+          // que, no bloco irmão da Estratégia, já tinha gerado o incidente de ids inventados
+          // (08/09). Aqui ainda não houve incidente registrado, mas é a mesma lacuna estrutural —
+          // corrigida por simetria, no mesmo padrão: FATO explícito (0 em cada categoria), nunca
+          // uma instrução de comportamento.
+          semanaTxt='\n\n═══ SITUAÇÃO REAL DA SUA FILA (informação de fundo) ═══\n0 post(s) propostos aguardando aprovação, 0 post(s) aprovados sem copy, 0 post(s) prontos para gerar arte agora.';
+        }
+      }catch(e){}
+    }
+    if(agente==='estrategia'){
+      try{
+        // CORREÇÃO 1 (25/ago/2026) — SUBSTITUÍDA pela ANCORAGEM DAS SEMANAS (28/ago/2026): esta
+        // query tinha piso/teto simétricos (±7/8 dias) calculados aqui mesmo, DIVERGENTES do
+        // piso/teto que aprovar.html calculava pro card da Semana 1 (mesmo padrão de bug já
+        // visto neste arquivo — regra igual, ou divergente, escrita em dois lugares). Foi
+        // exatamente essa janela ingênua que deixou passar em branco um plano aprovado em 27/ago
+        // com posts datados 10/12/14 de setembro: fora da janela de ±7 dias, nunca entravam
+        // aqui, nunca ganhavam copy, o card nunca nascia (ver APRENDIZADOS.md, "ANCORAGEM DAS
+        // SEMANAS"). Agora usa a SEMANA ATUAL do cliente, calculada uma única vez no topo do
+        // request a partir da âncora real do plano (ou de hoje, antes da aprovação) — mesma
+        // fonte que qualquer outro ponto do sistema usa a partir de agora.
+        const piso=semanaAtualCliente.inicio;
+        const lim=semanaAtualCliente.fim;
+        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
+        if(Array.isArray(wk)&&wk.length){
+          // CONTINUIDADE ENTRE SEMANAS (28/ago/2026, item 5 — ver APRENDIZADOS.md, "JANELA DE
+          // PLANEJAMENTO"): qual semana está sendo detalhada vem de dado calculado (dia_lote +
+          // âncora, mesma fonte de sempre), NUNCA de o agente inferir pelo histórico da
+          // conversa. Antes este bloco só listava id/data/tema sem dizer o número da semana —
+          // se o agente mencionasse "Semana 2" pro cliente, estaria adivinhando.
+          // REPARO AVULSO — FRENTE A (03/set/2026, ver APRENDIZADOS.md "contexto injetado é
+          // informação, não ordem"): este bloco entra em TODO turno da Estratégia enquanto
+          // existir post da semana sem copy — mesmo quando a conversa é sobre outra coisa (uma
+          // peça avulsa, uma confirmação pendente). "DETALHE AGORA, PROATIVAMENTE (não espere o
+          // cliente pedir)" foi a instrução que, num teste real, fez o agente abandonar uma
+          // confirmação de avulso em andamento pra pular pra Semana 4 sem ninguém ter pedido.
+          // Vira informação de fundo — quem decide se isto é o assunto da vez é o agente, olhando
+          // a conversa; o bloco não pode mandar.
+          // FRENTE 3 (09/set/2026, ver APRENDIZADOS.md "LOTE DE POSTURA — AUTORIZADO EM TRÊS
+          // FRENTES"): a frase antiga aqui ("assim que detalhar, o sistema envia a arte ao
+          // Designer automaticamente") era falsa desde o GATE DA APROVAÇÃO SEMANAL (27/ago) —
+          // detalhar só grava copy; a produção só começa depois que o cliente aprova o card
+          // 'aprovar_semana' em Aprovações. Reescrita para descrever o estado real, sem virar
+          // ordem (mesmo princípio da Frente A — este bloco informa, não manda). A frase seguinte
+          // ("avise o cliente que... as artes... estão prontas") também mudou: dizia pro agente
+          // afirmar que as artes já estavam prontas no mesmo turno do detalhamento — não estão,
+          // só a copy está; as artes ficam pendentes da aprovação. Deixar como estava
+          // contradiria, duas frases depois, a correção que acabou de ser feita.
+          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
+            wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
+            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
+        } else if(Array.isArray(wk)){
+          // FILA TÉCNICA — item 4 (15/set/2026, autorizado pelo João): antes, lista vazia deixava
+          // semanaTxt em '' — nenhum sinal no prompt de que não há candidato, e o agente já
+          // inventou conteúdo/id por cima desse silêncio (incidente de 08/09, PATCH recusado).
+          // Mesmo padrão de "SEU PLANO — AS 5 SEMANAS..." (dataTxt, acima) e "SITUAÇÃO REAL DA
+          // SUA FILA" (Criativo, abaixo): o estado real vira DADO explícito no contexto, nunca uma
+          // instrução de comportamento — o comentário da linha ~1297 já registra por que prosa
+          // pedindo bom comportamento sozinha falhou (3x dado real + inventou por cima, 4x
+          // escondido + inventou do mesmo jeito). Aqui não há nenhuma frase tipo "não invente" —
+          // só o fato: zero posts, zero ids disponíveis nesta resposta.
+          semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), 0 post(s) ═══\n0 post(s) desta semana sem copy agora. Nenhum id de post está disponível neste contexto para a tag <detalhe>.';
+        }
+      }catch(e){}
+    }
+
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
+
+    // Anthropic
+    const aRes=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:MODEL_DE(agente),
+        max_tokens:(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500)),
+        system,messages,
+        // Modelos novos (Sonnet 5/Opus) vêm com raciocínio 'high' por padrão e estouram os 60s da
+        // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
+        // modelo dedicado — o haiku padrão não aceita este parâmetro.
+        ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{}),
+        // DIREÇÃO AVULSA FORÇADA: troca o `tools` de sempre (web_search) pela ferramenta única e
+        // obrigatória — `tool_choice` força exatamente ela, o modelo não escolhe. Fora deste
+        // caminho, nada muda (mesmo array de sempre, só para agente==='estrategia').
+        ...(forcarDirecaoAvulsa
+          ? {tools:[TOOL_DIRECAO_AVULSA],tool_choice:{type:'tool',name:TOOL_DIRECAO_AVULSA_NOME}}
+          : (agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{}))
+      }),
+    });
+    let data=await aRes.json();
+    let respOk=aRes.ok; // NÃO usar aRes.ok direto: Response.ok é somente leitura (o fallback abaixo precisa marcar sucesso)
+    if(!respOk && /model|effort|thinking|not permitted|unexpected|invalid/i.test(JSON.stringify(data||{})) && MODEL_DE(agente)!==MODEL()){
+      // AGENT_MODEL_ESTRATEGIA inválido/recusado → não derruba o agente: repete no modelo padrão.
+      console.error('modelo/param da estratégia recusado, usando padrão:',MODEL_DE(agente),JSON.stringify(data).slice(0,160));
+      // Nos dois retries abaixo, quando a chamada é de direção avulsa forçada, `tools`+
+      // `tool_choice` viajam junto — só os parâmetros extras (output_config/web_search) são
+      // descartados, nunca a estrutura forçada (21/set/2026: sem isto, um erro de modelo/param
+      // faria o retry cair de volta pra texto livre, exatamente a aposta que esta correção existe
+      // pra eliminar — melhor falhar visível, com erro, do que degradar em silêncio).
+      const _paramsForcados=forcarDirecaoAvulsa?{tools:[TOOL_DIRECAO_AVULSA],tool_choice:{type:'tool',name:TOOL_DIRECAO_AVULSA_NOME}}:{};
+      // 1ª tentativa: MESMO modelo forte, sem os parâmetros extras (mantém a qualidade)
+      const r1=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+        body:JSON.stringify({model:MODEL_DE(agente),max_tokens:8000,system,messages,..._paramsForcados}),
+      });
+      if(r1.ok){data=await r1.json();respOk=true}
+      else{
+        // 2ª: modelo padrão (último recurso)
+        const rf=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+          body:JSON.stringify({model:MODEL(),max_tokens:8000,system,messages,..._paramsForcados}),
+        });
+        if(rf.ok){data=await rf.json();respOk=true}
+      }
+    }
+    if(!respOk){
+      const msg=(data&&data.error&&data.error.message)||'';
+      console.error('anthropic:',JSON.stringify(data).slice(0,300));
+      // Mensagem útil em vez de "indisponível": diz o que houve (ex.: nome de modelo errado).
+      return res.status(500).json({error:'O agente não respondeu.'+(msg?(' Motivo: '+String(msg).slice(0,160)):' Tente em instantes.')});
+    }
+    let texto=(data.content||[]).map(c=>c.text||'').join('');
+    // DIREÇÃO AVULSA FORÇADA — extrai o bloco da ferramenta obrigatória. Nunca cai pra texto
+    // livre neste caminho: ou o bloco esperado veio, ou a chamada falha aqui mesmo, com erro
+    // visível (502) — cron.js já loga e conta como falha (mesmo tratamento de sempre, ver
+    // '[worker] direcao_avulso_criativo falhou'), nada de tentar adivinhar por cima com uma
+    // segunda chamada (isso é exatamente a aposta que esta correção elimina).
+    let _direcaoAvulsaCampos=null;
+    if(forcarDirecaoAvulsa){
+      const _toolBlock=(data.content||[]).find(c=>c&&c.type==='tool_use'&&c.name===TOOL_DIRECAO_AVULSA_NOME);
+      const _temaCandidato=String(((_ordemInternaInfo&&_ordemInternaInfo.payload&&_ordemInternaInfo.payload.tema)||(_toolBlock&&_toolBlock.input&&_toolBlock.input.tema)||'')).trim();
+      if(!_toolBlock || !_toolBlock.input || typeof _toolBlock.input!=='object' || !_temaCandidato){
+        console.error('[direcao-avulsa-forcada] tool_choice forçado não retornou o bloco esperado — ordem='+(req.body&&req.body.ordem_id)+' user='+targetId+' stop_reason='+(data.stop_reason||'')+' tipos='+(Array.isArray(data.content)?data.content.map(c=>c&&c.type).join(','):'nenhum'));
+        return res.status(502).json({error:'A Estratégia não retornou a direção estruturada esperada.'});
+      }
+      _direcaoAvulsaCampos=_toolBlock.input;
+    }
+    // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
+    // Antes isso passava em silêncio (o agente "dizia" que salvou e nada era gravado).
+    const truncou=(data.stop_reason==='max_tokens');
+
+    // Extrair instrução de geração de imagem
+    let imgReq=null;
+    texto=texto.replace(/<gerar_imagem>([\s\S]*?)<\/gerar_imagem>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.prompt)imgReq=o}catch(e){}
+      return '';
+    });
+
+    // Extrair aplicação de tema (Identidade customiza a dashboard)
+    let aplicarTema=null;
+    texto=texto.replace(/<aplicar_tema>([\s\S]*?)<\/aplicar_tema>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.c1)aplicarTema=o}catch(e){}
+      return '';
+    });
+    if(aplicarTema){
+      try{
+        const temaAtual=Object.assign({},cli.tema||{},aplicarTema,{bg:(cli.tema&&cli.tema.bg)||'escuro'});
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`,{method:'PATCH',headers:H(),body:JSON.stringify({tema:temaAtual})});
+      }catch(e){}
+    }
+
+    // Extrair ordens de serviço entre agentes (registra para execução)
+    let ordens=[];
+    const AGENTES_VALIDOS=['identidade','mercado','diagnostico','estrategia','criativo','publicacao','trafego','video'];
+    texto=texto.replace(/<ordem_servico>([\s\S]*?)<\/ordem_servico>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.para&&o.tarefa&&AGENTES_VALIDOS.includes(String(o.para)))ordens.push(o)}catch(e){console.error('tag ordem_servico invalida:',String(j).slice(0,120))}
+      return '';
+    });
+    // TRIAL: o Tráfego NÃO dispara tarefas para outros agentes (só análise/sugestão).
+    if(emTrial&&agente==='trafego'){ ordens=[]; }
+    // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): a Estratégia não dispara mais 'criar_post' por
+    // tag — a instrução saiu do prompt (ver TEMPO 2), mas isso sozinho depende do modelo
+    // obedecer. Trava também aqui, em código: se por qualquer motivo (deriva de prompt,
+    // alucinação) a Estratégia emitir essa tag, ela é descartada antes de virar ordem. A
+    // única porta para 'criar_post' da Estratégia passa a ser o clique de aprovação do card
+    // semanal em aprovar.html — nunca uma resposta do agente.
+    if(agente==='estrategia'){
+      const _bloqueadas=ordens.filter(o=>o.tarefa==='criar_post');
+      if(_bloqueadas.length){ console.error('[ordem] tag <ordem_servico> criar_post da Estratégia descartada (gate da aprovação semanal):',_bloqueadas.length); }
+      ordens=ordens.filter(o=>o.tarefa!=='criar_post');
+    }
+    // TRAVA — DELEGAR E PRODUZIR SÃO EXCLUDENTES (14/set/2026, "Entrega A", ver APRENDIZADOS.md
+    // "Designer não pode delegar e produzir no mesmo turno" — sétimo caso de instrução ignorada,
+    // com agravante: aqui competiam duas TAGS DE AÇÃO, não dois textos de prosa). Achado real em
+    // produção: pedido avulso sem tema ao Designer — ele emitiu <ordem_servico>
+    // direcao_avulso_criativo (delegando a direção à Estratégia, corretamente, por linha ~494)
+    // E <gerar_imagem> na MESMA resposta, com tema/pilar/cta INVENTADOS (linhas 501-506 mandam
+    // "ao gerar, emita a tag", sem exceção nenhuma pro cenário de delegação — nada nas duas
+    // instruções cita a outra). Quem delega está declarando que não tem o insumo (tema/copy) —
+    // gerar a imagem no mesmo turno significa produzir sobre um insumo inventado, exatamente o
+    // que aconteceu (declarouAcaoSemRegistro pegou o texto, mas a tag <gerar_imagem> passava
+    // batida, sem nenhum registro do descarte). Escopo estrutural (não injetar a instrução
+    // genérica de <gerar_imagem> quando o cenário é delegação) NÃO é viável aqui como foi na 606:
+    // lá o gatilho era o AGENTE (estrategia/criativo), conhecido ANTES da chamada ao modelo; aqui
+    // o gatilho é a DECISÃO do próprio turno (delegar vs. já ter o insumo), que só existe DEPOIS
+    // da resposta — não dá pra omitir a instrução de antemão sem adivinhar o que o cliente vai
+    // pedir. A garantia só pode vir em código, depois da resposta, nunca confiando no modelo
+    // (mesmo princípio do backstop ~1869: "não confiar no LLM p/ efeito colateral"). Não há caso
+    // legítimo das duas tags juntas: <ordem_servico> direcao_avulso_criativo só nasce quando o
+    // Designer NÃO tem o tema (linha ~494) — é a única tag que o Designer emite pra Estratégia
+    // (conferido: nenhuma outra <ordem_servico> do Designer usa "para":"estrategia"). Descarte
+    // NUNCA silencioso: loga e avisa o cliente, mesma disciplina do resto do arquivo.
+    let avisoImagemDescartada=null;
+    if(agente==='criativo'&&imgReq&&ordens.some(o=>o.para==='estrategia'&&o.tarefa==='direcao_avulso_criativo')){
+      console.error('[gerar_imagem] descartada — Designer delegou (direcao_avulso_criativo) e tentou gerar imagem no mesmo turno, user='+targetId);
+      imgReq=null;
+      avisoImagemDescartada='A arte ainda não foi gerada — este pedido acabou de ser encaminhado à Estratégia, que define o tema e o texto antes de qualquer imagem. A produção começa automaticamente assim que a direção voltar.';
+    }
+    if(ordens.length){
+      // RASTRO GLOBAL DA CADEIA: sempre que QUALQUER agente passa trabalho para outro, o passo
+      // que ele acabou de concluir vira uma tarefa visível. Assim o painel mostra o fluxo inteiro
+      // (Você → Agente A → Agente B → Aprovação) para todos os agentes, não só a Estratégia.
+      try{
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
+          user_id:targetId, de_agente:'usuario', para_agente:agente, tarefa:'pedido_usuario',
+          detalhe:'Pedido atendido pelo '+agente+' · encaminhado para '+ordens.map(o=>o.para).join(', '),
+          status:'concluida', concluida_em:new Date().toISOString(), total:1, progresso:1
+        })}).catch(()=>{});
+      }catch(e){}
+      try{
+        await Promise.all(ordens.map(o=>{
+          // CADEIA (Tráfego): a sugestão de novo criativo NÃO dispara sozinha — espera o usuário aprovar
+          // em Tarefas. Ao aprovar, roda a sequência Estratégia → Criativo → Tráfego (substituir criativo).
+          const ehCadeia=(agente==='trafego'&&o.tarefa==='novo_criativo_ads');
+          const body={user_id:targetId,de_agente:agente,para_agente:o.para,tarefa:o.tarefa,detalhe:o.detalhe||'',status:ehCadeia?'aguardando_aprovacao':'pendente'};
+          // O PARSER JOGAVA A INTENÇÃO FORA: só para/tarefa/detalhe sobreviviam. Uma ordem de
+          // "2 criativos avulsos: conceitual X e pessoa_conceito Y" virava PROSA no `detalhe` —
+          // nenhum campo dizia que eram 2 avulsos, de que tipo, com que tema. O executor
+          // roteava pelo `de_agente`, caía no lote, procurava conteúdos planejados, não achava
+          // e a ordem ficava pendente PARA SEMPRE, em silêncio. Igual ao caso da `conteudos`.
+          // Agora `itens` estruturado sobrevive no payload (jsonb já existente, zero migration).
+          const itens=Array.isArray(o.itens)?o.itens.filter(i=>i&&i.brief).slice(0,10):[];
+          if(itens.length){
+            // 🔴 ANTES o item era recortado para 3 campos e o BLOCO DE TEXTO era descartado:
+            // a Estratégia preenchia headline/subheadline/prova/cta_arte e o parser jogava fora,
+            // então a Engine 6.0 recebia só o brief e a arte saía com uma headline solta —
+            // o que a própria Engine classifica como FALHA. Agora o pacote chega inteiro.
+            body.payload={...(body.payload||{}),itens:itens.map(i=>({
+              tipo_visual:String(i.tipo_visual||'conceitual'),
+              brief:String(i.brief).slice(0,400),
+              formato:String(i.formato||'4:5'),
+              headline:String(i.headline||'').slice(0,120),
+              subheadline:String(i.subheadline||'').slice(0,200),
+              prova:String(i.prova||'').slice(0,120),
+              cta_arte:String(i.cta_arte||'').slice(0,40),
+              oferta:String(i.oferta||'').slice(0,120),
+              copy:String(i.copy||'').slice(0,600),
+              pilar:String(i.pilar||'')
+            }))};
+            body.total=itens.length; body.progresso=0;
+          }
+          // HANDOFF — CADEIA (11/set/2026): formato novo (payload.cadeia — ver api/_cadeia-lib.js).
+          // 3 elos descritos por inteiro no nascimento; o 3º (tipo:'retorno') fecha o loop de
+          // volta ao Tráfego — resolve o achado do inventário (3º elo nunca fechava, porque
+          // nada em api/cron.js lia sequencia/etapa, formato antigo). Compatibilidade com o
+          // formato antigo (ordens já em voo) fica em normalizarCadeia(), dentro do módulo.
+          if(ehCadeia)body.payload={...(body.payload||{}),cadeia:[{agente:'estrategia',tarefa:'novo_criativo_ads',tipo:'executa'},{agente:'criativo',tarefa:'criar_criativo_ads',tipo:'executa'},{agente:'trafego',tarefa:'retorno_criativo_ads',tipo:'retorno'}],elo:0,cadeia_iniciada_em:new Date().toISOString(),brief:o.detalhe||''};
+          // HANDOFF — CRIATIVO→ESTRATÉGIA, PEDIDO AVULSO (12/set/2026): 2 elos — Estratégia produz
+          // a direção, Criativo (worker, não chat) produz a arte. Sem aprovação prévia (diferente
+          // de novo_criativo_ads): nasce 'pendente' direto, cai no default de `body.status` acima.
+          // Formato/slides SEMPRE explícitos aqui — decididos pelo Designer no turno dele — nunca
+          // inferidos depois (nem por Estratégia, nem pelo worker): "nunca inferido no destino".
+          const ehDirecaoAvulso=(agente==='criativo'&&o.tarefa==='direcao_avulso_criativo');
+          if(ehDirecaoAvulso){
+            const fmt=(String(o.formato||'feed').toLowerCase().indexOf('carross')>=0)?'carrossel':'feed';
+            const slidesN=Number(o.slides);
+            body.payload={...(body.payload||{}),
+              cadeia:[{agente:'estrategia',tarefa:'direcao_avulso_criativo',tipo:'executa'},{agente:'criativo',tarefa:'criar_avulso',tipo:'executa'}],
+              elo:0,cadeia_iniciada_em:new Date().toISOString(),
+              brief:o.detalhe||'',
+              ...(o.tema?{tema:String(o.tema).slice(0,200)}:{}),
+              formato:fmt,
+              ...(fmt==='carrossel'&&Number.isFinite(slidesN)&&slidesN>=2&&slidesN<=10?{slides:Math.floor(slidesN)}:{}),
+            };
+          }
+          return fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify(body)}).catch(()=>{});
+        }));
+        // AUTO-DISPATCH pós-criação: a ordem nasce e a execução começa — sem depender de PLAY.
+        try{ const _b=String(process.env.SITE_URL||(process.env.VERCEL_URL?`https://${process.env.VERCEL_URL}`:'')).replace(/\/+$/,''); // URL pública: VERCEL_URL é protegida
+          if(_b&&process.env.CRON_SECRET) fetch(`${_b}/api/cron?job=produzir&secret=${process.env.CRON_SECRET}`,{method:'POST'}).catch(()=>{});
+        }catch(e){}
+      }catch(e){}
+    }
+
+    // Extrair conteúdos planejados (Estratégia grava cada post na tabela 'conteudos')
+    const conteudos=[];
+    texto=texto.replace(/<conteudo>([\s\S]*?)<\/conteudo>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.tema)conteudos.push(o)}catch(e){}
+      return '';
+    });
+    // DIREÇÃO AVULSA FORÇADA — MESMA array `conteudos`, MESMO caminho de gravação logo abaixo
+    // (INSERT em 'conteudos', trava de ciclo, cardinalidade, HANDOFF de fechamento da ordem) —
+    // requisito do João: "não criar segundo caminho de gravação". Só a ORIGEM do objeto muda:
+    // campos da ferramenta forçada, não uma tag <conteudo> em texto livre. `formato`/`slides` vêm
+    // do PRÓPRIO payload da ordem (nunca do modelo — mesma fonte e mesma regra de cardinalidade
+    // que o HANDOFF já usa ao criar esta ordem, ver "formato e slides exatamente como vieram na
+    // ordem, nunca inferido" na persona da Estratégia); `tema` também vem da ordem quando ela já
+    // trouxe um (nunca trocado), e só cai no que o modelo decidiu quando a ordem veio sem tema.
+    if(forcarDirecaoAvulsa && _direcaoAvulsaCampos){
+      const _plInterna=(_ordemInternaInfo && _ordemInternaInfo.payload)||{};
+      const _fmtInterno=String(_plInterna.formato||'feed');
+      const _slidesInterno=Number(_plInterna.slides);
+      conteudos.push({
+        tema:String(_plInterna.tema||_direcaoAvulsaCampos.tema||'').trim(),
+        formato:_fmtInterno,
+        ...(_fmtInterno==='carrossel'&&Number.isFinite(_slidesInterno)&&_slidesInterno>=2&&_slidesInterno<=10?{slides:Math.floor(_slidesInterno)}:{}),
+        tipo_visual:String(_direcaoAvulsaCampos.tipo_visual||'conceitual'),
+        pilar:String(_direcaoAvulsaCampos.pilar||''),
+        headline:String(_direcaoAvulsaCampos.headline||''),
+        subheadline:String(_direcaoAvulsaCampos.subheadline||''),
+        prova:String(_direcaoAvulsaCampos.prova||''),
+        cta_arte:String(_direcaoAvulsaCampos.cta_arte||''),
+        // story não leva legenda (regra da Meta, mesma exceção nomeada da persona) — copy nunca
+        // entra no objeto gravado pra este formato, mesmo que a ferramenta tenha devolvido algo.
+        ...(_fmtInterno!=='story'?{copy:String(_direcaoAvulsaCampos.copy||'')}:{}),
+        avulso:true,
+      });
+    }
+    // ═══ AUTO-REPARO (Estratégia): se o agente DESCREVEU o plano mas não emitiu nenhuma tag
+    //     <conteudo>, o calendário ficaria vazio e ele "diria" que salvou. Em vez de confiar,
+    //     pedimos SOMENTE as tags numa segunda passada. Fim da falha silenciosa. ═══
+    // GATILHO PROSPECTIVO APENAS. A regex anterior casava com linguagem RETROSPECTIVA
+    // ('esse post', 'avulso', 'a arte vai aparecer', 'vai para aprova'): ao comentar uma peça
+    // JÁ produzida, o reparo disparava, o modelo reemitia a mesma peça e nascia conteúdo novo
+    // com imagem nova. Ficam só os termos que descrevem um PLANO sendo proposto agora.
+    const prometeuConteudo=/calend[áa]rio|cronograma|plano do m[êe]s|posts?\s*\/\s*semana|\blote\b/i.test(texto);
+    // O auto-reparo cobre a falha silenciosa do PLANO MENSAL (calendário vazio sem o usuário
+    // perceber). Um avulso não tem essa falha: a arte aparece ou o usuário vê que não apareceu.
+    // Era justamente ali que o mecanismo mais errava — fica de fora.
+    const pedidoAvulso=/avulso|uma arte|um post|um criativo|promo(ção|cao)|esse post|este post/i.test(String(mensagem||''));
+    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo && !pedidoAvulso){
+      try{
+        const r2=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:MODEL_DE(agente),max_tokens:8000,system,
+            messages:[...messages,{role:'assistant',content:texto},
+              {role:'user',content:'Você descreveu conteúdo mas NÃO registrou as tags — o sistema não salvou nada. Responda AGORA somente com as tags, sem nenhum texto antes ou depois, sem markdown: uma <conteudo>{...}</conteudo> por post (com data_sugerida YYYY-MM-DD; use "avulso":true se for um post solto pedido agora, não um plano do mês). Se for avulso, inclua também a <detalhe>{...}</detalhe> correspondente com headline, subheadline, prova e cta_arte.'}],
+          }),
+        });
+        const d2=await r2.json();
+        if(r2.ok){
+          const t2=(d2.content||[]).map(c=>c.text||'').join('');
+          (t2.match(/<conteudo>([\s\S]*?)<\/conteudo>/g)||[]).forEach(bloco=>{
+            try{const o=JSON.parse(bloco.replace(/<\/?conteudo>/g,'').trim());if(o.tema)conteudos.push(o)}catch(e){}
+          });
+          // No avulso o texto (headline/subheadline/prova/cta) vem DENTRO do <conteudo> —
+          // não há <detalhe> separado porque não existe id ainda. Nada a capturar aqui.
+        }
+      }catch(e){}
+    }
+
+    // DEFESA EM PROFUNDIDADE — JANELA DE PLANEJAMENTO (item 5 do mapa, 28/ago/2026): o prompt
+    // agora instrui "avulso":true pra 'novo_criativo_ads' e 'copy_para_criativo' (ambos emitem
+    // <conteudo> fora do plano mensal), mas este projeto já provou repetidas vezes que instrução
+    // em prosa não é garantia de comportamento — por isso, quando existe um sinal ESTRUTURAL
+    // confiável de que a peça não pertence ao plano, o código força a marca em vez de confiar só
+    // no texto. 'criativo_url' é esse sinal aqui: só nasce em 'copy_para_criativo' (o cliente já
+    // subiu o criativo por conta própria) — nenhum outro fluxo do sistema o preenche. Não existe
+    // sinal estrutural equivalente pra 'novo_criativo_ads' (finalidade:'anuncio' também pode
+    // aparecer num post PLANEJADO do mês, ver "ANÚNCIOS" no bloco de cota abaixo — forçar avulso
+    // por essa flag sozinha derrubaria anúncio legítimo do plano); esse caso fica só com a
+    // instrução de prompt, registrado como risco residual aceito.
+    conteudos.forEach(ct=>{ if(ct && ct.criativo_url && !ct.avulso) ct.avulso=true; });
+
+    // LOTE 2 — item 2 (detecção e aviso, nunca mais falhar em silêncio, 01/set/2026): o texto do
+    // agente pode declarar uma ação ("enviado para produção", "fila do Designer", "vai aparecer
+    // em Aprovações"...) sem que NENHUMA tag <conteudo> tenha sido emitida — exatamente o bug de
+    // prioridade absoluta deste lote (a instrução de confirmação em REGRAS_GERAIS proibia disparar
+    // cedo demais, mas nunca obrigava disparar no turno certo; ver a reescrita acima). Esta
+    // checagem é o SEGUNDO backstop — cobre também o caso do avulso, que o auto-reparo acima
+    // propositalmente NÃO cobre (ver 'pedidoAvulso'). NÃO tenta corrigir sozinho por padrão (isso
+    // seria reintroduzir o auto-reparo pro avulso, que já causou duplicação) — só detecta, loga
+    // com o texto completo (auditoria) e avisa o cliente. A ÚNICA exceção — a SEGUNDA chamada de
+    // recuperação logo abaixo — é escopada a `agente==='estrategia'` (ver correção 18/set/2026
+    // abaixo). Regra em si (calibração plural/voz-passiva + filtro de menção retrospectiva) mora
+    // em `declarouAcaoSemRegistro()`, escopo do módulo — ver comentário lá (REPARO AVULSO FRENTE B).
+    //
+    // 🔴 REGRESSÃO CORRIGIDA (18/set/2026, "duplicação — ordem de produção fora da cadeia"): até
+    // aqui, o `if` abaixo era "agnóstico de agente/gatilho" DE PROPÓSITO (decisão de 01/set,
+    // pensada pro padrão TURNO 1/TURNO 2 da Estratégia: cliente confirma uma proposta, o agente
+    // "acha" que já registrou e não emite a tag). Só que o Designer, ao delegar um pedido avulso
+    // (<ordem_servico>direcao_avulso_criativo), é INSTRUÍDO a dizer "a peça vai aparecer em
+    // Aprovações" — bate literalmente no regex de `declarouAcaoSemRegistro` — e NUNCA emite
+    // <conteudo> nesse fluxo (não é o trabalho dele: quem grava é a Estratégia, depois, na
+    // cadeia). Toda delegação acionava esta checagem, que mandava uma SEGUNDA chamada à Anthropic
+    // pedindo pro PRÓPRIO Designer inventar headline/subheadline/prova/cta/copy na hora — sem o
+    // preparo da Estratégia — criando um <conteudo> órfão (status 'rascunho', sem imagem) que o
+    // backstop genérico (mais abaixo) encontrava pronto e tentava produzir, duplicando a peça que
+    // a cadeia real (direcao_avulso_criativo→criar_avulso) ia produzir corretamente segundos
+    // depois. Caso real, rastreado por completo no banco (18/set/2026, 20:25 UTC): conteúdo órfão
+    // `603689c8` (origem_agente:'criativo', criado pela segunda chamada) vs. conteúdo correto
+    // `0a5e0302` (origem_agente:'estrategia', criado pela cadeia) — mesmo tema, 34s de diferença,
+    // o órfão com subheadline de 15 palavras (o Designer não tem noção dos limites do Engine) que
+    // a validação recusou nas duas tentativas do worker. Mesma varredura encontrou um SEGUNDO
+    // falso positivo, menos visível: o Editor de Vídeo também é instruído a dizer que "o vídeo
+    // está sendo processado" (bate em `(est[áa]|est[ãa]o) (sendo|...)`) e também nunca emite
+    // <conteudo> — mesma classe de bug, mesma correção. Nenhum outro agente (identidade, mercado,
+    // diagnóstico, publicação, tráfego) bate no regex hoje (varredura confirmada nas 7 personas).
+    // Correção: a SEGUNDA chamada (a que inventa e grava o <conteudo>) passa a rodar só quando
+    // `agente==='estrategia'` — o único cenário para o qual foi desenhada (o padrão TURNO 1/TURNO
+    // 2 é exclusivo da persona da Estratégia). Para os demais agentes, `conteudos.length===0`
+    // depois de um turno que "declarou uma ação" NÃO é falha — é o estado normal (Designer
+    // delega, não grava; Editor de Vídeo edita, não grava) — então nem o reparo nem o aviso
+    // "nada foi salvo" fazem sentido para eles, e os dois ficam de fora, não só o reparo.
+    let avisoNadaRegistrado=null;
+    const _declarouAcao=declarouAcaoSemRegistro(texto);
+    if(agente==='estrategia' && _declarouAcao && conteudos.length===0){
+      // REPARO DE SEGUNDA CHAMADA — AVULSO (03/set/2026, autorizado após confirmação em produção
+      // de que as duas condições abaixo — conteudos.length===0 e declarouAcaoSemRegistro — são
+      // exatamente o sinal certo): a causa raiz comprovada NÃO é o agente desobedecendo a
+      // instrução de emitir a tag. É o agente lendo a confirmação do cliente ("pode seguir",
+      // "perfeito, pode criar") como referência a uma peça de um turno ANTERIOR (o histórico de
+      // testes/conversas tem várias propostas parecidas) e respondendo como se já tivesse
+      // executado. Instrução em prosa não resolve isso — não é falha de obediência, é falha de
+      // ESTADO (o agente "acha" que já fez). Por isso o reparo não pede de novo em texto livre —
+      // ancora explicitamente na ÚLTIMA resposta do agente ANTES desta confirmação (a proposta de
+      // verdade), copiada literalmente pro prompt, e pede SÓ a tag, correspondente A ELA, nunca a
+      // qualquer outra coisa do histórico. Isso não depende do agente "lembrar" certo sozinho.
+      //
+      // ATENÇÃO — histórico de duplicação (ver APRENDIZADOS.md, "Bug relatado — criação automática
+      // parou"): o auto-reparo do PLANO MENSAL (mais acima, `prometeuConteudo`) já causou
+      // duplicação no passado quando disparava mesmo com conteúdo já registrado. Esta segunda
+      // chamada só é tentada quando `conteudos.length===0` PARA ESTE turno (nada foi capturado
+      // agora) — não reintroduz aquele padrão. Risco residual, aceito e registrado: se o cliente
+      // confirmar a MESMA peça de novo em turnos seguintes (achando que não funcionou), cada
+      // confirmação nova pode gerar sua própria tentativa de reparo — não há proteção contra
+      // confirmação repetida além desta.
+      let _repConteudo=null;
+      const _propostaAnterior=(messages.length>=2 && messages[messages.length-2].role==='assistant') ? messages[messages.length-2].content : null;
+      if(_propostaAnterior){
+        try{
+          const r3=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',
+            headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+            body:JSON.stringify({
+              model:MODEL_DE(agente),max_tokens:2000,system,
+              messages:[...messages,{role:'assistant',content:texto},
+                {role:'user',content:'O cliente confirmou a peça que você propôs no turno anterior (reproduzida abaixo, entre aspas) — mas sua última resposta tratou como se ela já tivesse sido registrada, sem emitir a tag. NADA foi salvo. Responda AGORA somente com a tag <conteudo>{...}</conteudo> correspondente EXATAMENTE a essa proposta (mesmo tema, formato e conteúdo que você descreveu abaixo — não invente uma peça nova, não reemita nenhuma outra peça do histórico), com "avulso":true e os campos de texto (headline, subheadline, prova, cta_arte, copy) dentro dela. Sem nenhum texto antes ou depois, sem markdown.\n\nProposta que o cliente confirmou:\n"""\n'+String(_propostaAnterior).slice(0,2000)+'\n"""'}],
+            }),
+          });
+          const d3=await r3.json();
+          if(r3.ok){
+            const t3=(d3.content||[]).map(c=>c.text||'').join('');
+            (t3.match(/<conteudo>([\s\S]*?)<\/conteudo>/g)||[]).forEach(bloco=>{
+              try{
+                const o=JSON.parse(bloco.replace(/<\/?conteudo>/g,'').trim());
+                if(o.tema){ if(!o.avulso) o.avulso=true; conteudos.push(o); _repConteudo=o; }
+              }catch(e){}
+            });
+          }
+        }catch(e){}
+      }
+      if(conteudos.length===0){
+        avisoNadaRegistrado='O texto acima menciona uma ação (produção/fila/aprovação), mas o sistema NÃO registrou nenhum conteúdo nesta resposta — nada foi salvo. Peça de novo, descrevendo a peça que você quer.';
+        console.error('[agente-chat] LOTE 2 item 2: texto declarou ação sem <conteudo> emitido — nada registrado (reparo de segunda chamada não recuperou, ou não havia proposta anterior identificável). agente='+agente+' user='+targetId+' mensagem='+String(mensagem||'').slice(0,200)+' texto='+texto.slice(0,600));
+      }else if(_repConteudo){
+        console.error('[agente-chat] REPARO SEGUNDA CHAMADA (avulso): recuperado com sucesso a partir da proposta do turno anterior. agente='+agente+' user='+targetId+' tema='+String(_repConteudo.tema||'').slice(0,120));
+      }
+    }
+
+    // ETAPA 2 (26/ago/2026): aviso de material do usuário aguardando upload, gerado pelo
+    // "criador semanal" logo abaixo — anexado ao texto de resposta perto de notaBackstop.
+    let notaSemanal=null;
+    // TEMPO 2: <detalhe> preenche copy/headline/roteiro dos posts da semana (já existentes)
+    const detalhes=[];
+    texto=texto.replace(/<detalhe>([\s\S]*?)<\/detalhe>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.id)detalhes.push(o)}catch(e){}
+      return '';
+    });
+    let detalhados=0;
+    // LOTE 1 — TRAVA DE DUPLICIDADE, Estágio B (28/ago/2026): antes, este PATCH aceitava
+    // QUALQUER id emitido pelo agente, sem checar se outra requisição concorrente (duplo clique,
+    // duas abas, o auto-disparo da aprovação mensal cruzando com uma mensagem manual) já tinha
+    // detalhado o mesmo post enquanto esta chamada à IA estava em andamento — resultado era
+    // "quem grava por último vence", não determinístico. Severidade baixa (não duplica
+    // produção, só desperdiça a chamada à IA perdedora) — por isso "sem restrição de banco",
+    // só verificação em código: reconfere 'copy' bem ANTES de sobrescrever, na mesma leitura que
+    // já buscava meta/formato (não é uma query nova). Se já tem copy não-vazio, outra requisição
+    // venceu a corrida — não sobrescreve, conta à parte, nunca falha silenciosamente.
+    let detalhesIgnorados=0;
+    let avisoDetalheDuplicado=null;
+    // LOTE 2 — item 4 (semana corrente calculada, trava EM CÓDIGO, 01/set/2026): antes, este PATCH
+    // aceitava qualquer id do cliente, de QUALQUER semana — a única defesa era o prompt (o bloco
+    // "POSTS DA SEMANA PARA DETALHAR" só lista a semana atual), que este projeto já provou repetidas
+    // vezes não ser garantia (ver "obrigação não proibição" acima). Modelo NÃO-CUMULATIVO (item 5,
+    // decisão explícita do produto, substitui a recomendação cumulativa da rodada anterior): só a
+    // semana ATUAL (semanaAtualCliente, já calculada uma vez no topo do request, mesma fonte única
+    // de sempre) pode ser detalhada agora — uma semana passada ou futura é RECUSADA aqui, em
+    // código, nunca só por instrução ao agente. Post sem semana válida (JC.semanaDoPost retorna
+    // null — avulso, ou fora do horizonte de 5 semanas) fica de fora desta trava por definição,
+    // mesmo critério que travaDeDatas/travaTrial já usam pra avulso.
+    let detalhesForaDaSemana=0;
+    let avisoDetalheForaDaSemana=null;
+    // Falha técnica real (PATCH recusado pelo banco, ou exceção) — antes o catch(e){} engolia em
+    // silêncio e só 'detalhados' era contado; agora toda divergência entre emitido/salvo é logada.
+    let detalhesFalhos=0;
+    // FILA TÉCNICA — item 5 (09/set/2026): único ramo do loop que não deixava rastro nenhum —
+    // nem contador, nem log — quando o id citado pelo agente não existe no banco (id inventado,
+    // ou de outro usuário — a query já filtra por user_id=eq.${targetId}, então "não existe" e
+    // "não é deste cliente" caem no mesmo caso, ambos ilegítimos do ponto de vista da auditoria).
+    // Os outros três desvios (dedup, fora da semana, falha técnica) sempre incrementavam um
+    // contador próprio; este simplesmente desaparecia. Não altera o texto de resposta ao cliente
+    // (nenhum avisoPartes novo) — só visibilidade server-side, pra honrar "nenhum muda
+    // comportamento".
+    let detalhesIdInvalido=0;
+    if(detalhes.length){
+      for(const d of detalhes){
+        try{
+          const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy,data_sugerida`);
+          if(!atual){ detalhesIdInvalido++; console.error('[detalhe] id citado pelo agente não encontrado (ou não pertence ao cliente) — id='+d.id+' user='+targetId); continue; }
+          if(atual.copy&&String(atual.copy).trim()){ detalhesIgnorados++; continue; }
+          const _semDoId=JC.semanaDoPost(atual.data_sugerida,ancoraPlano,diaLoteCliente);
+          if(_semDoId!==null && _semDoId!==semanaAtualCliente.semana){ detalhesForaDaSemana++; continue; }
+          const meta={...(atual.meta||{}),headline:d.headline||'',subheadline:d.subheadline||'',prova:d.prova||'',cta_arte:d.cta_arte||'',oferta:d.oferta||''};
+          const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
+            method:'PATCH',headers:H(),
+            body:JSON.stringify({copy:d.copy||null,roteiro:d.roteiro||null,meta})
+          });
+          if(r.ok)detalhados++;
+          else{ detalhesFalhos++; console.error('[detalhe] PATCH recusado pelo banco para id='+d.id+' status='+r.status); }
+        }catch(e){ detalhesFalhos++; console.error('[detalhe] PATCH falhou (exceção) para id='+(d&&d.id)+':', e&&e.message); }
+      }
+      // Auditoria barata: loga a conta sempre, mesmo quando bate — ajuda a pegar divergência futura
+      // entre "tags emitidas" e "linhas salvas" antes que vire um bug relatado pelo cliente.
+      console.log('[detalhe] emitidos='+detalhes.length+' salvos='+detalhados+' ignorados_dedup='+detalhesIgnorados+' fora_da_semana='+detalhesForaDaSemana+' falhos='+detalhesFalhos+' id_invalido='+detalhesIdInvalido);
+      if(detalhesIgnorados>0){
+        avisoDetalheDuplicado=detalhesIgnorados+' post(s) já tinham copy escrita por outra requisição enquanto esta estava em andamento — não sobrescrevi.';
+      }
+      if(detalhesForaDaSemana>0){
+        avisoDetalheForaDaSemana=detalhesForaDaSemana+' post(s) não foram detalhados por pertencerem a outra semana do plano (Semana '+semanaAtualCliente.semana+', '+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+', é a única aberta para detalhamento agora) — peça a detalhamento dela quando ela abrir.';
+      }
+      if(detalhesFalhos>0){
+        avisoDetalheDuplicado=(avisoDetalheDuplicado?avisoDetalheDuplicado+' ':'')+detalhesFalhos+' post(s) não foram salvos por erro técnico — peça para detalhar de novo.';
+      }
+      // Detalhou a semana → dá BAIXA na própria ordem. NÃO cria mais 'criar_post' aqui.
+      // GATE DA APROVAÇÃO SEMANAL (27/ago/2026): antes deste ponto, detalhar a semana (só
+      // preencher copy/headline) já disparava a produção sozinho — a ordem 'criar_post' nascia
+      // aqui, sem o usuário nunca ver nem aprovar o card 'aprovar_semana'. Era a Rota A do
+      // vazamento do gate do trial (ver APRENDIZADOS.md, "GATE DA APROVAÇÃO SEMANAL"). Agora
+      // detalhar só prepara o conteúdo (copy/headline prontos, ainda 'rascunho') — quem decide
+      // se isso vira produção é SEMPRE o clique do usuário em "Aprovar e produzir" no card
+      // semanal (aprovar.html), nunca este bloco. A criação de 'criar_post' é ato de código
+      // único, vinculado à aprovação — não mais um efeito colateral de detalhar.
+      if(detalhados>0){
+        // FALHA 1 DA SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "SEXTA PORTA ainda aberta —
+        // produção sem aprovação"): antes, o fechamento da ordem 'detalhar_semana', a leitura de
+        // `wk` e a garantia do card 'aprovar_semana' viviam dentro do MESMO try/catch — qualquer
+        // uma travando as outras duas em silêncio (só console.error, nenhum aviso ao cliente).
+        // Foi exatamente isso que aconteceu em produção: a leitura de `wk` falhou (sbGet não
+        // conferia `r.ok` — ver correção do helper acima), `wkArr` virou [] em silêncio,
+        // `_idsSemana.length` deu 0, a garantia nunca chegou a rodar, e nenhum aviso apareceu —
+        // reproduzido em teste antes desta correção. Agora os três passos são independentes:
+        // um falhando não impede os outros, e a garantia do card — a parte que protege o gate —
+        // tem o próprio try/catch e SEMPRE avisa o cliente quando não consegue confirmar que o
+        // card existe, nunca fica em silêncio.
+        try{
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.detalhar_semana&status=in.(pendente,processando)`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',progresso:detalhados,concluida_em:new Date().toISOString()})
+          }).catch(()=>{});
+        }catch(e){ console.error('[ordem] criador semanal: fechar detalhar_semana falhou (exceção):', e && e.message); }
+
+        // ANCORAGEM DAS SEMANAS (28/ago/2026): teto era +7 dias corridos a partir de agora,
+        // calculado aqui mesmo — mais um literal divergente do resto (ver o mesmo problema
+        // corrigido logo acima, em "POSTS DA SEMANA PARA DETALHAR"). Usa o fim da SEMANA ATUAL
+        // do cliente (já calculada no topo do request) em vez de recalcular.
+        const lim=semanaAtualCliente.fim;
+        let wk=null;
+        try{
+          wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
+        }catch(e){
+          console.error('[ordem] criador semanal: leitura de wk falhou (exceção):', e && e.message);
+        }
+        // FALHA 1 / VARREDURA FAMÍLIA 1 (leituras): "lista vazia" NUNCA pode significar a mesma
+        // coisa que "leitura falhou" — Array.isArray(wk)?wk:[] sozinho apaga essa diferença.
+        // `wkFalhou` guarda a distinção; `wkArr` segue existindo só pro uso não-crítico (material
+        // do usuário) logo abaixo, que já tolerava lista vazia por natureza.
+        const wkFalhou=!Array.isArray(wk);
+        const wkArr=wkFalhou?[]:wk;
+
+        if(wkArr.length){
+          try{
+            // ETAPA 2 (26/ago/2026): material do usuário (reels/vídeo) já detalhado (copy+headline
+            // prontos) vira card "aguardando material" agora, em vez de só sumir da lista de
+            // imagens a produzir — era o bug reportado: a ordem nascia, concluía com total:0 em
+            // silêncio, e o conteúdo desaparecia sem nunca virar card nem aviso. O que ainda não
+            // tem copy fica em 'rascunho' mesmo (será detalhado numa passada futura). Isto
+            // continua aqui — é marcação de status, não criação de ordem de produção.
+            const _matPronto=c=>c.copy&&String(c.copy).trim()&&(((c.meta||{}).headline)||'').trim();
+            const matAqui=wkArr.filter(c=>JC.ehMaterialUsuario(c)&&_matPronto(c)).map(c=>c.id);
+            if(matAqui.length){
+              await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matAqui.join(',')})`,{
+                method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
+              }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+                .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
+            }
+          }catch(e){ console.error('[ordem] criador semanal: aguardando_material falhou (exceção):', e && e.message); }
+        }
+
+        // SEXTA PORTA (05/set/2026): detalhar pelo chat NUNCA cria 'criar_post' — garante o
+        // card 'aprovar_semana' cobrindo tudo que ficou pronto (rascunho, sem mídia) até o fim
+        // da semana atual do cliente. Cria se não existir; reaproveita se já existir (mesma
+        // dedup que cron.js e aprovar.html usam — ver api/_semana-lib.js). Sem extraPayload:
+        // ao contrário do drip do cron, aqui o conteúdo já está detalhado, então
+        // 'precisa_detalhar' não se aplica. Bloco próprio (FALHA 1): não depende mais de nada
+        // acima ter dado certo, e SEMPRE avisa se não conseguir garantir o gate.
+        try{
+          if(wkFalhou){
+            // Não sabemos quais ids proteger — não dá pra distinguir "nada pronto" de "não
+            // consegui ler". Trata como falha da garantia, nunca como "nada a fazer".
+            notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui conferir os posts prontos da semana para garantir o card de aprovação — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+            console.error('[ordem] garantirCardAprovarSemana: leitura de wk falhou, garantia não pôde rodar — user='+targetId);
+          }else{
+            const _idsSemana=wkArr.map(c=>c.id);
+            if(_idsSemana.length){
+              // CAMADA 1 (mesmo padrão do backstop, mais abaixo — "além do banco, respeita o que já
+              // foi atendido nesta mesma requisição"): registra ANTES de chamar garantir. Achado no
+              // teste desta correção — a dedup de garantirCardAprovarSemana só pergunta "já existe
+              // ALGUM card aprovar_semana aberto?", não "existe um card cobrindo ESTES ids". Se
+              // outra semana (ex.: a Semana 1, ainda não aprovada) já tem card aberto, garantir
+              // devolve jaExistia:true SEM cobrir os ids que acabaram de ser detalhados agora — e o
+              // backstop, rodando mais abaixo NESTA MESMA resposta, os pegaria e disparia produção
+              // sozinho: a mesma sexta porta, por um caminho lateral. Isto fecha o buraco só para a
+              // requisição corrente (o que resolve o incidente relatado); a lacuna estrutural entre
+              // semanas — um card aberto de uma semana não protege o conteúdo já pronto de outra —
+              // fica registrada em APRENDIZADOS.md como achado separado, não corrigida aqui (mudaria
+              // a semântica de dedup compartilhada por cron.js e aprovar.html, fora do escopo desta
+              // rodada).
+              _idsSemana.forEach(x=>atendidosNestaReq.add(String(x)));
+              const _g=await garantirCardAprovarSemana(KEY(),targetId,_idsSemana,agente);
+              if(!_g.criado && !_g.jaExistia){
+                notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+                console.error('[ordem] garantirCardAprovarSemana falhou ao concluir detalhamento — user='+targetId);
+              }
+            }
+          }
+        }catch(e){
+          notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui garantir o card de aprovação da semana — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
+          console.error('[ordem] garantirCardAprovarSemana: exceção inesperada:', e && e.message);
+        }
+      }
+    }
+
+    // CORREÇÃO DE TEXTO POR LIMITE DE PALAVRAS (19/set/2026, "recusa por excesso de palavras
+    // desperdiça o pedido inteiro", autorizado pelo João, item 3) — canal PRÓPRIO, separado de
+    // <detalhe> (acima) DE PROPÓSITO: <detalhe> tem duas travas que engoliriam esta correção em
+    // silêncio — (1) só grava se `copy` ainda estiver vazio (a peça que falhou em
+    // validarTextoDaPeca JÁ tem copy, senão nunca teria chegado a /api/gerar-imagem) e (2) só
+    // aceita a semana ATUAL do plano (peça avulsa não tem semana) — nenhuma das duas se aplica
+    // aqui, e nenhuma das duas pode ser tocada (protegem a trava de duplicidade e o gate da
+    // aprovação semanal). Reaproveita o MECANISMO — worker chama este endpoint internamente via
+    // x-internal-secret, mesmo padrão de direcao_avulso_criativo/copy_para_criativo em cron.js —
+    // com tag e handler PRÓPRIOS: corrige só o campo indicado, em qualquer conteúdo do cliente,
+    // sem nenhuma das travas de <detalhe>. O limite de palavras em si NÃO é recalculado aqui —
+    // nenhuma regra duplicada: quem valida de verdade é validarTextoDaPeca (gerar-imagem.js,
+    // intocada); esta correção só grava o texto novo — a peça volta a passar pela MESMA validação
+    // na retentativa (ver cron.js, bloco "RECUSA POR EXCESSO DE PALAVRAS"). Restrito a
+    // agente==='estrategia' por defesa em profundidade (mesma lição do reparo de segunda chamada,
+    // 18/set/2026): só a Estratégia escreve headline/subheadline/cta_arte de peça avulsa; nenhum
+    // outro agente tem motivo pra emitir esta tag hoje.
+    const correcoesTexto=[];
+    texto=texto.replace(/<correcao_texto>([\s\S]*?)<\/correcao_texto>/g,(_,j)=>{
+      try{
+        const o=JSON.parse(j.trim());
+        if(o&&o.id&&/^(headline|subheadline|cta_arte)$/.test(String(o.campo||''))&&String(o.valor||'').trim()){
+          correcoesTexto.push({id:String(o.id),campo:String(o.campo),valor:String(o.valor).trim()});
+        }
+      }catch(e){}
+      return '';
+    });
+    if(agente==='estrategia' && correcoesTexto.length){
+      for(const ct of correcoesTexto){
+        try{
+          const [atualCT]=await sbGet(`conteudos?id=eq.${ct.id}&user_id=eq.${targetId}&select=meta`);
+          if(!atualCT){ console.error('[correcao_texto] id não encontrado ou não é deste cliente — id='+ct.id+' user='+targetId); continue; }
+          const metaCT={...(atualCT.meta||{}),[ct.campo]:ct.valor};
+          const rCT=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${ct.id}&user_id=eq.${targetId}`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({meta:metaCT}),
+          });
+          if(!rCT.ok) console.error('[correcao_texto] PATCH recusado pelo banco — id='+ct.id+' campo='+ct.campo);
+        }catch(e){ console.error('[correcao_texto] falhou (exceção) — id='+ct.id+':', e&&e.message); }
+      }
+    }
+
+    let erroGravacao=null;
+    // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026) — preenchido mais
+    // abaixo, no momento em que o card "aprovar_estrategia" nasce (só a primeira resposta que
+    // abre um plano novo passa por ali).
+    let avisoSemana1Vazia=null;
+    // PLANO MENSAL — TRAVA DE CICLO (LOTE 1 — TRAVAS DE DUPLICIDADE, 28/ago/2026): fecha o
+    // Estágio A do mapa de duplicidade — antes só existia checagem de card ABERTO (mais abaixo,
+    // "ex", na criação do card); um plano já APROVADO não impedia um segundo nascer pro mesmo
+    // ciclo. Definição de "ciclo" (reportada ao João antes de implementar, conforme pedido):
+    // o horizonte de 5 semanas contado a partir da ÂNCORA REAL do plano (JC.horizonteDoPlano,
+    // mesma fonte única de sempre) — não mês-calendário, que não bate com o desenho de âncora já
+    // usado no resto do sistema desde ANCORAGEM DAS SEMANAS. Só bloqueia quando: (a) já existe
+    // uma âncora real gravada (plano_ancora_em — ou seja, algum plano já foi aprovado alguma
+    // vez); (b) hoje ainda está dentro do horizonte dessa âncora; (c) não existe já um card
+    // 'aprovar_estrategia' aberto (isso seria continuação do MESMO plano ainda não aprovado,
+    // não um ciclo novo — mesma query usada mais abaixo em "ex", replicada aqui de propósito
+    // porque esta trava precisa rodar ANTES do INSERT dos conteúdos, não é regra divergente).
+    // Escopo só do PLANO — avulso nunca é tocado por esta trava, mesmo padrão de sempre.
+    let avisoCicloAtivo=null;
+    let cicloAtivoBloqueio=null;
+    if(agente==='estrategia'){
+      const _ancoraReal=(cli.preferencias&&cli.preferencias.plano_ancora_em)||null;
+      if(_ancoraReal){
+        const _hzCiclo=JC.horizonteDoPlano(_ancoraReal,diaLoteCliente);
+        if(hojeISO<=_hzCiclo.fim){
+          try{
+            const _exCiclo=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
+            if(!(Array.isArray(_exCiclo)&&_exCiclo.length)){
+              cicloAtivoBloqueio='O plano do mês atual (âncora '+_ancoraReal+') ainda está em vigor até '+_hzCiclo.fim+'. Um plano completo novo só pode ser aberto depois dessa data — se algo específico do plano atual precisa mudar, peça um ajuste pontual em vez de gerar o mês inteiro de novo.';
+            }
+          }catch(e){}
+        }
+      }
+    }
+    // ETAPA 1 — DESCARTE REAL (25/ago/2026): pares {avulso,id} dos conteúdos gravados nesta
+    // rodada, na ordem de `conteudos`. Usado mais abaixo pra vincular o plano mensal à sua
+    // ordem de aprovação (payload.ids) — mesmo padrão que a semanal já usa (ver idsW acima).
+    let idsPorConteudo=[];
+    if(conteudos.length){
+      try{
+        // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
+        // Mas AVULSO ('preciso de um post agora') NÃO é plano — nasce 'rascunho' e segue direto
+        // pro Designer. Antes o avulso caía no portão do plano, ficava 'proposto', o backstop não
+        // o via (só buscava rascunho/aprovado) e a ordem NUNCA saía — o bug do print do João.
+        const statusInicial=ct=>ct.criativo_url?'aguardando_aprovacao':((agente==='estrategia'&&!ct.avulso)?'proposto':'rascunho');
+        // Contrato de cardinalidade: peça inválida (ex.: carrossel sem "slides") NÃO é gravada
+        // e NÃO derruba as demais — vira aviso rastreável em vez de produção ambígua.
+        const invalidos=[];
+        // TRAVA DE CICLO (continuação, ver cicloAtivoBloqueio acima): se o ciclo atual ainda
+        // está em vigor, TODO o lote não-avulso é recusado de uma vez (não é peça a peça, como
+        // travaDeDatas/travaTrial — é "não pode nascer um plano novo agora", não "esta data é
+        // inválida"). avulso nunca é tocado. avisoCicloAtivo só vira aviso na resposta se algo
+        // realmente foi descartado por causa disso (evita avisar em toda conversa da Estratégia
+        // durante o ciclo, só quando o agente de fato tentou abrir um plano novo).
+        if(cicloAtivoBloqueio){
+          let _cicloRemovidos=0;
+          for(let i=conteudos.length-1;i>=0;i--){
+            if(!conteudos[i].avulso){ conteudos.splice(i,1); _cicloRemovidos++; }
+          }
+          if(_cicloRemovidos>0){
+            avisoCicloAtivo=cicloAtivoBloqueio;
+            invalidos.push(_cicloRemovidos+' peça(s) do plano recusada(s): '+cicloAtivoBloqueio);
+          }
+        }
+        for(let i=conteudos.length-1;i>=0;i--){
+          try{
+            cardinalidade(conteudos[i]);
+            // ANCORAGEM DAS SEMANAS (28/ago/2026, itens 3 e trava do trial): mesmo checkpoint da
+            // cardinalidade — reject, não corrige. Escopo só do PLANO (avulso fica de fora, por
+            // definição das próprias funções). Âncora de trabalho é ancoraPlano (a real, se já
+            // houver aprovação mensal; hoje, se ainda não houver — calculada uma vez no topo).
+            travaDeDatas(conteudos[i], ancoraPlano, diaLoteCliente);
+            if(emTrial) travaTrial(conteudos[i], cli.cortesia_ate);
+          }
+          catch(e){ invalidos.push(String((conteudos[i]&&conteudos[i].tema)||'peça')+': '+e.message); conteudos.splice(i,1); }
+        }
+        // COTA — item 5 (ANCORAGEM DAS SEMANAS, 28/ago/2026): no máximo 80% do saldo de imagens
+        // do plano vai pra posts planejados com arte; os outros 20% ficam de reserva pra
+        // recriações/avulsos do mês (mesmos números que cotaTxt já injeta no prompt como TETO —
+        // mas nunca se confia só no texto: "restam 966 de artes" foi o modelo inventando em cima
+        // de um contexto que ele às vezes ignora, não um erro de conta — ver APRENDIZADOS.md).
+        // Corta o EXCESSO (do fim da lista pra trás, ordem de chegada) e avisa — nunca produz
+        // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
+        // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
+        // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
+        if(agente==='estrategia'){
+          const tetoPlano=JC.tetoImagensPlano(cli);
+          let acumuladoCota=0;
+          for(let i=0;i<conteudos.length;i++){
+            const ct=conteudos[i];
+            if(ct.avulso||JC.ehMaterialUsuario(ct))continue;
+            let n=1; try{ n=cardinalidade(ct); }catch(e){ n=1; }
+            if(acumuladoCota+n>tetoPlano){
+              invalidos.push(String(ct.tema||'peça')+': ultrapassa os 80% da cota de imagens reservada ao plano ('+tetoPlano+' disponíveis; 20% fica reservado a recriações/avulsos do mês)');
+              conteudos.splice(i,1); i--; continue;
+            }
+            acumuladoCota+=n;
+          }
+        }
+        const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({
+            user_id:targetId, tema:ct.tema, copy:ct.copy,
+            formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
+            data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
+            // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"):
+            // `origem` é dado explícito de nascença — plano ou avulso, gravado uma vez, nunca mais
+            // inferido depois por card aberto/fechado. Os quatro caminhos (plano mensal, avulso
+            // comum, Tráfego, copy_para_criativo) passam todos por aqui — a diferença é só esta
+            // linha, não quatro pontos de escrita divergentes. NÃO confundir com `origem_agente`
+            // (linha acima, já existia — registra QUAL agente escreveu, pergunta diferente).
+            origem:ct.avulso?'avulso':'plano',
+            roteiro:ct.roteiro||null,
+            midia_url:ct.criativo_url||null,
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct)}
+          })
+        }).catch(()=>null)));
+        // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
+        // 'Prefer: return=representation' na resposta do INSERT, só não estava sendo lido até
+        // agora. Só leitura do corpo das respostas OK (as com falha são lidas separadamente
+        // logo abaixo, em falhas[0]) — sem conflito de ler o mesmo corpo duas vezes.
+        idsPorConteudo=(await Promise.all(rs.map(async(r,i)=>{
+          if(!r||!r.ok)return null;
+          try{
+            const j=await r.json();
+            const _id=(Array.isArray(j)&&j[0]&&j[0].id)?j[0].id:null;
+            // criativo_url ADICIONADO (15/set/2026, "Cadeia copy_para_criativo órfã") — campo novo,
+            // só leitura adiante (o HANDOFF de direcao_avulso_criativo, logo abaixo, nunca leu nem
+            // lê este campo — puramente aditivo, nada que já existia mudou de forma). Usado pelo
+            // HANDOFF de copy_para_criativo (novo, mais abaixo) pra identificar qual conteúdo
+            // recém-gravado é o resultado de QUAL ordem, sem confiar só em "avulso:true" (que
+            // direcao_avulso_criativo também marca — ver comentário no handoff novo).
+            return _id?{avulso:conteudos[i]&&conteudos[i].avulso,criativo_url:conteudos[i]&&conteudos[i].criativo_url,id:_id}:null;
+          }catch(e){return null;}
+        }))).filter(Boolean);
+        // NUNCA falhar em silêncio: se o banco recusar, o usuário PRECISA saber (antes isso era
+        // engolido e o agente dizia que tinha salvo — calendário vazio, ninguém entendia).
+        const falhas=rs.filter(r=>!r||!r.ok);
+        if(invalidos.length){
+          erroGravacao=(erroGravacao?erroGravacao+' · ':'')+invalidos.length+' peça(s) não gravada(s) por contrato inválido: '+invalidos.slice(0,3).join(' · ');
+        }
+        if(falhas.length){
+          let motivo='';
+          try{const j=await falhas[0].json();motivo=j.message||j.hint||j.details||''}catch(e){}
+          console.error('conteudos insert falhou:',falhas.length,'de',conteudos.length,motivo);
+          erroGravacao=`${falhas.length} de ${conteudos.length} post(s) não foram gravados${motivo?(': '+String(motivo).slice(0,180)):''}`;
+          conteudos.length=conteudos.length-falhas.length; // só conta o que entrou de verdade
+        }
+      }catch(e){erroGravacao='falha ao gravar os posts: '+e.message}
+    }
+
+    // HANDOFF — CRIATIVO→ESTRATÉGIA, PEDIDO AVULSO (12/set/2026): fecha o elo 1 (Estratégia) e
+    // avança pro elo 2 (Criativo, via _cadeia-lib.js — mesmo módulo do handoff anterior). PRECISA
+    // rodar ANTES do backstop abaixo: o backstop também varre conteúdo avulso pronto sem arte e
+    // criaria uma 2ª ordem pro Designer pro MESMO conteúdo se corresse primeiro (idempotência do
+    // avanço da cadeia, por ordem_pai, só protege contra 2 chamadas a avancarCadeia — não contra
+    // um mecanismo DIFERENTE criando outra ordem antes dele existir). Só fecha se de fato saiu
+    // <conteudo> avulso nesta resposta — se não saiu, a ordem continua pendente (retry natural no
+    // próximo turno da Estratégia), nunca fecha vazio.
+    if(agente==='estrategia'){
+      try{
+        const pendDirecao=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.direcao_avulso_criativo&status=eq.pendente&select=*`);
+        const idsAvulsoNovos=idsPorConteudo.filter(x=>x&&(x.avulso===true||String(x.avulso)==='true')).map(x=>x.id);
+        if(Array.isArray(pendDirecao)&&pendDirecao.length&&idsAvulsoNovos.length){
+          for(const od of pendDirecao){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+              method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+            }).catch(()=>{});
+            try{
+              await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},
+                {tipo:'conteudo_ids',valor:idsAvulsoNovos,payloadExtra:{ids:idsAvulsoNovos}});
+            }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (direcao_avulso_criativo) — ordem='+od.id+' erro='+(e&&e.message));}
+          }
+        }
+      }catch(e){}
+    }
+
+    // HANDOFF — copy_para_criativo (15/set/2026, "Cadeia copy_para_criativo órfã"): mesmo
+    // mecanismo do handoff acima (mesmo bloco fecha-a-ordem-e-chama-avancarCadeia, mesma função
+    // genérica de _cadeia-lib.js, protegida, não tocada) — bloco PRÓPRIO, não uma modificação do
+    // handoff de direcao_avulso_criativo, pela mesma razão que aquele já é separado do backstop:
+    // cada handoff decide SOZINHO quando a SUA ordem fechou, sem If's espalhados por um bloco
+    // genérico. DIFERENÇA DELIBERADA em relação ao handoff acima: esta cadeia tem UM elo só (o
+    // criativo já existe — a instrução da Estratégia, ~linha 446, é explícita: "NÃO dispare ordem
+    // ao Designer") — por isso `resultadoElo` aqui NÃO leva `payloadExtra:{ids:...}` (não há
+    // próximo elo que precise desse dado operacional pra rodar). `avancarCadeia` já sabe fechar
+    // sem criar nada quando não há próximo elo (_cadeia-lib.js, "FECHAMENTO EXPLÍCITO") — nenhuma
+    // mudança precisou ir lá; é exatamente o que "reaproveitar, não criar mecanismo próprio" pediu.
+    //
+    // SINAL DE FECHAMENTO — por que `criativo_url`, não só `avulso:true`: direcao_avulso_criativo
+    // (handoff acima) TAMBÉM marca avulso:true nos <conteudo> que grava, e as duas ordens podem,
+    // em tese, estar pendentes pro MESMO cliente no MESMO turno (o prompt injeta até 5 ordens
+    // pendentes de uma vez, ver `ordensTxt` acima). Filtrar só por avulso:true correria o risco de
+    // fechar a ordem errada com o conteúdo errado. `criativo_url` só existe em <conteudo> emitido
+    // para copy_para_criativo (é campo OBRIGATÓRIO da instrução dessa tarefa, nunca pedido na de
+    // direcao_avulso_criativo) — sinal específico o bastante pra não precisar de nenhum id de
+    // ordem na própria tag.
+    // ACHADO RESIDUAL, reportado — não corrigido aqui (exigiria tocar o handoff acima, protegido
+    // nesta rodada: "não alterar cadeia direcao_avulso_criativo e seu worker"): o filtro do handoff
+    // ACIMA (`idsAvulsoNovos`, linha ~2022) continua sendo só `avulso===true`, sem excluir
+    // `criativo_url` — no cenário raro de as duas ordens estarem pendentes pro mesmo cliente E a
+    // Estratégia responder às duas no MESMO turno, aquele handoff poderia incluir por engano o id
+    // do conteúdo desta cadeia na lista que avança pro Designer (`criar_avulso`), gerando uma arte
+    // indevida pra um criativo que o cliente já subiu pronto. Não acontece hoje (nenhuma ordem
+    // pendente de nenhum dos dois tipos, confirmado no banco antes desta entrega) — registrado
+    // pra decisão futura, não presumido como seguro pra sempre.
+    if(agente==='estrategia'){
+      try{
+        const pendCopy=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.copy_para_criativo&status=eq.pendente&select=*`);
+        const idsCopyNovos=idsPorConteudo.filter(x=>x&&x.criativo_url&&(x.avulso===true||String(x.avulso)==='true')).map(x=>x.id);
+        if(Array.isArray(pendCopy)&&pendCopy.length&&idsCopyNovos.length){
+          for(const od of pendCopy){
+            await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+              method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+            }).catch(()=>{});
+            try{
+              await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},
+                {tipo:'conteudo_ids',valor:idsCopyNovos});
+            }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (copy_para_criativo) — ordem='+od.id+' erro='+(e&&e.message));}
+          }
+        }
+      }catch(e){}
+    }
+
+    let notaBackstop=null;
+    // ── P1: BACKSTOP DA ORDEM AO DESIGNER (não confiar no LLM p/ efeito colateral) ──
+    // Cobre o AVULSO: conteúdo pronto (copy+headline), imagem, que não é plano mensal
+    // 'proposto' e ficou sem arte. O caminho da semana já dá baixa acima; aqui pegamos o resto.
+    if(agente!=='publicacao'){
+      try{
+        // ATENÇÃO (25/ago/2026): antes esta regra também excluía 'story' — era a ÚNICA das nove
+        // regras divergentes que fazia isso. A fonte única trata story como PRODUCAO_IMAGEM (o
+        // Engine 6.0 produz normalmente, só que vertical) — mas o caminho de produção automática
+        // de story nunca foi validado de ponta a ponta (ver FORMATOS_EM_VALIDACAO em
+        // assets/classificacao.js), e este backstop é o disparo mais amplo do sistema (roda a
+        // cada interação de chat). Por isso ele — só ele, por ora — mantém story fora até a
+        // Fase 2/3 validar o resultado visual real.
+        const IMGF=c=>!JC.ehMaterialUsuario(c)&&!JC.emValidacao(c);
+        // pega conteúdos recentes deste usuário, prontos p/ virar arte e ainda sem imagem
+        // CORREÇÃO 1: 'criativo_url' NÃO é coluna de conteudos — é campo do JSON da IA, gravado em
+        // 'midia_url' (ver INSERT acima) com a flag em meta.criativo_proprio. Pedi-lo no select fazia
+        // o PostgREST devolver 400; o retorno não era array e o backstop morria em silêncio, deixando
+        // o conteúdo eternamente em "aguardando produção". Agora usamos o campo real.
+        // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"):
+        // exclui origem='plano' DIRETO NA QUERY — post do plano mensal nunca entra no conjunto
+        // candidato do backstop, dado explícito, não inferência por card. `or=(origem.neq.plano,
+        // origem.is.null)` inclui avulso E o legado sem a coluna (NULL) — PostgREST/SQL: `neq`
+        // sozinho excluiria NULL também (NULL<>'plano' não é TRUE), por isso o `or` com `is.null`
+        // explícito, senão conteúdo legado sumia do backstop em silêncio.
+        const prontos=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,aguardando_copy,aprovado)&midia_url=is.null&or=(origem.neq.plano,origem.is.null)&order=created_at.desc&limit=12&select=id,formato,copy,meta,status,midia_url,origem`);
+        const _prontosArr=Array.isArray(prontos)?prontos:[];
+        // ETAPA 2 (26/ago/2026): material do usuário pronto (copy+headline, só falta o arquivo)
+        // vira card "aguardando material" aqui também — o backstop é o disparo mais amplo do
+        // sistema (roda a cada interação de chat), então é quem mais frequentemente encontra
+        // esse conteúdo primeiro. Mesmo tratamento do criador semanal, mesmo critério de pronto.
+        const matBackstop=_prontosArr.filter(c=>JC.ehMaterialUsuario(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim()).map(c=>c.id);
+        if(matBackstop.length){
+          await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matBackstop.join(',')})`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
+          }).then(r=>{if(r.ok)notaBackstop=(notaBackstop?notaBackstop+'\n':'')+'📎 '+matBackstop.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+            .catch(e=>console.error('[ordem] backstop: marcar aguardando_material falhou:',e&&e.message));
+        }
+        const pend=_prontosArr.filter(c=>IMGF(c)&&!c.midia_url&&!((c.meta||{}).criativo_proprio)&&String(c.copy||'').trim()&&String((c.meta||{}).headline||'').trim());
+        if(pend.length){
+          // CORREÇÃO 2: duplicidade POR CONTEÚDO. Antes, QUALQUER ordem pendente do Criativo
+          // bloqueava a criação de ordens para todos os outros conteúdos.
+          const idsPend=pend.map(c=>c.id);
+          const abertas=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,criar_avulso)&status=in.(pendente,processando)&select=id,payload`);
+          const jaNaFila=new Set();
+          (Array.isArray(abertas)?abertas:[]).forEach(o=>{
+            const ids=(o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[];
+            ids.forEach(x=>jaNaFila.add(String(x)));
+          });
+          // GATE DA APROVAÇÃO SEMANAL (27/ago/2026, endurecido em 09/set/2026 — Falha 3): o
+          // backstop cobre o AVULSO (conteúdo pronto que não passa por aprovação de calendário) —
+          // nunca deveria pegar posts do plano mensal que ainda esperam o card 'aprovar_semana'.
+          // Até aqui a query já barra `origem='plano'` (comentário acima) — quem chega em `pend`
+          // só tem `origem='avulso'` ou `origem IS NULL` (legado, sem a coluna). Post com
+          // `origem='avulso'` é dado explícito: NUNCA é protegido por card, produção sempre livre
+          // — é a função original do backstop. O que ainda depende de inferência por card aberto
+          // (`naSemanaAberta`, mesmo mecanismo de antes) é só o legado sem `origem` — até essas
+          // linhas saírem de circulação (produzidas, aprovadas ou descartadas), mantém o
+          // comportamento ATUAL, exatamente como decidido no relatório da migration (nunca tratar
+          // ausência de dado como um dos dois valores).
+          const semanasAbertas=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_semana&status=eq.aguardando_aprovacao&select=payload`);
+          const naSemanaAberta=new Set();
+          (Array.isArray(semanasAbertas)?semanasAbertas:[]).forEach(o=>{
+            ((o.payload&&Array.isArray(o.payload.ids))?o.payload.ids:[]).forEach(x=>naSemanaAberta.add(String(x)));
+          });
+          const origemPorId=new Map(pend.map(c=>[String(c.id),c.origem||null]));
+          // CAMADA 1: além do banco, respeita o que já foi atendido nesta mesma requisição.
+          // origem='avulso' pula a checagem de card por definição; origem IS NULL (legado) mantém
+          // a checagem de sempre.
+          const novos=idsPend.filter(x=>{
+            const sx=String(x);
+            if(jaNaFila.has(sx)||atendidosNestaReq.has(sx)) return false;
+            if(origemPorId.get(sx)==='avulso') return true;
+            return !naSemanaAberta.has(sx);
+          });
+          if(novos.length){
+            novos.forEach(x=>atendidosNestaReq.add(String(x)));   // registra ANTES do INSERT
+            const _okB=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+              method:'POST',headers:H(),
+              body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:'criativo',tarefa:'criar_post',
+                detalhe:'Criar '+novos.length+' arte(s) pendente(s)',status:'pendente',total:novos.length,progresso:0,
+                payload:{origem:'backstop',ids:novos}})
+            }).then(r=>r.ok).catch(e=>{console.error('[ordem] INSERT backstop falhou:',e&&e.message);return false;});
+            if(!_okB){ novos.forEach(x=>atendidosNestaReq.delete(String(x))); console.error('[ordem] backstop: ids liberados'); }
+            notaBackstop='🎨 '+novos.length+' arte(s) enviada(s) ao Designer automaticamente.';
+          }
+        }
+      }catch(e){console.error('backstop ordem designer:',e.message);}
+    }
+
+    // GARANTIA + DRIP (Leva B/Fase 1): a Estratégia planeja o mês inteiro no calendário, mas o lote
+    // IMEDIATO p/ o Designer cobre SÓ a semana atual (posts sem data ou com data até 7 dias). As
+    // próximas semanas são disparadas pelo cron no dia de lote do usuário. Determinístico + dedup.
+    // PORTÃO DE APROVAÇÃO (Fase workflow): a Estratégia NÃO dispara mais as ordens direto.
+    // Ela cria UMA tarefa "Aprovar a estratégia do mês". Ao aprovar, o plano entra no calendário
+    // e as ordens do Designer (só imagens) e da Publicação são disparadas.
+    // ⚠️ SÓ PLANO DO MÊS gera card de estratégia. Um pedido AVULSO ("quero um post sobre X")
+    // nunca é um plano mensal — antes qualquer conteúdo criado pela Estratégia abria um card
+    // "Aprovar a estratégia do mês" que o usuário não pediu (bug relatado).
+    const _doPlano=conteudos.filter(ct=>ct && ct.avulso!==true && String(ct.avulso)!=='true');
+    if(agente==='estrategia' && _doPlano.length>0){
+      try{
+        // ATENÇÃO (Fase 1, 25/ago/2026): antes exigia bater numa allowlist explícita
+        // (feed/carrossel/story/carousel); um formato fora dessa lista (mas também não-reel/
+        // vídeo) não contava como "arte". A fonte única não tem allowlist — só a exclusão de
+        // material do usuário — então um formato inesperado agora conta como arte, igual já
+        // acontecia no gate real de produção (cron.js). Este número é só o texto do card
+        // ("X arte(s) para o Designer"), nunca decidiu o que é produzido de fato.
+        const imagens=_doPlano.filter(ct=>!JC.ehMaterialUsuario(ct)).length;
+        // ETAPA 1 — DESCARTE REAL (25/ago/2026): antes esta ordem não guardava payload.ids —
+        // não havia como saber, depois de promovido pra 'rascunho', quais posts pertenciam a
+        // ESTE plano especificamente (só dava pra achar por status='proposto', que deixa de
+        // valer após a promoção). Mesmo padrão que aprovar_semana já usa (ver idsW acima).
+        // Ressalva: pode vir menor que _doPlano.length se algum insert individual falhou —
+        // reflete só o que de fato foi gravado, nunca inventa id.
+        const _idsDoPlano=idsPorConteudo.filter(x=>x.avulso!==true&&String(x.avulso)!=='true').map(x=>x.id);
+        const ex=await sbGet(`ordens_servico?user_id=eq.${targetId}&tarefa=eq.aprovar_estrategia&status=eq.aguardando_aprovacao&select=id&limit=1`);
+        if(!(Array.isArray(ex)&&ex.length)){
+          // SEMANA 1 OBRIGATÓRIA (item 2, "JANELA DE PLANEJAMENTO", 28/ago/2026 — mantido pelo
+          // LOTE 2, 01/set/2026, mesmo com o mês inteiro agora vindo numa resposta só em vez de
+          // turno por turno): este é especificamente o turno que ABRE um plano novo (nenhum
+          // 'aprovar_estrategia' já aberto) — a Semana 1 precisa vir com pelo menos 1 peça neste
+          // mesmo lote. Critério confirmado com o João: "não comporta" = teto de imagens do plano = 0
+          // (nunca "poucos dias" — provado matematicamente que a Semana 1 nunca tem menos de 1
+          // dia, e 1 dia já comporta 1 peça). Recusa não apaga o resto do plano (as outras
+          // semanas entregues nesta ou em respostas seguintes continuam válidas) — só avisa alto
+          // o suficiente pra não passar em silêncio, mesmo padrão de erroGravacao.
+          const temPecaSemana1=_doPlano.some(ct=>JC.semanaDoPost(ct&&ct.data_sugerida,ancoraPlano,diaLoteCliente)===1);
+          const tetoDisponivel=JC.tetoImagensPlano(cli);
+          if(!temPecaSemana1 && tetoDisponivel>0){
+            avisoSemana1Vazia='A Semana 1 do plano (a partir de hoje) ficou sem nenhuma peça — o plano começou direto pela Semana 2 em diante, mesmo havendo cota disponível ('+tetoDisponivel+' peça(s) com arte ainda cabem). Peça à Estratégia para completar a Semana 1 antes de aprovar.';
+          }
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+            method:'POST',headers:H(),
+            body:JSON.stringify({user_id:targetId,de_agente:'estrategia',para_agente:'estrategia',tarefa:'aprovar_estrategia',
+              detalhe:'Aprovar a estratégia do mês ('+_doPlano.length+' post(s) planejados · '+imagens+' arte(s) para o Designer)',
+              status:'aguardando_aprovacao',total:_doPlano.length,progresso:0,
+              payload:{posts:_doPlano.length,imagens:imagens,ids:_idsDoPlano}})
+          }).catch(()=>{});
+        }
+        // MARCO DO CICLO: o aviso da próxima estratégia sai 5 dias antes de fechar 30 dias DESTA data.
+        const prefAtual=(cli.preferencias&&typeof cli.preferencias==='object')?cli.preferencias:{};
+        await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${targetId}`,{
+          method:'PATCH',headers:H(),
+          body:JSON.stringify({preferencias:{...prefAtual,estrategia_em:new Date().toISOString()}})
+        }).catch(()=>{});
+      }catch(e){}
+    }
+
+    // Marcar ordens pendentes recebidas como concluídas após atendimento (PRECISO por tarefa)
+    // Designer (chat) atende 'criar_post'; a 'ficha_tecnica' é tratada pelo botão do front.
+    // Estratégia atende 'novo_criativo_ads' (do Tráfego) quando grava conteúdo.
+    try{
+      if(agente==='criativo'&&imgReq){
+        // 🔴 ANTES fechava só 'criar_post'. Quando o cliente pedia a ficha técnica direto no
+        // CHAT (em vez do botão da fila), a arte saía mas a ordem 'ficha_tecnica' ficava
+        // pendente PARA SEMPRE nas Tarefas de Serviço. Agora fecha as duas naturezas.
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,ficha_tecnica)&status=eq.pendente`,{
+          method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+        }).catch(()=>{});
+      }
+      if(agente==='estrategia'&&conteudos.length>0){
+        // HANDOFF — CADEIA (11/set/2026): fecha o elo 1 e delega o avanço pro mecanismo genérico
+        // (api/_cadeia-lib.js) — a MESMA função usada pelo worker (api/cron.js) pros elos
+        // seguintes. Elimina a duplicação que existia aqui (uma lógica de avanço só pra este
+        // caso, sem relação com a do worker, hardcoded em 'criar_criativo_ads'/'estrategia') —
+        // ver APRENDIZADOS.md "Handoff entre agentes — fechar a cadeia" pro relatório completo.
+        const pend=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.estrategia&tarefa=eq.novo_criativo_ads&status=eq.pendente&select=*`);
+        for(const od of (Array.isArray(pend)?pend:[])){
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${od.id}`,{
+            method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
+          }).catch(()=>{});
+          try{
+            // GAP DO conteudo_id (16/set/2026, "unificação das arquiteturas de prompt"): antes só
+            // `valor` (histórico/auditoria, resultado_etapas) recebia os ids — `payloadExtra`
+            // (o dado que o PRÓXIMO elo de fato consome, ver comentário em _cadeia-lib.js) ficava
+            // vazio. O elo 'criar_criativo_ads' nascia só com `payload.brief` (texto cru), sem
+            // nenhuma referência ao <conteudo> que a Estratégia ACABOU de gravar, headline real
+            // incluída — o Diretor inventava uma headline nova enquanto a real dormia no banco.
+            // Mesmo padrão que `executarLoteCriativos`/`criar_post` já usam (payload.ids → busca
+            // o conteúdo real, nunca reconstrói do zero).
+            const idsCadeia=idsPorConteudo.filter(x=>x&&x.id).map(x=>x.id);
+            await avancarCadeia({id:od.id,user_id:targetId,detalhe:od.detalhe,payload:od.payload||{}},{tipo:'conteudo_ids',valor:idsCadeia,payloadExtra:idsCadeia.length?{ids:idsCadeia}:undefined});
+          }catch(e){console.error('[cadeia-lib] avancarCadeia falhou (chat estratégia) — ordem='+od.id+' erro='+(e&&e.message));}
+        }
+      }
+    }catch(e){}
+
+    // ═══ REGISTRO DE EXECUÇÃO (Critério 3: cada criação dos agentes recorrentes vira
+    // uma ordem CONCLUÍDA, p/ o painel de Ordens ser confiável e em tempo real — a VOLTA) ═══
+    try{
+      const registros=[];
+      if(agente==='estrategia'&&conteudos.length>0){
+        registros.push({tarefa:'calendario_gerado',detalhe:conteudos.length+' post(s) planejado(s) e enviados para aprovação'});
+      }
+      if(agente==='criativo'&&imgReq){
+        // TEXTO CORRIGIDO (15/set/2026, ver APRENDIZADOS.md "arte_criada — rótulo sem produção"):
+        // este registro nasce sempre que a resposta contém <gerar_imagem> — ou seja, SEMPRE antes
+        // de qualquer produção real. A imagem só existe se o cliente clicar "Gerar imagem" no
+        // preview (mostrarBotaoImagem, agentes.html) e, mesmo aí, só é salva com uma ação própria
+        // de "salvar" depois (o preview roda com registrar:false). Dizer "arte gerada" aqui era
+        // sempre uma afirmação falsa no momento em que era escrita — nunca há produção confirmada
+        // neste ponto do código. Decisão do João (opção b, 15/set): manter o registro nascendo
+        // sempre (ele serve à auditoria — sem ele, um conceito proposto e nunca clicado desaparece
+        // do rastro), mas descrever o estado real, nunca o que ainda não aconteceu. Mesmo
+        // princípio do painel "Seu plano": mostrar o estado real em vez de esconder.
+        registros.push({tarefa:'arte_criada',detalhe:'conceito de arte pronto — aguardando o cliente clicar em "Gerar imagem" para produzir'});
+      }
+      if(agente==='trafego'&&ordens.some(o=>o.tarefa==='novo_criativo_ads')){
+        registros.push({tarefa:'campanha_planejada',detalhe:'estratégia de anúncio (público, orçamento, criativo) entregue'});
+      }
+      // registra cada execução como ordem concluída (de_agente = para_agente = o próprio agente)
+      if(registros.length){
+        await Promise.all(registros.map(r=>fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({user_id:targetId,de_agente:agente,para_agente:agente,tarefa:r.tarefa,detalhe:r.detalhe,status:'concluida',concluida_em:new Date().toISOString()})
+        }).catch(()=>{})));
+      }
+    }catch(e){}
+
+    // Extrair automações de DM (Publicação cria; respeita limite do plano)
+    const automacoes=[];
+    texto=texto.replace(/<automacao_dm>([\s\S]*?)<\/automacao_dm>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());if(o.palavra_chave&&o.mensagem)automacoes.push(o)}catch(e){}
+      return '';
+    });
+    if(automacoes.length){
+      try{
+        // limite de DM: MESMA função de assets/agente-chat.js usada pra montar o bloco de
+        // contexto da Publicação (limiteAtivoDm, topo do arquivo) — nenhuma regra duplicada
+        // (POSTURA DOS AGENTES — PARTE 2, 15/set/2026).
+        const {max:maxDm, atuais:jaTem}=await limiteAtivoDm(cli,targetId,sbGet);
+        const podem=Math.max(0,maxDm-jaTem);
+        for(const a of automacoes.slice(0,podem)){
+          await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm`,{
+            method:'POST',headers:H(),
+            body:JSON.stringify({user_id:targetId,palavra_chave:a.palavra_chave,mensagem:a.mensagem,objetivo:a.objetivo||'lead',gatilho:a.gatilho||'comentario',origem:a.origem||'ambos',ativo:true})
+          }).catch(()=>{});
+        }
+        // registro de execução (Critério 3): Publicação configurou automação → ordem concluída
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{
+          method:'POST',headers:H(),
+          body:JSON.stringify({user_id:targetId,de_agente:'publicacao',para_agente:'publicacao',tarefa:'automacao_configurada',detalhe:Math.min(automacoes.length,podem)+' automação(ões) de DM configurada(s)',status:'concluida',concluida_em:new Date().toISOString()})
+        }).catch(()=>{});
+      }catch(e){}
+    }
+
+    // ── EDITAR VÍDEO: o Editor dispara a edição automática (Shotstack) ──
+    let videoEditando=false;
+    let editVideoOps=null;
+    texto=texto.replace(/<editar_video>([\s\S]*?)<\/editar_video>/g,(_,j)=>{
+      try{const o=JSON.parse(j.trim());editVideoOps=o;}catch(e){}
+      return '';
+    });
+    if(editVideoOps && agente==='video'){
+      try{
+        const zapKey=process.env.ZAPCAP_API_KEY;
+        if(!zapKey){
+          texto+='\n\n(Observação: a edição automática de vídeo ainda não está configurada. Avise o administrador.)';
+        }else if(!videoCruUrl){
+          texto+='\n\n(Não encontrei um vídeo cru para editar. Envie a captação em "Meus Arquivos" na categoria Vídeos.)';
+        }else{
+          // limite de vídeos: só role usuario (admin/supervisor sem limite)
+          let podeEditar=true;
+          if(cli.role==='usuario'){
+            let limV=Number((cli.limites&&cli.limites.videos)??0);
+            // no trial: limite reduzido por plano (básico1/plus2/pro3)
+            if(emTrial){ limV=Math.min(limV||99,{basico:1,plus:2,pro:3}[cli.plano||'basico']||1); }
+            if(Number(uso.videos||0)>=limV){
+              podeEditar=false;
+              texto+=emTrial
+                ? `\n\n(No período de teste você pode editar até ${limV} vídeo(s). Ative seu plano para liberar a cota completa.)`
+                : `\n\n(Você atingiu o limite de ${limV} vídeo(s) do seu plano este mês.)`;
+            }
+          }
+          if(podeEditar){
+            const ops=editVideoOps;
+            // FLUXO ZAPCAP: upload (URL) → task
+            const up=await zapUpload(videoCruUrl);
+            if(up.error){
+              texto+='\n\n(Houve um erro ao enviar o vídeo para edição. Tente novamente.)';
+            }else{
+              const tk=await zapCriarTask(up.videoId,ops);
+              if(tk.error){
+                texto+='\n\n(Houve um erro ao processar o vídeo. Tente novamente.)';
+              }else{
+                const jobRes=await fetch(`${SUPABASE_URL}/rest/v1/video_jobs`,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify({user_id:targetId,status:'processando',origem_url:videoCruUrl,operacoes:ops,titulo:'Vídeo (via Agente)',render_id:'zap:'+up.videoId+':'+tk.taskId})});
+                const jobArr=await jobRes.json();
+                if(cli.role==='usuario'){uso.videos=Number(uso.videos||0)+1;}
+                videoEditando=true;
+              }
+            }
+          }
+        }
+      }catch(e){texto+='\n\n(Erro ao processar a edição do vídeo.)';}
+    }
+
+    // Auto-aprendizado: extrair memórias
+    const novas=[];
+    // Causa 2, Rodada 2 (22/set/2026, autorizado pelo João): "valores de enumeração são
+    // validados contra o conjunto aceito... valor fora do conjunto é recusado com a lista dos
+    // aceitos, não gravado em silêncio." Campo de enumeração (DNA_ENUMS) com valor fora do
+    // conjunto NUNCA entra em `novas` — nunca é upsertado (ver memWrites, mais abaixo). Log
+    // sempre (nenhuma falha silenciosa); o campo continua aparecendo como "ainda vazio" no
+    // check-in do próximo turno (dnaChecklistTxt, acima), então o agente vê e tenta de novo.
+    texto=texto.replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{
+      try{
+        const o=JSON.parse(j.trim());
+        if(o.chave&&o.valor){
+          if(!dnaValorAceito(o.chave,o.valor)){
+            console.error('[dna-enum-recusado] valor fora do conjunto aceito, não gravado — chave='+o.chave+' valor="'+String(o.valor).slice(0,80)+'" aceitos='+(DNA_ENUMS[o.chave]||[]).join('/'));
+          } else {
+            novas.push(o);
+          }
+        }
+      }catch(e){}
+      return '';
+    });
+    // PÓS-TRIAL: se a Estratégia marcou que completou o mês, grava no onboarding (encerra a flag)
+    if (novas.some(m => String(m.chave) === 'estrategia_completada')) {
+      try {
+        const onb = Object.assign({}, cli.onboarding || {}, { estrategia_completada: true, completar_estrategia: false });
+        await sbPatch(`clientes?id=eq.${targetId}`, { onboarding: onb });
+      } catch (e) {}
+    }
+    // Chaves de OS_DATA/VISUAL/VIDEO são SEMPRE globais (Designer/Editor leem global). A
+    // constante CHAVES_GLOBAIS que vivia aqui foi removida (25/set/2026, "Fonte única do DNA da
+    // marca") por estar morta: a linha abaixo (ehGlobal=true) já decidia isso incondicionalmente
+    // — a constante nunca era de fato consultada. A escrita continua exatamente como estava.
+    const memWrites=novas.slice(0,12).map(m=>{
+      const ehGlobal=true; // DNA VIVO: todo aprendizado durável de qualquer agente entra no DNA compartilhado que todos leem
+      return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
+    });
+
+    // Check-in concluído (agente identidade)
+    // Causa 2, Rodada 2 (22/set/2026, autorizado pelo João): "o check-in de Identidade marca
+    // conclusão sem validar nada em código" — corrigido aqui. A tag sozinha não basta mais: só
+    // é aceita quando TODOS os campos obrigatórios do DNA visual (DNA_CAMPOS_OBRIGATORIOS)
+    // estiverem preenchidos. Estado MERGEADO — o que já estava gravado (mems, agente='global')
+    // mais o que ESTE turno está gravando agora (novas, já filtrado dos enums recusados acima)
+    // — cobre o caso comum de o cliente preencher o último campo faltante na MESMA mensagem
+    // que conclui a consultoria. Se ainda faltar algo, a tag é removida do texto do mesmo jeito
+    // (nunca vaza pro cliente), mas `checkin` continua false: onboarding.checkin nunca é
+    // setado, a ordem de ficha técnica ao Criativo (mais abaixo) não dispara — o gate real fica
+    // em código, nunca confiando só no texto solto do modelo. Log sempre (nenhuma falha
+    // silenciosa); o próximo turno já mostra a lista atualizada via dnaChecklistTxt (acima).
+    let checkin=false;
+    if(texto.includes('<checkin_completo/>')){
+      texto=texto.replace(/<checkin_completo\/>/g,'').trim();
+      const dnaMergeado={};
+      mems.filter(m=>m.agente==='global').forEach(m=>{ dnaMergeado[m.chave]=m.valor; });
+      novas.forEach(m=>{ if(m.chave) dnaMergeado[String(m.chave)]=String(m.valor); });
+      const faltandoAgora=dnaFaltando(dnaMergeado);
+      // "O onboarding passa a captar o DNA de direção de arte" (25/set/2026, autorizado pelo
+      // João) — REUSA o mesmo dnaMergeado (mesma mescla mems+novas, tag já removida do texto de
+      // qualquer jeito, log sempre, nenhuma falha silenciosa); só soma a segunda condição de
+      // bloqueio. Nenhuma validação paralela: a lista dos 21 campos mora só em _dna-lib.js.
+      // estilo_de_mockup é opcional e não entra em dnaDirecaoFaltando(), então nunca bloqueia.
+      const direcaoFaltandoAgora=dnaDirecaoFaltando(dnaMergeado);
+      if(agente==='identidade' && (faltandoAgora.length || direcaoFaltandoAgora.length)){
+        console.error('[checkin-identidade] <checkin_completo/> recebida com DNA incompleto — recusada em código, onboarding.checkin NÃO setado. user_id='+targetId+' faltando_obrigatorios='+faltandoAgora.join(', ')+' faltando_direcao='+direcaoFaltandoAgora.join(', '));
+      } else {
+        checkin=true;
+        const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});
+        await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
+      }
+    }
+    // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
+    // cria a ordem para o Criativo de forma determinística — tanto ao concluir o check-in AGORA
+    // quanto para quem JÁ fez o check-in ANTES deste fix (a ordem que "sumiu"). Roda em qualquer
+    // interação com o Identidade quando o check-in já está feito. Dedup por QUALQUER status
+    // (se já houve ficha alguma vez, não recria).
+    // Se o usuário entrou no agente marcado como "próximo" (o ponto piscando), limpa a marcação.
+    if(cli.onboarding && cli.onboarding.proximo===agente){
+      const _ob=Object.assign({},cli.onboarding); delete _ob.proximo;
+      await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:_ob});
+    }
+    if(agente==='identidade' && (checkin || (cli.onboarding&&cli.onboarding.checkin))){
+      try{
+        const temFicha=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&select=id&limit=1`);
+        if(!(Array.isArray(temFicha)&&temFicha.length)){
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
+            user_id:targetId, de_agente:'identidade', para_agente:'criativo', tarefa:'ficha_tecnica',
+            detalhe:'gerar ficha técnica visual da marca: paleta, fontes e 1 exemplo de post', status:'pendente'
+          })}).catch(()=>{});
+        }
+      }catch(e){}
+    }
+    texto=texto.trim();
+
+    // Persistir tudo em paralelo (memórias + conversa + uso)
+    const gastos=((data.usage&&(data.usage.input_tokens+data.usage.output_tokens))||800);
+    const novoUso=Object.assign({},uso,{tokens:Number(uso.tokens||0)+gastos});
+    // tokens registrados apenas para acompanhamento de custo (admin), sem bloqueio nem aviso
+    // 🔴 ORDEM CRONOLÓGICA: o par (pergunta+resposta) ia num único insert em array → os dois
+    // recebiam created_at=now() IGUAL → empate → o reverse do histórico embaralhava (a resposta
+    // aparecia ACIMA da pergunta ao reabrir o agente). Escalona 1s: pergunta antes, resposta depois.
+    const _tPar=Date.now();
+
+    // REPARO AVULSO — AVISOS SOBREVIVEM AO RECARREGAR (03/set/2026): os avisos abaixo
+    // (notaSemanal, notaBackstop, avisoNadaRegistrado, erroGravacao, avisoCicloAtivo, os dois
+    // avisos de <detalhe> e o de truncamento) eram só ANEXADOS ao `texto` da resposta HTTP
+    // DEPOIS do insert em chat_mensagens já ter acontecido logo abaixo — nunca eram gravados.
+    // Quem recarregava a tela perdia a informação, inclusive o mais importante de todos
+    // (avisoNadaRegistrado: "nada foi salvo, peça de novo"). Corrigido gravando-os numa coluna
+    // PRÓPRIA — avisos (texto, nullable, sql/reparo-avulso-passo1-persistir-avisos.sql) —
+    // separada de `conteudo`. DE PROPÓSITO separada, não concatenada: o histórico que volta pro
+    // MODELO (abaixo, "select role,conteudo") continua sem tocar nesta coluna — um aviso
+    // operacional não é fala do agente; se voltasse como se fosse, o modelo trataria a própria
+    // bronca ("nada foi registrado") como parte da conversa, podendo reagir a ela sem o cliente
+    // ter pedido nada de novo. `texto` (o que o modelo realmente disse, sem avisos) é o que
+    // continua alimentando o histórico do agente — sem mudança aí.
+    let avisosPartes=[];
+    if(notaSemanal) avisosPartes.push(notaSemanal);
+    if(notaBackstop) avisosPartes.push(notaBackstop);
+    if(avisoSemana1Vazia) avisosPartes.push('⚠️ '+avisoSemana1Vazia);
+    if(avisoCicloAtivo) avisosPartes.push('⚠️ '+avisoCicloAtivo);
+    if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
+    if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
+    if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
+    if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
+    if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
+    if(erroGravacao) avisosPartes.push('🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.');
+    if(truncou){
+      avisosPartes.push(agente==='estrategia'
+        ? ('⚠️ **Resposta muito longa — pode ter faltado conteúdo.** '+(conteudos.length?('Gravei '+conteudos.length+' post(s) no plano. '):'Nenhum post foi gravado. ')+'Se faltou parte do mês, me peça "continue o plano a partir do dia X" que eu completo.')
+        : '⚠️ **A resposta ficou longa e foi cortada no fim.** Me diga "continue" que eu sigo exatamente de onde parei.');
+    }
+    // Mesmo texto final que o código antigo produzia (concatenação com '\n\n' entre cada parte
+    // presente) — só o MOMENTO em que é montado mudou (antes do insert, não depois).
+    const avisosTxt = avisosPartes.length ? avisosPartes.join('\n\n') : null;
+
+    // REPARO AVULSO — GRAVAÇÃO DA CONVERSA ISOLADA (04/set/2026, autorizado após regressão real:
+    // ver APRENDIZADOS.md "regressão — conversa parou de ser gravada"). ANTES, chat_mensagens
+    // entrava no MESMO Promise.all que memWrites (memórias aprendidas) e o patch de uso/cota — os
+    // três viviam ou morriam juntos. Se qualquer um dos três desse erro de REDE (não de banco —
+    // isso o item acima já cobre), o Promise.all inteiro rejeitava, caía no catch geral do
+    // handler (linha ~1927) e devolvia 500 — derrubando a gravação da conversa junto, mesmo que a
+    // resposta do agente já estivesse pronta. A conversa agora tem sua PRÓPRIA tentativa,
+    // ISOLADA e ANTES de qualquer outra gravação: sucesso ou falha de memórias/uso não pode mais
+    // afetar (nem ser afetado por) o histórico ser salvo. Se ainda assim a gravação da conversa
+    // falhar (rede OU o banco recusando — sbInsert acima já loga o motivo nos dois casos), o
+    // cliente AINDA recebe a resposta do agente (o conteúdo já foi gerado, não faz sentido
+    // esconder) — só que com um aviso visível AO VIVO nesta troca. Esse aviso não pode ser salvo
+    // na própria linha (é exatamente ela que falhou em gravar), então só aparece agora — não
+    // sobrevive a um recarregar. É o melhor possível dado que a gravação já falhou, e resolve o
+    // pedido de "não pode sumir em silêncio": antes, essa falha não aparecia em lugar nenhum.
+    let falhaGravarConversa=false;
+    try{
+      // REPARO AVULSO — CHAVES IGUAIS NO LOTE (05/set/2026, achado real em produção via log da
+      // Vercel: "All object keys must must match"). O PostgREST recusa um INSERT em lote inteiro
+      // se os objetos do array não tiverem exatamente o mesmo conjunto de chaves — a linha do
+      // usuário não trazia `avisos` (só a do assistente traz, de propósito, desde a rodada de
+      // persistência de avisos) e isso bastava pra derrubar as DUAS linhas, silenciosamente (nem
+      // rede, nem RLS, nem coluna ausente — a coluna existe, é só o formato do lote). `avisos`
+      // nunca fez sentido pra linha do usuário (é um aviso do SISTEMA sobre a resposta do agente),
+      // por isso `null` explícito aqui — mesma chave, valor vazio, nunca aparece pro usuário.
+      const rChat=await sbInsert('chat_mensagens',[
+        {user_id:targetId,agente,role:'user',conteudo:mensagem,avisos:null,created_at:new Date(_tPar).toISOString()},
+        {user_id:targetId,agente,role:'assistant',conteudo:texto,avisos:avisosTxt,created_at:new Date(_tPar+1000).toISOString()},
+      ]);
+      falhaGravarConversa=!rChat||!rChat.ok;
+    }catch(e){
+      falhaGravarConversa=true;
+      console.error('[agente-chat] falha de rede ao gravar a conversa em chat_mensagens — nada foi persistido nesta troca. erro='+e.message+' user='+targetId+' agente='+agente);
+    }
+
+    // Memórias e uso seguem em paralelo — independentes da gravação da conversa acima (podem
+    // falhar sem impedir a conversa de já ter sido salva, e vice-versa). Comportamento de cada um
+    // em relação ao catch geral não mudou aqui — não fazia parte do pedido desta rodada.
+    await Promise.all([
+      ...memWrites,
+      sbPatch(`clientes?id=eq.${targetId}`,{uso:novoUso}),
+    ]);
+
+    if(avisosTxt){ texto+='\n\n'+avisosTxt; }
+    if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
+  } catch(err){
+    console.error('agente-chat:',err.message);
+    return res.status(500).json({error:'Erro interno do agente'});
+  }
+};
+
+module.exports = handler;
+module.exports.config = { maxDuration: 300 }; // Pro: era 60 (anulava o vercel.json)
