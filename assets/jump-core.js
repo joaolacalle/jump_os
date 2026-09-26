@@ -1,7 +1,7 @@
 /* JUMP OS — Core compartilhado das dashboards */
 /* VERSAO: bump obrigatório a cada alteração deste arquivo. O mesmo número vai no ?v= das páginas,
    então o navegador é forçado a baixar o build novo (fim do "código certo, runtime antigo"). */
-window.JUMP_VERSAO='7';
+window.JUMP_VERSAO='8';
 window.JUMP=(function(){
   /* ══ SUPERFÍCIE (25/set/2026) ══
      Regra é por PÁGINA, nunca por papel: a tag <html> declara a que superfície pertence via
@@ -15,6 +15,28 @@ window.JUMP=(function(){
   function paginaDeGestao(){
     return document.documentElement.getAttribute('data-jump-superficie')==='gestao';
   }
+
+  /* ══ USO DO MÊS (26/set/2026) ══
+     clientes.uso guarda os contadores do mês MAIS o campo `mes` a que eles pertencem — o
+     contador só vira quando o usuário faz alguma ação, nenhuma rotina zera por calendário. Uma
+     conta parada 3 meses volta com o `mes` antigo intacto: é estado normal, não corrompido. Três
+     pontos respondiam "quanto já foi usado este mês" — ordens.html e api/admin-users.js
+     comparavam `uso.mes` com o mês atual antes de confiar no contador (CERTO); dashboard-
+     usuario.html lia `.uso` direto, sem comparar nada (ERRADO — mostrava consumo de meses
+     antigos sob o título "Uso do mês", confirmado no banco numa conta parada desde junho).
+     Função única: devolve os contadores do MÊS CORRENTE, ou tudo zerado se o `mes` gravado não
+     bater — quem lê nunca mais compara `mes` por conta própria. Mês calculado do mesmo jeito que
+     ordens.html/api/admin-users.js já calculam hoje (UTC, ano-mês) — não mudar o fuso aqui, isso
+     mudaria o momento da virada pra todo mundo, fora do que esta rodada pediu. NÃO decide nada
+     sobre a GRAVAÇÃO do contador (isso mora no backend, três implementações divergentes, rodada
+     própria) — só sobre o que a LEITURA do front pode confiar ser deste mês.
+  */
+  function usoDoMes(cliente){
+    const uso=(cliente&&cliente.uso)||{};
+    const mesAtual=new Date().toISOString().slice(0,7);
+    return (uso.mes===mesAtual)?uso:{};
+  }
+
   /* ══ TEMA ══ */
   function hexRgb(h){h=h.replace('#','');return parseInt(h.substr(0,2),16)+','+parseInt(h.substr(2,2),16)+','+parseInt(h.substr(4,2),16)}
   function applyTheme(t){
@@ -387,5 +409,5 @@ window.JUMP=(function(){
   }
 
   function diag(){const d={versao:window.JUMP_VERSAO,dispararFila:typeof dispararFila,authFetch:typeof authFetch,chaves:Object.keys(window.JUMP||{}).length};console.log('[JUMP] diagnóstico',d);return d;}
-  return{VERSAO:window.JUMP_VERSAO,diag,sb,guard,logout,toast,api,apiSilencioso,freshToken,authFetch,dispararFila,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides};
+  return{VERSAO:window.JUMP_VERSAO,diag,sb,guard,logout,toast,api,apiSilencioso,freshToken,authFetch,dispararFila,baixarArquivo,fmtNum,fmtBRL,esc,setUser,applyTheme,sidebar,verLink,toggleSidebar,payloadDoConteudo,tipoPeca,slidesDe,totalSlides,usoDoMes};
 })();
