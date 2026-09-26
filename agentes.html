@@ -462,7 +462,10 @@ const AGS=[
   {id:'diagnostico',ico:'📊',n:'Diagnóstico',r:'Análise do perfil',min:1,nc:'45,212,191',btns:[{i:'🔄',t:'Analisar métricas',fn:'cmdMetricas'}],sug:['O que observar no meu Instagram?','Meus Reels não performam, por quê?','Melhores horários para postar']},
   {id:'estrategia',ico:'📋',n:'Estratégia',r:'Planos e roteiros',min:1,nc:'251,191,36',btns:[{i:'📅',t:'Seu plano',fn:'abrirPainelEstrategia'}],sug:['Roteiro de Reel para esta semana','Calendário de conteúdo do mês','5 ideias de post para meu nicho']},
   {id:'criativo',ico:'🖼',n:'Criativo',r:'Direção visual',min:1,nc:'244,114,182',btns:[{i:'🖼',t:'Sua fila',fn:'abrirPainelCriativo'}],sug:['Carrossel sobre meu produto principal','Capa de Reel que gera clique','Arte de feed para promoção']},
-  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'📊',t:'Suas publicações',fn:'abrirPainelPublicacao'},{i:'📤',t:'Enviar conteúdo',fn:'abrirEnviarConteudo'},{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  // "Suas publicações"/"Enviar conteúdo" saem da barra (26/set/2026, autorizado pelo João) — só os
+  // botões: abrirPainelPublicacao/abrirEnviarConteudo e tudo que pertence aos dois fluxos seguem
+  // no arquivo, dormentes (ver os comentários em cada função). 🎯 Campanha DM (abrirPromo) fica.
+  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
   {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
@@ -634,7 +637,9 @@ async function selecionar(id){
   verificarOrdens(id);
   if(id==='estrategia')atualizarEstadoEstrategia();
   else if(id==='criativo')atualizarEstadoCriativo();
-  else if(id==='publicacao')atualizarEstadoPublicacao();
+  // ramo 'publicacao' removido (26/set/2026, autorizado pelo João) — atualizarEstadoPublicacao()
+  // só alimentava a bolinha do botão "Suas publicações" e o painel, os dois sem botão agora;
+  // rodar as 3 consultas ao banco a cada abertura do chat não teria mais pra quem servir.
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
@@ -1655,6 +1660,8 @@ async function abrirPainelCriativo(){
 // falhas — a MESMA leitura que alimenta o bloco de contexto do prompt em api/agente-chat.js
 // (agente==='publicacao'), só que aqui é o cliente vendo direto na tela, sem precisar perguntar.
 let PAINEL_PUBLICACAO_ABERTO=false;
+// DORMENTE (26/set/2026) — botão "Suas publicações" removido da barra; código íntegro, religável
+// bastando devolver a entrada em AGS['publicacao'].btns e as 2 chamadas automáticas removidas.
 async function atualizarEstadoPublicacao(){
   const uid=CTX.viewId||CTX.user.id;
   let estadoHtml=null, dotAtivo=false;
@@ -1680,6 +1687,7 @@ async function atualizarEstadoPublicacao(){
   }
   if(PAINEL_PUBLICACAO_ABERTO)renderPainelPublicacao(estadoHtml);
 }
+// DORMENTE (26/set/2026) — só chamada por atualizarEstadoPublicacao(), dormente acima.
 function renderPainelPublicacao(estadoHtml){
   document.getElementById('estado-corpo').innerHTML=estadoHtml||'';
   document.getElementById('estado-acao').innerHTML=
@@ -1688,6 +1696,7 @@ function renderPainelPublicacao(estadoHtml){
       '<div style="flex:1"><button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();location.href=\'aprovar.html\'">✅ Ver em Aprovações</button></div>'+
     '</div>';
 }
+// DORMENTE (26/set/2026) — era o fn: do botão "Suas publicações", removido de AGS['publicacao'].btns.
 async function abrirPainelPublicacao(){
   document.getElementById('estado-titulo').textContent='📊 Suas publicações';
   document.getElementById('estado-corpo').innerHTML='<div style="text-align:center;padding:24px 0;color:var(--t3);font-size:13px">Carregando...</div>';
@@ -1701,12 +1710,21 @@ function cmdCampanhas(){enviarTexto('Mostre o status das minhas campanhas de tr�
 // ── INCLUIR ORDEM (usuário cria uma ordem que modela o negócio) ──
 
 // ── ENVIAR CONTEÚDO (Publicação → OS p/ Estratégia gerar a copy) ──
+// DORMENTE (26/set/2026, autorizado pelo João) — botão "Enviar conteúdo" removido de
+// AGS['publicacao'].btns; era o ÚNICO ponto de entrada da ação criar_os_copy (api/admin-users.js,
+// intocada — a ação continua existindo e funcionando, só ninguém a chama mais). Código íntegro
+// (abrirEnviarConteudo/fecharEnviarConteudo/ctSelecionou/enviarConteudo abaixo, e o markup de
+// conteudo-overlay no HTML), religável devolvendo a entrada em AGS.
 let ctCriativoUrl=null, ctCriativoTipo=null;
+// DORMENTE (26/set/2026) — era o fn: do botão "Enviar conteúdo".
 function abrirEnviarConteudo(){
   document.getElementById('conteudo-overlay').style.display='flex';
   document.getElementById('ct-result').innerHTML='';
 }
+// DORMENTE (26/set/2026) — segue no arquivo, íntegra.
 function fecharEnviarConteudo(){document.getElementById('conteudo-overlay').style.display='none';}
+// DORMENTE (26/set/2026) — só chamada pelo input do overlay dormente acima; nunca aberto sem
+// abrirEnviarConteudo().
 async function ctSelecionou(inp){
   const f=inp.files[0];if(!f)return;
   if(f.size>100*1024*1024){JUMP.toast('Arquivo muito grande (máx 100 MB)','err');inp.value='';return;}
@@ -1729,6 +1747,8 @@ async function ctSelecionou(inp){
     ctCriativoUrl=null;
   }
 }
+// DORMENTE (26/set/2026) — era o único ponto de entrada de criar_os_copy (api/admin-users.js,
+// intocada); só chamada pelo botão "Enviar para o Estrategista" do overlay dormente acima.
 async function enviarConteudo(){
   const tema=document.getElementById('ct-tema').value.trim();
   const data=document.getElementById('ct-data').value;
@@ -1804,7 +1824,7 @@ async function enviarTexto(txt){
       }
       if(AG==='estrategia')atualizarEstadoEstrategia();
       else if(AG==='criativo')atualizarEstadoCriativo();
-      else if(AG==='publicacao')atualizarEstadoPublicacao();
+      // ramo 'publicacao' removido (26/set/2026) — mesmo motivo do outro ponto de chamada, acima.
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
