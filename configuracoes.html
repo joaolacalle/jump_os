@@ -199,7 +199,7 @@
     </div>
 </main>
 </div>
-<script src="assets/jump-core.js?v=7"></script>
+<script src="assets/jump-core.js?v=8"></script>
 <script>
 let CTX=null;
 const PADRAO={c1:'#8B5CF6',c2:'#A78BFA',c3:'#FFFFFF',c4:'#0E0E13',c5:'#191922',bg:'escuro',t1:'#F5F2EC'};
@@ -457,7 +457,10 @@ document.addEventListener('change',function(e){
 // Busca status/próxima cobrança/valor no PayPal (via paypal.js consolidado)
 function renderLimites(cli){
   try{
-    const lim=cli.limites||{},us=cli.uso||{};
+    // "O consumo do mês passado nunca é exibido como se fosse deste mês" (26/set/2026): antes lia
+    // cli.uso direto, sem comparar `mes` — mesmo bug do dashboard, achado ao varrer o front antes
+    // de implementar, incluído nesta rodada com autorização do João. JUMP.usoDoMes faz a comparação.
+    const lim=cli.limites||{},us=JUMP.usoDoMes(cli);
     const limImg=Number(lim.imagens||0),usImg=Number(us.imagens||0);
     const limVid=Number(lim.videos||0),usVid=Number(us.videos||0);
     if(!limImg&&!limVid)return;

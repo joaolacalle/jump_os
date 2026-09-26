@@ -242,7 +242,7 @@
 </main>
 </div>
 
-<script src="assets/jump-core.js?v=7"></script>
+<script src="assets/jump-core.js?v=8"></script>
 <script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -296,7 +296,10 @@ const LV={basico:1,plus:2,pro:3};
     document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
     document.getElementById('hd-status').textContent=(_conta.status==='ativo')?'operando.':'aguardando ativação.';
     try{
-      var _uso=_conta.uso||{}, _lim=_conta.limites||{};
+      // "O consumo do mês passado nunca é exibido como se fosse deste mês" (26/set/2026): antes
+      // lia _conta.uso direto, sem comparar `mes` — mostrava consumo de meses antigos sob "Uso do
+      // mês" (confirmado no banco, conta parada desde junho). JUMP.usoDoMes já faz essa comparação.
+      var _uso=JUMP.usoDoMes(_conta), _lim=_conta.limites||{};
       var _pct=function(u,l){l=Number(l)||0;u=Number(u)||0;return l>0?Math.min(100,Math.round(u/l*100)):0;};
       var _bar=function(lbl,ic,p){var w=p>=80?' w':'';return '<div class="um-i"><div class="um-top"><span class="um-l">'+ic+' '+lbl+'</span><span class="um-p'+w+'">'+p+'%</span></div><div class="um-bar"><i class="'+(w?'w':'')+'" style="width:'+p+'%"></i></div></div>';};
       var _um=document.getElementById('uso-mes');

@@ -450,7 +450,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </div>
 </main>
 </div>
-<script src="assets/jump-core.js?v=7"></script>
+<script src="assets/jump-core.js?v=8"></script>
 <script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -485,7 +485,9 @@ const AGS=[
     }catch(e){}
     renderList();
     carregarEstados(); // em paralelo: não trava a abertura da página
-    atualizarUso(Number((CTX.cliente.uso||{}).tokens||0));
+    // "O consumo do mês passado nunca é exibido como se fosse deste mês" (26/set/2026): achado ao
+    // varrer o front, incluído nesta rodada com autorização do João — mesmo bug, mesma correção.
+    atualizarUso(Number(JUMP.usoDoMes(CTX.cliente).tokens||0));
     const verP=new URLSearchParams(location.search).get('ver');
   if(verP){document.querySelectorAll('a[href$=".html"]').forEach(a=>{const h=a.getAttribute('href');if(h&&!h.includes('ver=')&&!h.includes('dashboard-supervisor')&&!h.includes('dashboard-admin')&&!h.includes('home')&&!h.includes('login')){a.setAttribute('href',h+(h.includes('?')?'&':'?')+'ver='+verP)}})}
   const q=new URLSearchParams(location.search).get('agente');
@@ -1536,7 +1538,10 @@ async function atualizarEstadoEstrategia(){
       (nSemOrigem?('<br><span style="color:var(--t3);font-size:12px">+ '+nSemOrigem+' conteúdo(s) antigo(s) sem categoria definida (anterior a 08/09) — revisar manualmente</span>'):'')+
       '</div>';
     const teto=JUMP_CLASS.tetoImagensPlano(cli);
-    const usImg=Number((cli.uso||{}).imagens||0);
+    // "O consumo do mês passado nunca é exibido como se fosse deste mês" (26/set/2026): o texto
+    // já dizia "no mês" mas lia o contador sem comparar `mes` — achado ao varrer o front, incluído
+    // nesta rodada com autorização do João.
+    const usImg=Number(JUMP.usoDoMes(cli).imagens||0);
     const limImg=Number((cli.limites||{}).imagens||0);
     const cotaHtml=limImg?('<div class="estado-cota">Peças com arte: usadas '+usImg+' de '+limImg+' no mês (soma tudo — plano, avulsos e recriações). Até '+teto+' cabem agora neste plano.</div>'):'';
     estadoHtml=linhas+avulsosHtml+cotaHtml;
