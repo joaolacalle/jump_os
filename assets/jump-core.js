@@ -1,8 +1,20 @@
 /* JUMP OS — Core compartilhado das dashboards */
 /* VERSAO: bump obrigatório a cada alteração deste arquivo. O mesmo número vai no ?v= das páginas,
    então o navegador é forçado a baixar o build novo (fim do "código certo, runtime antigo"). */
-window.JUMP_VERSAO='6';
+window.JUMP_VERSAO='7';
 window.JUMP=(function(){
+  /* ══ SUPERFÍCIE (25/set/2026) ══
+     Regra é por PÁGINA, nunca por papel: a tag <html> declara a que superfície pertence via
+     data-jump-superficie="gestao" (dashboard-admin.html e dashboard-supervisor.html — as únicas
+     duas hoje; a ausência do atributo significa cliente, comportamento de sempre). Função única,
+     os dois pontos de aplicação de tema (bootstrap abaixo e guard() mais abaixo) consultam ela —
+     nunca decidem por conta própria. Se decidisse por role, quebraria o "ver como": um
+     admin/supervisor abrindo o workspace de um CLIENTE (página de cliente, papel de gestão)
+     precisa continuar vendo a cor daquele cliente — é a PÁGINA que muda de superfície ali, não a
+     regra. */
+  function paginaDeGestao(){
+    return document.documentElement.getAttribute('data-jump-superficie')==='gestao';
+  }
   /* ══ TEMA ══ */
   function hexRgb(h){h=h.replace('#','');return parseInt(h.substr(0,2),16)+','+parseInt(h.substr(2,2),16)+','+parseInt(h.substr(4,2),16)}
   function applyTheme(t){
@@ -26,7 +38,10 @@ window.JUMP=(function(){
     if(t.c5){r.setProperty('--card',t.c5);}else{r.removeProperty('--card');}
     try{localStorage.setItem('jump_tema',JSON.stringify(t))}catch(e){}
   }
-  try{const t=JSON.parse(localStorage.getItem('jump_tema')||'null');if(t)applyTheme(t)}catch(e){}
+  // Página de gestão NUNCA pinta com tema de cliente — nem o que sobrou no localStorage de uma
+  // sessão anterior (era exatamente isso que fazia o admin abrir o painel já pintado com a cor
+  // do último cliente atendido pelo agente).
+  try{if(!paginaDeGestao()){const t=JSON.parse(localStorage.getItem('jump_tema')||'null');if(t)applyTheme(t)}}catch(e){}
 
   const SUPABASE_URL='https://fcdjzubdxikpvcqvalnt.supabase.co';
   const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGp6dWJkeGlrcHZjcXZhbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzA3OTYsImV4cCI6MjA5NTk0Njc5Nn0.w1cwt00JonkItRYu_hpAUWJ-p4mhuBeLmULqzX2zUHk';
@@ -123,9 +138,16 @@ window.JUMP=(function(){
       }catch(e){console.error('impersonate:',e)}
     }
 
-    // tema: usa o da conta VISUALIZADA (personalização por usuário)
-    if(viewCliente.tema)applyTheme(viewCliente.tema);
-    else applyTheme({}); // reseta para padrão se a conta não tem tema próprio
+    // tema: usa o da conta VISUALIZADA (personalização por usuário) — NUNCA em página de gestão
+    // (dashboard-admin.html/dashboard-supervisor.html, ver paginaDeGestao() no topo do arquivo):
+    // o painel de gestão é sempre a cor padrão do sistema, não importa quem está logado, qual
+    // conta está sendo visualizada por ?ver= ou o que sobrou no localStorage. Em página de
+    // CLIENTE isto continua exatamente como era, inclusive sob ?ver= (o admin/supervisor "vendo
+    // como" o cliente precisa ver a cor do cliente) — a checagem é da página, nunca do papel.
+    if(!paginaDeGestao()){
+      if(viewCliente.tema)applyTheme(viewCliente.tema);
+      else applyTheme({}); // reseta para padrão se a conta não tem tema próprio
+    }
 
     if(!viewing && (role==='supervisor'||role==='admin'))injectRoleBar(role);
     if(viewing)injectViewBanner(viewing,role);
