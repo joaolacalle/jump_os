@@ -38,8 +38,12 @@ async function tratarPost(req, res) {
     const dados = JSON.parse(Buffer.from(payload, 'base64url').toString());
     const igUser = String(dados.user_id || '');
     if (igUser) {
-      // apaga a conexão (token + dados da Meta) do usuário que removeu o app
-      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${igUser}`, {
+      // apaga a conexão (token + dados da Meta) do usuário que removeu o app.
+      // igUser (user_id do signed_request da Meta) é o id "app-scoped" — mesma semântica de
+      // meta.ig_app_id. Casa por ig_id OU ig_app_id (mesmo padrão da trava anti-pirataria e do
+      // wContaPorIg do cron) para continuar encontrando tanto conexões antigas (só tinham esse id
+      // sob a chave ig_id) quanto as novas (rodada "Inscrição no webhook", 26/set/2026).
+      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&or=(meta->>ig_id.eq.${igUser},meta->>ig_app_id.eq.${igUser})`, {
         method: 'DELETE', headers: SBH(),
       }).catch(() => {});
     }
@@ -93,14 +97,17 @@ module.exports = async (req, res) => {
     // Calcula a expiração (expires_in vem em segundos; padrão 60 dias)
     const expiraSeg = Number(t2.expires_in) || (60 * 24 * 3600);
     const tokenExpiraEm = new Date(Date.now() + expiraSeg * 1000).toISOString();
-    // 3. Buscar dados do perfil
+    // 3. Buscar dados do perfil (v23.0 — inclui user_id para separar o id "app-scoped" da troca
+    // de token do id da conta profissional; ver Decisão da ordem "Inscrição no webhook", 26/set/2026)
+    const IG_API_V = 'v23.0';
     const profRes = await fetch(
-      `https://graph.instagram.com/v19.0/me?fields=id,username,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
+      `https://graph.instagram.com/${IG_API_V}/me?fields=id,username,user_id,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
     );
     const prof = await profRes.json();
     const nome = '@' + (prof.username || igUserId);
     const meta = {
-      ig_id: igUserId,
+      ig_id: prof.id || igUserId,   // id da conta profissional — usado nas chamadas e no entry.id do webhook
+      ig_app_id: igUserId,          // user_id da troca de token (o que era gravado como ig_id antes desta rodada)
       ig_username: prof.username || '',
       ig_name: prof.name || '',
       ig_followers: prof.followers_count || 0,
@@ -108,18 +115,30 @@ module.exports = async (req, res) => {
       token_expira_em: tokenExpiraEm,   // ← NOVO: para a renovação automática
       via: 'oauth',
     };
+    if (!prof.username) {
+      // perfil não veio como esperado (mesmo caso da conexão atual, @<id numérico>) — registra o
+      // motivo cru para diagnóstico, sem criar UI nova (ver "Reportar" da ordem)
+      meta.perfil_erro = (prof.error && (prof.error.message || JSON.stringify(prof.error))) || `resposta de /me sem username: ${JSON.stringify(prof).slice(0, 300)}`;
+    }
     // ── ANTI-PIRATARIA: uma conta Instagram = uma conta JUMP ────────────────────
     // E-mail é grátis e infinito; conta Instagram Business com seguidores, não.
     // Como o JUMP só entrega valor com o perfil conectado, essa é a trava natural
     // contra quem cicla e-mails para repetir o teste. Também evita a conexão dupla
     // acidental. Caso legítimo de migração: o admin remove a conexão antiga.
+    // Casa por ig_id OU ig_app_id: conexões antigas só têm o id antigo gravado sob a chave ig_id;
+    // conexões novas têm os dois. Sem o OR, um mesmo Instagram já conectado antes desta rodada
+    // passaria pela trava usando o novo ig_id (diferente do valor antigo gravado).
     const igId = String(meta.ig_id || '');
-    if (igId) {
+    const igAppId = String(meta.ig_app_id || '');
+    if (igId || igAppId) {
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${encodeURIComponent(igId)}&user_id=neq.${uid}&select=user_id&limit=1`, { headers: SBH() });
+        const condicoes = [];
+        if (igId) condicoes.push(`meta->>ig_id.eq.${encodeURIComponent(igId)}`);
+        if (igAppId) condicoes.push(`meta->>ig_app_id.eq.${encodeURIComponent(igAppId)}`);
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&or=(${condicoes.join(',')})&user_id=neq.${uid}&select=user_id&limit=1`, { headers: SBH() });
         const j = await r.json();
         if (Array.isArray(j) && j.length) {
-          console.warn('ig ja vinculado a outra conta:', igId, '->', j[0].user_id);
+          console.warn('ig ja vinculado a outra conta:', igId || igAppId, '->', j[0].user_id);
           return volta('erro=instagram_ja_vinculado');
         }
       } catch (e) { /* falha de checagem não pode impedir uma conexão legítima */ }
@@ -130,7 +149,48 @@ module.exports = async (req, res) => {
     await sbIns('contas_conectadas', {
       user_id: uid, tipo: 'instagram', nome, token: longToken, meta,
     });
-    return volta('conectado=instagram');
+
+    // 5. Inscrever a conta no webhook (comentários + DMs) — evento de CONEXÃO, não rotina do cron
+    // (Decisão da ordem: no cron rodaria todo dia sem necessidade e escondia a falha do usuário
+    // que acabou de conectar). Sem isso a Meta nunca envia nada, mesmo com o webhook configurado
+    // no painel do app — cada conta profissional precisa se inscrever individualmente.
+    // Falha aqui NÃO cancela a conexão já salva no passo 4.
+    const camposWebhook = 'comments,messages';
+    let webhookInscrito = false, webhookErro = '';
+    try {
+      const subRes = await fetch(
+        `https://graph.instagram.com/${IG_API_V}/${meta.ig_id}/subscribed_apps`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ subscribed_fields: camposWebhook, access_token: longToken }),
+        }
+      );
+      const subTxt = await subRes.text();
+      if (subRes.ok) {
+        let subJson = {};
+        try { subJson = JSON.parse(subTxt); } catch (e) {}
+        webhookInscrito = subJson.success !== false;
+        if (!webhookInscrito) webhookErro = subTxt.slice(0, 300);
+      } else {
+        webhookErro = subTxt.slice(0, 300);
+      }
+    } catch (e) {
+      webhookErro = String(e.message || e).slice(0, 300);
+    }
+    await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${uid}&tipo=eq.instagram`, {
+      method: 'PATCH', headers: SBH(),
+      body: JSON.stringify({
+        meta: {
+          ...meta,
+          webhook_inscrito: webhookInscrito,
+          webhook_campos: camposWebhook,
+          ...(webhookErro ? { webhook_erro: webhookErro } : {}),
+        },
+      }),
+    }).catch(() => {});
+
+    return volta(webhookInscrito ? 'conectado=instagram' : 'conectado=instagram&webhook=falhou');
   } catch (e) {
     console.error('meta-callback:', e.message);
     return volta('erro=interno&msg=' + encodeURIComponent(e.message.slice(0, 80)));

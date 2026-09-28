@@ -444,10 +444,15 @@ async function jobMetricas() {
 // Fica DENTRO do cron (chamado como /api/cron?job=webhook) para não estourar o teto de 12
 // funções do Hobby. Contador de envios em clientes.uso.dm_envios (jsonb; reseta por mês).
 const LIMS_DM = { basico: 0, plus: 100, pro: 300 };
-const IG_MSG_V = 'v19.0';
+const IG_MSG_V = 'v23.0';
 function wNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+// Casa por ig_id OU ig_app_id (rodada "Inscrição no webhook", 26/set/2026): o entry.id que a Meta
+// manda no webhook é o id da conta profissional (ig_id, a partir desta rodada); conexões feitas
+// antes dela só tinham esse mesmo id gravado sob a chave ig_id (semântica antiga) — o OR garante
+// que o webhook continua encontrando as duas gerações de conexão sem precisar migrar dado nenhum.
 async function wContaPorIg(igId) {
-  const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&meta->>ig_id=eq.${encodeURIComponent(igId)}&select=user_id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const id = encodeURIComponent(igId);
+  const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&or=(meta->>ig_id.eq.${id},meta->>ig_app_id.eq.${id})&select=user_id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
   return (Array.isArray(arr) && arr[0]) ? arr[0] : null;
 }
 async function wRegras(uid) {

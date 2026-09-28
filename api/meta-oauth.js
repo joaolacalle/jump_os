@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
     // Instagram Business Login usa endpoint próprio e escopos do Instagram
     const scope = tipo === 'ads'
       ? 'ads_read,ads_management'
-      : 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights,instagram_business_manage_messages';
+      : 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights,instagram_business_manage_messages,instagram_business_manage_comments';
 
     // Endpoint do Instagram Business Login (diferente do Facebook dialog)
     const url = 'https://www.instagram.com/oauth/authorize'
