@@ -97,17 +97,30 @@ module.exports = async (req, res) => {
     // Calcula a expiração (expires_in vem em segundos; padrão 60 dias)
     const expiraSeg = Number(t2.expires_in) || (60 * 24 * 3600);
     const tokenExpiraEm = new Date(Date.now() + expiraSeg * 1000).toISOString();
-    // 3. Buscar dados do perfil (v23.0 — inclui user_id para separar o id "app-scoped" da troca
-    // de token do id da conta profissional; ver Decisão da ordem "Inscrição no webhook", 26/set/2026)
+    // 3. Buscar dados do perfil (v23.0). SEM o campo `id`: é o único campo que este endpoint pede
+    // em todo o projeto, e este é o único ponto que falhava (a conexão atual ficou como
+    // @27148999514741440, sem username) — jobMetricas (username,followers_count,media_count) e
+    // meta-token.js (user_id,username) funcionam e não pedem `id`. Ver "Correção do id do perfil
+    // no callback do Instagram", 28/set/2026: segue o precedente do meta-token.js, que funciona —
+    // `user_id` é a fonte do id da conta profissional, não `id`.
     const IG_API_V = 'v23.0';
     const profRes = await fetch(
-      `https://graph.instagram.com/${IG_API_V}/me?fields=id,username,user_id,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
+      `https://graph.instagram.com/${IG_API_V}/me?fields=username,user_id,name,followers_count,media_count,profile_picture_url&access_token=${longToken}`
     );
     const prof = await profRes.json();
     const nome = '@' + (prof.username || igUserId);
     const meta = {
-      ig_id: prof.id || igUserId,   // id da conta profissional — usado nas chamadas e no entry.id do webhook
-      ig_app_id: igUserId,          // user_id da troca de token (o que era gravado como ig_id antes desta rodada)
+      ig_id: prof.user_id || igUserId,   // id da conta profissional (via `user_id` do /me — mesma fonte que meta-token.js já usa) — usado nas chamadas e no entry.id do webhook
+      // user_id da troca de token (o que era gravado como ig_id antes da rodada "Inscrição no
+      // webhook") — gravado como TEXTO: hoje entra como número no JSON da Meta e, sendo um id de
+      // até 17 dígitos, passa do limite de inteiro seguro do JS (Number.MAX_SAFE_INTEGER, ~16
+      // dígitos) e nasce arredondado assim que `res.json()` faz o parse (achado real de 28/set/2026:
+      // as duas conexões de teste mostraram isso — em @metodo_jump_os os dois ids saíram idênticos,
+      // em @joao_vittor divergiram só no último dígito, …439 vs …440). `String(...)` aqui não
+      // recupera um dígito já perdido no parse — mas trava o valor como texto daqui pra frente, sem
+      // deixar um número (sujeito a virar `17841406338772440e0` ou perder dígito de novo) sobreviver
+      // em nenhuma comparação ou gravação posterior.
+      ig_app_id: String(igUserId),
       ig_username: prof.username || '',
       ig_name: prof.name || '',
       ig_followers: prof.followers_count || 0,
@@ -115,10 +128,12 @@ module.exports = async (req, res) => {
       token_expira_em: tokenExpiraEm,   // ← NOVO: para a renovação automática
       via: 'oauth',
     };
-    if (!prof.username) {
+    if (!prof.username || !prof.user_id) {
       // perfil não veio como esperado (mesmo caso da conexão atual, @<id numérico>) — registra o
-      // motivo cru para diagnóstico, sem criar UI nova (ver "Reportar" da ordem)
-      meta.perfil_erro = (prof.error && (prof.error.message || JSON.stringify(prof.error))) || `resposta de /me sem username: ${JSON.stringify(prof).slice(0, 300)}`;
+      // motivo cru para diagnóstico, sem criar UI nova (ver "Reportar" da ordem). Cobre também o
+      // caso em que só `user_id` falta: ig_id cai no fallback (igual a ig_app_id) e isso não pode
+      // passar em silêncio, mesmo que username tenha vindo.
+      meta.perfil_erro = (prof.error && (prof.error.message || JSON.stringify(prof.error))) || `resposta de /me incompleta (username=${JSON.stringify(prof.username)}, user_id=${JSON.stringify(prof.user_id)}): ${JSON.stringify(prof).slice(0, 300)}`;
     }
     // ── ANTI-PIRATARIA: uma conta Instagram = uma conta JUMP ────────────────────
     // E-mail é grátis e infinito; conta Instagram Business com seguidores, não.
@@ -155,11 +170,15 @@ module.exports = async (req, res) => {
     // que acabou de conectar). Sem isso a Meta nunca envia nada, mesmo com o webhook configurado
     // no painel do app — cada conta profissional precisa se inscrever individualmente.
     // Falha aqui NÃO cancela a conexão já salva no passo 4.
+    // Inscreve em /me/subscribed_apps (não em /<ig_id>/subscribed_apps): o `me` resolve pelo
+    // próprio token e deixa a inscrição independente de qual id foi gravado em ig_id — se o id
+    // estiver errado por algum motivo, o problema fica isolado no envio (wEnviar/entry.id), não
+    // derruba também a inscrição (ver "Correção do id do perfil no callback do Instagram", 28/set/2026).
     const camposWebhook = 'comments,messages';
     let webhookInscrito = false, webhookErro = '';
     try {
       const subRes = await fetch(
-        `https://graph.instagram.com/${IG_API_V}/${meta.ig_id}/subscribed_apps`,
+        `https://graph.instagram.com/${IG_API_V}/me/subscribed_apps`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
