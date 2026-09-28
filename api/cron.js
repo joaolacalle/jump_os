@@ -455,8 +455,11 @@ async function wContaPorIg(igId) {
   const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&or=(meta->>ig_id.eq.${id},meta->>ig_app_id.eq.${id})&select=user_id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
   return (Array.isArray(arr) && arr[0]) ? arr[0] : null;
 }
+// `id` e `disparos` entraram no select nesta rodada (Registro dos eventos de DM automática,
+// 28/set/2026): regra.id vira dm_eventos.regra_id e alimenta o incremento de automacoes_dm.disparos
+// em wIncrementarDisparos — nenhum dos dois era lido antes, porque nada usava o id da regra.
 async function wRegras(uid) {
-  const arr = await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm?user_id=eq.${uid}&ativo=eq.true&select=palavra_chave,mensagem,gatilho,origem`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const arr = await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm?user_id=eq.${uid}&ativo=eq.true&select=id,palavra_chave,mensagem,gatilho,origem,disparos`, { headers: SBH() }).then(r => r.json()).catch(() => []);
   return Array.isArray(arr) ? arr : [];
 }
 function wCasar(texto, regras, gatilho) {
@@ -480,43 +483,128 @@ async function wDebitar(cli) {
   const uso = Object.assign({}, cli.uso || {}, { dm_envios: Number((cli.uso && cli.uso.dm_envios) || 0) + 1 });
   await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${cli.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ uso }) }).catch(() => {});
 }
+// Incrementa automacoes_dm.disparos da regra que gerou um envio — mesmo padrão de
+// ler-o-valor-atual-e-regravar que wDebitar já usa em clientes.uso (rodada "Registro dos
+// eventos de DM automática", 28/set/2026). `regra` já vem com `disparos` carregado por wRegras.
+async function wIncrementarDisparos(regra) {
+  await fetch(`${SUPABASE_URL}/rest/v1/automacoes_dm?id=eq.${regra.id}`, {
+    method: 'PATCH', headers: SBH(), body: JSON.stringify({ disparos: Number(regra.disparos || 0) + 1 }),
+  }).catch(() => {});
+}
+// Registra 1 linha de diagnóstico por decisão de processarWebhook (dm_eventos — ver
+// sql/dm-eventos-passo1-migration.sql). Sempre `.catch(() => {})`: uma falha ao gravar o
+// diagnóstico não pode derrubar o handshake 200 que a Meta espera do webhook — mesmo princípio
+// que já protege o resto deste handler (ver module.exports abaixo, try/catch com 200 sempre).
+async function wLogEvento(dados) {
+  await fetch(`${SUPABASE_URL}/rest/v1/dm_eventos`, {
+    method: 'POST', headers: { ...SBH(), 'Prefer': 'return=minimal' },
+    body: JSON.stringify(dados),
+  }).catch(() => {});
+}
 async function wEnviar(igId, token, recipient, texto) {
   const r = await fetch(`https://graph.instagram.com/${IG_MSG_V}/${igId}/messages`, {
     method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipient, message: { text: String(texto || '').slice(0, 900) } }),
   });
-  return r.ok;
+  // Forma nova (Registro dos eventos de DM automática, 28/set/2026): devolve status+corpo, não só
+  // ok — erro_meta (dm_eventos) precisa do motivo real da Meta pra não virar "não sei por que
+  // falhou" de novo. `.ok` continua no mesmo lugar/nome que os dois call sites já testavam.
+  const corpo = await r.text().catch(() => '');
+  return { ok: r.ok, status: r.status, corpo: corpo.slice(0, 300) };
 }
 async function processarWebhook(body) {
   const entries = Array.isArray(body.entry) ? body.entry : [];
   for (const ent of entries) {
     const igId = String(ent.id || '');
+    // Sem id no entry: não há ig_id_recebido pra registrar nem conta nenhuma pra tentar achar —
+    // não é uma decisão de automação (nenhuma das 7 categorias descreve isto), é um payload sem
+    // informação suficiente pra processar. Continua sem gerar evento, como sempre foi.
     if (!igId) continue;
+    // Filtra 'comments' uma vez só (era feito dentro do loop antes desta rodada) — reaproveitado
+    // tanto pelo registro sem_conta/sem_regra abaixo quanto pelo loop principal de comentários.
+    const comentarios = (Array.isArray(ent.changes) ? ent.changes : []).filter(ch => ch.field === 'comments');
+    const mensagens = Array.isArray(ent.messaging) ? ent.messaging : [];
     const conta = await wContaPorIg(igId);
-    if (!conta || !conta.token) continue;
+    if (!conta || !conta.token) {
+      for (const ch of comentarios) {
+        const v = ch.value || {};
+        await wLogEvento({ ig_id_recebido: igId, tipo: 'comentario', texto: v.text || null, alvo: v.id || null, resultado: 'sem_conta', detalhe: 'nenhuma conta conectada bate com este ig_id (nem ig_id nem ig_app_id)' });
+      }
+      for (const mg of mensagens) {
+        if (mg.message && mg.message.is_echo) continue; // eco da própria mensagem enviada — nunca foi um evento, ver nota abaixo
+        const senderId = mg.sender && mg.sender.id, texto = (mg.message && mg.message.text) || '';
+        if (!senderId || !texto) continue; // evento malformado — mesmo critério do !igId acima
+        await wLogEvento({ ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, resultado: 'sem_conta', detalhe: 'nenhuma conta conectada bate com este ig_id (nem ig_id nem ig_app_id)' });
+      }
+      continue;
+    }
     const regras = await wRegras(conta.user_id);
-    if (!regras.length) continue;
+    if (!regras.length) {
+      for (const ch of comentarios) {
+        const v = ch.value || {};
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto: v.text || null, alvo: v.id || null, resultado: 'sem_regra', detalhe: 'conta sem nenhuma automação de DM ativa' });
+      }
+      for (const mg of mensagens) {
+        if (mg.message && mg.message.is_echo) continue;
+        const senderId = mg.sender && mg.sender.id, texto = (mg.message && mg.message.text) || '';
+        if (!senderId || !texto) continue;
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, resultado: 'sem_regra', detalhe: 'conta sem nenhuma automação de DM ativa' });
+      }
+      continue;
+    }
     // comentários → private reply (uma por comentário)
-    for (const ch of (Array.isArray(ent.changes) ? ent.changes : [])) {
-      if (ch.field !== 'comments') continue;
+    for (const ch of comentarios) {
       const v = ch.value || {}, texto = v.text || '', commentId = v.id;
-      if (v.from && String(v.from.id) === igId) continue;
+      if (v.from && String(v.from.id) === igId) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto, alvo: commentId || null, resultado: 'proprio', detalhe: 'comentário do próprio dono da conta' });
+        continue;
+      }
       const regra = wCasar(texto, regras, 'comentario');
-      if (!regra || !commentId) continue;
+      if (!regra || !commentId) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto, alvo: commentId || null, resultado: 'sem_match', detalhe: regra ? 'regra bateu, mas o comentário não trouxe id' : 'nenhuma palavra-chave ativa bateu' });
+        continue;
+      }
       const cota = await wCota(conta.user_id);
-      if (!cota.ok) continue;
-      if (await wEnviar(igId, conta.token, { comment_id: commentId }, regra.mensagem)) await wDebitar(cota.cli);
+      if (!cota.ok) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto, alvo: commentId, regra_id: regra.id, resultado: 'sem_cota', detalhe: 'cota de envios de DM do mês esgotada' });
+        continue;
+      }
+      const envio = await wEnviar(igId, conta.token, { comment_id: commentId }, regra.mensagem);
+      if (envio.ok) {
+        await wDebitar(cota.cli);
+        await wIncrementarDisparos(regra);
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto, alvo: commentId, regra_id: regra.id, resultado: 'enviado', detalhe: null });
+      } else {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'comentario', texto, alvo: commentId, regra_id: regra.id, resultado: 'erro_meta', detalhe: `status=${envio.status} corpo=${envio.corpo}` });
+      }
     }
     // mensagens diretas → resposta na conversa (janela de 24h aberta pela msg do usuário)
-    for (const mg of (Array.isArray(ent.messaging) ? ent.messaging : [])) {
-      if (mg.message && mg.message.is_echo) continue;
+    for (const mg of mensagens) {
+      if (mg.message && mg.message.is_echo) continue; // eco da própria mensagem enviada — não é uma decisão de automação, nunca gerou evento (nem antes nem depois desta rodada)
       const senderId = mg.sender && mg.sender.id, texto = (mg.message && mg.message.text) || '';
-      if (!senderId || !texto || String(senderId) === igId) continue;
+      if (!senderId || !texto) continue; // evento malformado (sem remetente ou sem texto) — mesmo critério do !igId acima
+      if (String(senderId) === igId) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, resultado: 'proprio', detalhe: 'mensagem do próprio dono da conta' });
+        continue;
+      }
       const regra = wCasar(texto, regras, 'dm');
-      if (!regra) continue;
+      if (!regra) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, resultado: 'sem_match', detalhe: 'nenhuma palavra-chave ativa bateu' });
+        continue;
+      }
       const cota = await wCota(conta.user_id);
-      if (!cota.ok) continue;
-      if (await wEnviar(igId, conta.token, { id: senderId }, regra.mensagem)) await wDebitar(cota.cli);
+      if (!cota.ok) {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, regra_id: regra.id, resultado: 'sem_cota', detalhe: 'cota de envios de DM do mês esgotada' });
+        continue;
+      }
+      const envio = await wEnviar(igId, conta.token, { id: senderId }, regra.mensagem);
+      if (envio.ok) {
+        await wDebitar(cota.cli);
+        await wIncrementarDisparos(regra);
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, regra_id: regra.id, resultado: 'enviado', detalhe: null });
+      } else {
+        await wLogEvento({ user_id: conta.user_id, ig_id_recebido: igId, tipo: 'dm', texto, alvo: senderId, regra_id: regra.id, resultado: 'erro_meta', detalhe: `status=${envio.status} corpo=${envio.corpo}` });
+      }
     }
   }
 }
@@ -1435,6 +1523,14 @@ async function jobLimpeza() {
 
   // 2) Jobs de vídeo antigos (libera a tabela; o vídeo no Shotstack já expirou)
   await fetch(`${SUPABASE_URL}/rest/v1/video_jobs?created_at=lt.${corte}`, { method: 'DELETE', headers: SBH() }).catch(() => {});
+
+  // 3) Eventos de DM automática com +30 dias (Registro dos eventos de DM automática, 28/set/2026)
+  // — corte próprio, mais curto que o dos 60 dias acima: dm_eventos é log de diagnóstico de alto
+  // volume (1 linha por comentário/DM recebido, não por arquivo), 30 dias já cobre qualquer
+  // investigação razoável sem deixar a tabela crescer sem limite.
+  const LIMITE_DIAS_DM_EVENTOS = 30;
+  const corteDmEventos = new Date(Date.now() - LIMITE_DIAS_DM_EVENTOS * 24 * 60 * 60 * 1000).toISOString();
+  await fetch(`${SUPABASE_URL}/rest/v1/dm_eventos?criado_em=lt.${corteDmEventos}`, { method: 'DELETE', headers: SBH() }).catch(() => {});
 
   return { removidos };
 }
