@@ -1934,7 +1934,25 @@ inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.
 inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}});
 
 /* ══ PROMOÇÃO / DM AUTOMÁTICA (Publicação) ══ */
-function abrirPromo(){
+// Fonte única do limite de automações por plano (config.planos[plano].dm, com o mesmo fallback
+// {basico:3,plus:5,pro:8} de sempre) — usada tanto na porta (abrirPromo, bloqueia antes de abrir
+// o formulário) quanto no salvamento (salvarPromo, defesa em profundidade caso o plano mude no
+// meio da sessão). Rodada "Acertos da tela de conexão e do limite do Básico", 28/set/2026.
+async function limiteDm(plano){
+  let maxDm={basico:3,plus:5,pro:8}[plano]||3;
+  try{
+    const{data:pc}=await JUMP.sb.from('config').select('valor').eq('chave','planos').limit(1);
+    if(pc&&pc[0]&&pc[0].valor&&pc[0].valor[plano]&&pc[0].valor[plano].dm!=null)maxDm=Number(pc[0].valor[plano].dm);
+  }catch(e){}
+  return maxDm;
+}
+async function abrirPromo(){
+  const plano=(CTX.viewCliente||CTX.cliente).plano||'basico';
+  const maxDm=await limiteDm(plano);
+  if(maxDm===0){
+    JUMP.toast('Seu plano não inclui automação de DM. Faça upgrade para ativar esse recurso.','err');
+    return;
+  }
   document.getElementById('promo-overlay').style.display='flex';
   document.getElementById('promo-result').innerHTML='';
   listarPromo();
@@ -1958,11 +1976,7 @@ async function salvarPromo(){
     const uid=CTX.viewId||CTX.user.id;
     // checar limite do plano via config
     const plano=(CTX.viewCliente||CTX.cliente).plano||'basico';
-    let maxDm={basico:3,plus:5,pro:8}[plano]||3;
-    try{
-      const{data:pc}=await JUMP.sb.from('config').select('valor').eq('chave','planos').limit(1);
-      if(pc&&pc[0]&&pc[0].valor&&pc[0].valor[plano]&&pc[0].valor[plano].dm!=null)maxDm=Number(pc[0].valor[plano].dm);
-    }catch(e){}
+    const maxDm=await limiteDm(plano);
     const{data:atuais}=await JUMP.sb.from('automacoes_dm').select('id').eq('user_id',uid).eq('ativo',true);
     if((atuais||[]).length>=maxDm){
       res.innerHTML='<span style="color:var(--red)">Limite do plano atingido ('+maxDm+' automações). Desative uma ou faça upgrade.</span>';

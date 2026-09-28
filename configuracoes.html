@@ -96,11 +96,13 @@
             <div id="cx-ig-ico" style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;background:rgba(0,0,0,.3)">📸</div>
             <div style="flex:1"><div style="font-size:14px;font-weight:800">Instagram</div><div id="cx-ig-s" style="font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;color:var(--t3)">Não conectado</div></div>
             <a href="conectar-conta.html" id="cx-ig-btn" class="btn btn-g btn-sm">Conectar →</a>
+            <button id="cx-ig-desc" class="btn btn-r btn-sm" style="display:none" onclick="desconectar(this.dataset.id)">Desconectar</button>
           </div>
           <div id="cx-ads" style="display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--bg);border:1px solid var(--bd);border-radius:12px">
             <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;background:rgba(0,0,0,.3)">📢</div>
             <div style="flex:1"><div style="font-size:14px;font-weight:800">Meta Ads <span style="font-size:10px;color:var(--t3);font-weight:600">(Pro)</span></div><div id="cx-ads-s" style="font-family:var(--M);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;color:var(--t3)">Não conectado</div></div>
             <a href="conectar-conta.html#ads" id="cx-ads-btn" class="btn btn-o btn-sm">Conectar →</a>
+            <button id="cx-ads-desc" class="btn btn-r btn-sm" style="display:none" onclick="desconectar(this.dataset.id)">Desconectar</button>
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--t3);margin-top:11px;line-height:1.55">O Instagram habilita a publicação automática, a análise da dashboard e as respostas de DM. O Meta Ads (Pro) permite ao Consultor de Tráfego ler seus números reais — nunca alteramos suas campanhas.</div>
@@ -393,21 +395,31 @@ async function carregarConexoes(){
   try{
     const uid=(CTX.viewCliente||CTX.cliente||{}).id||CTX.user.id;
     const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',uid);
-    let igOn=false,adsOn=false,igMeta=null;
+    let igOn=false,adsOn=false,igMeta=null,igId=null,adsId=null;
     (cc||[]).forEach(c=>{
-      if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta')){igOn=true;igMeta=c.meta||null}
-      if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads'))adsOn=true;
+      if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta')){igOn=true;igMeta=c.meta||null;igId=c.id}
+      if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads')){adsOn=true;adsId=c.id}
     });
     if(igOn){
       const st=document.getElementById('cx-ig-s');st.textContent='● Conectado';st.style.color='var(--g)';
       const b=document.getElementById('cx-ig-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
       if(igMeta&&igMeta.ig_picture){document.getElementById('cx-ig-ico').innerHTML='<img src="'+igMeta.ig_picture+'" style="width:38px;height:38px;border-radius:10px;object-fit:cover" alt="">';}
+      const d=document.getElementById('cx-ig-desc');d.dataset.id=igId;d.style.display='';
     }
     if(adsOn){
       const st=document.getElementById('cx-ads-s');st.textContent='● Conectado';st.style.color='var(--g)';
       const b=document.getElementById('cx-ads-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
+      const d=document.getElementById('cx-ads-desc');d.dataset.id=adsId;d.style.display='';
     }
   }catch(e){console.error('conexões:',e)}
+}
+// Mesma confirmação e mesmo comportamento do desconectar de conectar-conta.html (rodada "Acertos
+// da tela de conexão e do limite do Básico", 28/set/2026) — cada página tem seu próprio <script>,
+// sem módulo compartilhado entre elas, por isso reproduzido aqui em vez de importado.
+async function desconectar(id){
+  if(!confirm('Desconectar esta conta? Os agentes param de acessar os dados imediatamente.'))return;
+  try{await JUMP.sb.from('contas_conectadas').delete().eq('id',id);JUMP.toast('Conta desconectada.');setTimeout(()=>location.reload(),800)}
+  catch(e){JUMP.toast('Erro ao desconectar','err')}
 }
 async function salvarTema(){
   const t=temaAtual();
