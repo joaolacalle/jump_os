@@ -127,7 +127,7 @@
 <script src="assets/jump-core.js?v=8"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
-let CTX={}, TODAS=[], FILTRO=(new URLSearchParams(location.search).get('f')||'fila'), SOMENTE_LEITURA=false;
+let CTX={}, TODAS=[], FILTRO=(new URLSearchParams(location.search).get('f')||'fila'), VENDO_OUTRA_CONTA=false;
 const AGINFO={
   identidade:{ico:'🎨',n:'Identidade',nc:'34,211,238'},
   mercado:{ico:'🔍',n:'Mercado',nc:'79,124,255'},
@@ -146,18 +146,17 @@ const AGINFO={
   CTX=s;
   JUMP.sidebar('ordens');
   JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
-  // MODO "VER COMO" (29/set/2026, Parte 3 "Tarefas no modo 'ver como', só leitura"): admin/
-  // supervisor olhando a conta de outra pessoa (via ?ver=, resolvido em CTX.viewId pelo
-  // JUMP.guard) vê as tarefas do CLIENTE, mas sem nenhum botão de ação — só leitura. A própria
-  // conta (viewId===user.id) continua exatamente como sempre foi.
-  SOMENTE_LEITURA=CTX.viewId!==CTX.user.id;
-  if(SOMENTE_LEITURA){
+  // MODO "VER COMO" grava de verdade (Entrega 2, 29/set/2026): admin/supervisor olhando a conta
+  // de outra pessoa (via ?ver=, resolvido em CTX.viewId pelo JUMP.guard) agora opera as tarefas
+  // do CLIENTE como se fossem próprias — todos os botões continuam disponíveis (o RLS no banco
+  // é quem decide o que cada papel pode, não esta tela); só o aviso muda, pra deixar claro que a
+  // ação fica registrada na auditoria. A própria conta (viewId===user.id) continua igual.
+  VENDO_OUTRA_CONTA=CTX.viewId!==CTX.user.id;
+  if(VENDO_OUTRA_CONTA){
     const nomeCliente=(CTX.viewCliente&&(CTX.viewCliente.nome||CTX.viewCliente.email))||'este cliente';
     const banner=document.getElementById('banner-ver-como');
-    banner.textContent='👁 Visualizando as tarefas de '+nomeCliente+' — somente leitura';
+    banner.textContent='👁 Visualizando as tarefas de '+nomeCliente+' — suas ações são registradas na auditoria';
     banner.style.display='block';
-    const btnInc=document.getElementById('btn-incluir-tarefa');
-    if(btnInc)btnInc.style.display='none';
   }
   document.getElementById('loading').classList.add('hide');
   carregar();
@@ -267,9 +266,10 @@ function render(){
           <b style="color:var(--g)">${n+1}.</b> <span style="font-family:var(--M);font-size:9.5px;background:var(--bd);padding:2px 5px;border-radius:4px">${JUMP.esc(it.tipo_visual||'conceitual')}</span> ${JUMP.esc(it.brief||'')}
         </div>`).join('')}</div>`:'',
       o.status==='erro'&&o.resultado?`<div style="margin-top:9px;font-size:11.5px;color:#f87171;font-family:var(--M)">⚠️ ${JUMP.esc(String((o.resultado||{}).erro||JSON.stringify(o.resultado)).slice(0,220))}</div>`:'',
-      // P5: gestão da fila — só faz sentido para ordens que estão NA fila do Designer. Fora do
-      // modo "ver como" (SOMENTE_LEITURA), painel de gestão inteiro some — nenhum botão de ação.
-      (!SOMENTE_LEITURA&&o.para_agente==='criativo'&&(o.status==='pendente'||o.status==='pausada'))?`
+      // P5: gestão da fila — só faz sentido para ordens que estão NA fila do Designer. Desde a
+      // Entrega 2 (29/set/2026), disponível também em "ver como" — admin e supervisor operam a
+      // fila do cliente como se fosse a própria (RLS no banco decide o que cada papel alcança).
+      (o.para_agente==='criativo'&&(o.status==='pendente'||o.status==='pausada'))?`
         <div style="margin-top:11px;border-top:1px solid var(--bd);padding-top:10px">
           <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-bottom:7px">GESTÃO DA FILA</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -292,9 +292,9 @@ function render(){
         <div class="ord-info" id="det-${o.id}" style="display:none">${detalhes}</div>
       </div>
       <div class="ord-acts">
-        ${SOMENTE_LEITURA?'':(o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:'')}
-        ${SOMENTE_LEITURA?'':((o.status==='pendente'&&o.tarefa==='criar_avulso')?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">🎨 Gerar arte agora</button>`:'')}
-        ${SOMENTE_LEITURA?'':`<button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>`}
+        ${o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:''}
+        ${(o.status==='pendente'&&o.tarefa==='criar_avulso')?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">🎨 Gerar arte agora</button>`:''}
+        <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
       </div>
     </div>`;
   }).join('');
@@ -434,7 +434,9 @@ async function salvarIncluirOrdem(){
   const btn=document.getElementById('ordem-save');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Salvando...';
   try{
-    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null},CTX.token);
+    // Entrega 2 (29/set/2026): em "ver como", a tarefa é criada na conta do CLIENTE (CTX.viewId)
+    // — fora desse modo, CTX.viewId já é igual a CTX.user.id, então isto não muda nada de hoje.
+    await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null,user_id:CTX.viewId},CTX.token);
     res.innerHTML='<span style="color:var(--g)">✓ Tarefa criada! Você acompanha em Tarefas de Serviço.</span>';
     JUMP.toast('📋 Ordem registrada');
     setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';document.getElementById('ordem-qtd').value='';document.getElementById('ordem-saldo').innerHTML='';if(typeof carregar==='function')carregar();},1400);
