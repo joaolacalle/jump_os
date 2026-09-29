@@ -124,7 +124,11 @@ window.JUMP=(function(){
       // PERFORMANCE: só consulta o modo de acesso para quem SERIA barrado (minoria).
       // Rodar em toda página, para todo usuário, seria uma ida à rede desnecessária.
       let listaEspera=false;
-      const seriaBarrado = !assinaturaOk && !trialOk && checkinFeito;
+      // TESTE DE 7 DIAS A PARTIR DO CADASTRO (29/set/2026, decisão do João): a conta nasce em teste
+      // (sql/trial-7-dias-no-cadastro.sql) e, vencidos os 7 dias sem assinatura, vai para o
+      // pagamento — com ou sem check-in. Antes a trava exigia o check-in feito: quem nunca fazia o
+      // check-in seguia entrando depois do teste, sem pagar.
+      const seriaBarrado = !assinaturaOk && !trialOk;
       if(seriaBarrado){
         // Em LISTA DE ESPERA ninguém é cobrado nem expulso: não estamos vendendo, então
         // seria injusto barrar quem entrou cedo. O acesso se estende sozinho.

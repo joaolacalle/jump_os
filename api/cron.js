@@ -16,6 +16,8 @@ const SBH = () => ({
 // nenhum ponto deste arquivo testa formato por conta própria a partir de agora (Fase 1 do plano
 // "Trilha de material do usuário", 25/ago/2026).
 const JC = require('../assets/classificacao.js');
+// Onboarding em ordem + revisão mensal — regra única, compartilhada com api/agente-chat.js e a tela.
+const ONB = require('../assets/onboarding.js');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026): a criação do card 'aprovar_semana' (mais abaixo,
 // job de drip semanal) agora vem de um módulo único, também consultado por api/agente-chat.js —
 // ver api/_semana-lib.js para o porquê (Família 2 do Contrato: mesma decisão em N lugares).
@@ -1607,6 +1609,30 @@ async function jobLimpeza() {
   return { removidos };
 }
 
+  // ── JOB: REVISÃO MENSAL (29/set/2026, decisão do João — ver assets/onboarding.js) ──
+  // Diário. Para cada conta de cliente com onboarding concluído: agenda a primeira revisão (20 dias
+  // após concluir) e, quando a data chega, abre o ciclo (Diagnóstico → Identidade → Mercado) e deixa
+  // um recado. A bolinha amarela na lista de agentes sai do mesmo estado (onboarding.revisao).
+  async function jobRevisoes() {
+    const hoje = JC.hojeISOBrasil();
+    const lista = await fetch(`${SUPABASE_URL}/rest/v1/clientes?role=eq.usuario&select=id,onboarding`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    let agendadas = 0, abertas = 0, falhas = 0;
+    for (const c of (Array.isArray(lista) ? lista : [])) {
+      const r = ONB.abrirRevisaoSeVenceu(c.onboarding, hoje);
+      if (!r) continue;
+      const p = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${c.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ onboarding: r.onb }) }).catch(() => null);
+      if (!p || !p.ok) { falhas++; console.error('[revisoes] falha ao gravar onboarding.revisao — user=' + c.id + ' status=' + (p && p.status)); continue; }
+      if (!r.abriu) { agendadas++; continue; }
+      abertas++;
+      const rec = await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+        method: 'POST', headers: SBH(),
+        body: JSON.stringify({ user_id: c.id, tipo: 'sistema', titulo: 'Atualização mensal do seu DNA', mensagem: 'Chegou a revisão do mês: seus agentes atualizam o DNA do Negócio para seguirem precisos ao seu perfil. Comece pelo Agente de Diagnóstico (bolinha amarela na lista de agentes); depois Identidade e Mercado.', lido: false, resolvido: false }),
+      }).catch(() => null);
+      if (!rec || !rec.ok) console.error('[revisoes] recado não gravado — user=' + c.id);
+    }
+    return { agendadas, abertas, falhas };
+  }
+
   const job = (req.query && req.query.job) || '';
   try {
     if (job === 'estrategia') {
@@ -1656,12 +1682,16 @@ async function jobLimpeza() {
       const r = await jobLimpeza();
       return res.status(200).json({ ok: true, job, ...r });
     }
+    if (job === 'revisoes') {
+      const r = await jobRevisoes();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
     if (job === 'expiracao') {
       // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): ver jobExpiracaoSemana.
       const r = await jobExpiracaoSemana();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, resgate, publicar, limpeza ou expiracao)' });
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, resgate, publicar, limpeza, expiracao ou revisoes)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });

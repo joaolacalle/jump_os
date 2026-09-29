@@ -242,7 +242,7 @@
 </main>
 </div>
 
-<script src="assets/jump-core.js?v=8"></script>
+<script src="assets/jump-core.js?v=9"></script>
 <script src="assets/classificacao.js?v=7"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -316,10 +316,16 @@ const LV={basico:1,plus:2,pro:3};
         const bn=document.getElementById('trial-banner');
         if(diasRest>0&&bn){
           bn.style.display='block';
-          document.getElementById('trial-titulo').textContent='🎁 Teste grátis — '+diasRest+(diasRest===1?' dia restante':' dias restantes');
+          // TESTE SEM CARTÃO (29/set/2026): quem começou o teste no cadastro não tem assinatura —
+          // ao vencer, vai para o pagamento. O aviso diz isso com clareza e fica mais forte nos
+          // 2 últimos dias; quem assinou pelo PayPal (tem assinatura_id) segue com o texto de antes.
+          const _semCartao=!_conta.assinatura_id;
+          document.getElementById('trial-titulo').textContent=(_semCartao&&diasRest<=2?'⏳ Seu teste grátis termina ':'🎁 Teste grátis — ')+(_semCartao&&diasRest<=2?(diasRest===1?'amanhã':'em 2 dias'):(diasRest+(diasRest===1?' dia restante':' dias restantes')));
           // 15/set/2026: absorveu o único dado que o banner removido tinha e este não — o aviso
           // de cota reduzida durante o teste.
-          document.getElementById('trial-sub').textContent='Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+' — sua cota de geração é reduzida durante o teste. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
+          document.getElementById('trial-sub').textContent=_semCartao
+            ? 'Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+' — sua cota de geração é reduzida durante o teste. Quando os 7 dias acabarem, o acesso aos agentes pausa até você assinar; seu DNA e tudo que os agentes aprenderam ficam salvos.'
+            : 'Você está no período de teste do plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+' — sua cota de geração é reduzida durante o teste. Ao terminar, sua assinatura é ativada e liberamos tudo automaticamente.';
           // BOTÃO DE ASSINAR (16/set/2026): apontava para configuracoes.html#assinatura — o
           // cliente caía numa tela de configurações, não numa ação. checkout.html já existe,
           // aceita o plano por parâmetro e aciona o PayPal direto. Usa o plano REAL da conta

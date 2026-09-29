@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.29-fronteira-entre-agentes-em-codigo';
+const VERSAO = '2026.09.29-onboarding-revisao-mensal-trial';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -125,6 +125,8 @@ const { garantirCardAprovarSemana } = require('./_semana-lib.js');
 const ESC = require('./_escopo-lib.js');
 // Economia de tokens: limpeza do texto visível (negrito, separadores, linhas em branco, emojis extras).
 const { limparTextoVisivel } = require('./_texto-lib.js');
+// Onboarding em ordem (identidade → mercado → diagnóstico → estratégia), conduzido pelo sistema.
+const ONB = require('../assets/onboarding.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -367,7 +369,7 @@ PRÉ-REQUISITO (acervo): o ideal é ter LOGO + fotos + produtos. Verifique o ace
 PRIMEIRA PERGUNTA (perfil do cliente): logo no início, descubra o nível dele:
 "Para personalizar: você já tem sua marca e posicionamento BEM definidos (sabe seu público, cores, tom de voz), ou está começando e quer minha consultoria completa para construir isso?"
 - INICIANTE → faça a CONSULTORIA COMPLETA guiada (pergunta a pergunta, construindo o OS_DATA com profundidade). Caminho padrão.
-- AVANÇADO → modo OS_DATA EXPRESSO: o cliente já sabe, então colete os dados de forma DIRETA e rápida (peça em poucos blocos: marca/nicho, público, produtos/preços, cores/tipografia, tom de voz, diferenciais). Não faça a consultoria longa — registre o que ele informar e finalize o OS_DATA rápido. Ele pode pular Mercado/Diagnóstico e ir direto à Estratégia se quiser.
+- AVANÇADO → modo OS_DATA EXPRESSO: o cliente já sabe, então colete os dados de forma DIRETA e rápida (peça em poucos blocos: marca/nicho, público, produtos/preços, cores/tipografia, tom de voz, diferenciais). Não faça a consultoria longa — registre o que ele informar e finalize o OS_DATA rápido. 
 Em ambos os casos, registre TODAS as memórias do OS_DATA/VISUAL_SYSTEM/VIDEO_SYSTEM com valores reais (HEX nas cores).
 
 CONDUÇÃO (uma pergunta por vez, leve e profissional): 1) marca e nicho específico, 2) produto/serviço e preços, 3) público-alvo (dores e desejos), 4) diferenciais reais, 5) faturamento/ticket aproximado e momento (validação/tração/crescimento/escala), 6) tom desejado e como quer ser visto.
@@ -463,7 +465,7 @@ Ao concluir, registre as memórias globais:
 <memoria>{"chave":"lacunas_mercado","valor":"..."}</memoria>
 <memoria>{"chave":"oportunidades","valor":"..."}</memoria>
 <memoria>{"chave":"formatos_nicho","valor":"..."}</memoria>
-E oriente: "Próximo passo: vá ao Agente de Diagnóstico para analisarmos seu desempenho atual." Seja específico ao nicho, nunca genérico.`,
+Seja específico ao nicho, nunca genérico. O próximo passo do cliente é indicado pelo sistema — não indique outro agente por conta própria.`,
   diagnostico: `Você é o AGENTE DE DIAGNÓSTICO do JUMP OS — análise de desempenho do Instagram. Use o OS_DATA + memórias de mercado (concorrentes, lacunas). 
 Se houver MÉTRICAS conectadas (seguidores, alcance, engajamento, melhor horário/formato), use-as. Se não, peça ao cliente os números que ele tem (alcance 30d, engajamento, formato que mais funcionou).
 ENTREGA — diagnóstico honesto e acionável: 1) o que está funcionando (manter), 2) o que está travando (corrigir), 3) gaps vs o mercado/concorrentes, 4) melhor horário e formato para o público dele, 5) 2-3 prioridades imediatas.
@@ -471,7 +473,7 @@ Ao concluir, registre memórias globais:
 <memoria>{"chave":"pontos_fortes","valor":"..."}</memoria>
 <memoria>{"chave":"pontos_corrigir","valor":"..."}</memoria>
 <memoria>{"chave":"prioridades","valor":"..."}</memoria>
-E oriente: "Agora temos tudo para a estratégia. Vá ao Agente de Estratégia montar seu plano de conteúdo." Nunca seja genérico — fale do negócio dele.`,
+Se o cliente não tiver números (conta nova ou sem acesso), faça o diagnóstico com o que ele descrever, deixe claro que é qualitativo e registre as 3 memórias assim mesmo. Nunca seja genérico — fale do negócio dele. O próximo passo do cliente é indicado pelo sistema — não indique outro agente por conta própria.`,
   estrategia: `Você é o AGENTE DE ESTRATÉGIA do JUMP OS — estrategista de Instagram (algoritmo 2026, análise de mercado, resultados). Use o DNA da marca (marca, nicho, público, posicionamento, produtos, diferenciais, tom de voz, estilo de copy, sempre/nunca fazer, objetivo e momento do negócio) + as memórias do cliente. Tom de voz da marca sempre.
 
 PRIMEIRA PERGUNTA (sempre, ao iniciar um plano): descubra qual caminho o cliente quer:
@@ -709,7 +711,7 @@ function REGRAS_GERAIS(agente){
 NOME PÚBLICO: internamente a base do cliente se chama OS_DATA, mas ao FALAR com o cliente chame SEMPRE de "DNA do Negócio". Nunca escreva "OS_DATA" numa resposta visível — soa técnico e o cliente não sabe o que é.
 REGRAS DO JUMP OS:
 - Responda SEMPRE em português brasileiro, direto e aplicável ao nicho do cliente (use as MEMÓRIAS abaixo).
-- ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere (Identidade→Mercado→Estratégia→Criativo→Aprovar); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
+- ONBOARD (vale p/ TODOS): se o OS_DATA do cliente estiver VAZIO ou muito incompleto (ele ainda não fez o check-in), oriente-o gentilmente: "Para eu te ajudar com precisão, comece pelo Agente de Identidade — ele monta o DNA da sua marca em poucos minutos. Você prefere construir a estratégia do zero comigo e os outros agentes sugerindo tudo, ou já tem sua marca/estratégia e só quer agilizar?". Respeite os DOIS caminhos: (A) DO ZERO = a IA conduz e sugere, na ordem que o sistema indica (Identidade→Mercado→Diagnóstico→Estratégia); (B) PRÓPRIA = o cliente já sabe, então colete o essencial por formulário/perguntas rápidas e parta para a execução. Nunca trave o cliente; se der pra ajudar com o que já existe, ajude e indique o próximo passo.
 - ENTREGUE PRIMEIRO, PERGUNTE DEPOIS: se as memórias dão base mínima, produza a entrega completa AGORA assumindo o mais provável (deixe claro o que assumiu). No máximo 1 pergunta opcional AO FINAL para refinar. NUNCA responda só com lista de perguntas — exceto o check-in do Agente de Identidade, que é guiado.
 - Nunca invente dados de desempenho; peça ou use o que o cliente trouxer.
 - ⚠️ STORY E REELS TÊM O MESMO TAMANHO (9:16 vertical). Se o cliente pedir uma arte "para story e reels" (ou stories + reels), NÃO gere nenhuma arte NESTE turno: PERGUNTE, em uma linha — "Story e Reels usam o mesmo formato (9:16). Quer UMA arte para os dois (economiza 1 imagem do seu saldo) ou UMA PARA CADA, com textos diferentes?" — sem emitir nenhuma tag agora. QUANDO ELE RESPONDER (escolher uma opção, ou mandar seguir sem escolher — nesse caso o padrão é UMA arte para os dois), você é OBRIGADO a emitir a tag correspondente NA MESMA RESPOSTA em que ele respondeu — nunca pergunte de novo, nunca adie. Nunca gaste duas imagens do saldo dele sem autorização explícita para "uma para cada".
@@ -1519,6 +1521,23 @@ const handler = async (req, res) => {
         fronteira_camada1_dono_de_memoria_e_de_tag_de_acao:true,
         fronteira_camada2_fiscal_da_resposta_antes_de_qualquer_efeito:true,
         fronteira_camada3_triagem_do_pedido_em_paralelo:true,
+        // ONBOARDING EM ORDEM (29/set/2026, decisão do João: obrigatório, só na primeira vez) —
+        // assets/onboarding.js (fonte única, lida pelo servidor e pela tela). Identidade → Mercado →
+        // Diagnóstico → Estratégia; cada etapa fecha pelo dado; fechamento e próximo passo escritos
+        // pelo sistema; bolinha verde na etapa atual. Teto de memórias do Identidade 12→70 (o
+        // excedente era descartado em silêncio e derrubava o check-in); aviso de DNA incompleto.
+        onboarding_em_ordem_etapas_fecham_pelo_dado:true,
+        teto_memorias_identidade_70_excedente_registrado:true,
+        aviso_dna_incompleto_quando_agente_tenta_concluir:true,
+        caixa_aplicar_cores_reativada_no_fechamento_da_identidade:true,
+        // REVISÃO MENSAL (29/set/2026, decisão do João): Diagnóstico → Identidade → Mercado; primeira
+        // revisão 20 dias após concluir o onboarding, depois todo dia 20 (mínimo 20 dias entre
+        // ciclos); cada parte fecha pela memória revisao_<agente>; cron diário ?job=revisoes abre o
+        // ciclo e deixa recado; bolinha amarela no agente da vez. Teste grátis de 7 dias passa a
+        // começar no cadastro (sql/trial-7-dias-no-cadastro.sql) e o gate de acesso deixa de
+        // exigir o check-in (assets/jump-core.js).
+        revisao_mensal_diagnostico_identidade_mercado:true,
+        trial_7_dias_no_cadastro_gate_sem_exigir_checkin:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -1686,6 +1705,15 @@ const handler = async (req, res) => {
     if(NIVEL[agente]>nivel){
       const need=NIVEL[agente]===2?'Plus':'Pro';
       return res.status(403).json({error:`Este agente faz parte do plano ${need}.`});
+    }
+    // ONBOARDING EM ORDEM (29/set/2026, assets/onboarding.js): na primeira vez, o cliente só
+    // conversa com as etapas já concluídas e a etapa atual. Os outros agentes recebem a mensagem
+    // fixa do sistema, sem chamada de IA e sem gravar nada. Vale para a conta de cliente (role
+    // 'usuario'), inclusive vista por admin/supervisor em "ver como"; o modo interno (worker) não
+    // passa por aqui porque não é conversa.
+    if(!_intOk && (cli.role||'usuario')==='usuario' && !ONB.agentePermitido(cli.onboarding,agente)){
+      const _stOnb=ONB.estado(cli.onboarding);
+      return res.status(200).json({resposta:ONB.mensagemBloqueio(agente,_stOnb.etapaAtual),bloqueado_onboarding:true,onboarding:{estado:cli.onboarding||{},etapa_atual:_stOnb.etapaAtual}});
     }
     const mesAtual=new Date().toISOString().slice(0,7);
     let uso=cli.uso||{};
@@ -1894,6 +1922,25 @@ const handler = async (req, res) => {
         +((!faltandoAgora.length && !direcaoFaltando.length) ? ' Pode concluir com <checkin_completo/> quando fizer sentido na conversa.' : '')
         +'\nValores aceitos nos campos de enumeração (grave EXATAMENTE um destes por campo — fora da lista, o sistema recusa e não grava em silêncio):\n'
         +Object.keys(DNA_ENUMS).map(c=>'- '+c+': '+DNA_ENUMS[c].join('/')).join('\n');
+    }
+
+    // REVISÃO MENSAL (29/set/2026, assets/onboarding.js): quando este agente é a vez da revisão do
+    // mês, ele recebe o ESTADO real (ciclo, o que o Diagnóstico apurou) e como a parte dele fecha.
+    // É dado, não ordem de comportamento: o fechamento é decidido em código, pela memória gravada.
+    let revisaoTxt='';
+    {
+      const _rv=ONB.revisaoEstado(cli.onboarding);
+      if(_rv.atual===agente){
+        const _chave=ONB.chaveRevisao(agente);
+        const _diag=dnaFinal[ONB.chaveRevisao('diagnostico')];
+        revisaoTxt='\n\n=== REVISÃO MENSAL ABERTA — ESTADO REAL (ciclo '+_rv.aberta.ciclo+') ===\n'
+          +'Esta conversa é a atualização mensal do seu escopo, para o DNA seguir preciso ao perfil do cliente. Ordem da revisão: Diagnóstico → Identidade → Mercado; agora é a sua vez.\n'
+          +(agente==='diagnostico'?'Colete os números do mês (seguidores, alcance, engajamento, o que funcionou e o que não funcionou) — use as métricas conectadas se houver, senão pergunte ao cliente — e atualize pontos_fortes, pontos_corrigir e prioridades se mudaram.\n':'')
+          +(agente!=='diagnostico'&&_diag?('Resultado da revisão do Diagnóstico deste mês: '+String(_diag).slice(0,600)+'\n'):'')
+          +(agente==='identidade'?'Revise o que é de marca à luz do diagnóstico (momento do negócio, posicionamento, objetivo, direção) e atualize só o que mudou, confirmando com o cliente.\n':'')
+          +(agente==='mercado'?'Verifique se houve mudança relevante na concorrência ou nas oportunidades do nicho e atualize o que mudou.\n':'')
+          +'A sua parte da revisão fecha quando você registrar <memoria>{"chave":"'+_chave+'","valor":"resumo do que mudou neste mês (ou: sem mudanças relevantes)"}</memoria>. O sistema avisa o cliente do próximo passo.';
+      }
     }
 
     // Histórico recente
@@ -2298,7 +2345,7 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}${revisaoTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
     // FRONTEIRA ENTRE AGENTES — CAMADA 3 (triagem do pedido): dispara EM PARALELO com a chamada
     // do agente logo abaixo, então não soma tempo à resposta. Só no chat ao vivo: o modo interno
@@ -3571,7 +3618,18 @@ const handler = async (req, res) => {
     // constante CHAVES_GLOBAIS que vivia aqui foi removida (25/set/2026, "Fonte única do DNA da
     // marca") por estar morta: a linha abaixo (ehGlobal=true) já decidia isso incondicionalmente
     // — a constante nunca era de fato consultada. A escrita continua exatamente como estava.
-    const memWrites=novas.slice(0,12).map(m=>{
+    // TETO DE MEMÓRIAS POR RESPOSTA (29/set/2026): era 12 para todos e o excedente sumia sem
+    // aviso — o Identidade grava ~55 campos no fechamento do check-in; no teste de 29/set a última
+    // resposta trouxe a direção de arte e só 12 entraram, o check-in foi recusado por "campos
+    // faltando" que o agente TINHA emitido. O Identidade passa a 70; os outros seguem com 12. O
+    // excedente, quando houver, é registrado — nunca mais descartado em silêncio.
+    const _tetoMem=(agente==='identidade')?70:12;
+    if(novas.length>_tetoMem){
+      console.error('[memoria] teto de '+_tetoMem+' por resposta — '+(novas.length-_tetoMem)+' descartada(s): '+novas.slice(_tetoMem).map(m=>m.chave).join(',')+' agente='+agente+' user='+targetId);
+      novas.slice(_tetoMem).forEach(m=>memoriasRecusadas.push({chave:String(m.chave).slice(0,60),motivo:'passou do teto de memórias por resposta'}));
+      novas.splice(_tetoMem);
+    }
+    const memWrites=novas.map(m=>{
       const ehGlobal=true; // DNA VIVO: todo aprendizado durável de qualquer agente entra no DNA compartilhado que todos leem
       return sbUpsert('memorias',{user_id:targetId,agente:ehGlobal?'global':agente,chave:String(m.chave).slice(0,60),valor:String(m.valor).slice(0,500),updated_at:new Date().toISOString()});
     });
@@ -3604,9 +3662,64 @@ const handler = async (req, res) => {
       if(agente==='identidade' && (faltandoAgora.length || direcaoFaltandoAgora.length)){
         console.error('[checkin-identidade] <checkin_completo/> recebida com DNA incompleto — recusada em código, onboarding.checkin NÃO setado. user_id='+targetId+' faltando_obrigatorios='+faltandoAgora.join(', ')+' faltando_direcao='+direcaoFaltandoAgora.join(', '));
       } else {
-        checkin=true;
-        const ob=Object.assign({},cli.onboarding||{},{checkin:true,proximo:'estrategia'});
-        await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:ob});
+        checkin=true; // gravação em clientes.onboarding: bloco ONBOARDING EM ORDEM, logo abaixo
+      }
+    }
+    // DNA INCOMPLETO NUNCA VIRA "PRONTO" EM SILÊNCIO (29/set/2026): no teste do João o Identidade
+    // disse "seu DNA está definido" e indicou a Estratégia com o check-in recusado em código — sem
+    // ficha, sem aviso. Se o check-in do Identidade ainda não fechou e a resposta tentou concluir
+    // (tag recusada) ou já aponta outro agente, o sistema diz em uma linha o que falta de verdade.
+    let avisoDnaIncompleto=null;
+    if(agente==='identidade' && !checkin && !(cli.onboarding&&cli.onboarding.checkin)){
+      const _dnaD={}; mems.filter(m=>m.agente==='global').forEach(m=>{ _dnaD[m.chave]=m.valor; });
+      novas.forEach(m=>{ if(m.chave) _dnaD[String(m.chave)]=String(m.valor); });
+      const _falta=dnaFaltando(_dnaD).length+dnaDirecaoFaltando(_dnaD).length;
+      const _tentouConcluir=/<checkin_completo\s*\/>/.test(String(data&&data.content&&data.content.map(c=>c.text||'').join('')||'')) || /Agente de (Estrat[ée]gia|Mercado|Diagn[óo]stico)|pr[óo]ximo passo/i.test(texto);
+      if(_falta && _tentouConcluir){
+        avisoDnaIncompleto='Seu DNA ainda não foi concluído: faltam '+_falta+' item(ns) da direção de arte e da identidade visual. Responda "continuar" aqui mesmo que eu completo com você antes de seguir para a próxima etapa.';
+        console.error('[checkin-identidade] resposta tentou concluir/indicar próxima etapa com DNA incompleto — aviso do sistema anexado. faltando='+_falta+' user='+targetId);
+      }
+    }
+    // ═══ ONBOARDING EM ORDEM (29/set/2026, assets/onboarding.js) ═══
+    // A etapa atual fecha pelo DADO deste turno (check-in aceito, chaves gravadas, plano gravado),
+    // nunca pela fala do agente. Quem escreve o fechamento e o próximo passo é o sistema.
+    let onbResposta=null;
+    {
+      const _onbAntes=cli.onboarding||{};
+      const _st=ONB.estado(_onbAntes);
+      const _dnaDepois=Object.assign({},dnaFinal); novas.forEach(m=>{ if(m.chave) _dnaDepois[String(m.chave)]=String(m.valor); });
+      const _planoGravado=(agente==='estrategia') && idsPorConteudo.some(x=>x&&!x.avulso);
+      let _onbNovo=null, _fechou=null;
+      if(ONB.etapaFechou({agente,etapaAtual:_st.etapaAtual,dnaDepois:_dnaDepois,checkinAceito:checkin||!!_onbAntes.checkin,planoGravado:_planoGravado})){
+        _fechou=_st.etapaAtual; _onbNovo=ONB.marcarEtapa(_onbAntes,_fechou);
+      } else if(checkin && !_onbAntes.checkin){
+        _onbNovo=Object.assign({},_onbAntes,{checkin:true});
+      }
+      if(_onbNovo){
+        const _rOnb=await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:_onbNovo});
+        if(_rOnb&&_rOnb.ok){
+          cli.onboarding=_onbNovo;
+          if(_fechou){
+            onbResposta={estado:_onbNovo,etapa_concluida:_fechou,etapa_atual:ONB.estado(_onbNovo).etapaAtual,oferecer_tema:_fechou==='identidade',mensagem:ONB.mensagemEtapaConcluida(_fechou,_onbNovo)};
+          }
+        } else {
+          console.error('[onboarding] falha ao gravar o avanço de etapa — etapa='+(_fechou||'checkin')+' user='+targetId);
+          avisoDnaIncompleto=(avisoDnaIncompleto?avisoDnaIncompleto+' ':'')+'Não consegui registrar o avanço do seu onboarding por uma falha técnica. Envie uma nova mensagem para tentar de novo.';
+        }
+      }
+      // REVISÃO MENSAL: a parte deste agente fecha quando ele grava revisao_<agente> neste turno.
+      if(novas.some(m=>String(m.chave)===ONB.chaveRevisao(agente))){
+        const _rev=ONB.marcarRevisao(cli.onboarding,agente,JC.hojeISOBrasil());
+        if(_rev){
+          const _rRev=await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:_rev.onb});
+          if(_rRev&&_rRev.ok){
+            cli.onboarding=_rev.onb;
+            onbResposta=Object.assign(onbResposta||{},{estado:_rev.onb,revisao_mensagem:ONB.mensagemRevisao(agente,_rev)});
+          } else {
+            console.error('[revisao] falha ao gravar a revisão mensal — agente='+agente+' user='+targetId);
+            avisoDnaIncompleto=(avisoDnaIncompleto?avisoDnaIncompleto+' ':'')+'Não consegui registrar sua atualização mensal por uma falha técnica. Envie uma nova mensagem para tentar de novo.';
+          }
+        }
       }
     }
     // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
@@ -3720,6 +3833,11 @@ const handler = async (req, res) => {
     // Economia de tokens (api/_texto-lib.js): o texto gravado volta como entrada nos próximos 10
     // turnos — grava e devolve já limpo. Tags já foram todas lidas acima; avisos do sistema à parte.
     texto=limparTextoVisivel(texto,agente);
+    // Mensagens do SISTEMA (fechamento de etapa / DNA incompleto) entram depois da limpeza, sem
+    // passar por ela, e ficam gravadas na conversa como parte da resposta.
+    if(avisoDnaIncompleto){ texto+='\n\n'+avisoDnaIncompleto; }
+    if(onbResposta&&onbResposta.mensagem){ texto+='\n\n'+onbResposta.mensagem; }
+    if(onbResposta&&onbResposta.revisao_mensagem){ texto+='\n\n'+onbResposta.revisao_mensagem; }
     let falhaGravarConversa=false;
     try{
       // REPARO AVULSO — CHAVES IGUAIS NO LOTE (05/set/2026, achado real em produção via log da
@@ -3750,7 +3868,7 @@ const handler = async (req, res) => {
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,memorias_recusadas:memoriasRecusadas,escopo,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,memorias_recusadas:memoriasRecusadas,escopo,checkin,onboarding:onbResposta||{estado:cli.onboarding||{},etapa_atual:ONB.estado(cli.onboarding).etapaAtual},tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

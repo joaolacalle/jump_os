@@ -53,6 +53,10 @@
     {
       "path": "/api/cron?job=expiracao",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron?job=revisoes",
+      "schedule": "40 9 * * *"
     }
   ]
 }
