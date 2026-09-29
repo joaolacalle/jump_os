@@ -105,7 +105,7 @@ let CTX=null;
     }
     /* Conexões existentes */
     try{
-      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.user.id);
+      const{data:cc}=await JUMP.sb.from('contas_conectadas').select('*').eq('user_id',CTX.viewId||CTX.user.id);
       if(cc&&cc.length){
         document.getElementById('conexoes-ativas').innerHTML=cc.map(c=>`
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)">
@@ -130,8 +130,12 @@ async function conectar(tipo){
   const btn=document.getElementById(tipo==='instagram'?'btn-ig':'btn-ads');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo Meta...';
   try{
-    /* Endpoint OAuth — disponível após aprovação do App Review da Meta */
-    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&uid='+CTX.user.id);
+    /* Endpoint OAuth — disponível após aprovação do App Review da Meta.
+       O dono vem do JWT, não mais de um uid cru na query; o alvo (viewId sob ?ver=) só é aceito
+       pelo servidor se quem está logado for admin/supervisor. */
+    const alvo=CTX.viewId||CTX.user.id;
+    const tk=(await JUMP.freshToken())||CTX.token;
+    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&alvo='+alvo,{headers:{'Authorization':'Bearer '+tk}});
     if(r.ok){const d=await r.json();if(d.url){location.href=d.url;return}}
     throw new Error('pending');
   }catch(e){
