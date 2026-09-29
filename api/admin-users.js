@@ -287,6 +287,30 @@ module.exports = async (req, res) => {
       if (!t || t.supervisor_id !== requester.id) throw new Error('Fora do seu escopo de gestão');
     }
 
+    // AUDITORIA REAL (29/set/2026, "Auditoria real + supervisor não exclui definitivo + admin
+    // bloqueado sem acesso"): antes, os 6 pontos que já registravam alguma coisa gravavam em
+    // `logs.acao`, coluna que não existe (as reais são tipo/descricao/dados/criado_em — ver
+    // sql/entrega1-auditoria-e-exclusao-definitiva.sql) — todo INSERT falhava, e o `.catch(()=>{})`
+    // engolia o erro em silêncio; `logs` ficou com 0 linhas desde sempre. Esta função é o ÚNICO
+    // ponto de escrita em `logs` deste arquivo (nenhuma outra ação escreve na tabela direto) —
+    // grava quem executou (requester.id), o papel que tinha na hora, a ação, o alvo (quando há um
+    // alvo claro) e dados extra não sensíveis. Nunca lança: se falhar, é logada no console com o
+    // motivo e a ação principal segue normalmente — auditoria nunca pode derrubar a ação que está
+    // registrando. NUNCA passar senha, link de redefinição, token ou qualquer segredo em `dados`.
+    async function auditar(acao, alvoId, dados) {
+      try {
+        await sbInsert('logs', {
+          user_id: requester.id,
+          papel: role,
+          acao,
+          alvo_id: alvoId || null,
+          dados: dados || {},
+        });
+      } catch (e) {
+        console.error('[auditar] falha ao gravar log — acao=' + acao + ' alvo_id=' + (alvoId || '—') + ' motivo=' + e.message);
+      }
+    }
+
     // 3. Ações
 
     // ── list_all_users: lista via chave de serviço (bypassa RLS) — admin vê TODOS,
@@ -369,7 +393,7 @@ module.exports = async (req, res) => {
       };
       // upsert: a trigger handle_new_user já pode ter criado a linha — fazemos merge
       await sbUpsert('clientes', row);
-      await sbInsert('logs', { acao: `${role} criou ${novoRole}: ${email}`, user_id: requester.id }).catch(() => {});
+      await auditar(`${role} criou ${novoRole}`, novo.id, { email, novoRole });
       // envia o email de boas-vindas com os dados de acesso (só p/ conta de usuário)
       if (novoRole === 'usuario') {
         const nomeSup = (me && (me.nome || me.email)) || 'seu gestor';
@@ -389,6 +413,7 @@ module.exports = async (req, res) => {
       if (cortesia) { patch.cortesia_ate = cortesiaDate(cortesia); patch.tipo_cortesia = tipoCortesia(cortesia); }
       if (email) { await authAdmin(`users/${user_id}`, 'PUT', { email }); patch.email = email; }
       await sbPatch(`clientes?id=eq.${user_id}`, patch);
+      await auditar('Dados atualizados', user_id, { campos: Object.keys(patch) });
       return res.status(200).json({ ok: true });
     }
 
@@ -442,6 +467,7 @@ module.exports = async (req, res) => {
       const cliAtual = (await sbGet(`clientes?id=eq.${user_id}&select=limites`))[0] || {};
       const novoLim = { ...(cliAtual.limites || {}), ...(LIMS_PLANO[plano] || LIMS_DEFAULT[plano]) };
       await sbPatch(`clientes?id=eq.${user_id}`, { plano, limites: novoLim });
+      await auditar('Plano alterado', user_id, { plano });
       return res.status(200).json({ ok: true, limites: novoLim });
     }
 
@@ -468,6 +494,7 @@ module.exports = async (req, res) => {
         }
       }
       await sbPatch(`clientes?id=eq.${user_id}`, { limites });
+      await auditar('Limites alterados', user_id, { limites });
       return res.status(200).json({ ok: true });
     }
 
@@ -492,6 +519,7 @@ module.exports = async (req, res) => {
       const { user_id, cortesia } = req.body;
       await assertScope(user_id);
       await sbPatch(`clientes?id=eq.${user_id}`, { cortesia_ate: cortesiaDate(cortesia), tipo_cortesia: tipoCortesia(cortesia) });
+      await auditar('Cortesia alterada', user_id, { cortesia });
       return res.status(200).json({ ok: true });
     }
 
@@ -499,6 +527,7 @@ module.exports = async (req, res) => {
       if (!isAdmin) return res.status(403).json({ error: 'Apenas admin' });
       const { user_id, limite_contas } = req.body;
       await sbPatch(`clientes?id=eq.${user_id}`, { limite_contas });
+      await auditar('Limite de contas alterado', user_id, { limite_contas });
       return res.status(200).json({ ok: true });
     }
 
@@ -506,7 +535,7 @@ module.exports = async (req, res) => {
       const { user_id, bloqueado } = req.body;
       await assertScope(user_id);
       await sbPatch(`clientes?id=eq.${user_id}`, { bloqueado: !!bloqueado });
-      await sbInsert('logs', { acao: `${bloqueado ? 'Bloqueio' : 'Desbloqueio'}: ${user_id}`, user_id: requester.id }).catch(() => {});
+      await auditar(bloqueado ? 'Bloqueio' : 'Desbloqueio', user_id, {});
       return res.status(200).json({ ok: true });
     }
 
@@ -516,6 +545,8 @@ module.exports = async (req, res) => {
       const [t] = await sbGet(`clientes?id=eq.${user_id}&select=email`);
       if (!t) return res.status(404).json({ error: 'Usuário não encontrado' });
       const link = await authAdmin('generate_link', 'POST', { type: 'recovery', email: t.email });
+      // NUNCA gravar o link em `dados` — é um token de acesso à conta (equivalente a senha).
+      await auditar('Link de redefinição de senha gerado', user_id, {});
       return res.status(200).json({ ok: true, link: link.action_link || (link.properties && link.properties.action_link) || null });
     }
 
@@ -534,7 +565,7 @@ module.exports = async (req, res) => {
       const todos = await sbGet(`clientes?role=eq.usuario&select=id`);
       const rows = (todos || []).map(u => ({ user_id: u.id, tipo: tipo || 'info', titulo, mensagem, lido: false, resolvido: false }));
       if (rows.length) await sbInsert('recados', rows);
-      await sbInsert('logs', { acao: `Broadcast: ${titulo}`, user_id: requester.id }).catch(() => {});
+      await auditar('Broadcast', null, { titulo });
       return res.status(200).json({ ok: true, count: rows.length });
     }
 
@@ -553,7 +584,7 @@ module.exports = async (req, res) => {
         }
       }
       await sbPatch(`clientes?id=eq.${user_id}`, { supervisor_id: novo_supervisor_id });
-      await sbInsert('logs', { acao: `Transferência: usuário ${user_id} → supervisor ${dest.email}`, user_id: requester.id }).catch(() => {});
+      await auditar('Transferência de conta', user_id, { novo_supervisor_id, novo_supervisor_email: dest.email });
       return res.status(200).json({ ok: true });
     }
 
@@ -562,11 +593,24 @@ module.exports = async (req, res) => {
       if (!senha || senha.length < 6) return res.status(400).json({ error: 'Senha precisa de 6+ caracteres' });
       await assertScope(user_id);
       await authAdmin(`users/${user_id}`, 'PUT', { password: senha });
-      await sbInsert('logs', { acao: `Senha redefinida para ${user_id}`, user_id: requester.id }).catch(() => {});
+      // NUNCA gravar `senha` em `dados`.
+      await auditar('Senha redefinida', user_id, {});
       return res.status(200).json({ ok: true });
     }
 
     if (action === 'delete_user') {
+      // "Auditoria real + supervisor não exclui definitivo + admin bloqueado sem acesso"
+      // (29/set/2026): exclusão DEFINITIVA (conta + Auth + todas as tabelas) passa a ser só do
+      // admin — antes, um supervisor passava por assertScope() normalmente para um cliente do
+      // próprio escopo e só era barrado se o alvo fosse admin/supervisor/protegido, então
+      // excluía a conta de um cliente comum sem ninguém decidir isso. Supervisor continua
+      // podendo bloquear/desbloquear e gerir a conta (ver block_user, acima) — só a exclusão
+      // definitiva vira privilégio do admin; o caminho do supervisor é `solicitar_exclusao`,
+      // abaixo. Checagem ANTES de qualquer leitura (inclusive antes de assertScope, que faz uma
+      // leitura quando quem chama não é admin).
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Exclusão definitiva é feita apenas por um administrador — use Solicitar exclusão' });
+      }
       const { user_id } = req.body;
       await assertScope(user_id);
       const [t] = await sbGet(`clientes?id=eq.${user_id}&select=role,email,protegido`);
@@ -575,7 +619,6 @@ module.exports = async (req, res) => {
       if (t && t.role === 'admin' && !(me && me.protegido)) {
         return res.status(403).json({ error: 'Apenas o administrador principal pode excluir admins.' });
       }
-      if (t && t.role === 'supervisor' && !isAdmin) return res.status(403).json({ error: 'Apenas admin exclui supervisores' });
       // Exclusão COMPLETA — remove de todas as tabelas + Auth (evita órfãos)
       await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
       await fetch(`${SUPABASE_URL}/rest/v1/recados?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
@@ -583,8 +626,45 @@ module.exports = async (req, res) => {
       await fetch(`${SUPABASE_URL}/rest/v1/chat_mensagens?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
       await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${user_id}`, { method: 'DELETE', headers: H() }).catch(() => {});
       try { await authAdmin(`users/${user_id}`, 'DELETE'); } catch (e) { /* já pode ter sido removido */ }
-      await sbInsert('logs', { acao: `Conta excluída: ${(t && t.email) || user_id}`, user_id: requester.id }).catch(() => {});
+      await auditar('Exclusão definitiva de conta', user_id, { email: (t && t.email) || null, role_excluida: (t && t.role) || null });
       return res.status(200).json({ ok: true });
+    }
+
+    // SOLICITAR EXCLUSÃO (29/set/2026): caminho do supervisor para pedir a exclusão definitiva
+    // de um cliente do próprio escopo — abre (ou reaproveita) um chamado no sistema de suporte
+    // já existente (o admin já lista isso em suporte_admin_tickets, dashboard-admin.html), sem
+    // tela nova. `role` já está restrito a supervisor/admin pelo portão ACOES_DE_CLIENTE lá em
+    // cima (esta ação não está na lista, então um `usuario` comum já leva 403 antes de chegar
+    // aqui). assertScope(user_id) mantém o supervisor preso aos próprios clientes; o admin, que
+    // já pode excluir direto por delete_user, também pode chamar isto (não é bloqueado), mas a
+    // tela só oferece o botão ao supervisor.
+    if (action === 'solicitar_exclusao') {
+      const { user_id, motivo } = req.body;
+      if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+      const motivoLimpo = String(motivo || '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!motivoLimpo) return res.status(400).json({ error: 'Motivo obrigatório' });
+      await assertScope(user_id);
+      const [alvo] = await sbGet(`clientes?id=eq.${user_id}&select=email`);
+      if (!alvo) return res.status(404).json({ error: 'Usuário não encontrado' });
+      const assunto = `Pedido de exclusão: ${alvo.email}`;
+      // Dedup: já existe ticket ABERTO com o mesmo assunto, do mesmo solicitante — devolve o
+      // existente em vez de abrir um segundo chamado idêntico.
+      const existentes = await sbGet(`suporte_tickets?user_id=eq.${requester.id}&status=eq.aberto&assunto=eq.${encodeURIComponent(assunto)}&select=id`);
+      let ticketId = Array.isArray(existentes) && existentes[0] ? existentes[0].id : null;
+      if (!ticketId) {
+        const novo = await sbInsert('suporte_tickets', {
+          user_id: requester.id, assunto, categoria: 'exclusao', prioridade: 'alta', status: 'aberto',
+        });
+        ticketId = Array.isArray(novo) && novo[0] ? novo[0].id : null;
+        if (ticketId) {
+          await sbInsert('suporte_mensagens', {
+            ticket_id: ticketId, autor: 'usuario',
+            texto: `Pedido de exclusão definitiva — alvo: ${alvo.email} (id ${user_id}). Motivo: ${motivoLimpo}`,
+          });
+        }
+      }
+      await auditar('solicitar_exclusao', user_id, { motivo: motivoLimpo, ticket_id: ticketId });
+      return res.status(200).json({ ok: true, ticket_id: ticketId });
     }
 
     if (action === 'limpar_email') {
@@ -614,6 +694,7 @@ module.exports = async (req, res) => {
       const patch = { cotas };
       if (teto_tokens !== undefined) patch.teto_tokens = Number(teto_tokens) || 0;
       await sbPatch(`clientes?id=eq.${user_id}`, patch);
+      await auditar('Cotas alteradas', user_id, { cotas, teto_tokens: patch.teto_tokens });
       return res.status(200).json({ ok: true });
     }
 
