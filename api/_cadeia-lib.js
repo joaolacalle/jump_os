@@ -287,4 +287,4 @@ async function verificarTimeoutCadeia() {
   return { candidatas: candidatas.length, avisos_passagem: avisos, erros_passagem: errosPassagem, erros_prazo_total: errosPrazoTotal };
 }
 
-module.exports = { avancarCadeia, verificarTimeoutCadeia, normalizarCadeia, prazoTotalCadeiaMs, TIMEOUT_PASSAGEM_MS, TEMPO_MAX_EXECUCAO_ELO_MS };
+module.exports = { avancarCadeia, verificarTimeoutCadeia, normalizarCadeia, prazoTotalCadeiaMs, TIMEOUT_PASSAGEM_MS, TEMPO_MAX_EXECUCAO_ELO_MS, autodisparar };

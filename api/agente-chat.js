@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.28-ficha-tecnica-nasce-com-o-dado';
+const VERSAO = '2026.09.29-ficha-tecnica-disparo-imediato-dedup-existencia';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -112,7 +112,7 @@ const TOOL_DIRECAO_AVULSA={
 };
 const { zapUpload, zapCriarTask } = require('./_video-lib');
 // HANDOFF — CADEIA (11/set/2026): avanço genérico, ver api/_cadeia-lib.js.
-const { avancarCadeia } = require('./_cadeia-lib');
+const { avancarCadeia, autodisparar } = require('./_cadeia-lib');
 // REPARO AVULSO — SEXTA PORTA (05/set/2026, ver APRENDIZADOS.md "GATE DA APROVAÇÃO SEMANAL" e
 // "SEXTA PORTA"): detalhar pelo chat nunca deve disparar produção sozinho — ao concluir o
 // <detalhe>, este arquivo GARANTE o card 'aprovar_semana' (cria se não existir, reaproveita se já
@@ -1478,6 +1478,30 @@ const handler = async (req, res) => {
         dedup_da_garantia_trocado_de_qualquer_status_para_pendente_processando_ou_concluida_com_payload_url:true,
         gerarfichatecnica_removida_de_agentes_html_sem_nenhum_chamador_confirmado_antes_da_remocao:true,
         dnamergeado_fora_de_escopo_na_auto_recuperacao_remescla_mems_e_novas_inline_sem_consulta_nova:true,
+        // "Ficha técnica — disparo imediato, dedup por existência, chat do Designer não fecha a
+        // ficha" (29/set/2026, autorizado pelo João): revisão da rodada db9bed2 apontou 3 efeitos
+        // colaterais, todos restritos à ficha. (1) A garantia criava a ordem mas não chamava o
+        // worker — a tag antiga disparava via o AUTO-DISPATCH inline (~2479), que saiu junto com
+        // a tag; a ficha ficava esperando até 5min pelo cron 'produzir'. Corrigido reusando
+        // autodisparar() (api/_cadeia-lib.js, agora também exportada — nenhuma linha do corpo da
+        // função mudou), chamada só quando o insert dá certo; descartada uma 4ª cópia inline do
+        // fetch (o arquivo já registra 3 cópias da fórmula de base URL). (2) O dedup da rodada
+        // anterior só bloqueava pendente/processando/concluida-com-url — uma ficha em 'erro'
+        // (ex.: cota esgotada) ou 'pausada' não bloqueava, então cada mensagem nova ao Identidade
+        // criava outra ordem. Trocado para dedup por existência: QUALQUER ficha já existente
+        // bloqueia, EXCETO concluida SEM payload.url (o defeito original, que continua não
+        // bloqueando). A recuperação de uma ficha em erro passa a ser o botão "Tentar de novo"
+        // que já existe em ordens.html (repetirOrdem), não uma ordem nova por aqui. (3) O
+        // fechamento do chat do Designer (~3266, agente==='criativo'&&imgReq) ainda fechava
+        // 'ficha_tecnica' pendente como concluida SEM olhar pra url — reproduzia de novo o
+        // próprio bug corrigido em db9bed2 toda vez que o cliente pedia a ficha pelo chat em vez
+        // de esperar o worker. Motivo original desse fechamento (ordem ficava pendente pra
+        // sempre, sem executor) não existe mais — a ficha tem executor próprio desde db9bed2 —
+        // então o fechamento volta a cobrir só 'criar_post', como antes daquela rodada.
+        ficha_tecnica_dispara_o_worker_imediatamente_apos_o_insert_reusando_autodisparar_cadeia_lib:true,
+        ficha_tecnica_dedup_trocado_de_lista_de_status_que_bloqueiam_para_qualquer_existencia_exceto_concluida_sem_url:true,
+        ficha_tecnica_erro_ou_pausada_agora_bloqueiam_a_recriacao_recuperacao_e_pelo_botao_tentar_de_novo:true,
+        fechamento_do_chat_do_designer_volta_a_cobrir_so_criar_post_ficha_tem_executor_proprio_desde_db9bed2:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -3256,14 +3280,17 @@ const handler = async (req, res) => {
     }
 
     // Marcar ordens pendentes recebidas como concluídas após atendimento (PRECISO por tarefa)
-    // Designer (chat) atende 'criar_post'; a 'ficha_tecnica' é tratada pelo botão do front.
+    // Designer (chat) atende 'criar_post'. 'ficha_tecnica' NÃO fecha aqui (29/set/2026, "ficha
+    // técnica — disparo imediato, dedup por existência, chat do Designer não fecha a ficha"):
     // Estratégia atende 'novo_criativo_ads' (do Tráfego) quando grava conteúdo.
     try{
       if(agente==='criativo'&&imgReq){
-        // 🔴 ANTES fechava só 'criar_post'. Quando o cliente pedia a ficha técnica direto no
-        // CHAT (em vez do botão da fila), a arte saía mas a ordem 'ficha_tecnica' ficava
-        // pendente PARA SEMPRE nas Tarefas de Serviço. Agora fecha as duas naturezas.
-        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=in.(criar_post,ficha_tecnica)&status=eq.pendente`,{
+        // 🔴 ANTES (rodada db9bed2) fechava também 'ficha_tecnica' — motivo histórico: a ordem
+        // ficava pendente PARA SEMPRE porque não existia executor pra ela. Isso mudou: a ficha
+        // agora tem executor próprio no worker (api/cron.js), então fechá-la aqui SEM imagem
+        // reproduziria de novo o próprio defeito que motivou a rodada anterior (concluida sem
+        // payload.url). Fecha só 'criar_post', como antes de db9bed2.
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.criar_post&status=eq.pendente`,{
           method:'PATCH',headers:H(),body:JSON.stringify({status:'concluida',concluida_em:new Date().toISOString()})
         }).catch(()=>{});
       }
@@ -3494,15 +3521,19 @@ const handler = async (req, res) => {
         const dnaParaFicha={};
         mems.filter(m=>m.agente==='global').forEach(m=>{ dnaParaFicha[m.chave]=m.valor; });
         novas.forEach(m=>{ if(m.chave) dnaParaFicha[String(m.chave)]=String(m.valor); });
-        // DEDUP (28/set/2026): uma ficha 'concluida' SEM arte (payload.url ausente — exatamente
-        // o bug que motivou esta correção: a ordem fechava em ~1s sem gerar nada) não pode
-        // bloquear a recriação para sempre. Só pendente/processando, ou concluida COM url de
-        // verdade, contam como "já existe" — busca todas (poucas por cliente, nunca paginado) e
-        // decide em código, em vez de um filtro OR/AND aninhado no JSONB pela query.
+        // DEDUP POR EXISTÊNCIA (29/set/2026, "ficha técnica — disparo imediato, dedup por
+        // existência, chat do Designer não fecha a ficha"): qualquer ordem 'ficha_tecnica' já
+        // existente bloqueia a recriação, EXCETO 'concluida' SEM payload.url (o bug corrigido em
+        // db9bed2 — a ordem fechava em ~1s sem gerar nada). Antes só pendente/processando/
+        // concluida-com-url bloqueavam, deixando 'erro' (ex.: cota esgotada) e 'pausada'
+        // recriarem a cada mensagem ao Identidade — a recuperação de uma ficha em erro é o botão
+        // "Tentar de novo" que já existe em ordens.html (repetirOrdem), não uma ordem nova aqui.
+        // Busca todas (poucas por cliente, nunca paginado) e decide em código.
         const fichasExistentes=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&select=id,status,payload`);
-        const temFicha=(Array.isArray(fichasExistentes)?fichasExistentes:[]).some(f=>
-          f.status==='pendente'||f.status==='processando'||(f.status==='concluida'&&f.payload&&f.payload.url)
-        );
+        const temFicha=(Array.isArray(fichasExistentes)?fichasExistentes:[]).some(f=>{
+          const concluidaSemArte=(f.status==='concluida'&&!(f.payload&&f.payload.url));
+          return !concluidaSemArte;
+        });
         if(!temFicha){
           const rIns=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
             user_id:targetId, de_agente:'identidade', para_agente:'criativo', tarefa:'ficha_tecnica',
@@ -3510,6 +3541,11 @@ const handler = async (req, res) => {
             payload:{brief:promptFichaTecnica(dnaParaFicha)}
           })});
           if(!rIns.ok) console.error('[ficha-tecnica] falha ao criar a ordem — user_id='+targetId+' status='+rIns.status);
+          // DISPARO IMEDIATO (29/set/2026): sem isto, a ficha esperava até 5min pelo cron
+          // 'produzir' — reusa autodisparar() (api/_cadeia-lib.js), mesma função que o handoff
+          // de cadeia já usa, em vez de uma 4ª cópia inline do fetch (o arquivo já registra
+          // 3 cópias da fórmula de base URL — ver comentário em _cadeia-lib.js:107-109).
+          else autodisparar();
         }
       }catch(e){}
     }
