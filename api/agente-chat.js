@@ -2440,7 +2440,9 @@ const handler = async (req, res) => {
 
     // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
     // Antes isso passava em silêncio (o agente "dizia" que salvou e nada era gravado).
-    const truncou=(data.stop_reason==='max_tokens');
+    // Se a resposta foi trocada pelo fiscal de escopo (reescrita ou redirecionamento), o
+    // stop_reason da chamada original não descreve mais o texto final — não avisa corte.
+    const truncou=(data.stop_reason==='max_tokens') && !escopo.bloqueado && !escopo.reescrito;
 
     // Extrair instrução de geração de imagem
     let imgReq=null;

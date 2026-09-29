@@ -696,6 +696,12 @@ async function aprovarProposta(id,tarefa,btn){
         if(tk){
           const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da SEMANA 1 do calendário. Não gere artes ainda. Faça direto, sem perguntar nada.'})});
           if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
+          else{
+            // FRONTEIRA ENTRE AGENTES (29/set/2026): resposta barrada pelo fiscal de escopo não
+            // detalhou nada — conta como falha para o aviso abaixo, nunca como sucesso silencioso.
+            const dAuto=await rAuto.json().catch(()=>null);
+            if(dAuto&&dAuto.escopo&&dAuto.escopo.bloqueado){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo barrado pelo fiscal de escopo',dAuto.escopo);}
+          }
         }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
       }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
       // ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md): a data REAL de aprovação vira
@@ -1164,6 +1170,10 @@ async function gerarCopyIA(id){
     const r=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await JUMP.freshToken()||CTX.token)},body:JSON.stringify(body)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Erro ao gerar copy');
+    // FRONTEIRA ENTRE AGENTES (29/set/2026): se o fiscal de escopo trocou ou reescreveu a resposta,
+    // o texto não é a legenda pedida (é um redirecionamento ou uma versão refeita) — nunca gravar
+    // como copy do post; avisa e deixa o cliente tentar de novo ou escrever à mão.
+    if(d.escopo&&(d.escopo.bloqueado||d.escopo.reescrito)){console.error('[gerar-copy] resposta alterada pelo fiscal de escopo',d.escopo);JUMP.toast('A Estratégia não conseguiu gerar a copy agora. Tente de novo ou escreva manualmente.','err'); if(btn){btn.disabled=false;btn.innerHTML=old;} return;}
     let texto=String(d.resposta||'').trim();
     // limpeza defensiva: o pedido instrui "só o texto", mas o agente pode ainda assim cercar
     // com aspas/markdown — mesmo cuidado de sempre (nunca confiar 100% em instrução de prosa).
