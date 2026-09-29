@@ -306,7 +306,7 @@ function renderTable(){
         <button class="btn btn-o btn-sm" onclick="abrirLimites('${u.id}')">Limites</button>
         <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
         <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
-        <button class="btn btn-r btn-sm" onclick="excluirUser('${u.id}','${JUMP.esc(u.email||'')}')">🗑</button>
+        <button class="btn btn-r btn-sm" onclick="solicitarExclusao('${u.id}','${JUMP.esc(u.email||'')}')">Solicitar exclusão</button>
       </div></td></tr>`;
   }).join('');
 }
@@ -435,12 +435,19 @@ async function linkReset(){
     fecharModal('modal-pass');
   }catch(e){JUMP.toast(e.message,'err')}
 }
-async function excluirUser(id,email){
-  if(!confirm('EXCLUIR a conta '+email+'?\n\nIsso apaga o login e os dados de gestão. Não pode ser desfeito.'))return;
-  if(prompt('Digite EXCLUIR para confirmar:')!=='EXCLUIR'){JUMP.toast('Exclusão cancelada');return}
+// Exclusão DEFINITIVA (conta + login + todos os dados) passou a ser só do admin (rodada
+// "Auditoria real + supervisor não exclui definitivo + admin bloqueado sem acesso",
+// 29/set/2026) — o supervisor pede, o admin decide e executa. Sem confirmação em duas etapas
+// (era "digite EXCLUIR"): o pedido em si não apaga nada, só abre/reaproveita um chamado de
+// suporte para o admin revisar.
+async function solicitarExclusao(id,email){
+  const motivo=prompt('Motivo do pedido de exclusão definitiva de '+email+' (obrigatório):');
+  if(motivo===null)return;
+  if(!motivo.trim()){JUMP.toast('Motivo obrigatório','err');return}
+  if(!confirm('Confirma o pedido de exclusão definitiva de '+email+'?\n\nUm administrador vai revisar e executar — não é feito agora.'))return;
   try{
-    await JUMP.api('delete_user',{user_id:id},CTX.token);
-    JUMP.toast('Conta excluída');await carregar();
+    await JUMP.api('solicitar_exclusao',{user_id:id,motivo:motivo.trim()},CTX.token);
+    JUMP.toast('Pedido enviado ao administrador');
   }catch(e){JUMP.toast(e.message,'err')}
 }
 </script>

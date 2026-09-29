@@ -541,8 +541,12 @@ async function carregar(){
   try{
     const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(12);
     if(logs&&logs.length){
-      document.getElementById('logs').innerHTML=logs.map(l=>
-        `<div class="log-line"><span class="log-time">${new Date(l.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${JUMP.esc(l.acao||'')}</span></div>`).join('');
+      // alvo_id → lista de clientes já carregada em ALL (list_all_users, acima) — sem consulta nova
+      document.getElementById('logs').innerHTML=logs.map(l=>{
+        const alvo=l.alvo_id&&ALL.find(c=>c.id===l.alvo_id);
+        const alvoTxt=alvo?` — ${alvo.email||''}`:'';
+        return `<div class="log-line"><span class="log-time">${new Date(l.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${JUMP.esc(l.papel||'')}: ${JUMP.esc(l.acao||'')}${JUMP.esc(alvoTxt)}</span></div>`;
+      }).join('');
     }
   }catch(e){}
 }

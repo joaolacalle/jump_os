@@ -400,16 +400,20 @@ async function carregarConexoes(){
       if((c.tipo||'').includes('insta')||(c.plataforma||'').includes('insta')){igOn=true;igMeta=c.meta||null;igId=c.id}
       if((c.tipo||'').includes('ads')||(c.plataforma||'').includes('ads')){adsOn=true;adsId=c.id}
     });
+    // Supervisor no "ver como" não desconecta a conta Meta de um cliente (rodada "Auditoria
+    // real + supervisor não exclui definitivo + admin bloqueado sem acesso", 29/set/2026) —
+    // admin e o próprio dono continuam sem mudança.
+    const escondeDesc=CTX.role==='supervisor'&&CTX.viewId&&CTX.viewId!==CTX.user.id;
     if(igOn){
       const st=document.getElementById('cx-ig-s');st.textContent='● Conectado';st.style.color='var(--g)';
       const b=document.getElementById('cx-ig-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
       if(igMeta&&igMeta.ig_picture){document.getElementById('cx-ig-ico').innerHTML='<img src="'+igMeta.ig_picture+'" style="width:38px;height:38px;border-radius:10px;object-fit:cover" alt="">';}
-      const d=document.getElementById('cx-ig-desc');d.dataset.id=igId;d.style.display='';
+      if(!escondeDesc){const d=document.getElementById('cx-ig-desc');d.dataset.id=igId;d.style.display='';}
     }
     if(adsOn){
       const st=document.getElementById('cx-ads-s');st.textContent='● Conectado';st.style.color='var(--g)';
       const b=document.getElementById('cx-ads-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
-      const d=document.getElementById('cx-ads-desc');d.dataset.id=adsId;d.style.display='';
+      if(!escondeDesc){const d=document.getElementById('cx-ads-desc');d.dataset.id=adsId;d.style.display='';}
     }
   }catch(e){console.error('conexões:',e)}
 }

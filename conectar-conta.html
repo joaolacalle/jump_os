@@ -86,10 +86,14 @@
 
 <script src="assets/jump-core.js?v=8"></script>
 <script>
-let CTX=null;
+let CTX=null,ESCONDER_DESCONECTAR=false;
 (async()=>{
   try{
     CTX=await JUMP.guard();
+    // Supervisor no "ver como" não desconecta a conta Meta de um cliente (rodada "Auditoria
+    // real + supervisor não exclui definitivo + admin bloqueado sem acesso", 29/set/2026) —
+    // admin e o próprio dono continuam sem mudança.
+    ESCONDER_DESCONECTAR=CTX.role==='supervisor'&&CTX.viewId&&CTX.viewId!==CTX.user.id;
     /* Retorno do OAuth da Meta */
     const p=new URLSearchParams(location.search);
     if(p.get('conectado')){
@@ -111,7 +115,7 @@ let CTX=null;
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)">
             <span style="font-size:18px">${(c.tipo||'').includes('ads')?'📢':'📸'}</span>
             <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(c.nome||c.tipo||'Conta')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--g)">● conectado</div></div>
-            <button class="btn btn-r btn-sm" onclick="desconectar('${c.id}')">Desconectar</button>
+            ${ESCONDER_DESCONECTAR?'':`<button class="btn btn-r btn-sm" onclick="desconectar('${c.id}')">Desconectar</button>`}
           </div>`).join('');
         cc.forEach(c=>{
           const ig=(c.tipo||'').includes('insta');

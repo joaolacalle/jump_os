@@ -37,7 +37,7 @@
 </div>
 <script src="assets/jump-core.js?v=8"></script>
 <script>
-let CTX=null,CAT='logo',FILES=[];
+let CTX=null,CAT='logo',FILES=[],ESCONDER_EXCLUIR=false;
 const CFG={
   logo:{t:'Enviar logo',b:'PNG, JPG ou SVG · fundo transparente é ideal',accept:'image/*'},
   produtos:{t:'Enviar fotos de produtos',b:'Fotos reais — os agentes usam nos infográficos e artes',accept:'image/*'},
@@ -51,6 +51,10 @@ const CFG={
     JUMP.sidebar('upload');
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+    // Supervisor no "ver como" não exclui arquivo de cliente (rodada "Auditoria real +
+    // supervisor não exclui definitivo + admin bloqueado sem acesso", 29/set/2026) — admin e o
+    // próprio dono continuam sem mudança.
+    ESCONDER_EXCLUIR=CTX.role==='supervisor'&&CTX.viewId&&CTX.viewId!==CTX.user.id;
     await listar();
     // abrir direto numa aba específica via link (29/set/2026, Parte 2 "aviso ao vivo com link" —
     // o aviso da ficha técnica linka aqui com ?aba=gerados). Só troca se for uma chave válida de
@@ -118,7 +122,7 @@ async function render(){
   if(!rows.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum arquivo nesta categoria ainda.</div>';return}
   g.innerHTML=rows.map(f=>`<div class="up-item">
     ${CAT==='videos'?`<div style="position:relative;width:100%;height:100%;background:#000;cursor:pointer" onclick="abrirVidPrev('${f.url}')"><video src="${f.url}#t=0.5" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:14px">▶</div></div></div>`:`<img src="${f.url}" alt="">`}
-    <button class="up-del" onclick="apagar('${f.id}','${f.path||''}')">✕</button>
+    ${ESCONDER_EXCLUIR?'':`<button class="up-del" onclick="apagar('${f.id}','${f.path||''}')">✕</button>`}
     ${CAT==='gerados'?`<button class="up-del" style="right:38px;color:var(--g)" onclick="baixarArq('${f.url}',this)" title="Baixar">⬇</button>`:''}
   </div>`).join('');
 }
