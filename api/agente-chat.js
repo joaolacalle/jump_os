@@ -11,7 +11,7 @@ const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 // gravar via <memoria>. fatiaDoAgente (25/set/2026, "Fonte única do DNA da marca") decide, a
 // partir do mapa já deduplicado, qual fatia do DNA cada agente recebe — ver o ponto de leitura
 // única mais abaixo.
-const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando, fatiaDoAgente } = require('./_dna-lib.js');
+const { DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando, DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando, fatiaDoAgente, promptFichaTecnica } = require('./_dna-lib.js');
 
 // CARDINALIDADE CANÔNICA: o FORMATO é a autoridade. Peça única = 1 imagem. Carrossel = N explícito.
 // Nunca inventa quantidade — carrossel sem N válido lança erro controlado, para nada ser produzido
@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.25-onboarding-capta-dna-de-direcao-de-arte';
+const VERSAO = '2026.09.28-ficha-tecnica-nasce-com-o-dado';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -438,10 +438,8 @@ Os 21 campos e a FORMA esperada de cada valor (o CONTEÚDO é sempre da marca re
 Mais um campo OPCIONAL, que NUNCA bloqueia o check-in e NUNCA deve ser exigido do cliente: estilo_de_mockup só faz sentido para negócio que tem tela ou software real na cena (app, painel, site). Se o negócio não tem tela — padaria, salão, loja física, restaurante — deixe este campo vazio e não pergunte nada sobre ele; exigir isso de quem não tem produto digital faria você inventar.
 <memoria>{"chave":"estilo_de_mockup","valor":"frase curta (ou não registre esta memória, se o negócio não tem tela)"}</memoria>
 3) Registre as memórias do OS_DATA (tags do passo 1) e as de direção de arte (tags do passo 2) e finalize a consultoria com <checkin_completo/>.
-4) Dispare a ordem ao Designer para gerar a ficha técnica visual:
-<ordem_servico>{"para":"criativo","tarefa":"ficha_tecnica","detalhe":"gerar ficha técnica visual: nova logo se necessário, paleta, fontes e 1 exemplo de post"}</ordem_servico>
-5) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
-6) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
+4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
+5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
 - c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos). OBS: o MENU LATERAL tem cores próprias fixas e NÃO muda — as cores personalizam a dashboard e as páginas internas, nunca o menu.
 - c2 (secundária) = segunda cor da paleta (informações de apoio)
 - c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
@@ -1448,6 +1446,38 @@ const handler = async (req, res) => {
         tipo_de_composicao_consolidado_no_passo_novo_removida_a_inferencia_silenciosa_antiga_para_nao_duplicar:true,
         checkin_completo_recusa_em_codigo_tambem_quando_falta_campo_de_direcao_reusando_o_mesmo_dnamergeado:true,
         dna_checklist_txt_lista_tambem_campos_de_direcao_faltando_na_mesma_fonte_de_sempre:true,
+        // "Ficha técnica nasce com o dado" (28/set/2026, autorizado pelo João): 2 ordens
+        // ficha_tecnica do cliente cfd67ca7 viraram 'concluida' em ~1s sem gerar nada — a tag
+        // <ordem_servico> nascia sem payload.brief (o texto só existia em `detalhe`) e o laço
+        // genérico do worker (api/cron.js) nem sequer selecionava `tarefa` pra ela, então o ramo
+        // soArquivo nunca entrava e a ordem caía direto na busca de rascunhos (vazia) →
+        // concluída sem arte. gerarFichaTecnica() (agentes.html), a única função que montava o
+        // prompt da ficha, nunca tinha chamador algum — confirmado por busca no repositório
+        // inteiro antes da remoção. A ficha passa a nascer já com o dado: o prompt é montado no
+        // SERVIDOR (api/_dna-lib.js:promptFichaTecnica(), porte fiel do texto que vivia em
+        // agentes.html, nenhuma palavra mudou) no exato instante em que a garantia cria a ordem,
+        // gravado em payload.brief; a ordem ganhou executor PRÓPRIO no worker (api/cron.js,
+        // mesmo formato dos blocos de direcao_avulso_criativo/copy_para_criativo), e
+        // 'ficha_tecnica' saiu da lista que o laço genérico seleciona — os dois nunca mais
+        // competem pela mesma ordem (o ramo soArquivo, intocado, vira código morto só para esta
+        // tarefa, como pedido). A tag <ordem_servico> saiu do prompt do Identidade (nunca
+        // carregava payload.brief nenhum, só prosa) e ganhou um gate em código (mesmo padrão do
+        // criar_post/Estratégia, acima) caso ainda seja emitida por deriva de prompt. Dedup
+        // trocado de "qualquer status já bloqueia" para "pendente/processando, ou concluída COM
+        // payload.url real" — uma ficha concluída sem arte (exatamente o defeito relatado) não
+        // podia bloquear a recriação para sempre. Divergência encontrada e decidida (reportada):
+        // dnaMergeado (o mapa de memórias que o bloco do check-in monta) é escopado ao if()
+        // daquele bloco — não chega até a garantia no caminho de auto-recuperação (check-in
+        // concluído numa mensagem anterior). Recalculada a MESMA mescla (mems+novas) inline, sem
+        // nenhuma consulta nova — os dois já estavam em escopo na função inteira.
+        ficha_tecnica_prompt_montado_no_servidor_por_dna_lib_promptfichatecnica_porte_fiel_do_front:true,
+        ficha_tecnica_ganha_executor_proprio_no_worker_mesmo_formato_de_direcao_avulsa_e_copy_para_criativo:true,
+        ficha_tecnica_removida_do_laco_generico_do_worker_nunca_mais_competem_pela_mesma_ordem:true,
+        tag_ordem_servico_ficha_tecnica_saiu_do_prompt_do_identidade_garantia_em_codigo_e_a_unica_forma_de_nascer:true,
+        gate_em_codigo_descarta_ficha_tecnica_emitida_por_tag_mesmo_padrao_do_criar_post_estrategia:true,
+        dedup_da_garantia_trocado_de_qualquer_status_para_pendente_processando_ou_concluida_com_payload_url:true,
+        gerarfichatecnica_removida_de_agentes_html_sem_nenhum_chamador_confirmado_antes_da_remocao:true,
+        dnamergeado_fora_de_escopo_na_auto_recuperacao_remescla_mems_e_novas_inline_sem_consulta_nova:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -2336,6 +2366,17 @@ const handler = async (req, res) => {
       const _bloqueadas=ordens.filter(o=>o.tarefa==='criar_post');
       if(_bloqueadas.length){ console.error('[ordem] tag <ordem_servico> criar_post da Estratégia descartada (gate da aprovação semanal):',_bloqueadas.length); }
       ordens=ordens.filter(o=>o.tarefa!=='criar_post');
+    }
+    // GATE DA FICHA TÉCNICA (28/set/2026, "Ficha técnica nasce com o dado"): a tag saiu do
+    // prompt do Identidade (passo 4 antigo) — a garantia em código, mais abaixo, é a ÚNICA forma
+    // de a ordem nascer agora (ela nasce já com payload.brief; a tag nunca carregava dado
+    // nenhum). Mesmo gate do criar_post/Estratégia acima: se por qualquer motivo (deriva de
+    // prompt, alucinação) o Identidade ainda emitir essa tag, ela é descartada antes de virar
+    // ordem — prosa não é mecanismo.
+    if(agente==='identidade'){
+      const _fichasBloqueadas=ordens.filter(o=>o.tarefa==='ficha_tecnica');
+      if(_fichasBloqueadas.length){ console.error('[ordem] tag <ordem_servico> ficha_tecnica do Identidade descartada (nasce só pela garantia em código):',_fichasBloqueadas.length); }
+      ordens=ordens.filter(o=>o.tarefa!=='ficha_tecnica');
     }
     // TRAVA — DELEGAR E PRODUZIR SÃO EXCLUDENTES (14/set/2026, "Entrega A", ver APRENDIZADOS.md
     // "Designer não pode delegar e produzir no mesmo turno" — sétimo caso de instrução ignorada,
@@ -3435,8 +3476,7 @@ const handler = async (req, res) => {
     // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
     // cria a ordem para o Criativo de forma determinística — tanto ao concluir o check-in AGORA
     // quanto para quem JÁ fez o check-in ANTES deste fix (a ordem que "sumiu"). Roda em qualquer
-    // interação com o Identidade quando o check-in já está feito. Dedup por QUALQUER status
-    // (se já houve ficha alguma vez, não recria).
+    // interação com o Identidade quando o check-in já está feito.
     // Se o usuário entrou no agente marcado como "próximo" (o ponto piscando), limpa a marcação.
     if(cli.onboarding && cli.onboarding.proximo===agente){
       const _ob=Object.assign({},cli.onboarding); delete _ob.proximo;
@@ -3444,12 +3484,32 @@ const handler = async (req, res) => {
     }
     if(agente==='identidade' && (checkin || (cli.onboarding&&cli.onboarding.checkin))){
       try{
-        const temFicha=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&select=id&limit=1`);
-        if(!(Array.isArray(temFicha)&&temFicha.length)){
-          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
+        // MAPA DE MEMÓRIAS PARA A FICHA (28/set/2026, "Ficha técnica nasce com o dado"):
+        // dnaMergeado (bloco do check-in, acima) é escopado ao if() daquele bloco — não chega
+        // até aqui no caminho de AUTO-RECUPERAÇÃO (check-in concluído numa mensagem ANTERIOR,
+        // sem passar pelo if <checkin_completo/> nesta chamada). Recalcula a MESMA mescla
+        // (mems, agente='global', sobrescritas pelo que este turno está gravando em `novas`) —
+        // SEM nenhuma consulta nova: os dois (`mems`, `novas`) já estão em escopo desde o topo
+        // desta função, não precisam ser buscados de novo.
+        const dnaParaFicha={};
+        mems.filter(m=>m.agente==='global').forEach(m=>{ dnaParaFicha[m.chave]=m.valor; });
+        novas.forEach(m=>{ if(m.chave) dnaParaFicha[String(m.chave)]=String(m.valor); });
+        // DEDUP (28/set/2026): uma ficha 'concluida' SEM arte (payload.url ausente — exatamente
+        // o bug que motivou esta correção: a ordem fechava em ~1s sem gerar nada) não pode
+        // bloquear a recriação para sempre. Só pendente/processando, ou concluida COM url de
+        // verdade, contam como "já existe" — busca todas (poucas por cliente, nunca paginado) e
+        // decide em código, em vez de um filtro OR/AND aninhado no JSONB pela query.
+        const fichasExistentes=await sbGet(`ordens_servico?user_id=eq.${targetId}&para_agente=eq.criativo&tarefa=eq.ficha_tecnica&select=id,status,payload`);
+        const temFicha=(Array.isArray(fichasExistentes)?fichasExistentes:[]).some(f=>
+          f.status==='pendente'||f.status==='processando'||(f.status==='concluida'&&f.payload&&f.payload.url)
+        );
+        if(!temFicha){
+          const rIns=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`,{method:'POST',headers:H(),body:JSON.stringify({
             user_id:targetId, de_agente:'identidade', para_agente:'criativo', tarefa:'ficha_tecnica',
-            detalhe:'gerar ficha técnica visual da marca: paleta, fontes e 1 exemplo de post', status:'pendente'
-          })}).catch(()=>{});
+            detalhe:'gerar ficha técnica visual da marca: paleta, fontes e 1 exemplo de post', status:'pendente',
+            payload:{brief:promptFichaTecnica(dnaParaFicha)}
+          })});
+          if(!rIns.ok) console.error('[ficha-tecnica] falha ao criar a ordem — user_id='+targetId+' status='+rIns.status);
         }
       }catch(e){}
     }

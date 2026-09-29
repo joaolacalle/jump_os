@@ -136,8 +136,44 @@ function fatiaDoAgente(agente, mapaDnaFinal) {
   return fatia;
 }
 
+// FICHA TÉCNICA — PROMPT MONTADO NO SERVIDOR (28/set/2026, "Ficha técnica nasce com o dado"):
+// porte fiel de gerarFichaTecnica() (agentes.html, função removida nesta rodada — não tinha
+// nenhum chamador, confirmado por busca no repositório inteiro). Antes só existia no front,
+// nunca era chamada, e a ordem 'ficha_tecnica' nascia sem payload.brief — o worker não tinha
+// texto nenhum pra mandar ao Diretor (gerar-imagem.js recusa com "Prompt inválido"). Agora é
+// UMA função pura (mapa de memórias já mesclado → string), chamada no exato instante em que a
+// ordem nasce (api/agente-chat.js, garantia da ficha) — nunca mais montada no front, nunca lida
+// de novo pelo worker (api/cron.js só lê payload.brief já pronto). Mesmas chaves de memória,
+// mesmos fallbacks, mesmo texto do original — nenhuma palavra do prompt mudou.
+function promptFichaTecnica(mapaMemorias) {
+  const M = mapaMemorias || {};
+  const paleta = (M.paleta_primaria || '#A855F7') + ', ' + (M.paleta_secundaria || '') + (M.paleta_terciaria ? (', ' + M.paleta_terciaria) : '') + ', cta ' + (M.cor_cta || '');
+  const fontes = (M.tipografia_primaria || '') + ' / ' + (M.tipografia_secundaria || '');
+  const estilo = M.estilo_visual || 'EDITORIAL';
+  const estFoto = M.estilo_fotografico || '', comp = M.tipo_de_composicao || '', obrig = M.elementos_obrigatorios || '', proib = M.elementos_proibidos || '';
+  const nicho = M.nicho || '', marca = M.marca || '', publico = M.publico_alvo || '';
+  const claro = /claro|light|branco|off-?white|minimal/i.test(String(M.dna_visual || '') + String(M.paleta_primaria || ''));
+  return 'Professional brand identity guide board (brand style sheet) for '
+    + (marca ? ('the brand "' + marca + '"') : 'this brand') + (nicho ? (', a business in: ' + nicho) : '') + '. '
+    + 'Layout as an organized grid showing: (1) the color palette as labeled swatches (' + paleta + '); '
+    + '(2) typography samples (' + fontes + ') with a headline sample and a body sample; '
+    + '(3) ONE realistic Instagram post mockup shown inside a phone frame — the mockup content must be about '
+    + (nicho || 'this business') + (publico ? (' speaking to ' + publico) : '') + ', using EXACTLY the palette colors above, '
+    + 'so the client sees how their brand looks applied to a real post of their own niche; '
+    + '(4) a small area reserved for the brand signature written as plain TEXT' + (marca ? (' reading "' + marca + '"') : '') + '. '
+    + 'Style: ' + estilo + ', premium, clean editorial presentation, ' + (claro ? 'light neutral background' : 'dark neutral background')
+    + ', generous spacing, sharp legible text with correct letter spacing. '
+    + (comp ? ('Compose the board using a ' + comp + ' layout. ') : '')
+    + (estFoto ? ('The Instagram post mockup photography follows this style: ' + estFoto + '. ') : '')
+    + (obrig ? ('Always feature these brand elements: ' + obrig + '. ') : '')
+    + (proib ? ('Never include these elements: ' + proib + '. ') : '')
+    + 'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
+    + 'High quality realistic design presentation board.';
+}
+
 module.exports = {
   DNA_CAMPOS_OBRIGATORIOS, DNA_ENUMS, dnaValorAceito, dnaFaltando,
   DNA_CAMPOS_DIRECAO, dnaDirecaoFaltando,
   DNA_BASE, DNA_VISUAL, DNA_VIDEO, fatiaDoAgente,
+  promptFichaTecnica,
 };

@@ -737,7 +737,7 @@ async function jobProduzir(soUid) {
     if (amigavel && real && amigavel !== real) return (amigavel + ' — ' + real).slice(0, 300);
     return (real || amigavel || ('HTTP ' + (r && r.status))).slice(0, 300);
   };
-  let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0, copiasCriativo = 0;
+  let ordensFeitas = 0, artes = 0, direcoesAvulsas = 0, copiasCriativo = 0, fichasTecnicas = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // DIREÇÃO AVULSA — elo 0 da cadeia Designer→Estratégia→Criativo (15/set/2026, "Worker executa
@@ -858,7 +858,63 @@ async function jobProduzir(soUid) {
     }
   }
 
-  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,ficha_tecnica,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FICHA TÉCNICA — executor próprio (28/set/2026, "Ficha técnica nasce com o dado", autorizado
+  // pelo João). Bloco PRÓPRIO, mesmo formato dos dois acima (própria seleção, próprio laço,
+  // próprio LOG) — mas o TRABALHO em si (chamar api/gerar-imagem direto, não a Estratégia via
+  // chat) é o mesmo mecanismo que o ramo `soArquivo` do laço genérico, logo abaixo, já fazia
+  // para esta tarefa: os MESMOS valores de sempre (tamanho 1:1, tipo conceitual, engine:false —
+  // ver soArquivo, intocado, ternários `tf === 'ficha_tecnica'` viram código morto só para esta
+  // tarefa, que não passa mais por ali). TRAVA pendente→processando (mesmo PATCH condicional do
+  // laço genérico, abaixo) — diferente dos dois blocos acima, que não travam: aqui o trabalho é
+  // uma chamada de rede cara (geração de imagem), não uma mensagem de chat, então a mesma
+  // proteção contra corrida do laço de imagem se aplica igual.
+  //
+  // A ordem agora nasce SEMPRE com payload.brief (api/agente-chat.js, garantia da ficha, monta o
+  // prompt em api/_dna-lib.js:promptFichaTecnica() no instante em que a ordem é criada) — o
+  // guarda de "sem brief" abaixo é defesa em profundidade para uma ordem antiga (de antes desta
+  // correção) que por acaso ainda esteja pendente, não o caminho esperado.
+  if (process.env.CRON_SECRET) {
+    const pendFicha = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=eq.ficha_tecnica&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    for (const o of (Array.isArray(pendFicha) ? pendFicha : [])) {
+      try {
+        const lock = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}&status=eq.pendente`, {
+          method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=representation' },
+          body: JSON.stringify({ status: 'processando', payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true } }),
+        }).then(r => r.json()).catch(() => []);
+        if (!Array.isArray(lock) || !lock.length) continue; // outro processo pegou antes
+        LOG({ etapa: 'lock-ficha', orderId: o.id, userId: o.user_id });
+
+        const brief = (o.payload && o.payload.brief) || '';
+        if (!brief || brief.length < 10) {
+          await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+            method: 'PATCH', headers: SBH(),
+            body: JSON.stringify({ status: 'erro', payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, erros: [{ tema: 'ficha_tecnica', motivo: 'ficha sem pacote do DNA' }] } }),
+          }).catch(() => {});
+          LOG({ etapa: 'ficha', orderId: o.id, userId: o.user_id, ok: false, motivo: 'sem-brief' });
+          continue;
+        }
+
+        const corpoImg = { user_id: o.user_id, prompt: brief, tamanho: '1:1', tipo: 'conceitual', engine: false, permitir_invencao_headline: true };
+        const r = await fetch(`${base}/api/gerar-imagem`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+          body: JSON.stringify(corpoImg),
+        });
+        const d = await r.json().catch(() => null);
+        const ok = r.ok && d && d.url;
+        await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, {
+          method: 'PATCH', headers: SBH(),
+          body: JSON.stringify({ status: ok ? 'concluida' : 'erro', progresso: ok ? 1 : 0, total: 1,
+            payload: { ...limparErroAtivo(o.payload), batendo: new Date().toISOString(), worker: true, ...(ok ? { url: d.url } : { erros: [{ tema: 'ficha_tecnica', motivo: motivoDeFalhaGerarImagem(d, r) }] }) },
+            ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
+        }).catch(() => {});
+        LOG({ etapa: 'ficha', orderId: o.id, userId: o.user_id, status: r.status, ok });
+        if (ok) fichasTecnicas++;
+      } catch (e) { console.error('[worker] ficha_tecnica — exceção — ordem=' + o.id + ' erro=' + (e && e.message)); }
+    }
+  }
+
+  const pend = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?tarefa=in.(criar_post,criar_avulso,criar_criativo_ads,substituir_criativo)&status=eq.pendente${soUid ? `&user_id=eq.${soUid}` : ''}&select=id,user_id,payload,total,detalhe&order=created_at.asc&limit=3`, { headers: SBH() }).then(r => r.json()).catch(() => []);
 
   for (const o of (Array.isArray(pend) ? pend : [])) {
     // TRAVA: só continua se ESTA execução conseguiu mudar pendente → processando
@@ -1175,7 +1231,7 @@ async function jobProduzir(soUid) {
       } catch (e) { console.error('[cadeia-lib] avancarCadeia falhou (loop principal) — ordem=' + o.id + ' erro=' + (e && e.message)); }
     }
   }
-  return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas, copias_criativo: copiasCriativo };
+  return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas, copias_criativo: copiasCriativo, fichas_tecnicas: fichasTecnicas };
 }
 
 async function jobOrdens() {
