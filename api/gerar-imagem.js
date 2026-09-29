@@ -2121,6 +2121,55 @@ module.exports = async (req, res) => {
       // declarou ao modelo em engine6 seção 12. O fallback ao literal antigo só existe por
       // defensividade de escopo (mesmo padrão já usado para _vert acima), nunca deveria disparar.
       const alvo = (typeof _alvoRecorte !== 'undefined' && _alvoRecorte) ? _alvoRecorte : (_vert ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 });
+      // FICHA TÉCNICA — SEM CORTE, LOGO NA FAIXA (29/set/2026, "imagem sem corte, aviso ao vivo
+      // com link, e Tarefas no modo 'ver como'", Parte 1, autorizado pelo João): engine===false é
+      // hoje o ÚNICO caller com engine:false e tamanho:'1:1' (api/cron.js, executor da ficha —
+      // confirmado por busca no repositório inteiro antes desta rodada) — o `fit:'cover'` do
+      // caminho abaixo cortava ~10% de cada lado (a fonte é 1024×1024, o alvo de post é 4:5) e a
+      // logo (posicaoLogo/obterTemplate, pensados pra post) caía em cima do mockup. Em vez de
+      // cortar, monta por código: a ficha inteira (fonte já é quadrada) escalada pra 1080×1080 no
+      // topo + uma faixa de rodapé de 270px, com a logo centralizada dentro da faixa —
+      // determinístico, nada é cortado e a logo nunca cobre conteúdo. NUNCA roda pro caminho de
+      // post (engine!==false, ramo `else` abaixo, byte a byte igual ao de antes desta rodada).
+      if (engine === false) {
+        const LARG_FICHA = 1080;
+        const FAIXA_H = 270;
+        // fonte é quadrada (1024×1024, tamanho:'1:1') — escala pra 1080×1080 sem cortar nada.
+        const baseFicha = await sharp(bytes).resize(LARG_FICHA, LARG_FICHA, { fit: 'fill' }).toBuffer();
+        // cor da faixa = média das 8 linhas de baixo da imagem já escalada.
+        const AMOSTRA_H = 8;
+        const { data: pxFaixa } = await sharp(baseFicha)
+          .extract({ left: 0, top: LARG_FICHA - AMOSTRA_H, width: LARG_FICHA, height: AMOSTRA_H })
+          .removeAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        let somaR = 0, somaG = 0, somaB = 0;
+        const totalPx = pxFaixa.length / 3;
+        for (let i = 0; i < pxFaixa.length; i += 3) { somaR += pxFaixa[i]; somaG += pxFaixa[i + 1]; somaB += pxFaixa[i + 2]; }
+        const corFaixa = { r: Math.round(somaR / totalPx), g: Math.round(somaG / totalPx), b: Math.round(somaB / totalPx) };
+        bytes = await sharp(baseFicha)
+          .extend({ top: 0, bottom: FAIXA_H, left: 0, right: 0, background: corFaixa })
+          .jpeg({ quality: 88, chromaSubsampling: '4:2:0' })
+          .toBuffer();
+        // logo: mesma busca de sempre (uploads categoria='logo', mais recente, baixarImg),
+        // fit:'inside' numa caixa de no máximo 432×150, centralizada na faixa. Sem logo
+        // cadastrada: a faixa fica vazia, sem erro (mesmo princípio de sempre — nunca bloqueia).
+        try {
+          const logos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.logo&select=url,created_at&order=created_at.desc&limit=1`, { headers: SBH() }).then(r2 => r2.json());
+          const logoUrl = Array.isArray(logos) && logos[0] && logos[0].url;
+          if (logoUrl) {
+            const im = await baixarImg(logoUrl);
+            if (im) {
+              const logoBuf = await sharp(im.buf).resize(432, 150, { fit: 'inside' }).toBuffer();
+              const metaLogo = await sharp(logoBuf).metadata();
+              const left = Math.round((LARG_FICHA - metaLogo.width) / 2);
+              const top = Math.round(LARG_FICHA + (FAIXA_H - metaLogo.height) / 2);
+              bytes = await sharp(bytes).composite([{ input: logoBuf, left, top }]).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+            }
+          }
+        } catch (e) { console.error('[logo-ficha] colagem da logo falhou, peça sai sem logo:', e.message); }
+        logoJaComposta = true;
+      } else {
       // position:'center' (Causa 1 — era 'attention'): saliência escolhia o corte por heurística
       // de conteúdo, DIFERENTE a cada peça gerada — o prompt agora promete ao modelo qual região
       // central sobrevive (DELIVERED REGION, seção 12), então o corte real tem que ser
@@ -2197,6 +2246,7 @@ module.exports = async (req, res) => {
           }
         }
       } catch (e) { console.error('[logo-padrao] colagem da logo falhou, peça sai sem logo:', e.message); }
+      }
     } catch (e) { console.error('crop/resize:', e.message); }
     // ACHADO CORRIGIDO JUNTO (22/set/2026, "composição — Fase 1"): b64 (usado mais abaixo como
     // fallback quando o storage falha/demora) ainda apontava para os bytes CRUS da OpenAI, de
