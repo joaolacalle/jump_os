@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.29-ficha-tecnica-parte2-aviso-ao-vivo-prompt-identidade';
+const VERSAO = '2026.09.29-fronteira-entre-agentes-em-codigo';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -120,6 +120,9 @@ const { avancarCadeia, autodisparar } = require('./_cadeia-lib');
 // função que api/cron.js usa no job de drip semanal — Família 2 do Contrato: mesma decisão em N
 // lugares vira N regras que divergem com o tempo.
 const { garantirCardAprovarSemana } = require('./_semana-lib.js');
+// FRONTEIRA ENTRE AGENTES EM CÓDIGO (29/set/2026) — dono de cada memória/tag + fiscal de escopo.
+// Ver o cabeçalho de api/_escopo-lib.js para o caso que abriu a rodada.
+const ESC = require('./_escopo-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -711,9 +714,10 @@ REGRAS DO JUMP OS:
 - Respostas objetivas: máximo ~350 palavras, salvo entregas (roteiros/calendários) que pedem mais.
 - RESPOSTA LONGA = DIVIDIR, NUNCA CORTAR: se uma entrega for ficar muito extensa (diagnóstico completo, plano detalhado, análise de mercado), entregue o ESSENCIAL de forma organizada, feche com o próximo passo e ofereça aprofundar em qualquer ponto ("quer que eu detalhe a parte X?"). Uma entrega redonda + convite a continuar é melhor que um texto que corta no meio. Se o cliente pedir "continue", retome EXATAMENTE de onde parou, sem repetir o que já foi dito.
 - FORMATAÇÃO LIMPA E PROFISSIONAL (economiza tokens e fica elegante): escreva em texto corrido, natural. NÃO use markdown decorativo — proibido: ###, ##, **negrito**, tabelas com |, linhas de --- ou ═══, blocos de código com crases. Evite emojis (no máximo 1 quando fizer sentido real). Use frases e parágrafos curtos. Para listas, use traço simples "- item" só quando necessário. Pense: conversa de consultor por mensagem, não documento formatado.
-- AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO sobre o negócio/nicho/preferências do cliente (ex: nicho, público, tom, produto carro-chefe, concorrente principal, horário que funciona), registre ao FINAL da resposta:
-<memoria>{"chave":"nome_curto","valor":"o que aprendeu"}</memoria>
+- AUTO-APRENDIZADO: quando descobrir algo novo e DURADOURO dentro da SUA função, registre ao FINAL da resposta:
+<memoria>{"chave":"nome_da_chave","valor":"o que aprendeu"}</memoria>
 (uma tag por aprendizado, no máximo 8 por resposta; não repita memórias já listadas)
+CHAVES QUE VOCÊ PODE GRAVAR: ${ESC.chavesPermitidasTexto(agente)}. Qualquer outra chave é recusada pelo sistema e não é salva.
 - FECHAMENTO COM APRENDIZADO (ao CONCLUIR uma entrega): sempre que você ENTREGAR algo concreto (um calendário, uma arte, uma campanha, um diagnóstico, o OS_DATA), faça um fechamento curto consolidando o que ficou definido e registre na memória o que for durável (preferências, decisões, dados confirmados). Isso economiza tokens nas próximas conversas (você não re-pergunta o que já sabe) e melhora os resultados. Não precisa anunciar "vou salvar" — só emita a(s) tag(s) <memoria> ao final, de forma natural.
 
 ═══ VERACIDADE (REGRA ABSOLUTA — nunca invente) ═══
@@ -723,14 +727,7 @@ Use SOMENTE informações reais que estão no OS_DATA/memórias do cliente. NUNC
 Cada agente executa SOMENTE a sua função. Se o cliente pedir algo que é de OUTRO agente, você NÃO faz — explique em 1 linha, de forma gentil, e indique o agente certo. NUNCA improvise a função de outro agente.
 ${agente==='estrategia' ? REGRAS_PEDIDO_AVULSO_ESTRATEGIA : ''}NUNCA transforme uma DIREÇÃO ("vá ao Agente X") numa OFERTA ("quer que eu/ele monte isso?"). E se o cliente responder "sim" querendo algo de OUTRO agente, você AINDA ASSIM não executa — reforce gentilmente que esse trabalho acontece ABRINDO o Agente X (é lá, não com você aqui). TESTE ANTES DE RESPONDER: se você se pegar escrevendo "vou montar/construir/criar [plano, calendário, roteiro, copy ou arte]" e isso NÃO é a SUA função, PARE e redirecione.
 Mapa de funções (quem faz o quê):
-- IDENTIDADE: consultoria de marca, OS_DATA (cores, fontes, posicionamento).
-- MERCADO: análise de concorrentes e oportunidades do nicho.
-- DIAGNÓSTICO: análise de desempenho do Instagram (métricas).
-- ESTRATÉGIA: planos, calendários, COPIES e ROTEIROS (de Reels/vídeo/carrossel). Todo TEXTO/roteiro nasce aqui.
-- DESIGNER (criativo): SOMENTE imagens estáticas (posts, infográficos). NÃO escreve roteiro, NÃO faz vídeo. Se pedirem roteiro/vídeo → manda para Estratégia (roteiro) ou Editor de Vídeo (vídeo).
-- PUBLICAÇÃO: agendamento e postagem.
-- TRÁFEGO: consultor de anúncios — lê seus números reais, diagnostica e entrega a estratégia (você executa no seu Gerenciador).
-- EDITOR DE VÍDEO: edição/montagem de vídeos e Reels (a partir do roteiro da Estratégia).
+${ESC.mapaDeFuncoesTexto()}
 Exemplo correto (Designer recebe "cria imagem para um reels"): "Posso criar a arte de capa/post estático. O roteiro do Reel é com o Agente de Estratégia, e a edição do vídeo com o Editor de Vídeo. Quer que eu crie a arte estática agora?" — e só gera imagem se confirmado.`;
 }
 
@@ -1511,6 +1508,15 @@ const handler = async (req, res) => {
         // aba ?aba= em upload.html) — nenhum deles é este arquivo, registrados aqui só pra manter
         // o diagnóstico como painel único.
         identidade_nao_pergunta_mais_personalizar_cores_apos_ficha_so_aplica_quando_cliente_pede:true,
+        // FRONTEIRA ENTRE AGENTES EM CÓDIGO (29/set/2026, autorizado pelo João) — caso real: o
+        // Identidade entregou calendário/roteiros da Estratégia e gravou 3 memórias de estratégia
+        // no DNA global. api/_escopo-lib.js (fonte única do mapa de funções): camada 1 dono de
+        // cada memória e de cada tag de ação (determinística); camada 2 fiscal da resposta antes
+        // de qualquer efeito, com reescrita única e redirecionamento fixo; camada 3 triagem do
+        // pedido em paralelo com a chamada do agente. Sem exceção por papel (admin incluso).
+        fronteira_camada1_dono_de_memoria_e_de_tag_de_acao:true,
+        fronteira_camada2_fiscal_da_resposta_antes_de_qualquer_efeito:true,
+        fronteira_camada3_triagem_do_pedido_em_paralelo:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -2290,13 +2296,22 @@ const handler = async (req, res) => {
 
     const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
+    // FRONTEIRA ENTRE AGENTES — CAMADA 3 (triagem do pedido): dispara EM PARALELO com a chamada
+    // do agente logo abaixo, então não soma tempo à resposta. Só no chat ao vivo: o modo interno
+    // (worker, agente fixo 'estrategia', ordem validada no banco) não tem cliente conversando.
+    // Não existe exceção por papel (cliente/admin/"ver como") — ver api/_escopo-lib.js.
+    const _fiscalAtivo=!_intOk && !forcarDirecaoAvulsa;
+    const _ultimaDoAgente=(()=>{ for(let i=messages.length-2;i>=0;i--){ if(messages[i].role==='assistant'&&typeof messages[i].content==='string') return messages[i].content; } return ''; })();
+    const _promessaPedido=_fiscalAtivo ? ESC.julgarPedido({agente,pedido:mensagem,ultimaDoAgente:_ultimaDoAgente}) : null;
+    const _maxTokensAgente=(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500));
+
     // Anthropic
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
       body:JSON.stringify({
         model:MODEL_DE(agente),
-        max_tokens:(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500)),
+        max_tokens:_maxTokensAgente,
         system,messages,
         // Modelos novos (Sonnet 5/Opus) vêm com raciocínio 'high' por padrão e estouram os 60s da
         // função. effort:'low' mantém a qualidade do modelo forte dentro do tempo. Só quando há
@@ -2360,6 +2375,69 @@ const handler = async (req, res) => {
       }
       _direcaoAvulsaCampos=_toolBlock.input;
     }
+    // ═══ FRONTEIRA ENTRE AGENTES — CAMADAS 3 e 2 (29/set/2026, ver api/_escopo-lib.js) ═══
+    // Roda ANTES de qualquer tag ser lida: nenhum efeito (memória, ordem, conteúdo, tema, imagem)
+    // acontece a partir de uma resposta que invadiu outro agente. Quando a resposta é trocada pelo
+    // redirecionamento fixo, ele não tem tag nenhuma — todo o processamento abaixo não acha nada.
+    // Falha do fiscal (API fora, timeout) NUNCA é silenciosa: loga e segue com a camada 1 (dono
+    // de memória e de tag), que é determinística e não depende de modelo.
+    let escopo={verificado:false};
+    if(_fiscalAtivo){
+      const vPed=await _promessaPedido;
+      if(vPed&&vPed.erro) console.error('[escopo] triagem do pedido indisponível — seguindo com o fiscal da resposta. agente='+agente+' user='+targetId+' erro='+vPed.erro);
+      if(vPed&&vPed.bloquear){
+        console.error('[escopo] pedido inteiramente de outro agente — resposta do agente descartada. agente='+agente+' dono='+vPed.dono+' user='+targetId);
+        texto=ESC.mensagemRedirecionamento(agente,vPed.dono);
+        escopo={verificado:true,bloqueado:'pedido',dono:vPed.dono};
+      } else {
+        const v=await ESC.julgarResposta({agente,pedido:mensagem,resposta:texto,ultimaDoAgente:_ultimaDoAgente});
+        if(v.erro){
+          console.error('[escopo] fiscal da resposta indisponível — só a camada 1 (memória/tag) protegeu este turno. agente='+agente+' user='+targetId+' erro='+v.erro);
+          escopo={verificado:false,erro:true};
+        } else if(v.invadiu){
+          console.error('[escopo] resposta invadiu o agente '+v.agente_dono+' — pedindo reescrita única. agente='+agente+' user='+targetId+' trecho="'+v.trecho.slice(0,160)+'"');
+          // Reescrita ÚNICA: o agente refaz só a parte dele (preserva o trabalho legítimo do turno,
+          // ex.: Identidade atualizando momento_negocio). Se a reescrita ainda invadir, ou não der
+          // para verificá-la, vale o redirecionamento fixo — nunca uma resposta não verificada.
+          let reescrito=null;
+          try{
+            const nomeDono=ESC.NOME_PUBLICO[v.agente_dono];
+            const rr=await fetch('https://api.anthropic.com/v1/messages',{
+              method:'POST',
+              headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+              body:JSON.stringify({model:MODEL_DE(agente),max_tokens:_maxTokensAgente,system,messages:[...messages,
+                {role:'assistant',content:texto||'(vazio)'},
+                {role:'user',content:'[SISTEMA — FISCAL DE ESCOPO, não é o cliente] Sua resposta acima entregou trabalho do '+nomeDono+' ("'+v.trecho+'"), que não é sua função. Reescreva a resposta ao cliente mantendo SOMENTE o que é da sua função e, no lugar da parte removida, diga em 1 linha que isso é feito abrindo o '+nomeDono+'. Não ofereça fazer esse trabalho nem pedir por ele. Mantenha as tags técnicas da sua função que a resposta original tinha.'}]}),
+            });
+            const dr=await rr.json().catch(()=>({}));
+            if(rr.ok) reescrito=(dr.content||[]).map(c=>c.text||'').join('').trim()||null;
+            else console.error('[escopo] reescrita falhou — status='+rr.status+' '+JSON.stringify(dr).slice(0,160));
+          }catch(e){ console.error('[escopo] reescrita falhou — erro='+(e&&e.message)); }
+          let aceito=false;
+          if(reescrito){
+            const v2=await ESC.julgarResposta({agente,pedido:mensagem,resposta:reescrito,ultimaDoAgente:_ultimaDoAgente});
+            if(!v2.erro && !v2.invadiu){ texto=reescrito; aceito=true; escopo={verificado:true,reescrito:true,dono:v.agente_dono}; }
+            else console.error('[escopo] reescrita '+(v2.erro?'não pôde ser verificada ('+v2.erro+')':'ainda invadiu '+v2.agente_dono)+' — resposta trocada pelo redirecionamento fixo. agente='+agente+' user='+targetId);
+          }
+          if(!aceito){
+            texto=ESC.mensagemRedirecionamento(agente,v.agente_dono);
+            escopo={verificado:true,bloqueado:'resposta',dono:v.agente_dono};
+          }
+        } else {
+          escopo={verificado:true};
+        }
+      }
+    }
+    // CAMADA 1b — dono de cada tag de ação: tag que este agente não pode emitir sai do texto aqui,
+    // antes de qualquer parser abaixo. Vale para o chat e para o modo interno.
+    {
+      const _r=ESC.removerTagsProibidas(agente,texto);
+      if(_r.removidas.length){
+        console.error('[escopo] tags de outro agente descartadas — agente='+agente+' tags='+_r.removidas.join(',')+' user='+targetId);
+        texto=_r.texto;
+      }
+    }
+
     // TRUNCAMENTO: se a resposta bateu no teto, os dados podem ter sido cortados.
     // Antes isso passava em silêncio (o agente "dizia" que salvou e nada era gravado).
     const truncou=(data.stop_reason==='max_tokens');
@@ -3445,6 +3523,7 @@ const handler = async (req, res) => {
 
     // Auto-aprendizado: extrair memórias
     const novas=[];
+    const memoriasRecusadas=[];
     // Causa 2, Rodada 2 (22/set/2026, autorizado pelo João): "valores de enumeração são
     // validados contra o conjunto aceito... valor fora do conjunto é recusado com a lista dos
     // aceitos, não gravado em silêncio." Campo de enumeração (DNA_ENUMS) com valor fora do
@@ -3455,7 +3534,14 @@ const handler = async (req, res) => {
       try{
         const o=JSON.parse(j.trim());
         if(o.chave&&o.valor){
-          if(!dnaValorAceito(o.chave,o.valor)){
+          // CAMADA 1a (29/set/2026, api/_escopo-lib.js) — dono de cada memória: chave de outro
+          // agente, chave desconhecida, ou chave do DNA de marca já preenchida (fora do
+          // Identidade) é recusada e registrada — nunca entra no DNA que todos os agentes leem.
+          const _perm=ESC.memoriaPermitida(agente,o.chave,dnaFinal);
+          if(!_perm.ok){
+            console.error('[escopo] memória recusada — agente='+agente+' chave='+o.chave+' motivo='+_perm.motivo+' user='+targetId);
+            memoriasRecusadas.push({chave:String(o.chave).slice(0,60),motivo:_perm.motivo});
+          } else if(!dnaValorAceito(o.chave,o.valor)){
             console.error('[dna-enum-recusado] valor fora do conjunto aceito, não gravado — chave='+o.chave+' valor="'+String(o.valor).slice(0,80)+'" aceitos='+(DNA_ENUMS[o.chave]||[]).join('/'));
           } else {
             novas.push(o);
@@ -3651,7 +3737,7 @@ const handler = async (req, res) => {
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,memorias_recusadas:memoriasRecusadas,escopo,checkin,tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});
