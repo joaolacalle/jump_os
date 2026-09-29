@@ -30,6 +30,53 @@
 .top-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .search{flex:1;min-width:200px}
 @media(max-width:920px){.bk-grid{grid-template-columns:1fr}}
+
+/* ── Painel Admin — reorganização de layout (29/set/2026) — usa só tokens do jump-ui.css,
+   mesmas classes "ad-*" da prévia aprovada (previa-painel-admin.html) ── */
+.ad-tabs{margin-bottom:18px}
+.ad-stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.ad-stat-alert{border-color:rgba(255,209,102,.35)}
+.ad-stat-red{border-color:rgba(255,107,107,.4)}
+.ad-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:920px){.ad-grid{grid-template-columns:1fr}}
+.ad-card{display:flex;flex-direction:column;gap:12px}
+.ad-card-red{border-color:rgba(255,107,107,.35)}
+.ad-card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ad-t{font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--t1)}
+.ad-d{font-size:12.5px;color:var(--t2);line-height:1.5;margin-top:4px;max-width:640px}
+.ad-link{font-family:var(--M);font-size:10.5px;color:var(--g);letter-spacing:.5px;cursor:pointer;white-space:nowrap;background:none;border:none}
+.ad-foot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;border-top:1px solid var(--bd);margin-top:2px;padding-top:12px}
+.ad-list{display:flex;flex-direction:column}
+.ad-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--bd)}
+.ad-item:last-child{border-bottom:none}
+.ad-item .btn{flex-shrink:0}
+.ad-it-b{flex:1;min-width:0;font-size:13.5px;color:var(--t1)}
+.ad-sub{font-size:11.5px;color:var(--t3);margin-top:3px;font-family:var(--M)}
+.ad-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;border:1px solid var(--bd)}
+.ad-ic-r{background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
+.ad-ic-y{background:rgba(255,209,102,.1);border-color:rgba(255,209,102,.3)}
+.ad-ic-c{background:rgba(185,117,249,.1);border-color:rgba(185,117,249,.3)}
+.ad-ic-g{background:rgba(var(--g-rgb,168,85,247),.08);border-color:rgba(var(--g-rgb,168,85,247),.25)}
+.ad-seg{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--bd);border-radius:11px;background:rgba(0,0,0,.2);margin-bottom:14px;flex-wrap:wrap}
+.ad-seg-b{padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:800;color:var(--t2);transition:.2s}
+.ad-seg-b span{font-family:var(--M);font-size:10.5px;color:var(--t3);margin-left:5px}
+.ad-seg-b.on{background:var(--card);color:var(--t1);box-shadow:0 0 0 1px rgba(var(--g-rgb,168,85,247),.35)}
+.ad-seg-b.on span{color:var(--g)}
+.ad-sub-pane{display:none}.ad-sub-pane.on{display:block}
+.ad-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.ad-toolbar-r{margin-left:auto;display:flex;gap:8px}
+.ad-search{flex:1;min-width:200px}
+.ad-sel{width:auto;min-width:160px}
+.ad-acts{justify-content:flex-end}
+.ad-note{font-size:11.5px;color:var(--t3);margin-top:10px;font-family:var(--M)}
+.ad-lock{display:inline-block;font-family:var(--M);font-size:10.5px;letter-spacing:1px;color:var(--yel);border:1px solid rgba(255,209,102,.3);border-radius:20px;padding:4px 11px;margin-bottom:12px}
+@media(max-width:700px){.ad-item{flex-wrap:wrap}.ad-item .btn{margin-left:46px}.ad-toolbar-r{margin-left:0}.ad-sel{flex:1}}
+/* menu "⋯" — agrupa as ações menos usadas de cada linha (limites, cortesia, senha, bloquear,
+   transferir, excluir…), todas chamando exatamente as mesmas funções de sempre */
+.dd-wrap{position:relative;display:inline-block}
+.dd-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--ch2);border:1px solid var(--bd);border-radius:10px;padding:6px;min-width:180px;box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:60;display:none}
+.dd-menu.show{display:flex;flex-direction:column;gap:2px}
+.dd-menu .btn{width:100%;justify-content:flex-start}
 </style>
 </head>
 <body>
@@ -49,255 +96,320 @@
     <button class="sb-out" style="padding:8px 12px" onclick="JUMP.logout()">→ Sair</button>
   </div>
 
-  <!-- STATS GLOBAIS -->
-  <div class="stats">
-    <div class="stat stat-btn" onclick="trocarTab('sups')"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div><div class="st-go">Gerir →</div></div>
-    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('')"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div><div class="st-go">Gerir →</div></div>
-    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('ativo')"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div><div class="st-go">Ver ativos →</div></div>
-    <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('trial')"><div class="st-n" id="st-trial" style="color:var(--yel)">0</div><div class="st-l">Em trial</div><div class="st-go">Ver trials →</div></div>
-    <div class="stat stat-btn" onclick="abrirGestao('bloqueados')"><div class="st-n" id="st-bloq" style="color:var(--red)">0</div><div class="st-l">Bloqueados</div><div class="st-go">Painel rápido →</div></div>
+  <!-- TABS — reorganização de 29/set/2026 (Painel Admin): 7 abas, todas chamando trocarTab(),
+       que também continua aceitando as chaves antigas ('sups','users','seg','back','precos')
+       remapeadas internamente, para nada que já chamava trocarTab quebrar. -->
+  <div class="ptabs ad-tabs" style="margin-top:20px">
+    <div class="ptab on" id="tab-geral" onclick="trocarTab('geral')">🏠 Visão geral</div>
+    <div class="ptab" id="tab-contas" onclick="trocarTab('contas')">👥 Contas</div>
+    <div class="ptab" id="tab-suporte" onclick="trocarTab('suporte')">💬 Suporte</div>
+    <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">🛡 Segurança</div>
+    <div class="ptab" id="tab-config" onclick="trocarTab('config')">⚙ Configurações</div>
+    <div class="ptab" id="tab-precos" onclick="trocarTab('comercial')" style="display:none">💰 Comercial</div>
+    <div class="ptab" id="tab-integ" onclick="trocarTab('integ')">🔗 Integrações</div>
   </div>
 
-  <!-- TABS -->
-  <div class="ptabs" style="margin-top:20px">
-    <div class="ptab on" id="tab-sups" onclick="trocarTab('sups')">🛡 Supervisores</div>
-    <div class="ptab" id="tab-users" onclick="trocarTab('users')">👥 Todos os usuários</div>
-    <div class="ptab" id="tab-seg" onclick="trocarTab('seg')">💬 Suporte & Segurança</div>
-    <div class="ptab" id="tab-back" onclick="trocarTab('back')">⚙ Backend</div>
-    <div class="ptab" id="tab-precos" onclick="trocarTab('precos')" style="display:none">💰 Preços</div>
-  </div>
+  <!-- ═══════════ VISÃO GERAL (padrão) ═══════════ -->
+  <div class="tabpane on" id="pane-geral">
+    <div class="stats ad-stats">
+      <div class="stat stat-btn" onclick="trocarTab('sups')"><div class="st-n" id="st-sups">0</div><div class="st-l">Supervisores</div><div class="st-go">Gerir →</div></div>
+      <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('')"><div class="st-n" id="st-users">0</div><div class="st-l">Usuários totais</div><div class="st-go">Gerir →</div></div>
+      <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('ativo')"><div class="st-n" id="st-ativos">0</div><div class="st-l">Assinaturas ativas</div><div class="st-go">Ver ativos →</div></div>
+      <div class="stat stat-btn" onclick="trocarTab('users');setFiltroStatus('trial')"><div class="st-n" id="st-trial" style="color:var(--yel)">0</div><div class="st-l">Em trial</div><div class="st-go">Ver trials →</div></div>
+      <div class="stat stat-btn" onclick="abrirGestao('bloqueados')"><div class="st-n" id="st-bloq" style="color:var(--red)">0</div><div class="st-l">Bloqueados</div><div class="st-go">Painel rápido →</div></div>
+      <div class="stat stat-btn ad-stat-alert" onclick="trocarTab('suporte')"><div class="st-n" id="st-chamados" style="color:var(--yel)">0</div><div class="st-l">Chamados abertos</div><div class="st-go">Responder →</div></div>
+      <div class="stat stat-btn ad-stat-alert ad-stat-red" onclick="trocarTab('suporte')"><div class="st-n" id="st-exclusao" style="color:var(--red)">0</div><div class="st-l">Pedidos de exclusão</div><div class="st-go">Revisar →</div></div>
+    </div>
 
-  <!-- TAB SUPERVISORES -->
-  <div class="tabpane on" id="pane-sups">
-    <!-- ADMINISTRADORES -->
-    <div id="admins-sec" style="margin-bottom:24px;display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
-        <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px">👑 Administradores</div>
-        <button class="btn btn-g btn-sm" id="btn-criar-admin" onclick="abrirCriarAdmin()" style="display:none">+ Criar admin</button>
+    <div class="ad-grid">
+      <div class="card ad-card">
+        <div class="ad-card-h">
+          <div><div class="ad-t">⚡ Precisa da sua atenção</div><div class="ad-d">Tudo que espera uma decisão sua, do mais urgente para o menos.</div></div>
+        </div>
+        <div class="ad-list" id="ad-atencao-list"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Administrador</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="tbody-admins"></tbody>
-        </table>
+
+      <div class="card ad-card">
+        <div class="ad-card-h">
+          <div><div class="ad-t">🕘 Atividade recente</div><div class="ad-d">Últimas ações registradas na auditoria.</div></div>
+          <button class="ad-link" onclick="trocarTab('seg')">Auditoria completa →</button>
+        </div>
+        <div id="logs"><div class="log-line"><span>Sem registros ainda.</span></div></div>
       </div>
     </div>
 
-    <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px;margin-bottom:10px">🛡 Supervisores</div>
-    <div class="top-row">
-      <input class="f-input search" id="search-sup" placeholder="🔍 Buscar supervisor..." oninput="renderSups()">
-      <button class="btn btn-g" onclick="abrirCriarSup()">+ Adicionar supervisor</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Supervisor</th><th>Limite de contas</th><th>Contas usadas</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody id="tbody-sup"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- TAB TODOS OS USUÁRIOS -->
-  <div class="tabpane" id="pane-users">
-    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
-      <button class="btn btn-g btn-sm" onclick="abrirCriarUser()">+ Criar usuário</button>
-      <button class="btn btn-o btn-sm" onclick="abrirConfigTokens()">⚙ Tokens por plano</button>
-    </div>
-    <div class="card" id="solic-box" style="display:none;margin-bottom:14px;border-color:rgba(255,209,102,.4)">
+    <div class="card" id="solic-box" style="display:none;margin-top:14px;border-color:rgba(255,209,102,.4)">
       <div class="sec-lbl" style="margin-top:0">🪙 Solicitações de aumento de uso (visão global)</div>
       <div id="solic-list"></div>
     </div>
-    <div class="top-row">
-      <input class="f-input search" id="search-user" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderUsers()">
-      <select class="f-select" id="filtro-sup" style="max-width:220px" onchange="renderUsers()">
-        <option value="">Todos os supervisores</option>
-      </select>
-      <select class="f-select" id="filtro-status" style="max-width:170px" onchange="renderUsers()">
-        <option value="">Todos os status</option>
-        <option value="ativo">Ativos</option>
-        <option value="bloqueado">Bloqueados</option>
-        <option value="cortesia">Em cortesia</option>
-        <option value="trial">Em trial</option>
-      </select>
+  </div>
+
+  <!-- ═══════════ CONTAS ═══════════ -->
+  <div class="tabpane" id="pane-contas">
+    <div class="ad-seg">
+      <button class="ad-seg-b on" id="segbtn-users" onclick="trocarContaSeg('users')">Usuários</button>
+      <button class="ad-seg-b" id="segbtn-sups" onclick="trocarContaSeg('sups')">Supervisores</button>
+      <button class="ad-seg-b" id="segbtn-admins" onclick="trocarContaSeg('admins')">Administradores</button>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Usuário</th><th>Supervisor</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody id="tbody-user"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
-      </table>
+
+    <!-- USUÁRIOS -->
+    <div class="ad-sub-pane on" id="contaseg-users">
+      <div class="ad-toolbar">
+        <input class="f-input ad-search search" id="search-user" placeholder="🔍 Buscar por nome ou e-mail..." oninput="renderUsers()">
+        <select class="f-select ad-sel" id="filtro-sup" onchange="renderUsers()">
+          <option value="">Todos os supervisores</option>
+        </select>
+        <select class="f-select ad-sel" id="filtro-status" onchange="renderUsers()">
+          <option value="">Todos os status</option>
+          <option value="ativo">Ativos</option>
+          <option value="bloqueado">Bloqueados</option>
+          <option value="cortesia">Em cortesia</option>
+          <option value="trial">Em trial</option>
+        </select>
+        <div class="ad-toolbar-r"><button class="btn btn-g btn-sm" onclick="abrirCriarUser()">+ Criar usuário</button></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Usuário</th><th>Supervisor</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbody-user"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="ad-note">O botão <b>⋯</b> agrupa as ações menos usadas (transferir, tokens, senha, bloquear, excluir), para a linha não virar uma fileira de botões.</div>
+    </div>
+
+    <!-- SUPERVISORES -->
+    <div class="ad-sub-pane" id="contaseg-sups">
+      <div class="ad-toolbar">
+        <input class="f-input ad-search search" id="search-sup" placeholder="🔍 Buscar supervisor..." oninput="renderSups()">
+        <div class="ad-toolbar-r"><button class="btn btn-g btn-sm" onclick="abrirCriarSup()">+ Adicionar supervisor</button></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Supervisor</th><th>Limite de contas</th><th>Contas usadas</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbody-sup"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="ad-note">O botão <b>⋯</b> agrupa as ações menos usadas (cotas, limites, aviso, senha, excluir).</div>
+    </div>
+
+    <!-- ADMINISTRADORES -->
+    <div class="ad-sub-pane" id="contaseg-admins">
+      <div id="admins-sec">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <div style="font-family:var(--D);font-size:18px;letter-spacing:.5px">👑 Administradores</div>
+          <button class="btn btn-g btn-sm" id="btn-criar-admin" onclick="abrirCriarAdmin()" style="display:none">+ Criar admin</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Administrador</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="tbody-admins"></tbody>
+          </table>
+        </div>
+        <div class="ad-note">Editar é permitido a qualquer admin; excluir e editar a conta protegida (CEO) continuam só do administrador principal.</div>
+      </div>
     </div>
   </div>
 
-  <!-- TAB SEGURANÇA -->
-  <div class="tabpane" id="pane-seg">
-    <div class="bk-grid">
-      <!-- TICKETS DE SUPORTE -->
-      <div class="bk-card" style="grid-column:1/-1">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div><div class="bk-t">💬 Chamados de Suporte</div>
-          <div class="bk-b">Solicitações dos usuários (dúvidas que viraram ticket, pedidos de tokens, problemas). Responda aqui e a resposta volta ao usuário no chat dele.</div></div>
-          <select class="f-input" id="sup-filtro" onchange="carregarSuporte()" style="width:auto">
-            <option value="aberto">Aguardando resposta</option>
-            <option value="">Todos</option>
-            <option value="respondido">Respondidos</option>
-            <option value="resolvido">Resolvidos</option>
-          </select>
-        </div>
-        <div id="sup-admin-list" style="margin-top:12px"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
-      </div>
+  <!-- ═══════════ SUPORTE ═══════════ -->
+  <div class="tabpane" id="pane-suporte">
+    <div class="ad-toolbar">
+      <select class="f-input ad-sel" id="sup-filtro" onchange="carregarSuporte()">
+        <option value="aberto">Aguardando resposta</option>
+        <option value="">Todos</option>
+        <option value="respondido">Respondidos</option>
+        <option value="resolvido">Resolvidos</option>
+      </select>
+    </div>
 
-      <!-- Resumo de segurança -->
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">🛡 Painel de Segurança</div>
-        <div class="bk-b">Visão geral do sistema e alertas automáticos. O monitoramento roda diariamente e avisa aqui.</div>
+    <div class="card ad-card ad-card-red" style="margin-bottom:14px">
+      <div class="ad-card-h"><div><div class="ad-t">🗑 Pedidos de exclusão</div><div class="ad-d">Enviados por supervisores. Só um administrador executa a exclusão definitiva.</div></div></div>
+      <div class="ad-list" id="excl-list"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+    </div>
+
+    <div class="card ad-card">
+      <div class="ad-card-h"><div><div class="ad-t">💬 Chamados</div><div class="ad-d">Solicitações dos usuários (dúvidas que viraram ticket, pedidos de tokens, problemas). Responda aqui e a resposta volta ao usuário no chat dele.</div></div></div>
+      <div id="sup-admin-list" style="margin-top:12px"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ SEGURANÇA ═══════════ -->
+  <div class="tabpane" id="pane-seg">
+    <div class="ad-grid">
+      <div class="card ad-card">
+        <div class="ad-card-h"><div><div class="ad-t">🛡 Painel de Segurança</div><div class="ad-d">Visão geral do sistema e alertas automáticos. O monitoramento roda diariamente e avisa aqui.</div></div></div>
         <div id="seg-resumo" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
           <div style="font-family:var(--M);font-size:12px;color:var(--t3)">Carregando...</div>
         </div>
       </div>
 
-      <!-- Alertas detectados -->
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">⚠️ Alertas e detecções</div>
-        <div class="bk-b">Padrões suspeitos detectados automaticamente (contas em massa, CPF repetido, uso anormal).</div>
+      <div class="card ad-card">
+        <div class="ad-card-h"><div><div class="ad-t">⚠️ Alertas e detecções</div><div class="ad-d">Padrões suspeitos detectados automaticamente (contas em massa, CPF repetido, uso anormal).</div></div></div>
         <div id="seg-flags" style="margin-top:10px"><div style="font-size:12px;color:var(--t3);font-family:var(--M)">Carregando...</div></div>
       </div>
+    </div>
 
-      <!-- Agente de consulta -->
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">🤖 Agente de Segurança</div>
-        <div class="bk-b">Pergunte qualquer coisa sobre o sistema. Ele busca os dados reais e responde.</div>
-        <div id="seg-chat" style="max-height:300px;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:10px"></div>
-        <div style="display:flex;gap:8px">
-          <input class="f-input" id="seg-input" placeholder="Ex: quais contas usaram mais imagens? Há algum risco de abuso?" style="flex:1" onkeydown="if(event.key==='Enter')perguntarSeg()">
-          <button class="btn btn-g" id="seg-btn" onclick="perguntarSeg()">Perguntar</button>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
-          <span class="chip" onclick="document.getElementById('seg-input').value='Quantas contas ativas, em trial e bloqueadas temos?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Resumo de contas</span>
-          <span class="chip" onclick="document.getElementById('seg-input').value='Há sinais de abuso de trial ou multicontas?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Risco de abuso?</span>
-          <span class="chip" onclick="document.getElementById('seg-input').value='Quais contas consumiram mais recursos este mês?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Maior consumo</span>
-        </div>
+    <div class="card ad-card" id="auditoria-completa-card" style="margin-top:12px">
+      <div class="ad-card-h"><div><div class="ad-t">📜 Auditoria completa</div><div class="ad-d">Quem fez o quê, em nome de quem e quando. Ninguém apaga estes registros.</div></div></div>
+      <div class="ad-toolbar" style="margin:4px 0 12px">
+        <select class="f-select ad-sel" id="aud-papel" onchange="carregarAuditoria()">
+          <option value="">Todos os papéis</option>
+          <option value="admin">Admin</option>
+          <option value="supervisor">Supervisor</option>
+        </select>
+        <input class="f-input ad-search" id="aud-acao" placeholder="🔍 Ação (texto)..." oninput="carregarAuditoria()">
+        <input class="f-input ad-search" id="aud-cliente" placeholder="🔍 Cliente (e-mail)..." oninput="carregarAuditoria()">
+        <select class="f-select ad-sel" id="aud-periodo" onchange="carregarAuditoria()">
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+        </select>
+      </div>
+      <div class="tbl-wrap" style="background:transparent">
+        <table>
+          <thead><tr><th>Quando</th><th>Quem</th><th>Papel</th><th>Ação</th><th>Cliente</th></tr></thead>
+          <tbody id="aud-tbody"><tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card ad-card" style="margin-top:12px">
+      <div class="ad-card-h"><div><div class="ad-t">🤖 Agente de Segurança</div><div class="ad-d">Pergunte qualquer coisa sobre o sistema. Ele busca os dados reais e responde.</div></div></div>
+      <div id="seg-chat" style="max-height:300px;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="f-input" id="seg-input" placeholder="Ex: quais contas usaram mais imagens? Há algum risco de abuso?" style="flex:1" onkeydown="if(event.key==='Enter')perguntarSeg()">
+        <button class="btn btn-g" id="seg-btn" onclick="perguntarSeg()">Perguntar</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <span class="chip" onclick="document.getElementById('seg-input').value='Quantas contas ativas, em trial e bloqueadas temos?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Resumo de contas</span>
+        <span class="chip" onclick="document.getElementById('seg-input').value='Há sinais de abuso de trial ou multicontas?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Risco de abuso?</span>
+        <span class="chip" onclick="document.getElementById('seg-input').value='Quais contas consumiram mais recursos este mês?';perguntarSeg()" style="cursor:pointer;font-size:11px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;color:var(--t2)">Maior consumo</span>
       </div>
     </div>
   </div>
 
-  <!-- TAB BACKEND -->
-  <div class="tabpane" id="pane-back">
-    <div class="bk-grid">
-      <!-- ACESSO AO SISTEMA: lista de espera enquanto a Meta não libera o app -->
-      <div class="bk-card" style="grid-column:1/-1;border-color:rgba(251,191,36,.3)">
-        <div class="bk-t">🎟️ Acesso ao sistema</div>
-        <div class="bk-b">Com a Meta em modo de desenvolvimento, uma conta nova não conecta o Instagram. Em <b>lista de espera</b>, quem tentar se cadastrar entra na fila em vez de pagar — <b>quem já tem conta continua entrando normalmente</b>, e os e-mails liberados abaixo passam direto.</div>
-        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
-            <input type="radio" name="acmodo" value="aberto" id="ac-aberto" style="accent-color:var(--g)"> 🟢 Aberto (qualquer um assina)</label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
-            <input type="radio" name="acmodo" value="lista_espera" id="ac-lista" style="accent-color:#fbbf24"> 🎟️ Lista de espera</label>
-          <span id="ac-qtd" style="margin-left:auto;font-family:var(--M);font-size:11px;color:var(--t3)"></span>
-        </div>
-        <div style="display:grid;gap:9px">
-          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Título da mensagem</div>
-            <input class="f-input" id="ac-titulo" placeholder="Acesso antecipado"></div>
-          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Mensagem para o interessado</div>
-            <textarea class="f-textarea" id="ac-msg" rows="2" placeholder="Estamos liberando novas contas por semana..."></textarea></div>
-          <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">E-mails liberados (um por linha) — você e as contas de teste</div>
-            <textarea class="f-textarea" id="ac-allow" rows="3" placeholder="voce@email.com"></textarea></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
-          <button class="btn btn-g btn-sm" onclick="salvarAcesso()">Salvar acesso</button>
-          <button class="btn btn-o btn-sm" onclick="verLista()">Ver quem está na fila</button>
-        </div>
-        <div id="ac-lista-box" style="margin-top:12px"></div>
+  <!-- ═══════════ CONFIGURAÇÕES ═══════════ -->
+  <div class="tabpane" id="pane-config">
+    <div class="bk-card" style="border-color:rgba(251,191,36,.3)">
+      <div class="ad-card-h"><div><div class="bk-t">🎟️ Acesso ao sistema</div>
+      <div class="bk-b">Com a Meta em modo de desenvolvimento, uma conta nova não conecta o Instagram. Em <b>lista de espera</b>, quem tentar se cadastrar entra na fila em vez de pagar — <b>quem já tem conta continua entrando normalmente</b>, e os e-mails liberados abaixo passam direto.</div></div>
+      <span id="ac-qtd" style="font-family:var(--M);font-size:11px;color:var(--t3)"></span></div>
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <input type="radio" name="acmodo" value="aberto" id="ac-aberto" style="accent-color:var(--g)"> 🟢 Aberto (qualquer um assina)</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <input type="radio" name="acmodo" value="lista_espera" id="ac-lista" style="accent-color:#fbbf24"> 🎟️ Lista de espera</label>
       </div>
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">🔗 APIs do sistema</div>
-        <div class="bk-b">Painéis de todas as APIs usadas pelo JUMP OS — acesso rápido para recargas, chaves e configuração.</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:10px">
-          <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" class="api-lk">🗄 Supabase <span>banco + login · SUPABASE_SERVICE_KEY</span></a>
-          <a href="https://vercel.com/dashboard" target="_blank" rel="noopener" class="api-lk">▲ Vercel <span>hospedagem + variáveis de ambiente</span></a>
-          <a href="https://console.anthropic.com" target="_blank" rel="noopener" class="api-lk">🧠 Anthropic <span>agentes · ANTHROPIC_API_KEY</span></a>
-          <a href="https://platform.openai.com" target="_blank" rel="noopener" class="api-lk">🎨 OpenAI <span>imagens · OPENAI_API_KEY</span></a>
-          <a href="https://platform.zapcap.ai" target="_blank" rel="noopener" class="api-lk">💬 ZapCap <span>legendas/cortes · ZAPCAP_API_KEY</span></a>
-          <a href="https://dashboard.shotstack.io" target="_blank" rel="noopener" class="api-lk">🎬 Shotstack <span>trilha/filtro/logo · SHOTSTACK_API_KEY</span></a>
-          <a href="https://resend.com" target="_blank" rel="noopener" class="api-lk">✉️ Resend <span>emails · RESEND_API_KEY</span></a>
-          <a href="https://developer.paypal.com/dashboard" target="_blank" rel="noopener" class="api-lk">💳 PayPal <span>assinaturas · PAYPAL_CLIENT_ID/SECRET</span></a>
-          <a href="https://developers.facebook.com" target="_blank" rel="noopener" class="api-lk">📱 Meta <span>Instagram · META_APP_ID/SECRET</span></a>
-        </div>
-        <style>.api-lk{display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.25);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:800;color:var(--t1);transition:.2s}.api-lk:hover{border-color:rgba(var(--g-rgb,168,85,247),.5)}.api-lk span{font-family:var(--M);font-size:9.5px;font-weight:400;color:var(--t3);letter-spacing:.3px}</style>
+      <div style="display:grid;gap:9px">
+        <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Título da mensagem</div>
+          <input class="f-input" id="ac-titulo" placeholder="Acesso antecipado"></div>
+        <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">Mensagem para o interessado</div>
+          <textarea class="f-textarea" id="ac-msg" rows="2" placeholder="Estamos liberando novas contas por semana..."></textarea></div>
+        <div><div style="font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:5px">E-mails liberados (um por linha) — você e as contas de teste</div>
+          <textarea class="f-textarea" id="ac-allow" rows="3" placeholder="voce@email.com"></textarea></div>
       </div>
-      <div class="bk-card">
-        <div class="bk-t">📣 Recado global</div>
-        <div class="bk-b">Envia um aviso para todos os usuários do sistema.</div>
-        <select class="f-select" id="bc-tipo"><option value="info">💡 Informativo</option><option value="alerta">⚠️ Alerta</option><option value="urgente">⏰ Urgente</option></select>
-        <input class="f-input" id="bc-titulo" placeholder="Título do recado">
-        <textarea class="f-textarea" id="bc-msg" rows="2" placeholder="Mensagem..."></textarea>
-        <button class="btn btn-g btn-sm" onclick="broadcast()">Enviar para todos →</button>
+      <div class="ad-foot">
+        <button class="btn btn-o btn-sm" onclick="verLista()">Ver quem está na fila</button>
+        <button class="btn btn-g btn-sm" onclick="salvarAcesso()">Salvar acesso</button>
       </div>
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">📦 Planos e limites</div>
-        <div class="bk-b">Edite os limites de cada plano sem mexer no código. Aplica-se a novas trocas de plano.</div>
-        <div id="planos-edit" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
-          <div style="font-family:var(--M);font-size:12px;color:var(--t3)">Carregando planos...</div>
-        </div>
-        <button class="btn btn-g btn-sm" onclick="salvarPlanos()" style="margin-top:10px">Salvar planos →</button>
+      <div id="ac-lista-box" style="margin-top:12px"></div>
+    </div>
+
+    <div class="bk-card" style="margin-top:12px">
+      <div class="ad-card-h">
+        <div><div class="bk-t">📦 Planos, limites e tokens</div>
+        <div class="bk-b">Tudo sobre planos num lugar só (antes ficava dividido entre duas abas). Edite os limites de cada plano sem mexer no código; vale para novas trocas de plano.</div></div>
+        <button class="btn btn-o btn-sm" onclick="abrirConfigTokens()">⚙ Tokens por plano</button>
       </div>
-      <div class="bk-card">
-        <div class="bk-t">🕘 Atividade recente</div>
-        <div class="bk-b">Últimos eventos registrados.</div>
-        <div id="logs" style="max-height:200px;overflow:auto"><div class="log-line"><span>Sem registros ainda.</span></div></div>
+      <div id="planos-edit" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+        <div style="font-family:var(--M);font-size:12px;color:var(--t3)">Carregando planos...</div>
       </div>
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">💰 Preços da página inicial</div>
-        <div class="bk-b">Defina os valores dos planos que aparecem na home. As mentorias calculam os meses grátis automaticamente.</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
-          <div style="flex:1;min-width:130px"><label class="f-label">Básico (R$/mês)</label><input class="f-input" id="pr-basico" type="number" step="0.01" oninput="recalcMentorias()"></div>
-          <div style="flex:1;min-width:130px"><label class="f-label">Plus (R$/mês)</label><input class="f-input" id="pr-plus" type="number" step="0.01" oninput="recalcMentorias()"></div>
-          <div style="flex:1;min-width:130px"><label class="f-label">Pro (R$/mês)</label><input class="f-input" id="pr-pro" type="number" step="0.01" oninput="recalcMentorias()"></div>
-        </div>
+      <div class="ad-foot"><button class="btn btn-g btn-sm" onclick="salvarPlanos()">Salvar planos →</button></div>
+    </div>
+
+    <div class="bk-card" style="margin-top:12px">
+      <div class="bk-t">📣 Recado global</div>
+      <div class="bk-b">Envia um aviso para todos os usuários do sistema.</div>
+      <select class="f-select" id="bc-tipo"><option value="info">💡 Informativo</option><option value="alerta">⚠️ Alerta</option><option value="urgente">⏰ Urgente</option></select>
+      <input class="f-input" id="bc-titulo" placeholder="Título do recado">
+      <textarea class="f-textarea" id="bc-msg" rows="2" placeholder="Mensagem..."></textarea>
+      <div class="ad-foot"><button class="btn btn-g btn-sm" onclick="broadcast()">Enviar para todos →</button></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ COMERCIAL (só admin principal) ═══════════ -->
+  <div class="tabpane" id="pane-comercial">
+    <div class="ad-lock">👑 Visível só para o administrador principal</div>
+    <div class="bk-card">
+      <div class="bk-t">💰 Preços da página inicial</div>
+      <div class="bk-b">Defina os valores dos planos que aparecem na home. As mentorias calculam os meses grátis automaticamente. ⚠️ Lembre de também ajustar os valores reais no PayPal (são sistemas separados).</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+        <div style="flex:1;min-width:130px"><label class="f-label">Básico (R$/mês)</label><input class="f-input" id="pr-basico" type="number" step="0.01" oninput="recalcMentorias()"></div>
+        <div style="flex:1;min-width:130px"><label class="f-label">Plus (R$/mês)</label><input class="f-input" id="pr-plus" type="number" step="0.01" oninput="recalcMentorias()"></div>
+        <div style="flex:1;min-width:130px"><label class="f-label">Pro (R$/mês)</label><input class="f-input" id="pr-pro" type="number" step="0.01" oninput="recalcMentorias()"></div>
+      </div>
+    </div>
+
+    <div class="bk-card" style="margin-top:12px">
+      <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
+      <div class="bk-b">Defina o PREÇO de cada mentoria, o plano de bônus e o WhatsApp que recebe os interessados. O valor do bônus é calculado sozinho.</div>
+      <div style="margin-top:10px;max-width:340px"><label class="f-label">WhatsApp de contato — usado em TODOS os botões do site (só números, com DDI)</label><input class="f-input" id="pr-ment-whats" type="tel" placeholder="5517997243699"></div>
+      <div class="bk-b" style="margin-top:14px">Outros serviços (página de mentorias). Deixe o valor VAZIO para exibir "A consultar".</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:170px"><label class="f-label">Treinamento de Vendas (R$)</label><input class="f-input" id="pr-serv-treinamento" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+        <div style="flex:1;min-width:170px"><label class="f-label">Growth Empresarial (R$)</label><input class="f-input" id="pr-serv-growth" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+        <div style="flex:1;min-width:170px"><label class="f-label">Metodologia Operacional (R$)</label><input class="f-input" id="pr-serv-metodologia" type="number" step="0.01" placeholder="vazio = A consultar"></div>
+        <div style="flex:1;min-width:170px"><label class="f-label">Sistema de IA próprio (R$)</label><input class="f-input" id="pr-serv-sistema" type="number" step="0.01" placeholder="vazio = A consultar"></div>
       </div>
 
-      <div class="bk-card" style="grid-column:1/-1">
-        <div class="bk-t">🎓 Mentorias (meses grátis automáticos)</div>
-        <div class="bk-b">Defina o PREÇO de cada mentoria, o plano de bônus e o WhatsApp que recebe os interessados. O valor do bônus é calculado sozinho.</div>
-        <div style="margin-top:10px;max-width:340px"><label class="f-label">WhatsApp de contato — usado em TODOS os botões do site (só números, com DDI)</label><input class="f-input" id="pr-ment-whats" type="tel" placeholder="5517997243699"></div>
-        <div class="bk-b" style="margin-top:14px">Outros serviços (página de mentorias). Deixe o valor VAZIO para exibir "A consultar".</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
-          <div style="flex:1;min-width:170px"><label class="f-label">Treinamento de Vendas (R$)</label><input class="f-input" id="pr-serv-treinamento" type="number" step="0.01" placeholder="vazio = A consultar"></div>
-          <div style="flex:1;min-width:170px"><label class="f-label">Growth Empresarial (R$)</label><input class="f-input" id="pr-serv-growth" type="number" step="0.01" placeholder="vazio = A consultar"></div>
-          <div style="flex:1;min-width:170px"><label class="f-label">Metodologia Operacional (R$)</label><input class="f-input" id="pr-serv-metodologia" type="number" step="0.01" placeholder="vazio = A consultar"></div>
-          <div style="flex:1;min-width:170px"><label class="f-label">Sistema de IA próprio (R$)</label><input class="f-input" id="pr-serv-sistema" type="number" step="0.01" placeholder="vazio = A consultar"></div>
-        </div>
-
-        <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
-          <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-pres-preco" type="number" step="0.01"></div>
-            <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
-              <select class="f-input" id="pr-ment-pres" onchange="recalcMentorias()">
-                <option value="plus">Plus</option><option value="basico">Básico</option><option value="pro">Pro</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-pres-m" type="number" value="3" oninput="recalcMentorias()"></div>
-            <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-pres-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
+      <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:11px">
+        <div style="font-weight:800;color:var(--t1);margin-bottom:8px">🏆 Mentoria Presencial</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-pres-preco" type="number" step="0.01"></div>
+          <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
+            <select class="f-input" id="pr-ment-pres" onchange="recalcMentorias()">
+              <option value="plus">Plus</option><option value="basico">Básico</option><option value="pro">Pro</option>
+            </select>
           </div>
+          <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-pres-m" type="number" value="3" oninput="recalcMentorias()"></div>
+          <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-pres-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
         </div>
-
-        <div style="margin-top:12px;padding:14px;border:1px solid var(--bd);border-radius:11px">
-          <div style="font-weight:800;color:var(--t1);margin-bottom:8px">💻 Mentoria Digital</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-dig-preco" type="number" step="0.01"></div>
-            <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
-              <select class="f-input" id="pr-ment-dig" onchange="recalcMentorias()">
-                <option value="basico">Básico</option><option value="plus">Plus</option><option value="pro">Pro</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-dig-m" type="number" value="3" oninput="recalcMentorias()"></div>
-            <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-dig-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
-          </div>
-        </div>
-
-        <button class="btn btn-g" onclick="salvarPrecos()" style="margin-top:16px">Salvar preços →</button>
-        <div id="pr-msg" style="font-size:12.5px;margin-top:10px"></div>
-        <div class="bk-b" style="margin-top:10px;font-size:11px">⚠️ Os valores aqui controlam o texto exibido na home. Lembre-se de também ajustar os valores reais no PayPal (são sistemas separados).</div>
       </div>
+
+      <div style="margin-top:12px;padding:14px;border:1px solid var(--bd);border-radius:11px">
+        <div style="font-weight:800;color:var(--t1);margin-bottom:8px">💻 Mentoria Digital</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:130px"><label class="f-label">Preço (R$ à vista)</label><input class="f-input" id="pr-ment-dig-preco" type="number" step="0.01"></div>
+          <div style="flex:1;min-width:150px"><label class="f-label">Plano de bônus</label>
+            <select class="f-input" id="pr-ment-dig" onchange="recalcMentorias()">
+              <option value="basico">Básico</option><option value="plus">Plus</option><option value="pro">Pro</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:90px"><label class="f-label">Qtd meses</label><input class="f-input" id="pr-ment-dig-m" type="number" value="3" oninput="recalcMentorias()"></div>
+          <div style="flex:2;min-width:160px"><div class="f-label">Bônus calculado</div><div id="pr-dig-calc" style="font-family:var(--M);font-size:15px;color:var(--g);font-weight:700">—</div></div>
+        </div>
+      </div>
+
+      <button class="btn btn-g" onclick="salvarPrecos()" style="margin-top:16px">Salvar preços →</button>
+      <div id="pr-msg" style="font-size:12.5px;margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ INTEGRAÇÕES ═══════════ -->
+  <div class="tabpane" id="pane-integ">
+    <div class="bk-card">
+      <div class="bk-t">🔗 APIs do sistema</div>
+      <div class="bk-b">Painéis de todas as APIs usadas pelo JUMP OS — acesso rápido para recargas, chaves e configuração.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:10px">
+        <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" class="api-lk">🗄 Supabase <span>banco + login · SUPABASE_SERVICE_KEY</span></a>
+        <a href="https://vercel.com/dashboard" target="_blank" rel="noopener" class="api-lk">▲ Vercel <span>hospedagem + variáveis de ambiente</span></a>
+        <a href="https://console.anthropic.com" target="_blank" rel="noopener" class="api-lk">🧠 Anthropic <span>agentes · ANTHROPIC_API_KEY</span></a>
+        <a href="https://platform.openai.com" target="_blank" rel="noopener" class="api-lk">🎨 OpenAI <span>imagens · OPENAI_API_KEY</span></a>
+        <a href="https://platform.zapcap.ai" target="_blank" rel="noopener" class="api-lk">💬 ZapCap <span>legendas/cortes · ZAPCAP_API_KEY</span></a>
+        <a href="https://dashboard.shotstack.io" target="_blank" rel="noopener" class="api-lk">🎬 Shotstack <span>trilha/filtro/logo · SHOTSTACK_API_KEY</span></a>
+        <a href="https://resend.com" target="_blank" rel="noopener" class="api-lk">✉️ Resend <span>emails · RESEND_API_KEY</span></a>
+        <a href="https://developer.paypal.com/dashboard" target="_blank" rel="noopener" class="api-lk">💳 PayPal <span>assinaturas · PAYPAL_CLIENT_ID/SECRET</span></a>
+        <a href="https://developers.facebook.com" target="_blank" rel="noopener" class="api-lk">📱 Meta <span>Instagram · META_APP_ID/SECRET</span></a>
+      </div>
+      <style>.api-lk{display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.25);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:800;color:var(--t1);transition:.2s}.api-lk:hover{border-color:rgba(var(--g-rgb,168,85,247),.5)}.api-lk span{font-family:var(--M);font-size:9.5px;font-weight:400;color:var(--t3);letter-spacing:.3px}</style>
     </div>
   </div>
 </main>
@@ -337,6 +449,22 @@
     <div class="modal-acts">
       <button class="btn btn-o" onclick="fechar('modal-admin')">Cancelar</button>
       <button class="btn btn-g" id="ma-save" onclick="criarAdmin()">Criar admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR CONTA (novo — reaproveita a ação update_user já existente, mesmo padrão de
+     dashboard-supervisor.html/abrirEditar; edita apenas nome/e-mail/telefone) -->
+<div class="modal-bg" id="modal-editar">
+  <div class="modal">
+    <div class="modal-t">Editar conta</div>
+    <input type="hidden" id="ed-id">
+    <div class="f-group"><label class="f-label">Nome</label><input class="f-input" id="ed-nome"></div>
+    <div class="f-group"><label class="f-label">E-mail</label><input class="f-input" id="ed-email" type="email"></div>
+    <div class="f-group"><label class="f-label">Telefone</label><input class="f-input" id="ed-tel"></div>
+    <div class="modal-acts">
+      <button class="btn btn-o" onclick="fechar('modal-editar')">Cancelar</button>
+      <button class="btn btn-g" id="ed-save" onclick="salvarEditar()">Salvar</button>
     </div>
   </div>
 </div>
@@ -500,20 +628,53 @@ let CTX=null,ALL=[],SUPS=[],USERS=[];
     CTX=await JUMP.guard(['admin']);
     await carregar();
     carregarAcesso(); // estado do cadastro (aberto / lista de espera)
+    carregarAtencao(); // Painel Admin (29/set/2026): resumo de "precisa da sua atenção" na Visão geral
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
 })();
 
+// Painel Admin — reorganização de layout (29/set/2026): 7 abas novas (geral/contas/suporte/
+// seg/config/comercial/integ). trocarTab CONTINUA aceitando as chaves antigas usadas em
+// onclicks que já existiam nesta página ('sups','users','seg','back','precos') — remapeadas
+// aqui dentro, sem precisar tocar em nenhum desses onclicks. 'sups'/'users' também escolhem o
+// segmento certo dentro de Contas; 'seg' carrega segurança+suporte juntos, como antes.
+const ABAS=['geral','contas','suporte','seg','config','comercial','integ'];
+const ABAS_ANTIGAS={sups:'contas',users:'contas',seg:'seg',back:'config',precos:'comercial'};
 function trocarTab(t){
-  ['sups','users','seg','back','precos'].forEach(x=>{
-    const tb=document.getElementById('tab-'+x),pn=document.getElementById('pane-'+x);
+  if(t==='sups')trocarContaSeg('sups');
+  if(t==='users')trocarContaSeg('users');
+  if(ABAS_ANTIGAS[t])t=ABAS_ANTIGAS[t];
+  ABAS.forEach(x=>{
+    const tb=document.getElementById('tab-'+x)||(x==='comercial'?document.getElementById('tab-precos'):null);
+    const pn=document.getElementById('pane-'+x);
     if(tb)tb.classList.toggle('on',x===t);
     if(pn)pn.classList.toggle('on',x===t);
   });
-  if(t==='back')carregarPlanos();
-  if(t==='seg'){carregarSeguranca();carregarSuporte();}
-  if(t==='precos')carregarPrecos();
+  if(t==='geral')carregarAtencao();
+  if(t==='config')carregarPlanos();
+  if(t==='seg'){carregarSeguranca();carregarSuporte();carregarAuditoria();}
+  if(t==='suporte'){carregarSuporte();carregarExclusoes();}
+  if(t==='comercial')carregarPrecos();
+  window.scrollTo(0,0);
 }
+// Painel Admin (29/set/2026): segmentos dentro de "Contas" (Usuários/Supervisores/Administradores)
+function trocarContaSeg(seg){
+  ['users','sups','admins'].forEach(s=>{
+    const b=document.getElementById('segbtn-'+s),p=document.getElementById('contaseg-'+s);
+    if(b)b.classList.toggle('on',s===seg);
+    if(p)p.classList.toggle('on',s===seg);
+  });
+}
+// Painel Admin (29/set/2026): menu "⋯" de cada linha das tabelas de Contas
+function toggleMenu(el){
+  const m=el.nextElementSibling;
+  document.querySelectorAll('.dd-menu.show').forEach(x=>{if(x!==m)x.classList.remove('show')});
+  if(m)m.classList.toggle('show');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dd-wrap'))document.querySelectorAll('.dd-menu.show').forEach(x=>x.classList.remove('show'));
+});
+
 function fechar(id){document.getElementById(id).classList.remove('show')}
 function supNome(id){const s=SUPS.find(x=>x.id===id);return s?(s.nome||s.email||'—'):'—'}
 
@@ -537,9 +698,11 @@ async function carregar(){
   // libera a aba de Preços apenas para o CEO (conta protegida)
   if(ehCEO){const tp=document.getElementById('tab-precos');if(tp)tp.style.display='';}
   const bca=document.getElementById('btn-criar-admin');if(bca)bca.style.display=ehCEO?'inline-block':'none';
-  /* logs */
+  /* logs — Painel Admin (29/set/2026): limite ajustado de 12 para 8 (pedido explícito da
+     reorganização de layout, "8 itens" na Visão geral); a busca em si (colunas/ordenação)
+     continua idêntica. */
   try{
-    const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(12);
+    const{data:logs}=await JUMP.sb.from('logs').select('*').order('created_at',{ascending:false}).limit(8);
     if(logs&&logs.length){
       // alvo_id → lista de clientes já carregada em ALL (list_all_users, acima) — sem consulta nova
       document.getElementById('logs').innerHTML=logs.map(l=>{
@@ -551,6 +714,44 @@ async function carregar(){
   }catch(e){}
 }
 
+// Painel Admin (29/set/2026): resumo "⚡ Precisa da sua atenção" da Visão geral — agrega, na
+// ordem pedida (exclusão → alertas de segurança → aumento de uso → chamados), dados que já vêm
+// de ações existentes (suporte_admin_tickets, security_data, recados de solicitacao_tokens),
+// sem duplicar nenhuma lógica de negócio: cada botão só navega para a aba/ação já existente.
+// Também preenche as 2 contagens novas do topo (st-chamados/st-exclusao) com os MESMOS dados.
+async function carregarAtencao(){
+  const box=document.getElementById('ad-atencao-list');
+  try{
+    const[tk,seg]=await Promise.all([
+      JUMP.api('suporte_admin_tickets',{status:'aberto'},CTX.token).catch(()=>({tickets:[]})),
+      JUMP.api('security_data',{},CTX.token).catch(()=>({flags:[],alertas:[]})),
+    ]);
+    const tickets=tk.tickets||[];
+    const exclusoes=tickets.filter(t=>t.categoria==='exclusao');
+    const chamados=tickets.filter(t=>t.categoria!=='exclusao');
+    document.getElementById('st-chamados').textContent=chamados.length;
+    document.getElementById('st-exclusao').textContent=exclusoes.length;
+    const segCount=(seg.flags||[]).length+(seg.alertas||[]).length;
+    let solicCount=0;
+    try{
+      const{count}=await JUMP.sb.from('recados').select('id',{count:'exact',head:true}).eq('tipo','solicitacao_tokens').eq('resolvido',false);
+      solicCount=count||0;
+    }catch(e){}
+    const itens=[];
+    if(exclusoes.length)itens.push({ic:'🗑',cor:'ad-ic-r',t:'Pedido de exclusão',b:exclusoes.length+' aguardando revisão',btn:'Revisar',go:"trocarTab('suporte')"});
+    if(segCount)itens.push({ic:'⚠️',cor:'ad-ic-y',t:'Alerta de segurança',b:segCount+' item(ns) para checar',btn:'Ver',go:"trocarTab('seg')"});
+    if(solicCount)itens.push({ic:'🪙',cor:'ad-ic-c',t:'Aumento de uso',b:solicCount+' pedido(s) pendente(s)',btn:'Decidir',go:"document.getElementById('solic-box').scrollIntoView({behavior:'smooth'})"});
+    if(chamados.length)itens.push({ic:'💬',cor:'ad-ic-g',t:'Chamado',b:chamados.length+' aguardando resposta',btn:'Responder',go:"trocarTab('suporte')"});
+    box.innerHTML=itens.length?itens.map(i=>`<div class="ad-item"><span class="ad-ic ${i.cor}">${i.ic}</span><div class="ad-it-b"><b>${JUMP.esc(i.t)}</b><div class="ad-sub">${JUMP.esc(i.b)}</div></div><button class="btn btn-o btn-sm" onclick="${i.go}">${i.btn}</button></div>`).join('')
+      :'<div style="font-size:13px;color:var(--g)">✓ Nada pendente no momento.</div>';
+  }catch(e){box.innerHTML='<div style="font-size:12px;color:var(--red)">Erro ao carregar.</div>';}
+}
+
+// Painel Admin (29/set/2026): mantém excluirConta/renderização de admins; adiciona "Editar"
+// (reaproveita update_user, já existente) e restringe "Editar"/"Excluir" de OUTROS admins ao
+// admin principal — a ação update_user já permite qualquer admin editar outro (sem checar
+// `protegido`), então expor o botão sem essa checagem abriria, na UI, uma forma nova de
+// renomear/trocar o e-mail do CEO por qualquer admin comum; contido aqui na tela, sem tocar a API.
 function renderAdmins(){
   const admins=ALL.filter(c=>c.role==='admin');
   const ehCEO=CTX.cliente&&CTX.cliente.protegido;
@@ -559,17 +760,24 @@ function renderAdmins(){
   tb.innerHTML=admins.map(a=>{
     const isCEO=a.protegido;
     const euMesmo=a.id===CTX.user.id;
+    const podeEditar=euMesmo||ehCEO;
     return `<tr>
       <td><div class="u-cell"><strong>${JUMP.esc(a.nome||'—')}</strong><span class="u-mail">${JUMP.esc(a.email||'')}</span></div></td>
       <td>${isCEO?'<span class="pill pill-g">CEO (principal)</span>':'<span class="pill">Admin</span>'}</td>
       <td>${a.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
       <td><div class="td-acts">
+        ${podeEditar?`<button class="btn btn-o btn-sm" onclick="abrirEditar('${a.id}')">Editar</button>`:''}
         ${(ehCEO&&!isCEO)?`<button class="btn btn-r btn-sm" onclick="excluirConta('${a.id}','${JUMP.esc(a.email||'')}')">🗑 Excluir</button>`:''}
         ${(isCEO||euMesmo)?'<span style="font-size:11px;color:var(--t3);font-family:var(--M)">'+(isCEO?'protegido':'você')+'</span>':''}
       </div></td></tr>`;
   }).join('');
 }
 
+// Painel Admin (29/set/2026): mesma renderização/dados de sempre; ações reorganizadas — só
+// "Acessar painel →" (mesmo link que já existia, texto alinhado ao pedido) e "Editar" (novo,
+// reaproveita update_user) ficam inline; o resto (cotas, limites, aviso, senha, excluir,
+// bloquear/desbloquear) entra no menu "⋯", chamando exatamente as mesmas funções de sempre.
+// "Limite de contas" continua sendo sua própria coluna editável (setLimite), como antes.
 function renderSups(){
   const q=(document.getElementById('search-sup').value||'').toLowerCase();
   const rows=ALL.filter(c=>c.role==='supervisor').filter(s=>!q||(s.nome||'').toLowerCase().includes(q)||(s.email||'').toLowerCase().includes(q));
@@ -582,18 +790,28 @@ function renderSups(){
       <td><input class="num-mini" type="number" min="0" value="${s.limite_contas||0}" onchange="setLimite('${s.id}',this.value)"></td>
       <td style="font-family:var(--M)">${usadas} de ${s.limite_contas||'∞'}</td>
       <td>${s.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
-      <td><div class="td-acts">
-        <a class="btn btn-o btn-sm" href="dashboard-supervisor.html?ver=${s.id}">Administrar →</a>
-        <button class="btn btn-o btn-sm" onclick="abrirCotas('${s.id}')">Cotas de plano</button>
-        <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${s.id}')">🪙 Limites</button>
-        <button class="btn btn-o btn-sm" onclick="abrirAviso('${s.id}')">Enviar aviso</button>
-        <button class="btn btn-o btn-sm" onclick="abrirSenha('${s.id}')">Senha</button>
-        <button class="btn btn-r btn-sm" onclick="excluirConta('${s.id}','${JUMP.esc(s.email||'')}')">🗑</button>
-        <button class="btn ${s.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${s.id}',${!s.bloqueado})">${s.bloqueado?'Desbloquear':'Bloquear'}</button>
+      <td><div class="td-acts ad-acts">
+        <a class="btn btn-o btn-sm" href="dashboard-supervisor.html?ver=${s.id}">Acessar painel →</a>
+        <button class="btn btn-o btn-sm" onclick="abrirEditar('${s.id}')">Editar</button>
+        <div class="dd-wrap">
+          <button class="btn btn-o btn-sm" onclick="toggleMenu(this)">⋯</button>
+          <div class="dd-menu">
+            <button class="btn btn-o btn-sm" onclick="abrirCotas('${s.id}')">Cotas de plano</button>
+            <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${s.id}')">🪙 Limites</button>
+            <button class="btn btn-o btn-sm" onclick="abrirAviso('${s.id}')">Enviar aviso</button>
+            <button class="btn btn-o btn-sm" onclick="abrirSenha('${s.id}')">Senha</button>
+            <button class="btn ${s.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${s.id}',${!s.bloqueado})">${s.bloqueado?'Desbloquear':'Bloquear'}</button>
+            <button class="btn btn-r btn-sm" onclick="excluirConta('${s.id}','${JUMP.esc(s.email||'')}')">🗑 Excluir</button>
+          </div>
+        </div>
       </div></td></tr>`;
   }).join('');
 }
 
+// Painel Admin (29/set/2026): mesma renderização/dados de sempre; ações reorganizadas — só
+// "Acessar painel →" (mesmo link que já existia como "Painel →") e "Editar" (novo, reaproveita
+// update_user) ficam inline; o resto (transferir, tokens, senha, bloquear/desbloquear, excluir)
+// entra no menu "⋯", chamando exatamente as mesmas funções de sempre.
 function renderUsers(){
   const q=(document.getElementById('search-user').value||'').toLowerCase();
   const fs=document.getElementById('filtro-sup').value;
@@ -617,16 +835,50 @@ function renderUsers(){
       <option value="plus"${u.plano==='plus'?' selected':''}>Plus</option>
       <option value="pro"${u.plano==='pro'?' selected':''}>Pro</option></select></td>
     <td>${u.bloqueado?'<span class="pill pill-r">Bloqueado</span>':'<span class="pill pill-g">Ativo</span>'}</td>
-    <td><div class="td-acts">
-      <button class="btn btn-o btn-sm" onclick="abrirTransf('${u.id}')">⇄ Transferir</button>
-      <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Painel →</a>
-      <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${u.id}')">🪙 Tokens</button>
-      <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
-      <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
-      <button class="btn btn-r btn-sm" onclick="excluirConta('${u.id}','${JUMP.esc(u.email||'')}')">🗑</button>
+    <td><div class="td-acts ad-acts">
+      <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
+      <button class="btn btn-o btn-sm" onclick="abrirEditar('${u.id}')">Editar</button>
+      <div class="dd-wrap">
+        <button class="btn btn-o btn-sm" onclick="toggleMenu(this)">⋯</button>
+        <div class="dd-menu">
+          <button class="btn btn-o btn-sm" onclick="abrirTransf('${u.id}')">⇄ Transferir</button>
+          <button class="btn btn-o btn-sm" onclick="abrirAddTokens('${u.id}')">🪙 Tokens</button>
+          <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
+          <button class="btn ${u.bloqueado?'btn-g':'btn-r'} btn-sm" onclick="toggleBloq('${u.id}',${!u.bloqueado})">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
+          <button class="btn btn-r btn-sm" onclick="excluirConta('${u.id}','${JUMP.esc(u.email||'')}')">🗑 Excluir</button>
+        </div>
+      </div>
     </div></td></tr>`).join('');
 }
 
+// Painel Admin (29/set/2026): "Editar" — novo, mesmo padrão de dashboard-supervisor.html
+// (abrirEditar/update_user), servindo os 3 segmentos de Contas (usuário/supervisor/admin).
+// Edita só nome/e-mail/telefone — os outros campos (cortesia, cpf, endereço) continuam
+// tratados por onde já são tratados hoje (criação, ou tela do próprio cliente).
+function abrirEditar(id){
+  const c=ALL.find(x=>x.id===id);if(!c)return;
+  document.getElementById('ed-id').value=id;
+  document.getElementById('ed-nome').value=c.nome||'';
+  document.getElementById('ed-email').value=c.email||'';
+  document.getElementById('ed-tel').value=c.telefone||'';
+  document.getElementById('modal-editar').classList.add('show');
+}
+async function salvarEditar(){
+  const id=document.getElementById('ed-id').value;
+  const btn=document.getElementById('ed-save');
+  const payload={
+    nome:document.getElementById('ed-nome').value.trim(),
+    email:document.getElementById('ed-email').value.trim(),
+    telefone:document.getElementById('ed-tel').value.trim(),
+  };
+  if(!payload.nome||!payload.email){JUMP.toast('Preencha nome e e-mail.','err');return}
+  btn.disabled=true;btn.innerHTML='<span class="spin-i"></span>';
+  try{
+    await JUMP.api('update_user',{user_id:id,...payload},CTX.token);
+    JUMP.toast('✓ Dados atualizados');fechar('modal-editar');await carregar();
+  }catch(e){JUMP.toast(e.message,'err')}
+  btn.disabled=false;btn.textContent='Salvar';
+}
 
 function setFiltroStatus(v){document.getElementById('filtro-status').value=v;renderUsers()}
 
@@ -1147,6 +1399,88 @@ async function carregarSuporte(){
         <button class="btn btn-g btn-sm" onclick="abrirTicketAdmin('${t.id}','${JUMP.esc(t.assunto||'').replace(/'/g,"")}')">Ver / responder</button>
       </div>`).join('');
   }catch(e){wrap.innerHTML='<div style="font-size:12px;color:var(--red)">Erro ao carregar chamados.</div>';}
+}
+
+// Painel Admin (29/set/2026): card novo "🗑 Pedidos de exclusão" — lista tickets categoria
+// exclusao (aberto), com Recusar/Excluir conta. O e-mail do alvo vem do próprio assunto do
+// ticket ("Pedido de exclusão: <email>", formato fixado por solicitar_exclusao em
+// api/admin-users.js) e é procurado em ALL (já carregado por carregar()) — sem tabela nova.
+async function carregarExclusoes(){
+  const box=document.getElementById('excl-list');
+  if(!box)return;
+  try{
+    const d=await JUMP.api('suporte_admin_tickets',{status:'aberto'},CTX.token);
+    const lst=(d.tickets||[]).filter(t=>t.categoria==='exclusao');
+    if(!lst.length){box.innerHTML='<div style="font-size:13px;color:var(--g)">✓ Nenhum pedido de exclusão pendente.</div>';return}
+    box.innerHTML=lst.map(t=>{
+      const email=String(t.assunto||'').replace('Pedido de exclusão: ','').trim();
+      const quando=t.updated_at||t.created_at;
+      return `<div class="ad-item">
+        <span class="ad-ic ad-ic-r">🗑</span>
+        <div class="ad-it-b"><b>${JUMP.esc(email)}</b><div class="ad-sub">${JUMP.esc(t.usuario_nome||'')}${quando?' · '+new Date(quando).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</div></div>
+        <button class="btn btn-o btn-sm" onclick="recusarExclusao('${t.id}')">Recusar</button>
+        <button class="btn btn-r btn-sm" onclick="excluirViaExclusao('${t.id}','${JUMP.esc(email)}')">Excluir conta</button>
+      </div>`;
+    }).join('');
+  }catch(e){box.innerHTML='<div style="font-size:12px;color:var(--red)">Erro ao carregar pedidos de exclusão.</div>';}
+}
+async function recusarExclusao(ticketId){
+  const motivo=prompt('Motivo da recusa (fica registrado no chamado, para o supervisor):');
+  if(motivo===null)return;
+  const limpo=String(motivo||'').trim();
+  if(!limpo){JUMP.toast('Informe um motivo.','err');return}
+  try{
+    await JUMP.api('suporte_responder',{ticket_id:ticketId,texto:'Pedido de exclusão recusado: '+limpo,resolver:true},CTX.token);
+    JUMP.toast('Pedido de exclusão recusado');carregarExclusoes();carregarSuporte();carregarAtencao();
+  }catch(e){JUMP.toast(e.message,'err')}
+}
+async function excluirViaExclusao(ticketId,email){
+  const alvo=ALL.find(c=>String(c.email||'').toLowerCase()===String(email||'').toLowerCase());
+  if(!alvo){JUMP.toast('Conta de destino não encontrada (e-mail: '+email+'). Nada foi excluído.','err');return}
+  await excluirConta(alvo.id,alvo.email); // MESMA função/dupla confirmação já usada em toda a página
+  // excluirConta() sempre chama carregar() no sucesso e nunca no cancelamento/erro — se o alvo
+  // ainda estiver em ALL depois, a exclusão NÃO aconteceu, e o ticket não é fechado.
+  const aindaExiste=ALL.some(c=>c.id===alvo.id);
+  if(!aindaExiste){
+    try{await JUMP.api('suporte_responder',{ticket_id:ticketId,texto:'Conta excluída pelo administrador',resolver:true},CTX.token)}catch(e){}
+    carregarExclusoes();carregarSuporte();carregarAtencao();
+  }
+}
+
+// Painel Admin (29/set/2026): "📜 Auditoria completa" — lê `logs` direto (mesma tabela que
+// carregar() já lê para "Atividade recente"), até 200 linhas, com os 4 filtros pedidos.
+async function carregarAuditoria(){
+  const tb=document.getElementById('aud-tbody');
+  if(!tb)return;
+  const papel=document.getElementById('aud-papel').value;
+  const acaoTxt=(document.getElementById('aud-acao').value||'').trim().toLowerCase();
+  const clienteTxt=(document.getElementById('aud-cliente').value||'').trim().toLowerCase();
+  const dias=+document.getElementById('aud-periodo').value||7;
+  const desde=new Date(Date.now()-dias*864e5).toISOString();
+  try{
+    let q=JUMP.sb.from('logs').select('*').gte('created_at',desde).order('created_at',{ascending:false}).limit(200);
+    if(papel)q=q.eq('papel',papel);
+    const{data,error}=await q;
+    if(error)throw error;
+    let rows=data||[];
+    if(acaoTxt)rows=rows.filter(l=>String(l.acao||'').toLowerCase().includes(acaoTxt));
+    if(clienteTxt)rows=rows.filter(l=>{
+      const alvo=l.alvo_id&&ALL.find(c=>c.id===l.alvo_id);
+      return alvo&&String(alvo.email||'').toLowerCase().includes(clienteTxt);
+    });
+    if(!rows.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;font-family:var(--M);font-size:12px">Nenhum registro neste filtro.</td></tr>';return}
+    tb.innerHTML=rows.map(l=>{
+      const quem=ALL.find(c=>c.id===l.user_id);
+      const alvo=l.alvo_id&&ALL.find(c=>c.id===l.alvo_id);
+      return `<tr>
+        <td class="u-mail">${new Date(l.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${JUMP.esc(quem?(quem.nome||quem.email||'—'):'—')}</td>
+        <td><span class="pill ${l.papel==='admin'?'pill-p':'pill-c'}">${JUMP.esc(l.papel||'—')}</span></td>
+        <td>${JUMP.esc(l.acao||'—')}</td>
+        <td class="u-mail">${alvo?JUMP.esc(alvo.email||''):'—'}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--red);font-size:12px">Erro ao carregar auditoria.</td></tr>';}
 }
 
 async function abrirTicketAdmin(id,assunto){
