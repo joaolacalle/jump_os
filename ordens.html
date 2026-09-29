@@ -40,7 +40,8 @@
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando ordens...</div></div>
 <div class="app">
 <main class="main">
-  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div><button class="btn btn-g btn-sm" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
+  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div><button class="btn btn-g btn-sm" id="btn-incluir-tarefa" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
+  <div id="banner-ver-como" style="display:none;margin:-8px 0 18px;padding:10px 14px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);font-size:13px;color:var(--t2)"></div>
   <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Acompanhe aqui o que os agentes estão executando, em tempo real. Esta página é de <b>gerenciamento</b>: você vê o andamento e pode cancelar um processo. As <b>aprovações</b> acontecem na página <a href="aprovar.html" style="color:var(--g)">Aprovar</a>.</p>
 
   <div class="ord-filtros">
@@ -126,7 +127,7 @@
 <script src="assets/jump-core.js?v=8"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
-let CTX={}, TODAS=[], FILTRO=(new URLSearchParams(location.search).get('f')||'fila');
+let CTX={}, TODAS=[], FILTRO=(new URLSearchParams(location.search).get('f')||'fila'), SOMENTE_LEITURA=false;
 const AGINFO={
   identidade:{ico:'🎨',n:'Identidade',nc:'34,211,238'},
   mercado:{ico:'🔍',n:'Mercado',nc:'79,124,255'},
@@ -145,6 +146,19 @@ const AGINFO={
   CTX=s;
   JUMP.sidebar('ordens');
   JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
+  // MODO "VER COMO" (29/set/2026, Parte 3 "Tarefas no modo 'ver como', só leitura"): admin/
+  // supervisor olhando a conta de outra pessoa (via ?ver=, resolvido em CTX.viewId pelo
+  // JUMP.guard) vê as tarefas do CLIENTE, mas sem nenhum botão de ação — só leitura. A própria
+  // conta (viewId===user.id) continua exatamente como sempre foi.
+  SOMENTE_LEITURA=CTX.viewId!==CTX.user.id;
+  if(SOMENTE_LEITURA){
+    const nomeCliente=(CTX.viewCliente&&(CTX.viewCliente.nome||CTX.viewCliente.email))||'este cliente';
+    const banner=document.getElementById('banner-ver-como');
+    banner.textContent='👁 Visualizando as tarefas de '+nomeCliente+' — somente leitura';
+    banner.style.display='block';
+    const btnInc=document.getElementById('btn-incluir-tarefa');
+    if(btnInc)btnInc.style.display='none';
+  }
   document.getElementById('loading').classList.add('hide');
   carregar();
 })();
@@ -160,7 +174,7 @@ function tempoDecorrido(iso){
 async function carregar(){
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
   try{
-    const d=await JUMP.api('minhas_ordens',{},CTX.token);
+    const d=await JUMP.api('minhas_ordens',{user_id:CTX.viewId},CTX.token);
     TODAS=d.ordens||[];
     render();
   }catch(e){document.getElementById('ord-lista').innerHTML='<div class="ord-empty">Erro ao carregar.</div>';}
@@ -253,8 +267,9 @@ function render(){
           <b style="color:var(--g)">${n+1}.</b> <span style="font-family:var(--M);font-size:9.5px;background:var(--bd);padding:2px 5px;border-radius:4px">${JUMP.esc(it.tipo_visual||'conceitual')}</span> ${JUMP.esc(it.brief||'')}
         </div>`).join('')}</div>`:'',
       o.status==='erro'&&o.resultado?`<div style="margin-top:9px;font-size:11.5px;color:#f87171;font-family:var(--M)">⚠️ ${JUMP.esc(String((o.resultado||{}).erro||JSON.stringify(o.resultado)).slice(0,220))}</div>`:'',
-      // P5: gestão da fila — só faz sentido para ordens que estão NA fila do Designer.
-      (o.para_agente==='criativo'&&(o.status==='pendente'||o.status==='pausada'))?`
+      // P5: gestão da fila — só faz sentido para ordens que estão NA fila do Designer. Fora do
+      // modo "ver como" (SOMENTE_LEITURA), painel de gestão inteiro some — nenhum botão de ação.
+      (!SOMENTE_LEITURA&&o.para_agente==='criativo'&&(o.status==='pendente'||o.status==='pausada'))?`
         <div style="margin-top:11px;border-top:1px solid var(--bd);padding-top:10px">
           <div style="font-family:var(--M);font-size:9.5px;color:var(--t3);margin-bottom:7px">GESTÃO DA FILA</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -277,9 +292,9 @@ function render(){
         <div class="ord-info" id="det-${o.id}" style="display:none">${detalhes}</div>
       </div>
       <div class="ord-acts">
-        ${o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:''}
-        ${(o.status==='pendente'&&o.tarefa==='criar_avulso')?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">🎨 Gerar arte agora</button>`:''}
-        <button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>
+        ${SOMENTE_LEITURA?'':(o.status==='erro'?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">↻ Tentar de novo</button>`:'')}
+        ${SOMENTE_LEITURA?'':((o.status==='pendente'&&o.tarefa==='criar_avulso')?`<button class="btn btn-g btn-sm" onclick="repetirOrdem('${o.id}',this)">🎨 Gerar arte agora</button>`:'')}
+        ${SOMENTE_LEITURA?'':`<button class="btn btn-o btn-sm" onclick="cancelar('${o.id}')">🗑 Excluir</button>`}
       </div>
     </div>`;
   }).join('');
@@ -326,7 +341,7 @@ function agendarRefresh(){
   if(document.hidden||!temAtivo())return; // nada em andamento (ou aba oculta): para sozinho
   REFRESH_TIMER=setTimeout(async()=>{
     REFRESH_TIMER=null;
-    try{const d=await JUMP.apiSilencioso('minhas_ordens',{},CTX.token);if(d&&d.ordens)TODAS=d.ordens;}catch(e){}
+    try{const d=await JUMP.apiSilencioso('minhas_ordens',{user_id:CTX.viewId},CTX.token);if(d&&d.ordens)TODAS=d.ordens;}catch(e){}
     render(); // o próprio render re-agenda enquanto ainda houver tarefa ativa
   },12000);
 }
