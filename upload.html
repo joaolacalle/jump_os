@@ -52,6 +52,13 @@ const CFG={
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     await listar();
+    // abrir direto numa aba específica via link (29/set/2026, Parte 2 "aviso ao vivo com link" —
+    // o aviso da ficha técnica linka aqui com ?aba=gerados). Só troca se for uma chave válida de
+    // CFG; qualquer coisa inválida ou ausente mantém o comportamento de sempre (abre em Logo).
+    try{
+      const aba=new URLSearchParams(location.search).get('aba');
+      if(aba&&CFG[aba])trocar(aba);
+    }catch(e){}
     document.getElementById('loading').classList.add('hide');
   }catch(e){}
 })();

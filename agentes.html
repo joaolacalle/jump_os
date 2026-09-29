@@ -637,6 +637,9 @@ async function selecionar(id){
   verificarOrdens(id);
   if(id==='estrategia')atualizarEstadoEstrategia();
   else if(id==='criativo')atualizarEstadoCriativo();
+  // acompanhamento da ficha técnica (29/set/2026, Parte 2): também dispara ao ABRIR o Identidade
+  // (não só depois de responder) — cobre o cliente que sai da aba e volta antes de terminar.
+  if(id==='identidade')iniciarAcompanhamentoTarefas();
   // ramo 'publicacao' removido (26/set/2026, autorizado pelo João) — atualizarEstadoPublicacao()
   // só alimentava a bolinha do botão "Suas publicações" e o painel, os dois sem botão agora;
   // rodar as 3 consultas ao banco a cada abertura do chat não teria mais pra quem servir.
@@ -1011,6 +1014,14 @@ function _diaSep(dt){
 function mdMsg(t){
   t=String(t==null?'':t);
   t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // LINK INTERNO NO CHAT (29/set/2026, Parte 2 "aviso ao vivo com link"): converte [texto](pagina)
+  // em <a>, mas SÓ quando a URL é uma página interna do próprio app — regex fechada (só
+  // letras/números/hífen + .html + querystring simples já escapada). Qualquer coisa fora desse
+  // molde (http://, javascript:, <script>, outro domínio) fica como texto puro, sem virar link —
+  // texto sempre já passou pelo escape acima, então não há como injetar HTML por aqui.
+  t=t.replace(/\[([^\]]+)\]\(([^)]+)\)/g,function(m,texto,url){
+    return /^[a-z0-9-]+\.html(\?[a-z0-9_=-]+(&amp;[a-z0-9_=-]+)*)?$/.test(url) ? ('<a href="'+url+'">'+texto+'</a>') : m;
+  });
   t=t.replace(/\*\*([^*]+?)\*\*/g,'<strong>$1</strong>');
   t=t.replace(/`([^`]+?)`/g,'<code>$1</code>');
   return t;
@@ -1397,6 +1408,55 @@ function iniciarPollingVideo(){
   };
   checar(); // checa imediatamente
   pollVid=setInterval(checar,8000);
+}
+
+// ── ACOMPANHAMENTO GENÉRICO DE TAREFAS (29/set/2026, Parte 2 "aviso ao vivo com link") ──
+// Molde de iniciarPollingVideo (acima, INTOCADA) generalizado pra qualquer tarefa de
+// ordens_servico que precise avisar o cliente quando termina, sem repetir a função do vídeo (que
+// tem sua própria mecânica — job de vídeo não é uma ordem_servico). Hoje só 'ficha_tecnica'; uma
+// tarefa nova entra só adicionando o nome na lista abaixo.
+const TAREFAS_ACOMPANHADAS=['ficha_tecnica'];
+let pollTarefas=null, _tarefasBootstrap=false;
+function iniciarAcompanhamentoTarefas(){
+  // guarda SÍNCRONA (antes de qualquer await) — evita 2 bootstraps concorrentes se a função for
+  // chamada 2x em sequência rápida (ex.: abrir o agente logo após uma resposta dele)
+  if(pollTarefas||_tarefasBootstrap)return;
+  _tarefasBootstrap=true;
+  let voltas=0, vistos=null;
+  const buscarPendProc=async()=>{
+    const uid=CTX.viewId||CTX.user.id;
+    const {data}=await JUMP.sb.from('ordens_servico').select('id').eq('user_id',uid).in('tarefa',TAREFAS_ACOMPANHADAS).in('status',['pendente','processando']);
+    return new Set((data||[]).map(o=>o.id));
+  };
+  const checar=async()=>{
+    voltas++;
+    try{
+      const atuais=await buscarPendProc();
+      if(vistos){
+        // id que estava em pendente/processando e SUMIU de lá terminou (concluida ou erro) —
+        // busca o status final SÓ desse id, pra saber qual dos dois avisos mostrar
+        const sumidos=[...vistos].filter(id=>!atuais.has(id));
+        for(const id of sumidos){
+          try{
+            const {data:fin}=await JUMP.sb.from('ordens_servico').select('status').eq('id',id).single();
+            if(fin&&fin.status==='concluida'){
+              JUMP.toast('✅ Sua ficha técnica ficou pronta!');
+              if(AG==='identidade')addMsg('a','✅ Sua ficha técnica ficou pronta! [Ver em Meus Arquivos](upload.html?aba=gerados)');
+            }else if(fin&&fin.status==='erro'){
+              JUMP.toast('A ficha técnica falhou — veja o motivo em Tarefas','err');
+            }
+          }catch(e){}
+        }
+      }
+      vistos=atuais; // também incorpora ordens novas criadas nesse meio-tempo (segue acompanhando)
+    }catch(e){}
+    if(voltas>90||(vistos&&vistos.size===0)){clearInterval(pollTarefas);pollTarefas=null;_tarefasBootstrap=false;}
+  };
+  (async()=>{
+    vistos=await buscarPendProc().catch(()=>new Set());
+    if(!vistos.size){_tarefasBootstrap=false;return;} // nada pendente/processando — não há o que acompanhar
+    pollTarefas=setInterval(checar,8000);
+  })();
 }
 
 // ── BOTÕES DO MINI-DASHBOARD (comandos prontos, sem digitar) ──
@@ -1798,6 +1858,10 @@ async function enviarTexto(txt){
       if(AG==='estrategia')atualizarEstadoEstrategia();
       else if(AG==='criativo')atualizarEstadoCriativo();
       // ramo 'publicacao' removido (26/set/2026) — mesmo motivo do outro ponto de chamada, acima.
+      // acompanhamento da ficha técnica (29/set/2026, Parte 2): dispara depois de toda resposta do
+      // Identidade, já que é o agente que cria a ordem (garantia do check-in) — se acabou de nascer
+      // uma ficha pendente, começa a acompanhar; se não tem nenhuma, a função sai sem fazer nada.
+      if(AG==='identidade')iniciarAcompanhamentoTarefas();
       if(d.detalhados){
         JUMP.toast('✍️ Copy de '+d.detalhados+' post(s) pronta!');
         try{JUMPGUIA.dica('semana_detalhada','A copy da semana está pronta. A produção das artes só começa depois que você aprovar o card <b>Aprovar a Semana</b> em <b>Aprovações</b>.','Semana detalhada')}catch(e){}
