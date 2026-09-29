@@ -133,6 +133,11 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 .ag-it-r{display:none}
 .ag-dot{position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:#f0b53f;border:2px solid var(--card);z-index:6;animation:agpulse 1.4s ease-in-out infinite}
 @keyframes agpulse{0%,100%{box-shadow:0 0 0 0 rgba(240,181,63,.55)}50%{box-shadow:0 0 0 7px rgba(240,181,63,0)}}
+/* ONBOARDING EM ORDEM (29/set/2026): bolinha VERDE = "siga por aqui" (etapa atual do onboarding);
+   a amarela (.ag-dot) continua reservada para pendências. Agente fora da vez fica esmaecido. */
+.ag-dot.guia{background:#22c55e;animation:agpulse-g 1.4s ease-in-out infinite}
+@keyframes agpulse-g{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}50%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
+.ag-it.espera{opacity:.45}
 @media(prefers-reduced-motion:reduce){.ag-dot{animation:none}}
 .chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
 .empty-chat{justify-content:center;gap:6px}
@@ -452,6 +457,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </div>
 <script src="assets/jump-core.js?v=8"></script>
 <script src="assets/classificacao.js?v=7"></script>
+<script src="assets/onboarding.js?v=1"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -568,16 +574,21 @@ function comecarCom(id,txt){
 }
 function renderList(){
   renderOnboarding();
-  const prox=((CTX&&(CTX.viewCliente||CTX.cliente)||{}).onboarding||{}).proximo;
+  const _cli=(CTX&&(CTX.viewCliente||CTX.cliente))||{};
+  const prox=(_cli.onboarding||{}).proximo;
+  // ONBOARDING EM ORDEM (assets/onboarding.js — mesma regra do servidor): só para conta de cliente.
+  const _onbAtivo=(_cli.role||'usuario')==='usuario' && window.JUMP_ONB && !JUMP_ONB.estado(_cli.onboarding).concluido;
+  const _etapaAtual=_onbAtivo?JUMP_ONB.estado(_cli.onboarding).etapaAtual:null;
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
+    const espera=_onbAtivo && !JUMP_ONB.agentePermitido(_cli.onboarding,a.id);
     const st=ESTADO[a.id]||{}; const q=quando(st.ult);
     const linha = !ok ? a.r
       : (st.mem||q) ? [st.mem?st.mem+' memória'+(st.mem>1?'s':''):null, q].filter(Boolean).join(' · ')
       : a.r;
-    return `<div class="ag-it${ok?'':' locked'}${AG===a.id?' on':''}" style="--ac:${a.nc||'168,85,247'};border-left:3px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.9':'.45'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
-      ${(ok&&a.id===prox&&a.id!==AG)?'<span class="ag-dot"></span>':''}<span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
-      <div style="min-width:0"><div class="ag-it-n">${a.n}</div><div class="ag-it-r">${linha}</div></div>
+    return `<div class="ag-it${ok?'':' locked'}${espera?' espera':''}${AG===a.id?' on':''}" style="--ac:${a.nc||'168,85,247'};border-left:3px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.9':'.45'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
+      ${(ok&&a.id===_etapaAtual)?'<span class="ag-dot guia" title="Próximo passo do seu onboarding"></span>':((ok&&a.id===prox&&a.id!==AG)?'<span class="ag-dot"></span>':'')}<span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
+      <div style="min-width:0"><div class="ag-it-n">${a.n}${a.id===_etapaAtual?' · próximo passo':(espera?' · libera no onboarding':'')}</div><div class="ag-it-r">${linha}</div></div>
       ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
   }).join('');
@@ -901,7 +912,7 @@ async function pedirCopyDaSemana(btn){
 function mostrarRetornoFicha(){
   const w=document.getElementById('msgs');
   const box=document.createElement('div');box.className='msg a retorno-ficha';
-  box.innerHTML='✅ <b>Ficha técnica concluída.</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">Quer aplicar estas cores da sua marca na sua dashboard (botões, gráficos, menu)? Você pode manter o visual atual se preferir.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g btn-sm" onclick="aplicarTemaOSData(this)">Aplicar na minha dashboard</button><button class="btn btn-o btn-sm" onclick="manterTema(this)">Manter atual</button></div>';
+  box.innerHTML='🎨 <b>Identidade concluída.</b><div style="font-size:12.5px;color:var(--t2);margin:6px 0">Quer aplicar as cores da sua marca no seu painel (botões, gráficos e destaques)? Você pode manter o visual atual se preferir e mudar depois em Configurações.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g btn-sm" onclick="aplicarTemaOSData(this)">Aplicar na minha dashboard</button><button class="btn btn-o btn-sm" onclick="manterTema(this)">Manter atual</button></div>';
   w.appendChild(box);w.scrollTop=w.scrollHeight;
 }
 function _hex(s){const m=(s||'').match(/#?[0-9a-fA-F]{6}/);return m?(m[0][0]==='#'?m[0]:'#'+m[0]):null}
@@ -941,13 +952,11 @@ async function aplicarTemaOSData(btn){
 }
 async function manterTema(btn){JUMP.toast('Visual atual mantido.');await logChat('user','[Escolhi: manter o visual atual da dashboard]','criativo');await logChat('assistant','Perfeito, mantive o visual atual. Sua identidade está registrada e disponível para os próximos agentes.','criativo');finalizarRota1(btn);}
 async function finalizarRota1(btn){
+  // ONBOARDING EM ORDEM (29/set/2026): esta caixa voltou a ser mostrada no fechamento do
+  // Identidade. Antes ela gravava clientes.onboarding a partir da cópia guardada na tela (podia
+  // apagar as etapas que o servidor acabou de marcar) e repetia o "próximo passo" — os dois agora
+  // são do servidor (assets/onboarding.js). Aqui só fecha a caixa.
   const box=document.querySelector('.retorno-ficha');if(box)box.remove();
-  try{const ob=Object.assign({},CTX.cliente.onboarding||{},{identidade:true});await JUMP.sb.from('clientes').update({onboarding:ob}).eq('id',CTX.viewId||CTX.user.id);CTX.cliente.onboarding=ob;}catch(e){}
-  const w=document.getElementById('msgs');
-  const m=document.createElement('div');m.className='msg a';
-  m.innerHTML='🎯 <b>Identidade concluída!</b> Próximo passo: vá ao <b>Agente de Mercado</b> para analisarmos seus concorrentes e oportunidades do nicho.';
-  w.appendChild(m);w.scrollTop=w.scrollHeight;
-  await logChat('assistant','Identidade concluída! Próximo passo: vá ao Agente de Mercado para analisarmos seus concorrentes e oportunidades do nicho.','criativo');
 }
 async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt,vinc){
   const w=document.getElementById('msgs');
@@ -1850,6 +1859,13 @@ async function enviarTexto(txt){
     }else{
       addMsg('a',d.resposta,d.memorias_novas?('🧠 aprendi '+d.memorias_novas+' coisa'+(d.memorias_novas>1?'s':'')+' nova'+(d.memorias_novas>1?'s':'')):null);
       if(d.checkin)JUMP.toast('🎉 Check-in concluído! Todos os agentes já conhecem seu negócio.');
+      // ONBOARDING EM ORDEM: o servidor devolve o estado real — a lista (bolinha verde, agentes
+      // esmaecidos) se redesenha com ele; nunca com uma cópia antiga guardada na tela.
+      if(d.onboarding&&d.onboarding.estado){
+        const _c=CTX.viewCliente||CTX.cliente; if(_c){_c.onboarding=d.onboarding.estado;}
+        renderList();
+        if(d.onboarding.oferecer_tema)mostrarRetornoFicha();
+      }
       // GUIA: dicas de primeira vez em cada processo
       if(d.conteudos){
         JUMP.toast('📅 '+d.conteudos+' post(s) planejados!');
