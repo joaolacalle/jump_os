@@ -1031,7 +1031,17 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
 
     // ── CENTRAL DE ORDENS: lista as ordens do usuário (pendentes + concluídas) ──
     if (action === 'minhas_ordens') {
-      const uid = requester.id;
+      let uid = requester.id;
+      // MODO "VER COMO" (29/set/2026, Parte 3 "Tarefas no modo 'ver como', só leitura"): user_id
+      // opcional no corpo — só troca o uid da consulta quando vem preenchido E é diferente do
+      // próprio requester (dono olhando as próprias tarefas nunca precisa do portão). Escopo
+      // checado localmente (try/catch) em vez de deixar o assertScope() estourar pro catch geral
+      // do handler (que devolve 500 pra qualquer erro, ver fim do arquivo) — aqui a ordem pede
+      // 403 explicitamente, porque é um portão de leitura entre contas, não um erro interno.
+      if (req.body && req.body.user_id && req.body.user_id !== requester.id) {
+        try { await assertScope(req.body.user_id); } catch (e) { return res.status(403).json({ error: e.message }); }
+        uid = req.body.user_id;
+      }
       const ordens = await sbGet(`ordens_servico?user_id=eq.${uid}&order=created_at.desc&limit=60&select=*`);
       return res.status(200).json({ ok: true, ordens: Array.isArray(ordens) ? ordens : [] });
     }
