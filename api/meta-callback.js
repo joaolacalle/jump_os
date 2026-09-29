@@ -66,10 +66,37 @@ module.exports = async (req, res) => {
   try {
     const { code, state, error } = req.query || {};
     if (error || !code || !state) return volta('erro=autorizacao_cancelada');
+    // STATE ASSINADO (29/set/2026, "Meta OAuth — assinar o state e validar no callback"): antes,
+    // state era só base64url(`uid|tipo`), sem assinatura nem prazo — qualquer um montava a URL de
+    // autorização na mão (client_id/redirect_uri são públicos) com o uid de outra pessoa e este
+    // callback apagava e sobrescrevia a conexão legítima da vítima (~163, abaixo). Agora o state
+    // vem como `<payload-base64url>.<assinatura>`, payload = `uid|tipo|exp` (exp em
+    // epoch-segundos). Recalcula a assinatura com o MESMO segredo/encoding de api/meta-oauth.js e
+    // compara por tempo constante (crypto.timingSafeEqual) — nunca com `===`, que vaza tempo de
+    // comparação por byte. Qualquer coisa fora do esperado (formato antigo sem `.`, assinatura
+    // adulterada, uid trocado com a assinatura de outro payload, ou state vencido) cai no mesmo
+    // erro genérico, ANTES de qualquer chamada à Meta — nunca loga a assinatura em si, só o
+    // motivo, pra não deixar nem um fiapo dela em log nenhum.
     let uid, tipo;
-    try { [uid, tipo] = Buffer.from(state, 'base64url').toString().split('|'); }
-    catch (e) { return volta('erro=estado_invalido'); }
-    if (!uid) return volta('erro=estado_invalido');
+    try {
+      const crypto = require('crypto');
+      const partes = String(state).split('.');
+      if (partes.length !== 2 || !partes[0] || !partes[1]) throw new Error('formato');
+      const [payload, assinatura] = partes;
+      if (!process.env.META_APP_SECRET) throw new Error('sem-segredo');
+      const esperada = crypto.createHmac('sha256', process.env.META_APP_SECRET).update(payload).digest('base64url');
+      const assBuf = Buffer.from(assinatura);
+      const espBuf = Buffer.from(esperada);
+      if (assBuf.length !== espBuf.length || !crypto.timingSafeEqual(assBuf, espBuf)) throw new Error('assinatura');
+      const [uidP, tipoP, expP] = Buffer.from(payload, 'base64url').toString().split('|');
+      const exp = Number(expP);
+      if (!Number.isFinite(exp) || Math.floor(Date.now() / 1000) > exp) throw new Error('vencido');
+      if (!uidP) throw new Error('uid-ausente');
+      uid = uidP; tipo = tipoP;
+    } catch (e) {
+      console.error('meta-callback: state recusado —', e.message);
+      return volta('erro=estado_invalido');
+    }
     // 1. Código → token curto (endpoint do Instagram)
     const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
