@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.29-ficha-tecnica-disparo-imediato-dedup-existencia';
+const VERSAO = '2026.09.29-ficha-tecnica-parte2-aviso-ao-vivo-prompt-identidade';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -438,8 +438,7 @@ Os 21 campos e a FORMA esperada de cada valor (o CONTEÚDO é sempre da marca re
 Mais um campo OPCIONAL, que NUNCA bloqueia o check-in e NUNCA deve ser exigido do cliente: estilo_de_mockup só faz sentido para negócio que tem tela ou software real na cena (app, painel, site). Se o negócio não tem tela — padaria, salão, loja física, restaurante — deixe este campo vazio e não pergunte nada sobre ele; exigir isso de quem não tem produto digital faria você inventar.
 <memoria>{"chave":"estilo_de_mockup","valor":"frase curta (ou não registre esta memória, se o negócio não tem tela)"}</memoria>
 3) Registre as memórias do OS_DATA (tags do passo 1) e as de direção de arte (tags do passo 2) e finalize a consultoria com <checkin_completo/>.
-4) DEPOIS de o Designer entregar a ficha técnica, PERGUNTE ao cliente se ele quer personalizar as cores do sistema (a dashboard) com a nova identidade. NÃO aplique nada ainda — apenas pergunte.
-5) SOMENTE quando o cliente CONFIRMAR que quer personalizar, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
+4) SOMENTE quando o cliente PEDIR para personalizar as cores do sistema, aí sim aplique TODAS as cores do OS_DATA no sistema, mapeando assim:
 - c1 (principal) = primeira cor da paleta_primaria (botões, destaques, gráficos). OBS: o MENU LATERAL tem cores próprias fixas e NÃO muda — as cores personalizam a dashboard e as páginas internas, nunca o menu.
 - c2 (secundária) = segunda cor da paleta (informações de apoio)
 - c3 (terciária) = cor que controla os TEXTOS MENORES/cinzas de todo o painel (legendas, descrições, detalhes). Escolha um tom CLARO e suave da paleta que fique legível sobre o fundo — nunca uma cor escura em fundo escuro.
@@ -1502,6 +1501,20 @@ const handler = async (req, res) => {
         ficha_tecnica_dedup_trocado_de_lista_de_status_que_bloqueiam_para_qualquer_existencia_exceto_concluida_sem_url:true,
         ficha_tecnica_erro_ou_pausada_agora_bloqueiam_a_recriacao_recuperacao_e_pelo_botao_tentar_de_novo:true,
         fechamento_do_chat_do_designer_volta_a_cobrir_so_criar_post_ficha_tem_executor_proprio_desde_db9bed2:true,
+        // Parte 2 (29/set/2026, "imagem sem corte, aviso ao vivo com link, e Tarefas no modo 'ver
+        // como'"): o passo que fazia o Identidade PERGUNTAR se o cliente queria personalizar as
+        // cores DEPOIS de o Designer entregar a ficha foi removido (não fazia sentido — ninguém
+        // pediu, o agente empurrava a pergunta sozinho); a aplicação do tema agora só acontece
+        // quando o CLIENTE pede, não quando confirma uma pergunta que o agente fez por conta
+        // própria. api/cron.js, agentes.html e upload.html também mudaram nesta Parte 2 (aviso ao
+        // vivo em chat_mensagens, acompanhamento genérico da tarefa no front, link em mdMsg e a
+        // aba ?aba= em upload.html) — nenhum deles é este arquivo, registrados aqui só pra manter
+        // o diagnóstico como painel único.
+        identidade_nao_pergunta_mais_personalizar_cores_apos_ficha_so_aplica_quando_cliente_pede:true,
+        ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
+        ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
+        ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
+        ficha_tecnica_parte2_upload_html_aba_por_querystring_na_inicializacao:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,

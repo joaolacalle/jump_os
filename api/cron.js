@@ -909,7 +909,23 @@ async function jobProduzir(soUid) {
             ...(ok ? { concluida_em: new Date().toISOString() } : {}) }),
         }).catch(() => {});
         LOG({ etapa: 'ficha', orderId: o.id, userId: o.user_id, status: r.status, ok });
-        if (ok) fichasTecnicas++;
+        if (ok) {
+          fichasTecnicas++;
+          // AVISO AO VIVO (29/set/2026, Parte 2 "imagem sem corte, aviso ao vivo com link"): manda
+          // uma mensagem no chat do Identidade avisando que a ficha ficou pronta, com link pra
+          // Meus Arquivos. O front (agentes.html) tem seu PRÓPRIO acompanhamento (polling) que
+          // mostra o toast/mensagem pro cliente que está com a tela aberta NA HORA — esta linha
+          // aqui é o que garante que a conversa TAMBÉM fique registrada pra quem não estava
+          // olhando naquele instante (abre o chat depois e o aviso já está lá). Só no sucesso —
+          // no erro não faz sentido avisar "ficou pronta"; a ordem some da lista de acompanhadas.
+          try {
+            const rMsg = await fetch(`${SUPABASE_URL}/rest/v1/chat_mensagens`, {
+              method: 'POST', headers: SBH(),
+              body: JSON.stringify({ user_id: o.user_id, agente: 'identidade', role: 'assistant', conteudo: '✅ Sua ficha técnica ficou pronta! [Ver em Meus Arquivos](upload.html?aba=gerados)', avisos: null }),
+            });
+            if (!rMsg.ok) console.error('[worker] ficha_tecnica — falha ao gravar aviso em chat_mensagens — ordem=' + o.id + ' status=' + rMsg.status);
+          } catch (e) { console.error('[worker] ficha_tecnica — exceção ao gravar aviso em chat_mensagens — ordem=' + o.id + ' erro=' + (e && e.message)); }
+        }
       } catch (e) { console.error('[worker] ficha_tecnica — exceção — ordem=' + o.id + ' erro=' + (e && e.message)); }
     }
   }
