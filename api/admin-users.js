@@ -177,12 +177,18 @@ module.exports = async (req, res) => {
     // supervisor/admin → o usuário levava 403 e a tarefa nunca sumia. A checagem de dono é logo abaixo.
     if (act0 === 'cancelar_ordem') {
       const uid = requester.id;
-      const isAdm = me && me.role === 'admin';
       const { ordem_id } = req.body;
       if (!ordem_id) return res.status(400).json({ error: 'ordem_id obrigatório' });
       const [o] = await sbGet(`ordens_servico?id=eq.${ordem_id}&select=user_id`);
-      if (!o || (o.user_id !== uid && !isAdm)) return res.status(403).json({ error: 'Sem acesso' });
+      if (!o) return res.status(403).json({ error: 'Sem acesso' });
+      // Entrega 2 (29/set/2026): além do dono e do admin, o supervisor DO DONO da ordem também
+      // pode cancelar em "ver como" — reaproveita assertScope() (dono OU supervisor(dono) OU
+      // admin), em vez de escrever uma segunda versão deste critério só para esta ação.
+      try { await assertScope(o.user_id); } catch (e) { return res.status(403).json({ error: 'Sem acesso' }); }
       await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem_id}`, { method: 'DELETE', headers: H() });
+      // grava em `logs` só quando o alvo ≠ requester — mesma razão de criar_ordem_usuario acima:
+      // esta escrita usa a chave de serviço (auth.uid() nulo), então a trigger do banco não vê.
+      if (o.user_id !== uid) await auditar('cancelar_ordem', o.user_id, { ordem_id });
       return res.status(200).json({ ok: true });
     }
 
@@ -1085,10 +1091,19 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
 
     // ── INCLUIR ORDEM: usuário cria uma ordem que modela o negócio ──
     if (action === 'criar_ordem_usuario') {
-      const uid = requester.id;
-      const { para_agente, tarefa, recorrencia, recurso, quantidade } = req.body;
+      let uid = requester.id;
+      const { para_agente, tarefa, recorrencia, recurso, quantidade, user_id } = req.body;
+      // MODO "VER COMO" grava de verdade (Entrega 2, 29/set/2026): user_id opcional no corpo —
+      // só troca o uid quando vem preenchido E é diferente do próprio requester (dono criando a
+      // própria tarefa nunca passa por aqui). Mesmo portão 403 explícito de minhas_ordens, acima
+      // — não deixa estourar pro catch geral (500) do handler.
+      if (user_id && user_id !== requester.id) {
+        try { await assertScope(user_id); } catch (e) { return res.status(403).json({ error: e.message }); }
+        uid = user_id;
+      }
       if (!para_agente || !tarefa) return res.status(400).json({ error: 'Informe o agente e a tarefa.' });
-      // valida saldo no servidor (defesa real, além do aviso no front)
+      // valida saldo no servidor (defesa real, além do aviso no front) — sempre no ALVO (uid):
+      // em "ver como", quem consome cota é a conta do cliente, nunca a de quem está gerindo.
       if (recurso && quantidade) {
         const [c2] = await sbGet(`clientes?id=eq.${uid}&select=limites,uso`);
         const lim = (c2 && c2.limites) || {};
@@ -1097,7 +1112,7 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
         const usado = (uso.mes === mesAtual) ? Number(uso[recurso] || 0) : 0;
         const resta = Math.max(0, Number(lim[recurso] ?? 0) - usado);
         if (Number(quantidade) > resta) {
-          return res.status(400).json({ error: `Sua ordem pede ${quantidade}, mas você só tem ${resta} de saldo de ${recurso} este mês.` });
+          return res.status(400).json({ error: `Esta ordem pede ${quantidade}, mas o saldo de ${recurso} este mês é de ${resta}.` });
         }
       }
       const detalheFull = (recurso && quantidade) ? `${tarefa} [consome ${quantidade} ${recurso}]` : tarefa;
@@ -1107,6 +1122,10 @@ CONTEXTO DO USUÁRIO: ${ctxUser}`;
         detalhe: detalheFull, status: 'pendente',
         recorrencia: recorrencia || null,
       });
+      // grava em `logs` só quando o alvo ≠ requester — a trigger de auditoria do banco nunca vê
+      // esta escrita (ela chega pela chave de serviço, auth.uid() nulo), então quem audita aqui é
+      // este servidor, exatamente como já fazia cancelar_ordem/registrar_gosto/set_tema etc.
+      if (uid !== requester.id) await auditar('criar_ordem_usuario', uid, { para_agente, detalhe: detalheFull });
       return res.status(200).json({ ok: true });
     }
 
