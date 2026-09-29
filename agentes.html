@@ -889,39 +889,12 @@ async function pedirCopyDaSemana(btn){
     if(btn){btn.disabled=false;btn.innerHTML='✍️ Escrever a copy agora'}
   }
 }
-async function gerarFichaTecnica(uid){
-  const{data:mems}=await JUMP.sb.from('memorias').select('chave,valor').eq('user_id',uid);
-  const M={};(mems||[]).forEach(m=>M[m.chave]=m.valor);
-  const paleta=(M.paleta_primaria||'#A855F7')+', '+(M.paleta_secundaria||'')+(M.paleta_terciaria?(', '+M.paleta_terciaria):'')+', cta '+(M.cor_cta||'');
-  const fontes=(M.tipografia_primaria||'')+' / '+(M.tipografia_secundaria||'');
-  const estilo=M.estilo_visual||'EDITORIAL';
-  const estFoto=M.estilo_fotografico||'', comp=M.tipo_de_composicao||'', obrig=M.elementos_obrigatorios||'', proib=M.elementos_proibidos||'';
-  // 🔴 A ficha era GENÉRICA: fundo escuro fixo (mesmo para marca clara) e mockup de post sem
-  // relação com o negócio. Agora ela mostra a marca DELE aplicada no mundo DELE.
-  const nicho=M.nicho||'', marca=M.marca||'', publico=M.publico_alvo||'';
-  const claro=/claro|light|branco|off-?white|minimal/i.test(String(M.dna_visual||'')+String(M.paleta_primaria||''));
-  const promptFicha='Professional brand identity guide board (brand style sheet) for '
-    +(marca?('the brand "'+marca+'"'):'this brand')+(nicho?(', a business in: '+nicho):'')+'. '
-    +'Layout as an organized grid showing: (1) the color palette as labeled swatches ('+paleta+'); '
-    +'(2) typography samples ('+fontes+') with a headline sample and a body sample; '
-    +'(3) ONE realistic Instagram post mockup shown inside a phone frame — the mockup content must be about '
-    +(nicho||'this business')+(publico?(' speaking to '+publico):'')+', using EXACTLY the palette colors above, '
-    +'so the client sees how their brand looks applied to a real post of their own niche; '
-    +'(4) a small area reserved for the brand signature written as plain TEXT'+(marca?(' reading "'+marca+'"'):'')+'. '
-    +'Style: '+estilo+', premium, clean editorial presentation, '+(claro?'light neutral background':'dark neutral background')
-    +', generous spacing, sharp legible text with correct letter spacing. '
-    +(comp?('Compose the board using a '+comp+' layout. '):'')
-    +(estFoto?('The Instagram post mockup photography follows this style: '+estFoto+'. '):'')
-    +(obrig?('Always feature these brand elements: '+obrig+'. '):'')
-    +(proib?('Never include these elements: '+proib+'. '):'')
-    +'Do NOT invent any logo symbol, icon, emblem or monogram — the signature is typographic only. '
-    +'High quality realistic design presentation board.';
-  await gerarPorOrdem(promptFicha,'1:1','conceitual','Ficha técnica visual',true,'',{criarConteudo:false}); // ficha não é post: sem o Engine 6.0
-  await logChat('user','[Executei a ordem: gerar ficha técnica]','criativo');
-  await logChat('assistant','Gerei sua ficha técnica visual a partir do seu DNA do Negócio. Veja acima.','criativo');
-  mostrarRetornoFicha();
-}
-
+// gerarFichaTecnica(uid) removida (28/set/2026, "Ficha técnica nasce com o dado" — autorizado
+// pelo João): não tinha nenhum chamador (confirmado por busca no repositório inteiro antes da
+// remoção) — a ficha nasce hoje pela garantia em api/agente-chat.js, com o prompt já montado no
+// servidor por api/_dna-lib.js:promptFichaTecnica() (porte fiel do texto que vivia aqui). Uma
+// única montagem, no servidor — mostrarRetornoFicha/aplicarTemaOSData/manterTema/finalizarRota1
+// continuam como estavam.
 function mostrarRetornoFicha(){
   const w=document.getElementById('msgs');
   const box=document.createElement('div');box.className='msg a retorno-ficha';
