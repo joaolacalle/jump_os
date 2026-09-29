@@ -264,7 +264,7 @@ const params=new URLSearchParams(location.search);
   const M={
     trial:{t:'Seu período de teste terminou',b:'Os 7 dias acabaram. Ative sua assinatura para o sistema voltar a produzir — seu DNA do Negócio e tudo que os agentes aprenderam continuam salvos.'},
     assinatura:{t:'Sua assinatura está inativa',b:'Identificamos um cancelamento ou falha no pagamento. Reative para retomar de onde parou — nada foi perdido.'},
-    novo:{t:'Ative seu acesso',b:'Seu check-in está pronto. Ative os 7 dias de teste e o sistema começa a produzir para o seu negócio.'},
+    novo:{t:'Ative seu acesso',b:'Escolha seu plano para liberar os agentes. Seu DNA do Negócio e tudo que os agentes aprenderam continuam salvos.'},
   }[params.get('motivo')];
   if(!M)return;
   document.addEventListener('DOMContentLoaded',()=>{

@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.29-onboarding-em-ordem';
+const VERSAO = '2026.09.29-onboarding-revisao-mensal-trial';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1530,6 +1530,14 @@ const handler = async (req, res) => {
         teto_memorias_identidade_70_excedente_registrado:true,
         aviso_dna_incompleto_quando_agente_tenta_concluir:true,
         caixa_aplicar_cores_reativada_no_fechamento_da_identidade:true,
+        // REVISÃO MENSAL (29/set/2026, decisão do João): Diagnóstico → Identidade → Mercado; primeira
+        // revisão 20 dias após concluir o onboarding, depois todo dia 20 (mínimo 20 dias entre
+        // ciclos); cada parte fecha pela memória revisao_<agente>; cron diário ?job=revisoes abre o
+        // ciclo e deixa recado; bolinha amarela no agente da vez. Teste grátis de 7 dias passa a
+        // começar no cadastro (sql/trial-7-dias-no-cadastro.sql) e o gate de acesso deixa de
+        // exigir o check-in (assets/jump-core.js).
+        revisao_mensal_diagnostico_identidade_mercado:true,
+        trial_7_dias_no_cadastro_gate_sem_exigir_checkin:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -1914,6 +1922,25 @@ const handler = async (req, res) => {
         +((!faltandoAgora.length && !direcaoFaltando.length) ? ' Pode concluir com <checkin_completo/> quando fizer sentido na conversa.' : '')
         +'\nValores aceitos nos campos de enumeração (grave EXATAMENTE um destes por campo — fora da lista, o sistema recusa e não grava em silêncio):\n'
         +Object.keys(DNA_ENUMS).map(c=>'- '+c+': '+DNA_ENUMS[c].join('/')).join('\n');
+    }
+
+    // REVISÃO MENSAL (29/set/2026, assets/onboarding.js): quando este agente é a vez da revisão do
+    // mês, ele recebe o ESTADO real (ciclo, o que o Diagnóstico apurou) e como a parte dele fecha.
+    // É dado, não ordem de comportamento: o fechamento é decidido em código, pela memória gravada.
+    let revisaoTxt='';
+    {
+      const _rv=ONB.revisaoEstado(cli.onboarding);
+      if(_rv.atual===agente){
+        const _chave=ONB.chaveRevisao(agente);
+        const _diag=dnaFinal[ONB.chaveRevisao('diagnostico')];
+        revisaoTxt='\n\n=== REVISÃO MENSAL ABERTA — ESTADO REAL (ciclo '+_rv.aberta.ciclo+') ===\n'
+          +'Esta conversa é a atualização mensal do seu escopo, para o DNA seguir preciso ao perfil do cliente. Ordem da revisão: Diagnóstico → Identidade → Mercado; agora é a sua vez.\n'
+          +(agente==='diagnostico'?'Colete os números do mês (seguidores, alcance, engajamento, o que funcionou e o que não funcionou) — use as métricas conectadas se houver, senão pergunte ao cliente — e atualize pontos_fortes, pontos_corrigir e prioridades se mudaram.\n':'')
+          +(agente!=='diagnostico'&&_diag?('Resultado da revisão do Diagnóstico deste mês: '+String(_diag).slice(0,600)+'\n'):'')
+          +(agente==='identidade'?'Revise o que é de marca à luz do diagnóstico (momento do negócio, posicionamento, objetivo, direção) e atualize só o que mudou, confirmando com o cliente.\n':'')
+          +(agente==='mercado'?'Verifique se houve mudança relevante na concorrência ou nas oportunidades do nicho e atualize o que mudou.\n':'')
+          +'A sua parte da revisão fecha quando você registrar <memoria>{"chave":"'+_chave+'","valor":"resumo do que mudou neste mês (ou: sem mudanças relevantes)"}</memoria>. O sistema avisa o cliente do próximo passo.';
+      }
     }
 
     // Histórico recente
@@ -2318,7 +2345,7 @@ const handler = async (req, res) => {
       }catch(e){}
     }
 
-    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
+    const system=`${PERSONAS[agente]}\n\nCLIENTE: ${cli.nome||'—'} · Plano ${cli.plano||'basico'}.${osDataStatus||''}${metricasTxt||''}${acervoTxt}${ordensTxt}\n${memTxt}${dnaChecklistTxt}${revisaoTxt}\n${REGRAS_GERAIS(agente)}${trialTxt}${completarTxt}${dataTxt}${cotaTxt}${semanaTxt}`;
 
     // FRONTEIRA ENTRE AGENTES — CAMADA 3 (triagem do pedido): dispara EM PARALELO com a chamada
     // do agente logo abaixo, então não soma tempo à resposta. Só no chat ao vivo: o modo interno
@@ -3680,6 +3707,20 @@ const handler = async (req, res) => {
           avisoDnaIncompleto=(avisoDnaIncompleto?avisoDnaIncompleto+' ':'')+'Não consegui registrar o avanço do seu onboarding por uma falha técnica. Envie uma nova mensagem para tentar de novo.';
         }
       }
+      // REVISÃO MENSAL: a parte deste agente fecha quando ele grava revisao_<agente> neste turno.
+      if(novas.some(m=>String(m.chave)===ONB.chaveRevisao(agente))){
+        const _rev=ONB.marcarRevisao(cli.onboarding,agente,JC.hojeISOBrasil());
+        if(_rev){
+          const _rRev=await sbPatch(`clientes?id=eq.${targetId}`,{onboarding:_rev.onb});
+          if(_rRev&&_rRev.ok){
+            cli.onboarding=_rev.onb;
+            onbResposta=Object.assign(onbResposta||{},{estado:_rev.onb,revisao_mensagem:ONB.mensagemRevisao(agente,_rev)});
+          } else {
+            console.error('[revisao] falha ao gravar a revisão mensal — agente='+agente+' user='+targetId);
+            avisoDnaIncompleto=(avisoDnaIncompleto?avisoDnaIncompleto+' ':'')+'Não consegui registrar sua atualização mensal por uma falha técnica. Envie uma nova mensagem para tentar de novo.';
+          }
+        }
+      }
     }
     // GARANTIA + AUTO-RECUPERAÇÃO da ficha de identidade (trabalho final do Identidade):
     // cria a ordem para o Criativo de forma determinística — tanto ao concluir o check-in AGORA
@@ -3796,6 +3837,7 @@ const handler = async (req, res) => {
     // passar por ela, e ficam gravadas na conversa como parte da resposta.
     if(avisoDnaIncompleto){ texto+='\n\n'+avisoDnaIncompleto; }
     if(onbResposta&&onbResposta.mensagem){ texto+='\n\n'+onbResposta.mensagem; }
+    if(onbResposta&&onbResposta.revisao_mensagem){ texto+='\n\n'+onbResposta.revisao_mensagem; }
     let falhaGravarConversa=false;
     try{
       // REPARO AVULSO — CHAVES IGUAIS NO LOTE (05/set/2026, achado real em produção via log da

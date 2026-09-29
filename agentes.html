@@ -455,9 +455,9 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </div>
 </main>
 </div>
-<script src="assets/jump-core.js?v=8"></script>
+<script src="assets/jump-core.js?v=9"></script>
 <script src="assets/classificacao.js?v=7"></script>
-<script src="assets/onboarding.js?v=1"></script>
+<script src="assets/onboarding.js?v=2"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -579,6 +579,8 @@ function renderList(){
   // ONBOARDING EM ORDEM (assets/onboarding.js — mesma regra do servidor): só para conta de cliente.
   const _onbAtivo=(_cli.role||'usuario')==='usuario' && window.JUMP_ONB && !JUMP_ONB.estado(_cli.onboarding).concluido;
   const _etapaAtual=_onbAtivo?JUMP_ONB.estado(_cli.onboarding).etapaAtual:null;
+  // REVISÃO MENSAL (assets/onboarding.js): bolinha AMARELA no agente da vez da revisão do mês.
+  const _revAtual=(!_onbAtivo && window.JUMP_ONB)?JUMP_ONB.revisaoEstado(_cli.onboarding).atual:null;
   document.getElementById('ag-list').innerHTML=AGS.map(a=>{
     const ok=a.min<=nivel();
     const espera=_onbAtivo && !JUMP_ONB.agentePermitido(_cli.onboarding,a.id);
@@ -587,8 +589,8 @@ function renderList(){
       : (st.mem||q) ? [st.mem?st.mem+' memória'+(st.mem>1?'s':''):null, q].filter(Boolean).join(' · ')
       : a.r;
     return `<div class="ag-it${ok?'':' locked'}${espera?' espera':''}${AG===a.id?' on':''}" style="--ac:${a.nc||'168,85,247'};border-left:3px solid rgba(${a.nc||'168,85,247'},${AG===a.id?'.9':'.45'})" ${ok?`onclick="selecionar('${a.id}')"`:''}>
-      ${(ok&&a.id===_etapaAtual)?'<span class="ag-dot guia" title="Próximo passo do seu onboarding"></span>':((ok&&a.id===prox&&a.id!==AG)?'<span class="ag-dot"></span>':'')}<span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
-      <div style="min-width:0"><div class="ag-it-n">${a.n}${a.id===_etapaAtual?' · próximo passo':(espera?' · libera no onboarding':'')}</div><div class="ag-it-r">${linha}</div></div>
+      ${(ok&&a.id===_etapaAtual)?'<span class="ag-dot guia" title="Próximo passo do seu onboarding"></span>':((ok&&a.id===_revAtual)?'<span class="ag-dot" title="Atualização mensal pendente"></span>':((ok&&a.id===prox&&a.id!==AG)?'<span class="ag-dot"></span>':''))}<span class="ag-it-ico" style="background:rgba(${a.nc||'168,85,247'},.14);border:1px solid rgba(${a.nc||'168,85,247'},.4)">${a.ico}</span>
+      <div style="min-width:0"><div class="ag-it-n">${a.n}${a.id===_etapaAtual?' · próximo passo':(a.id===_revAtual?' · atualização mensal pendente':(espera?' · libera no onboarding':''))}</div><div class="ag-it-r">${linha}</div></div>
       ${ok?'':'<span class="ag-lock">🔒 '+(a.min===2?'Plus':'Pro')+'</span>'}
     </div>`;
   }).join('');
