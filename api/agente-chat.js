@@ -123,6 +123,8 @@ const { garantirCardAprovarSemana } = require('./_semana-lib.js');
 // FRONTEIRA ENTRE AGENTES EM CÓDIGO (29/set/2026) — dono de cada memória/tag + fiscal de escopo.
 // Ver o cabeçalho de api/_escopo-lib.js para o caso que abriu a rodada.
 const ESC = require('./_escopo-lib.js');
+// Economia de tokens: limpeza do texto visível (negrito, separadores, linhas em branco, emojis extras).
+const { limparTextoVisivel } = require('./_texto-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -1897,7 +1899,9 @@ const handler = async (req, res) => {
     // Histórico recente
     let hist=await sbGet(`chat_mensagens?user_id=eq.${targetId}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
     if(!Array.isArray(hist))hist=[];
-    const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.conteudo}));
+    // Histórico do agente passa pela MESMA limpeza da gravação (api/_texto-lib.js): conversas antigas,
+    // gravadas antes dela, também deixam de reenviar negrito/separadores/linhas vazias a cada turno.
+    const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.role==='user'?m.conteudo:limparTextoVisivel(m.conteudo,agente)}));
 
     // VISÃO — bloco compartilhado (extraído em 15/set/2026, "Gerar copy com IA": existia só
     // dentro do gatilho do Identidade abaixo; agora dois gatilhos usam a MESMA função de
@@ -2302,7 +2306,11 @@ const handler = async (req, res) => {
     // Não existe exceção por papel (cliente/admin/"ver como") — ver api/_escopo-lib.js.
     const _fiscalAtivo=!_intOk && !forcarDirecaoAvulsa;
     const _ultimaDoAgente=(()=>{ for(let i=messages.length-2;i>=0;i--){ if(messages[i].role==='assistant'&&typeof messages[i].content==='string') return messages[i].content; } return ''; })();
-    const _promessaPedido=_fiscalAtivo ? ESC.julgarPedido({agente,pedido:mensagem,ultimaDoAgente:_ultimaDoAgente}) : null;
+    // Mensagem curta ("sim", "pode", "ok", uma escolha) é sempre continuação da conversa — a própria
+    // regra do fiscal manda classificar assim; não gasta uma chamada para confirmar o óbvio. O fiscal
+    // da resposta (camada 2) continua valendo para ela.
+    const _pedidoCurto=String(mensagem).trim().split(/\s+/).length<=3 && String(mensagem).trim().length<=25;
+    const _promessaPedido=(_fiscalAtivo && !_pedidoCurto) ? ESC.julgarPedido({agente,pedido:mensagem,ultimaDoAgente:_ultimaDoAgente}) : null;
     const _maxTokensAgente=(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500));
 
     // Anthropic
@@ -3709,6 +3717,9 @@ const handler = async (req, res) => {
     // na própria linha (é exatamente ela que falhou em gravar), então só aparece agora — não
     // sobrevive a um recarregar. É o melhor possível dado que a gravação já falhou, e resolve o
     // pedido de "não pode sumir em silêncio": antes, essa falha não aparecia em lugar nenhum.
+    // Economia de tokens (api/_texto-lib.js): o texto gravado volta como entrada nos próximos 10
+    // turnos — grava e devolve já limpo. Tags já foram todas lidas acima; avisos do sistema à parte.
+    texto=limparTextoVisivel(texto,agente);
     let falhaGravarConversa=false;
     try{
       // REPARO AVULSO — CHAVES IGUAIS NO LOTE (05/set/2026, achado real em produção via log da
