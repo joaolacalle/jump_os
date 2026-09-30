@@ -1144,7 +1144,7 @@ async function reagendar(id){
     const c0=ITENS.find(x=>x.id===id);
     // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026): reagendar um post
     // EXPIRADO precisa tirá-lo do estado 'expirado' e zerar expirado_em (reseta a contagem de
-    // 30 dias até a exclusão automática — pedido explícito). Restaura o status de ANTES de
+    // 7 dias (antes 30) até a exclusão automática — pedido explícito). Restaura o status de ANTES de
     // expirar, gravado em meta.status_pre_expiracao pelo job de expiração (api/cron.js,
     // jobExpiracaoSemana) — nunca assume 'aguardando_aprovacao' às cegas.
     const patch={data_sugerida:d.toISOString(),data_agendada:null};

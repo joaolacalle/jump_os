@@ -135,10 +135,9 @@
   //   ela está perto de fechar (item 5, aviso obrigatório #2).
   // - DIAS_AVISO_ANTES_EXCLUSAO: quantos dias antes da exclusão automática o dashboard avisa (item
   //   5, aviso obrigatório #3).
-  var DIAS_AUTO_EXCLUSAO_EXPIRADO = 30;
-  // Reels/vídeo que dependia do vídeo do cliente e venceu sem ser postado sai do Aprovar em 7
-  // dias (30/set/2026, decisão do João), não em 30 — é material que o cliente não enviou.
-  var DIAS_AUTO_EXCLUSAO_EXPIRADO_VIDEO = 7;
+  // 30/set/2026, decisão do João: todo post vencido some do Aprovar 7 dias depois de expirar
+  // (antes eram 30).
+  var DIAS_AUTO_EXCLUSAO_EXPIRADO = 7;
   var DIAS_AVISO_SEMANA_FECHANDO = 2;
   var DIAS_AVISO_ANTES_EXCLUSAO = 5;
 
@@ -175,9 +174,9 @@
   function dependeDoCliente(conteudo) {
     return ehMaterialUsuario(conteudo) || !!materialDoUsuario(conteudo);
   }
-  // Dias entre expirar e ser excluído, por post: vídeo do cliente 7, o resto 30.
-  function diasAteExclusao(conteudo) {
-    return ehMaterialUsuario(conteudo) ? DIAS_AUTO_EXCLUSAO_EXPIRADO_VIDEO : DIAS_AUTO_EXCLUSAO_EXPIRADO;
+  // Dias entre expirar e ser excluído (um só prazo para todo post; função para quem já a usa).
+  function diasAteExclusao() {
+    return DIAS_AUTO_EXCLUSAO_EXPIRADO;
   }
 
   // CAPACIDADE DE PRODUÇÃO DO CLIENTE (30/set/2026, decisão do João) — quantos posts POR SEMANA
@@ -398,7 +397,6 @@
     STATUS_BAIXADO: STATUS_BAIXADO,
     STATUS_ATIVOS_CONTEUDO: STATUS_ATIVOS_CONTEUDO,
     DIAS_AUTO_EXCLUSAO_EXPIRADO: DIAS_AUTO_EXCLUSAO_EXPIRADO,
-    DIAS_AUTO_EXCLUSAO_EXPIRADO_VIDEO: DIAS_AUTO_EXCLUSAO_EXPIRADO_VIDEO,
     diasAteExclusao: diasAteExclusao,
     DIAS_AVISO_SEMANA_FECHANDO: DIAS_AVISO_SEMANA_FECHANDO,
     DIAS_AVISO_ANTES_EXCLUSAO: DIAS_AVISO_ANTES_EXCLUSAO,
