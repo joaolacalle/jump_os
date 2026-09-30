@@ -138,7 +138,14 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 .ag-dot.guia{background:#22c55e;animation:agpulse-g 1.4s ease-in-out infinite}
 @keyframes agpulse-g{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}50%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
 .ag-it.espera{opacity:.45}
-@media(prefers-reduced-motion:reduce){.ag-dot{animation:none}}
+/* GUIA DE CONVERSA (30/set/2026): botão acima da caixa de texto com a frase para falar com o
+   agente da vez — verde no onboarding, amarelo na revisão mensal (assets/onboarding.js). */
+.guia-passo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+.guia-ctx{font-family:var(--M);font-size:10.5px;color:var(--t3);letter-spacing:.3px}
+.guia-btn{border:1px solid rgba(34,197,94,.6);background:rgba(34,197,94,.13);color:var(--t1);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;animation:agpulse-g 1.6s ease-in-out infinite;text-align:left}
+.guia-btn.amarelo{border-color:rgba(240,181,63,.65);background:rgba(240,181,63,.13);animation:agpulse 1.6s ease-in-out infinite}
+.guia-btn:disabled{opacity:.5;cursor:default;animation:none}
+@media(prefers-reduced-motion:reduce){.ag-dot,.guia-btn{animation:none}}
 .chat-card{border-radius:22px;background:radial-gradient(120% 55% at 50% 0%,rgba(139,92,246,.08),transparent 55%),var(--card)}
 .empty-chat{justify-content:center;gap:6px}
 .ec-t{font-size:30px}
@@ -198,6 +205,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
         </div>
       </div>
       <div class="chat-in">
+        <div class="guia-passo" id="guia-passo" style="display:none"></div>
         <div class="chat-in-wrap">
           <textarea id="inp" rows="1" placeholder="Escreva sua mensagem..." disabled></textarea>
           <button class="send-btn" id="send" onclick="enviar()" disabled title="Enviar">➤</button>
@@ -457,7 +465,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </div>
 <script src="assets/jump-core.js?v=9"></script>
 <script src="assets/classificacao.js?v=7"></script>
-<script src="assets/onboarding.js?v=2"></script>
+<script src="assets/onboarding.js?v=3"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,AG=null,BUSY=false;
@@ -640,6 +648,7 @@ async function selecionar(id){
   }catch(e){}
   w.scrollTop=w.scrollHeight;
   document.getElementById('inp').focus();
+  renderGuia();
   // A3 removida (18/set/2026, "pedido avulso sempre passa pela Estratégia"): o botão manual de
   // gerar imagem no chat do Criativo (e a retomada de progresso 'conceito'/'preview' dele) não
   // existe mais — o Criativo nunca decide texto nem oferece botão, sempre delega pra Estratégia
@@ -659,6 +668,20 @@ async function selecionar(id){
   try{JUMPGUIA.init(CTX.viewId||CTX.user.id)}catch(e){}
 }
 function usarChip(el){document.getElementById('inp').value=el.textContent;enviar()}
+// GUIA DE CONVERSA (30/set/2026, assets/onboarding.js): mostra, acima da caixa de texto, a frase
+// que leva o agente da vez a conduzir a etapa (verde) ou a revisão do mês (amarelo). Some sozinho
+// quando a etapa/revisão fecha — o estado vem do servidor a cada resposta (renderGuia é chamada
+// junto com renderList). Nunca envia nada sem o clique do cliente.
+function renderGuia(){
+  const el=document.getElementById('guia-passo'); if(!el)return;
+  const _cli=(CTX&&(CTX.viewCliente||CTX.cliente))||{};
+  const g=(AG&&window.JUMP_ONB&&(_cli.role||'usuario')==='usuario')?JUMP_ONB.guiaDoAgente(_cli.onboarding,AG):null;
+  if(!g){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  el.innerHTML='<span class="guia-ctx">'+g.contexto+'</span><button class="guia-btn'+(g.cor==='amarelo'?' amarelo':'')+'" type="button" onclick="usarGuia(this)"></button>';
+  el.querySelector('.guia-btn').textContent=g.frase;
+}
+function usarGuia(btn){ if(BUSY)return; btn.disabled=true; enviarTexto(btn.textContent); }
 
 async function logChat(role,texto,agente){
   try{
@@ -1865,7 +1888,7 @@ async function enviarTexto(txt){
       // esmaecidos) se redesenha com ele; nunca com uma cópia antiga guardada na tela.
       if(d.onboarding&&d.onboarding.estado){
         const _c=CTX.viewCliente||CTX.cliente; if(_c){_c.onboarding=d.onboarding.estado;}
-        renderList();
+        renderList(); renderGuia();
         if(d.onboarding.oferecer_tema)mostrarRetornoFicha();
       }
       // GUIA: dicas de primeira vez em cada processo
@@ -1908,6 +1931,7 @@ async function enviarTexto(txt){
     addMsg('a','⚠️ '+e.message);
   }
   BUSY=false;document.getElementById('send').disabled=false;inp.focus();
+  renderGuia(); // reabilita o botão do guia (ou o esconde, se a etapa fechou nesta resposta)
 }
 // pendKey/savePend/loadPend/mostrarBotaoImagem/gerarImagem/renderPreview/aceitarImg/recusarImg
 // REMOVIDAS (18/set/2026, "pedido avulso sempre passa pela Estratégia" — autorizado pelo João):

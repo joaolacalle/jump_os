@@ -181,6 +181,36 @@
     return txt + ' Próximo passo da revisão: abra o ' + NOME[res.proximoAgente] + ' (bolinha amarela na lista de agentes).';
   }
 
-  return { ORDEM: ORDEM, NOME: NOME, CHAVES_ETAPA: CHAVES_ETAPA, estado: estado, agentePermitido: agentePermitido, mensagemBloqueio: mensagemBloqueio, etapaFechou: etapaFechou, marcarEtapa: marcarEtapa, mensagemEtapaConcluida: mensagemEtapaConcluida,
+  // ── GUIA DE CONVERSA (30/set/2026, pedido do João): o botão acima da caixa de texto diz ao
+  // cliente o que falar com o agente da vez. Verde = etapa do onboarding; amarelo = revisão do
+  // mês. Um clique envia a frase e o agente conduz dali. Frases aqui, junto da ordem das etapas,
+  // para texto e regra nunca se desencontrarem.
+  const GUIA_ETAPA = {
+    identidade: { contexto: 'o DNA da sua marca', frase: 'Quero fazer meu check-in' },
+    mercado: { contexto: 'quem disputa atenção com você', frase: 'Quero analisar meus concorrentes e as oportunidades do meu nicho' },
+    diagnostico: { contexto: 'o que funciona e o que trava no seu perfil', frase: 'Quero o diagnóstico do meu Instagram' },
+    estrategia: { contexto: 'seu plano de conteúdo', frase: 'Quero criar minha estratégia de conteúdo' },
+  };
+  const GUIA_REVISAO = {
+    diagnostico: 'Vamos fazer a atualização mensal do meu diagnóstico',
+    identidade: 'Vamos fazer a atualização mensal da minha marca',
+    mercado: 'Vamos fazer a atualização mensal do meu mercado',
+  };
+  // {cor:'verde'|'amarelo', contexto, frase} para o agente aberto, ou null (sem botão).
+  function guiaDoAgente(onb, agente) {
+    const st = estado(onb);
+    if (!st.concluido) {
+      if (agente !== st.etapaAtual || !GUIA_ETAPA[agente]) return null;
+      const pos = ORDEM.indexOf(agente) + 1;
+      return { cor: 'verde', contexto: 'Etapa ' + pos + ' de 4 · ' + GUIA_ETAPA[agente].contexto, frase: GUIA_ETAPA[agente].frase };
+    }
+    const rv = revisaoEstado(onb);
+    if (rv.atual === agente && GUIA_REVISAO[agente]) {
+      return { cor: 'amarelo', contexto: 'Atualização mensal · ' + (AGENTES_REVISAO.indexOf(agente) + 1) + ' de ' + AGENTES_REVISAO.length, frase: GUIA_REVISAO[agente] };
+    }
+    return null;
+  }
+
+  return { ORDEM: ORDEM, NOME: NOME, GUIA_ETAPA: GUIA_ETAPA, GUIA_REVISAO: GUIA_REVISAO, guiaDoAgente: guiaDoAgente, CHAVES_ETAPA: CHAVES_ETAPA, estado: estado, agentePermitido: agentePermitido, mensagemBloqueio: mensagemBloqueio, etapaFechou: etapaFechou, marcarEtapa: marcarEtapa, mensagemEtapaConcluida: mensagemEtapaConcluida,
     AGENTES_REVISAO: AGENTES_REVISAO, chaveRevisao: chaveRevisao, primeiraRevisao: primeiraRevisao, proximaRevisao: proximaRevisao, revisaoEstado: revisaoEstado, abrirRevisaoSeVenceu: abrirRevisaoSeVenceu, marcarRevisao: marcarRevisao, mensagemRevisao: mensagemRevisao };
 });
