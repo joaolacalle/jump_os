@@ -2232,7 +2232,7 @@ const handler = async (req, res) => {
                  medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
                  pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
       cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (dado pronto, NUNCA calcule nem estime) ═══'+
-        (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva de 20% pra avulso/recriação já descontada — não recalcule, não desconte de novo). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
+        (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva para pedidos avulsos já descontada — não recalcule, não desconte de novo; recriação tem cota própria e não sai daqui). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
         ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
         '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
         (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
@@ -3154,13 +3154,28 @@ const handler = async (req, res) => {
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
         // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
-        // EQUILÍBRIO VISUAL TRAVADO (30/set/2026, pedido do João — api/_equilibrio-lib.js): antes de
-        // contar cota e gravar, o lote do PLANO que vira arte (não avulso, não Reels/vídeo) passa
+        if(agente==='estrategia'){
+          const tetoPlano=JC.tetoImagensPlano(cli);
+          let acumuladoCota=0;
+          for(let i=0;i<conteudos.length;i++){
+            const ct=conteudos[i];
+            if(ct.avulso||JC.ehMaterialUsuario(ct))continue;
+            let n=1; try{ n=cardinalidade(ct); }catch(e){ n=1; }
+            if(acumuladoCota+n>tetoPlano){
+              invalidos.push(String(ct.tema||'peça')+': ultrapassa a cota de imagens do plano ('+tetoPlano+' disponíveis; '+JC.reservaImagens((cli.limites||{}).imagens)+' ficam reservadas aos seus pedidos avulsos do mês)');
+              conteudos.splice(i,1); i--; continue;
+            }
+            acumuladoCota+=n;
+          }
+        }
+        // EQUILÍBRIO VISUAL TRAVADO (30/set/2026, pedido do João — api/_equilibrio-lib.js): depois do
+        // corte da cota (o resumo mostrado bate com o que é gravado) e antes de gravar, o lote do
+        // PLANO que vira arte (não avulso, não Reels/vídeo, não anúncio, não ordem automática) passa
         // pelas regras em código: sem acervo não promete foto; foto do cliente até 40%; nenhum tipo
         // acima da metade. O que passar é ajustado (espalhando no calendário) e o cliente é avisado
         // com o resultado — nunca em silêncio.
         if(agente==='estrategia'){
-          const _lotePlano=conteudos.filter(ct=>!ct.avulso&&!JC.ehMaterialUsuario(ct));
+          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.ehMaterialUsuario(ct)&&ct.finalidade!=='anuncio');
           if(_lotePlano.length){
             let _ac={pessoais:0,produtos:0};
             try{
@@ -3172,20 +3187,6 @@ const handler = async (req, res) => {
               console.error('[equilibrio] '+_aj.length+' post(s) ajustado(s) — user='+targetId+' '+_aj.map(a=>a.de+'→'+a.para).join(','));
               avisoEquilibrio='Equilíbrio visual do plano: ajustei '+_aj.length+' post(s) para manter a variação (sua foto em até 40% dos posts, nenhum tipo de arte acima da metade). Ficou assim: '+EQ.resumoMix(_lotePlano)+'.';
             }
-          }
-        }
-        if(agente==='estrategia'){
-          const tetoPlano=JC.tetoImagensPlano(cli);
-          let acumuladoCota=0;
-          for(let i=0;i<conteudos.length;i++){
-            const ct=conteudos[i];
-            if(ct.avulso||JC.ehMaterialUsuario(ct))continue;
-            let n=1; try{ n=cardinalidade(ct); }catch(e){ n=1; }
-            if(acumuladoCota+n>tetoPlano){
-              invalidos.push(String(ct.tema||'peça')+': ultrapassa os 80% da cota de imagens reservada ao plano ('+tetoPlano+' disponíveis; 20% fica reservado a recriações/avulsos do mês)');
-              conteudos.splice(i,1); i--; continue;
-            }
-            acumuladoCota+=n;
           }
         }
         const rs=await Promise.all(conteudos.map(ct=>fetch(`${SUPABASE_URL}/rest/v1/conteudos`,{

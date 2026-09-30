@@ -1425,14 +1425,15 @@ module.exports = async (req, res) => {
     // última hora do humano. Sem isto o robô gerava as 10 artes do plano e, quando o dono
     // pedia um post urgente, não sobrava imagem — foi exatamente o que aconteceu.
     // Validado no SERVIDOR: o front não burla mandando origem:'expressa'.
-    const TETO_LOTE = 0.8;
+    // Reserva: regra única em assets/classificacao.js:reservaImagens (30/set/2026) — a mesma que
+    // o planejamento da Estratégia usa; antes esta trava fazia a própria conta (80% do total).
     // PISO: abaixo de 5 imagens/mês não existe 80/20 — floor(1*0.8)=0 e o lote nasceria MORTO
     // (o trial básico tem cota 1: o cliente clicaria "Gerar as artes" e levaria 403 antes da
     // primeira arte). Com cota pequena não há o que repartir: a fila por prioridade já protege
     // o humano, que passa na frente do robô de qualquer forma.
     const RESERVA_MIN = 5;
     if (!reload && String(origem || '') === 'lote' && lim.imagens != null && Number(lim.imagens) >= RESERVA_MIN) {
-      const teto = Math.floor(Number(lim.imagens) * TETO_LOTE);
+      const teto = Number(lim.imagens) - JC.reservaImagens(lim.imagens);
       if (Number(uso.imagens || 0) >= teto) {
         return res.status(403).json({
           error: `A fila automática já usou as ${teto} imagens reservadas ao plano (de ${lim.imagens}). O resto fica guardado para os seus pedidos de última hora.`,
