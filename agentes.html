@@ -632,6 +632,7 @@ async function selecionar(id){
   try{
     const{data}=await JUMP.sb.from('chat_mensagens').select('role,conteudo,avisos,created_at').eq('user_id',CTX.viewId||CTX.user.id).eq('agente',id).order('created_at',{ascending:false}).limit(60);
     if(data&&data.length){
+      marcarGuiaUsada(id,data);
       // vem do banco em ordem decrescente (60 mais RECENTES); exibe em ordem cronológica.
       // REPARO AVULSO (03/set/2026): 'avisos' é o mesmo texto que apareceu na hora, anexado
       // aqui só pra exibição — nunca vai junto no que alimenta o modelo (isso lê só 'conteudo',
@@ -672,16 +673,39 @@ function usarChip(el){document.getElementById('inp').value=el.textContent;enviar
 // que leva o agente da vez a conduzir a etapa (verde) ou a revisão do mês (amarelo). Some sozinho
 // quando a etapa/revisão fecha — o estado vem do servidor a cada resposta (renderGuia é chamada
 // junto com renderList). Nunca envia nada sem o clique do cliente.
+// O botão é só o PONTO DE PARTIDA: depois que a frase foi enviada (clique ou digitada, nesta etapa
+// ou nesta revisão), ele sai e fica só a linha de contexto "em andamento" até a etapa fechar
+// (30/set/2026 — antes ele continuava piscando durante toda a conversa). GUIA_USADA[agente] vem do
+// histórico carregado ao abrir o agente (marcarGuiaUsada) e do próprio clique.
+const GUIA_USADA={};
+function _guiaAtual(){
+  const _cli=(CTX&&(CTX.viewCliente||CTX.cliente))||{};
+  return (AG&&window.JUMP_ONB&&(_cli.role||'usuario')==='usuario')?JUMP_ONB.guiaDoAgente(_cli.onboarding,AG):null;
+}
+function marcarGuiaUsada(id,msgs){
+  try{
+    const _cli=(CTX&&(CTX.viewCliente||CTX.cliente))||{};
+    const g=window.JUMP_ONB?JUMP_ONB.guiaDoAgente(_cli.onboarding,id):null; if(!g)return;
+    // revisão: só conta o que foi dito neste ciclo (a frase do mês passado não vale)
+    const rv=JUMP_ONB.revisaoEstado(_cli.onboarding);
+    const desde=(g.cor==='amarelo'&&rv.aberta&&rv.aberta.aberta_em)?new Date(rv.aberta.aberta_em+'T00:00:00-03:00').getTime():0;
+    GUIA_USADA[id]=(msgs||[]).some(m=>m.role==='user'&&String(m.conteudo||'').trim()===g.frase&&new Date(m.created_at||0).getTime()>=desde);
+  }catch(e){}
+}
 function renderGuia(){
   const el=document.getElementById('guia-passo'); if(!el)return;
-  const _cli=(CTX&&(CTX.viewCliente||CTX.cliente))||{};
-  const g=(AG&&window.JUMP_ONB&&(_cli.role||'usuario')==='usuario')?JUMP_ONB.guiaDoAgente(_cli.onboarding,AG):null;
+  const g=_guiaAtual();
   if(!g){el.style.display='none';el.innerHTML='';return;}
   el.style.display='flex';
+  if(GUIA_USADA[AG]){
+    el.innerHTML='<span class="guia-ctx"></span>';
+    el.querySelector('.guia-ctx').textContent=g.contexto+' · em andamento: siga as perguntas do agente';
+    return;
+  }
   el.innerHTML='<span class="guia-ctx">'+g.contexto+'</span><button class="guia-btn'+(g.cor==='amarelo'?' amarelo':'')+'" type="button" onclick="usarGuia(this)"></button>';
   el.querySelector('.guia-btn').textContent=g.frase;
 }
-function usarGuia(btn){ if(BUSY)return; btn.disabled=true; enviarTexto(btn.textContent); }
+function usarGuia(btn){ if(BUSY)return; GUIA_USADA[AG]=true; renderGuia(); enviarTexto(btn.textContent); }
 
 async function logChat(role,texto,agente){
   try{
