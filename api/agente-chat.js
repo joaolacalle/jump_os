@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-acervo-ligado-ao-post-o-que-fornece';
+const VERSAO = '2026.09.30-visitas-presenciais';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1555,6 +1555,7 @@ const handler = async (req, res) => {
         acervo_nao_usado_no_contexto_da_estrategia:true,
         arquivo_id_validado_e_ligado_ao_post_sem_pedir_ao_cliente:true,
         o_que_fornece_e_renovacao_sincronizados_em_capacidade_producao:true,
+        visitas_presenciais_como_dado_de_analise_estrategia_e_diagnostico:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -1910,6 +1911,27 @@ const handler = async (req, res) => {
           acervoTxt='\nVÍDEOS: nenhum vídeo cru enviado ainda. Peça ao cliente para enviar a captação bruta em "Meus arquivos" (categoria Vídeos) para você editar.';
         }
       }catch(e){}
+    }
+
+    // VISITAS PRESENCIAIS (30/set/2026, visitas.html): o que o supervisor registrou nas 2 últimas
+    // visitas entra como DADO DE ANÁLISE para Estratégia e Diagnóstico — nunca regra, e as ideias
+    // de conteúdo anotadas são sugestões, não posts obrigatórios. Sem visita: nada muda.
+    if(agente==='estrategia'||agente==='diagnostico'){
+      try{
+        const vs=await sbGet(`visitas?cliente_id=eq.${targetId}&select=data,status,dados&order=data.desc&limit=2`);
+        const lista=Array.isArray(vs)?vs:[];
+        if(lista.length){
+          const c=(x,n)=>String(x||'').replace(/\s+/g,' ').trim().slice(0,n);
+          const ROT={mudancas:'mudou',vendendo:'vende bem',precisa_vender:'precisa vender mais',objecoes:'objeções',oportunidades:'oportunidades/datas',instagram:'instagram (visão do supervisor)',anuncios:'anúncios/leads',diagnostico:'diagnóstico do supervisor',prioridade_proxima:'prioridade'};
+          acervoTxt+='\nVISITAS PRESENCIAIS DO SUPERVISOR (dado real do negócio para ANÁLISE — não é regra nem ordem; use se fizer sentido):'
+            +lista.map(v=>{
+              const d=v.dados||{};
+              const campos=Object.keys(ROT).filter(k=>c(d[k],1)).map(k=>ROT[k]+': '+c(d[k],220)).join(' | ');
+              const ideias=(Array.isArray(d.conteudos)?d.conteudos:[]).filter(x=>x&&(x.tema||x.gancho)).slice(0,4).map(x=>c(x.formato,20)+' "'+c(x.tema||x.gancho,90)+'"').join('; ');
+              return '\n- '+String(v.data||'').slice(0,10)+': '+(campos||'sem anotações')+(ideias&&agente==='estrategia'?' | ideias anotadas (sugestão, opcional): '+ideias:'');
+            }).join('');
+        }
+      }catch(e){ console.error('[visitas] leitura falhou — seguindo sem elas. user='+targetId+' '+(e&&e.message)); }
     }
 
     // MEMÓRIAS deste turno: a FATIA do agente, calculada acima (fatiaAtual) — nunca mais
