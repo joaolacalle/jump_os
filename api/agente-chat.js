@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-capacidade-material-do-usuario-ciclo';
+const VERSAO = '2026.09.30-acervo-ligado-ao-post-o-que-fornece';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1549,6 +1549,12 @@ const handler = async (req, res) => {
         capacidade_producao_niveis_1_4_limite_semanal_em_codigo:true,
         material_do_usuario_foto_e_video_fonte_unica:true,
         lembrete_ciclo_alinhado_ao_horizonte_real_diario:true,
+        // Entrega 3 (30/set/2026): onboarding pergunta o que o cliente fornece e a frequência de
+        // novidade; Estratégia vê arquivos ainda não usados e liga um por post (meta.arquivo_id +
+        // material_url) — a Engine já lê material_url, nenhuma alteração nela.
+        acervo_nao_usado_no_contexto_da_estrategia:true,
+        arquivo_id_validado_e_ligado_ao_post_sem_pedir_ao_cliente:true,
+        o_que_fornece_e_renovacao_sincronizados_em_capacidade_producao:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -1870,6 +1876,24 @@ const handler = async (req, res) => {
           if(!temP||!temProd){
             acervoTxt+=`\n(Se o cliente disser que NÃO tem/NÃO quer usar rosto ou produto, registre <memoria>{"chave":"acervo_sem_${!temP?'persona':'produto'}","valor":"confirmado pelo cliente"}</memoria> para os próximos planejamentos.)`;
           }
+          // ARQUIVOS DO ACERVO AINDA NÃO USADOS (30/set/2026, "Participação do usuário", entrega 3):
+          // antes a Estratégia só recebia CONTAGENS do acervo — não sabia que chegaram looks novos e
+          // não planejava posts sobre eles; o Engine usava os arquivos mais recentes sem direção.
+          // Agora recebe a lista (mais recentes primeiro = prioridade) do que ainda não foi ligado a
+          // nenhum post, e pode ligar um arquivo a um post ("arquivo_id" na tag <conteudo>,
+          // validado em código ao gravar). "Usado" = algum conteúdo não excluído com meta.arquivo_id.
+          try{
+            const _upsN=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(produtos,pessoais)&select=id,nome,categoria,created_at&order=created_at.desc&limit=40`);
+            const _usadosN=await sbGet(`conteudos?user_id=eq.${targetId}&status=neq.excluido&meta->>arquivo_id=not.is.null&select=arquivo_id:meta->>arquivo_id&limit=1000`);
+            const _setUsados=new Set((Array.isArray(_usadosN)?_usadosN:[]).map(x=>x&&x.arquivo_id).filter(Boolean));
+            const _novos=(Array.isArray(_upsN)?_upsN:[]).filter(u=>u&&u.id&&!_setUsados.has(u.id)).slice(0,20);
+            const _renov=((cli.preferencias||{}).capacidade_producao||{}).renovacao||'';
+            acervoTxt+='\nARQUIVOS DO ACERVO AINDA NÃO USADOS EM NENHUM POST (dado real; mais recentes primeiro = prioridade):'
+              +(_novos.length
+                ? _novos.map(u=>'\n- arquivo_id='+u.id+' · '+(u.categoria==='produtos'?'produto':'foto do cliente')+' · "'+String(u.nome||'arquivo').slice(0,60)+'" · enviado em '+String(u.created_at||'').slice(0,10)).join('')
+                  +'\nPara um post sobre um desses arquivos (ex.: lançamento de um look novo), inclua na tag <conteudo> "arquivo_id":"<id da lista>" — um arquivo por post, sem repetir no mesmo plano. O Designer usa exatamente essa foto. Não pedir ao cliente o que já está aqui.'
+                : '\n- nenhum arquivo novo: os posts automáticos reaproveitam o acervo existente.'+(_renov==='semanal'||_renov==='quinzenal'?' O cliente disse que entra produto novo com frequência ('+_renov+') — pode lembrá-lo em 1 frase de subir os novos em Meus Arquivos → Produtos.':''));
+          }catch(e){ console.error('[acervo-novos] leitura falhou — seguindo só com as contagens. user='+targetId+' '+(e&&e.message)); }
         }
       }catch(e){}
     }
@@ -2254,8 +2278,10 @@ const handler = async (req, res) => {
         (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva para pedidos avulsos já descontada — não recalcule, não desconte de novo; recriação tem cota própria e não sai daqui). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
         ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
         '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
-        (_capTxt?('\nCAPACIDADE DE PRODUÇÃO DO CLIENTE (atualizada em '+String(_cap.atualizado_em||'').slice(0,10)+'): '+_capTxt+(_capVelha?' ESTE DADO TEM MAIS DE 30 DIAS: antes de montar o plano do novo ciclo, confirme com o cliente em 1 pergunta se continua igual e registre de novo (mesma tag abaixo).':'')):'\nCAPACIDADE DE PRODUÇÃO: ainda não definida — ANTES de planejar, PERGUNTE ao cliente, em 1 pergunta simples, quanto ele consegue produzir (fotos ou vídeos dele): 1) não produz; 2) 1 conteúdo por semana; 3) 2 a 3 por semana; 4) mais de 5 por semana.')+
-        '\nAo saber a capacidade, registre <memoria>{"chave":"capacidade_producao","valor":"1|2|3|4"}</memoria>. O sistema aplica o limite por semana em código: o que passar vira post automático.'+
+        (_capTxt?('\nCAPACIDADE DE PRODUÇÃO DO CLIENTE (atualizada em '+String(_cap.atualizado_em||'').slice(0,10)+'): '+_capTxt+(_capVelha?' ESTE DADO TEM MAIS DE 30 DIAS: antes de montar o plano do novo ciclo, confirme com o cliente em 1 pergunta se continua igual e registre de novo (mesma tag abaixo).':'')):'\nCAPACIDADE DE PRODUÇÃO: ainda não definida — ANTES de planejar, PERGUNTE ao cliente, em linguagem simples e numa só mensagem: (a) quanto ele consegue produzir por semana (fotos ou vídeos dele): 1) não produz; 2) 1 por semana; 3) 2 a 3 por semana; 4) mais de 5 por semana; (b) o que ele consegue fornecer: fotos de produto novo, fotos dele, fotos de trabalhos realizados, vídeos; (c) com que frequência entra produto/novidade no negócio: toda semana, a cada 15 dias, todo mês ou raramente.')+
+        (_cap&&Array.isArray(_cap.tipos)&&_cap.tipos.length?('\nO QUE O CLIENTE FORNECE: '+_cap.tipos.join(', ')+'. Só peça material destes tipos — o sistema recusa pedido de outro tipo.'):'')+
+        (_cap&&_cap.renovacao?('\nNOVIDADE NO NEGÓCIO: '+_cap.renovacao+'.'):'')+
+        '\nAo saber, registre: <memoria>{"chave":"capacidade_producao","valor":"1|2|3|4"}</memoria> <memoria>{"chave":"materiais_fornece","valor":"foto_produto,foto_pessoa,trabalho,video (só os que ele fornece)"}</memoria> <memoria>{"chave":"renovacao_produto","valor":"semanal|quinzenal|mensal|raramente"}</memoria>. O sistema aplica os limites em código: o que passar vira post automático.'+
         '\nREGRA: posts que dependem do cliente (Reels/vídeo, ou foto marcada com "material") nunca passam da capacidade dele na semana. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
         '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
     }
@@ -3175,6 +3201,56 @@ const handler = async (req, res) => {
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
         // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
+        // ARQUIVO DO ACERVO LIGADO AO POST (30/set/2026, entrega 3): a Estratégia pode apontar um
+        // arquivo de Meus Arquivos (lista "AINDA NÃO USADOS" do contexto) para o post. Validado aqui:
+        // o arquivo tem que ser DESTE cliente e de produtos/fotos pessoais; senão o vínculo cai (log).
+        // Válido → meta.arquivo_id + meta.material_url (a MESMA entrada que o Engine já lê desde a
+        // entrega 2 — nenhuma mudança no Engine), tipo coerente com a pasta, e o post deixa de pedir
+        // material ao cliente (o arquivo já existe). Um arquivo por post dentro do mesmo plano.
+        if(agente==='estrategia'&&!_intOk){
+          const _pedidos=conteudos.filter(ct=>ct&&ct.arquivo_id).map(ct=>String(ct.arquivo_id));
+          let _arqMap={};
+          if(_pedidos.length){
+            try{
+              const _ids=[...new Set(_pedidos)].filter(x=>/^[0-9a-f-]{36}$/i.test(x));
+              if(_ids.length){
+                const _ups=await sbGet(`uploads?user_id=eq.${targetId}&id=in.(${_ids.join(',')})&categoria=in.(produtos,pessoais)&select=id,url,categoria`);
+                (Array.isArray(_ups)?_ups:[]).forEach(u=>{ _arqMap[u.id]=u; });
+              }
+            }catch(e){ console.error('[arquivo-post] validação falhou — vínculos descartados. user='+targetId+' '+(e&&e.message)); }
+          }
+          const _jaUsadoNoLote=new Set();
+          conteudos.forEach(ct=>{
+            if(!ct||!ct.arquivo_id)return;
+            const u=_arqMap[String(ct.arquivo_id)];
+            if(!u||_jaUsadoNoLote.has(u.id)){
+              console.error('[arquivo-post] vínculo descartado ('+(u?'repetido no plano':'arquivo inexistente ou de outra conta')+') — arquivo_id='+String(ct.arquivo_id).slice(0,40)+' user='+targetId);
+              delete ct.arquivo_id; return;
+            }
+            _jaUsadoNoLote.add(u.id);
+            ct._arquivo={id:u.id,url:u.url};
+            ct.tipo_visual=(u.categoria==='pessoais')?'pessoal':'produto';
+            if(JC.materialDoUsuario(ct)&&JC.materialDoUsuario(ct)!=='video'){ delete ct.material; delete ct.material_pedido; }
+          });
+          // O QUE O CLIENTE FORNECE (entrega 3): pedido de material de um tipo que ele não fornece
+          // vira post automático (não se pede o que ele disse que não tem).
+          const _tiposCli=(((cli.preferencias||{}).capacidade_producao||{}).tipos)||null;
+          if(Array.isArray(_tiposCli)&&_tiposCli.length){
+            conteudos.forEach(ct=>{
+              const _m=JC.materialDoUsuario(ct);
+              if(_m&&!_tiposCli.includes(_m)&&!JC.ehMaterialUsuario({formato:ct.formato})){
+                console.error('[capacidade] pedido de material "'+_m+'" fora do que o cliente fornece — post automático. user='+targetId);
+                delete ct.material; delete ct.material_pedido;
+              }
+              // Reels/vídeo só existem com o vídeo do cliente: se ele não fornece vídeo, vira feed
+              // com arte conceitual (mesma conversão do limite semanal).
+              if(!_tiposCli.includes('video')&&!ct.avulso&&JC.ehMaterialUsuario(ct)){
+                console.error('[capacidade] Reels/vídeo planejado mas o cliente não fornece vídeo — vira feed automático. user='+targetId);
+                delete ct.material; delete ct.material_pedido; ct.formato='feed'; ct.tipo_visual='conceitual'; delete ct.slides;
+              }
+            });
+          }
+        }
         // TIPO COERENTE COM A FOTO PEDIDA (30/set/2026, entrega 2): o Engine só usa a foto enviada pelo
         // cliente nos tipos que já trabalham com foto real — 'pessoal' (foto dele) e 'produto' (foto
         // do produto/trabalho). O post que pede foto nasce com o tipo certo, para a foto (se vier)
@@ -3225,7 +3301,7 @@ const handler = async (req, res) => {
         if(agente==='estrategia'){
           // fora também: post que depende de FOTO do cliente — o tipo dele vem do material pedido (ex.:
           // foto do produto = 'produto'), nunca trocado pelo equilíbrio.
-          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.dependeDoCliente(ct)&&ct.finalidade!=='anuncio');
+          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.dependeDoCliente(ct)&&!ct._arquivo&&ct.finalidade!=='anuncio');
           if(_lotePlano.length){
             let _ac={pessoais:0,produtos:0};
             try{
@@ -3257,7 +3333,9 @@ const handler = async (req, res) => {
             meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct),
               // material do cliente (30/set/2026): o que ele precisa enviar — lido por
               // assets/classificacao.js:ehMaterialUsuario e mostrado no card em Aprovar.
-              ...(JC.materialDoUsuario(ct)?{material:JC.materialDoUsuario(ct),material_pedido:String(ct.material_pedido||'').slice(0,240)}:{})}
+              ...(JC.materialDoUsuario(ct)?{material:JC.materialDoUsuario(ct),material_pedido:String(ct.material_pedido||'').slice(0,240)}:{}),
+              // arquivo do acervo ligado ao post (entrega 3) — o Engine usa material_url como a foto dele
+              ...(ct._arquivo?{arquivo_id:ct._arquivo.id,material_url:ct._arquivo.url}:{})}
           })
         }).catch(()=>null)));
         // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
@@ -3931,12 +4009,22 @@ const handler = async (req, res) => {
     {
       const _capMem=novas.find(m=>String(m.chave)==='capacidade_producao');
       const _nivel=_capMem?parseInt(String(_capMem.valor).replace(/[^0-9]/g,'').slice(0,1),10):NaN;
-      if(_capMem && JC.capacidadeSemanal(_nivel)!==null){
+      // "o que fornece" e "frequência de novidade" (entrega 3) — mesma gravação, mesmo objeto.
+      const _tiposMem=novas.find(m=>String(m.chave)==='materiais_fornece');
+      const _renovMem=novas.find(m=>String(m.chave)==='renovacao_produto');
+      const _tipos=_tiposMem?String(_tiposMem.valor).toLowerCase().split(/[^a-z_]+/).filter(t=>JC.MATERIAIS_USUARIO.includes(t)):null;
+      const _renov=_renovMem?(['semanal','quinzenal','mensal','raramente'].find(r=>String(_renovMem.valor).toLowerCase().includes(r))||null):null;
+      if((_capMem && JC.capacidadeSemanal(_nivel)!==null) || (_tipos&&_tipos.length) || _renov){
         // lê preferencias FRESCO do banco: outro ponto desta mesma resposta pode ter acabado de
         // gravar preferencias (ex.: estrategia_em, ao gravar o plano) — nunca sobrescrever com cópia antiga.
         let _prefBase=cli.preferencias||{};
         try{ const [_cF]=await sbGet(`clientes?id=eq.${targetId}&select=preferencias`); if(_cF&&_cF.preferencias&&typeof _cF.preferencias==='object')_prefBase=_cF.preferencias; }catch(e){}
-        const _prefCap={..._prefBase,capacidade_producao:{nivel:_nivel,atualizado_em:new Date().toISOString()}};
+        const _capAnt=(_prefBase.capacidade_producao&&typeof _prefBase.capacidade_producao==='object')?_prefBase.capacidade_producao:{};
+        const _capNova={..._capAnt,atualizado_em:new Date().toISOString()};
+        if(JC.capacidadeSemanal(_nivel)!==null) _capNova.nivel=_nivel;
+        if(_tipos&&_tipos.length) _capNova.tipos=_tipos;
+        if(_renov) _capNova.renovacao=_renov;
+        const _prefCap={..._prefBase,capacidade_producao:_capNova};
         const _rCap=await sbPatch(`clientes?id=eq.${targetId}`,{preferencias:_prefCap});
         if(_rCap&&_rCap.ok) cli.preferencias=_prefCap;
         else console.error('[capacidade] falha ao gravar preferencias.capacidade_producao — user='+targetId);
