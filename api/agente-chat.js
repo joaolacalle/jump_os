@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.29-onboarding-revisao-mensal-trial';
+const VERSAO = '2026.09.30-capacidade-material-do-usuario-ciclo';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -542,6 +542,7 @@ Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em format
 DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Com "video", o post é o vídeo dele (não gasta arte do teto). Com foto, o post continua sendo ARTE do Designer (conta no teto) e a foto dele é o insumo da arte — nunca publicada crua. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
 Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
@@ -1540,6 +1541,14 @@ const handler = async (req, res) => {
         // exigir o check-in (assets/jump-core.js).
         revisao_mensal_diagnostico_identidade_mercado:true,
         trial_7_dias_no_cadastro_gate_sem_exigir_checkin:true,
+        // PARTICIPAÇÃO DO USUÁRIO — ENTREGA 1 (30/set/2026, autorizado pelo João): capacidade de
+        // produção (níveis 1-4, preferencias.capacidade_producao — corrige o perfil_video que nunca
+        // era lido), "material do usuário" estendido de vídeo para foto (meta.material, fonte única
+        // em assets/classificacao.js), limite semanal em código (api/_equilibrio-lib.js) e lembrete
+        // do ciclo alinhado ao horizonte real do plano (api/cron.js, diário).
+        capacidade_producao_niveis_1_4_limite_semanal_em_codigo:true,
+        material_do_usuario_foto_e_video_fonte_unica:true,
+        lembrete_ciclo_alinhado_ao_horizonte_real_diario:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -2227,16 +2236,27 @@ const handler = async (req, res) => {
       const limVid=Number((cli.limites||{}).videos||0);
       const usVid=Number((cli.uso||{}).videos||0);
       const restVid=Math.max(0,limVid-usVid);
-      const perfil=((cli.preferencias||{}).perfil_video)||'';
-      const REG={timido:'TÍMIDO — não grava vídeo. ZERO reels. Só feed/carrossel/story. Nunca sugira gravação.',
-                 medio:'MÉDIO — grava 1 a 2 vídeos por semana. No máximo 2 reels por semana.',
-                 pro:'PRO — grava 3 a 5 vídeos por semana. Até 5 reels por semana.'}[perfil];
+      // CAPACIDADE DE PRODUÇÃO (30/set/2026, "Participação do usuário no conteúdo"): substitui o
+      // antigo perfil de captação de vídeo (tímido/médio/pro), que era PERGUNTADO e gravado como
+      // memória mas lido de preferencias.perfil_video — campo que nada preenchia: a Estratégia
+      // perguntava de novo a cada plano e o limite nunca valia. Agora a resposta vira
+      // preferencias.capacidade_producao (sincronizada no fim deste arquivo) e o limite por semana
+      // é aplicado em código (api/_equilibrio-lib.js:limitarMaterialPorSemana). Atualização
+      // mensal: com mais de 30 dias, a Estratégia reconfirma antes de montar o plano do ciclo.
+      const _cap=(cli.preferencias||{}).capacidade_producao||null;
+      const _capNivel=_cap&&JC.capacidadeSemanal(_cap.nivel)!==null?Number(_cap.nivel):null;
+      const _capVelha=_capNivel&&(!_cap.atualizado_em||(Date.now()-new Date(_cap.atualizado_em).getTime())>30*864e5);
+      const _capTxt={1:'NÍVEL 1 — não produz conteúdo próprio. ZERO posts dependendo de material dele (nada de Reels nem fotos a enviar).',
+                     2:'NÍVEL 2 — produz 1 conteúdo por semana. No máximo 1 post por semana dependendo de material dele (foto ou vídeo).',
+                     3:'NÍVEL 3 — produz 2 a 3 conteúdos por semana. No máximo 3 posts por semana dependendo de material dele.',
+                     4:'NÍVEL 4 — produz mais de 5 conteúdos por semana. Pode depender de material dele em todos os posts da semana, se fizer sentido.'}[_capNivel];
       cotaTxt='\n\n═══ QUANTO VOCÊ PODE PLANEJAR (dado pronto, NUNCA calcule nem estime) ═══'+
         (limImg?('\nPEÇAS COM ARTE: usadas '+usImg+' de '+limImg+' no mês (soma TUDO — plano, avulsos e recriações; não é só este planejamento). Disso, até '+tetoImg+' peça(s) cabem AGORA neste plano (feed/carrossel/story — cada slide de carrossel conta 1; este número JÁ é o resultado do cálculo, com a reserva para pedidos avulsos já descontada — não recalcule, não desconte de novo; recriação tem cota própria e não sai daqui). Distribua ao longo do período, no máximo 1 post por dia, nunca amontoe.'):'\nPEÇAS COM ARTE: este plano não tem cota de imagens configurada — não planeje nenhuma peça com arte, só copy/roteiro.')+
         ('\nVÍDEOS/REELS (edição por IA): '+(limVid>0?('até '+restVid+' vídeo(s) neste plano. Respeite também o que o cliente consegue gravar (perfil abaixo).'):'este plano NÃO inclui edição de vídeo pela IA. Planeje reels só se o cliente grava e edita por conta; senão fique em feed/carrossel/story.'))+
         '\nANÚNCIOS: entram DENTRO do mesmo teto de peças com arte acima — não têm número à parte, não desconte duas vezes.'+
-        (REG?('\nPERFIL DE CAPTAÇÃO DE VÍDEO DO CLIENTE: '+REG):'\nPERFIL DE CAPTAÇÃO: ainda não definido — PERGUNTE ao cliente se ele é TÍMIDO (não grava), MÉDIO (1-2 vídeos/semana) ou PRO (3-5/semana) ANTES de planejar reels, e registre com <memoria>{"chave":"perfil_video","valor":"timido|medio|pro"}</memoria>.')+
-        '\nREGRA: reels/vídeo dependem do cliente gravar — respeite o perfil acima. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
+        (_capTxt?('\nCAPACIDADE DE PRODUÇÃO DO CLIENTE (atualizada em '+String(_cap.atualizado_em||'').slice(0,10)+'): '+_capTxt+(_capVelha?' ESTE DADO TEM MAIS DE 30 DIAS: antes de montar o plano do novo ciclo, confirme com o cliente em 1 pergunta se continua igual e registre de novo (mesma tag abaixo).':'')):'\nCAPACIDADE DE PRODUÇÃO: ainda não definida — ANTES de planejar, PERGUNTE ao cliente, em 1 pergunta simples, quanto ele consegue produzir (fotos ou vídeos dele): 1) não produz; 2) 1 conteúdo por semana; 3) 2 a 3 por semana; 4) mais de 5 por semana.')+
+        '\nAo saber a capacidade, registre <memoria>{"chave":"capacidade_producao","valor":"1|2|3|4"}</memoria>. O sistema aplica o limite por semana em código: o que passar vira post automático.'+
+        '\nREGRA: posts que dependem do cliente (Reels/vídeo, ou foto marcada com "material") nunca passam da capacidade dele na semana. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
         '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
     }
     // POSTURA DOS AGENTES — PARTE 2, "cota inventada" (15/set/2026, ver APRENDIZADOS.md): achado
@@ -2977,7 +2997,7 @@ const handler = async (req, res) => {
             if(matAqui.length){
               await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=in.(${matAqui.join(',')})`,{
                 method:'PATCH',headers:H(),body:JSON.stringify({status:JC.STATUS_AGUARDANDO_MATERIAL})
-              }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) aguardando o vídeo do cliente — envie em Aprovar.';})
+              }).then(r=>{if(r.ok)notaSemanal='📎 '+matAqui.length+' post(s) desta semana aguardando o seu material (foto ou vídeo) — envie pelo card em Aprovar.';})
                 .catch(e=>console.error('[ordem] criador semanal: marcar aguardando_material falhou:',e&&e.message));
             }
           }catch(e){ console.error('[ordem] criador semanal: aguardando_material falhou (exceção):', e && e.message); }
@@ -3107,6 +3127,7 @@ const handler = async (req, res) => {
     // ordem de aprovação (payload.ids) — mesmo padrão que a semanal já usa (ver idsW acima).
     let idsPorConteudo=[];
     let avisoEquilibrio=null;
+    let avisoCapacidade=null;
     if(conteudos.length){
       try{
         // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
@@ -3154,6 +3175,22 @@ const handler = async (req, res) => {
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
         // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
+        // CAPACIDADE DO CLIENTE POR SEMANA (30/set/2026, api/_equilibrio-lib.js): antes da cota e do
+        // equilíbrio, nenhuma semana do PLANO pode pedir mais material ao cliente do que a
+        // capacidade dele; o excesso vira automático e o cliente é avisado. Sem capacidade
+        // registrada ainda, não corta nada (a Estratégia pergunta antes, ver cotaTxt).
+        if(agente==='estrategia'&&!_intOk){
+          const _capCli=(cli.preferencias||{}).capacidade_producao;
+          const _capSem=_capCli?JC.capacidadeSemanal(_capCli.nivel):null;
+          if(_capSem!==null&&_capSem!==undefined){
+            const _semDe=ct=>JC.semanaDoPost(ct.data_sugerida,ancoraPlano,diaLoteCliente)||('h'+(JC.semanaDoPost(ct.data_sugerida,hojeISO,diaLoteCliente)||String(ct.data_sugerida||'').slice(0,10)));
+            const _ajCap=EQ.limitarMaterialPorSemana(conteudos.filter(ct=>!ct.avulso),_capSem,_semDe,c=>JC.dependeDoCliente(c));
+            if(_ajCap.length){
+              console.error('[capacidade] '+_ajCap.length+' post(s) viraram automáticos — nível '+_capCli.nivel+' user='+targetId);
+              avisoCapacidade='Capacidade de produção respeitada: '+_ajCap.length+' post(s) que dependeriam de material seu passaram a ser produzidos automaticamente, para não pedir mais do que você informou por semana.';
+            }
+          }
+        }
         if(agente==='estrategia'){
           const tetoPlano=JC.tetoImagensPlano(cli);
           let acumuladoCota=0;
@@ -3175,7 +3212,9 @@ const handler = async (req, res) => {
         // acima da metade. O que passar é ajustado (espalhando no calendário) e o cliente é avisado
         // com o resultado — nunca em silêncio.
         if(agente==='estrategia'){
-          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.ehMaterialUsuario(ct)&&ct.finalidade!=='anuncio');
+          // fora também: post que depende de FOTO do cliente — o tipo dele vem do material pedido (ex.:
+          // foto do produto = 'produto'), nunca trocado pelo equilíbrio.
+          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.dependeDoCliente(ct)&&ct.finalidade!=='anuncio');
           if(_lotePlano.length){
             let _ac={pessoais:0,produtos:0};
             try{
@@ -3204,7 +3243,10 @@ const handler = async (req, res) => {
             origem:ct.avulso?'avulso':'plano',
             roteiro:ct.roteiro||null,
             midia_url:ct.criativo_url||null,
-            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct)}
+            meta:{headline:ct.headline||'', subheadline:ct.subheadline||'', prova:ct.prova||'', cta_arte:ct.cta_arte||'', oferta:ct.oferta||'', pilar:ct.pilar||'', finalidade:(ct.finalidade==='anuncio'?'anuncio':'organico'), criativo_proprio:!!ct.criativo_url, total_slides:cardinalidade(ct),
+              // material do cliente (30/set/2026): o que ele precisa enviar — lido por
+              // assets/classificacao.js:ehMaterialUsuario e mostrado no card em Aprovar.
+              ...(JC.materialDoUsuario(ct)?{material:JC.materialDoUsuario(ct),material_pedido:String(ct.material_pedido||'').slice(0,240)}:{})}
           })
         }).catch(()=>null)));
         // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
@@ -3839,6 +3881,7 @@ const handler = async (req, res) => {
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
+    if(avisoCapacidade) avisosPartes.push(avisoCapacidade);
     if(avisoEquilibrio) avisosPartes.push(avisoEquilibrio);
     if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
     if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
@@ -3870,6 +3913,26 @@ const handler = async (req, res) => {
     // Economia de tokens (api/_texto-lib.js): o texto gravado volta como entrada nos próximos 10
     // turnos — grava e devolve já limpo. Tags já foram todas lidas acima; avisos do sistema à parte.
     texto=limparTextoVisivel(texto,agente);
+    // CAPACIDADE DE PRODUÇÃO → preferencias (30/set/2026): a resposta do cliente, registrada pela
+    // Estratégia como memória, vira o dado que o limite semanal lê
+    // (preferencias.capacidade_producao = {nivel, atualizado_em}). Sem isto a pergunta se
+    // repetia a cada plano (era o bug do antigo perfil_video). Falha ao gravar é registrada.
+    {
+      const _capMem=novas.find(m=>String(m.chave)==='capacidade_producao');
+      const _nivel=_capMem?parseInt(String(_capMem.valor).replace(/[^0-9]/g,'').slice(0,1),10):NaN;
+      if(_capMem && JC.capacidadeSemanal(_nivel)!==null){
+        // lê preferencias FRESCO do banco: outro ponto desta mesma resposta pode ter acabado de
+        // gravar preferencias (ex.: estrategia_em, ao gravar o plano) — nunca sobrescrever com cópia antiga.
+        let _prefBase=cli.preferencias||{};
+        try{ const [_cF]=await sbGet(`clientes?id=eq.${targetId}&select=preferencias`); if(_cF&&_cF.preferencias&&typeof _cF.preferencias==='object')_prefBase=_cF.preferencias; }catch(e){}
+        const _prefCap={..._prefBase,capacidade_producao:{nivel:_nivel,atualizado_em:new Date().toISOString()}};
+        const _rCap=await sbPatch(`clientes?id=eq.${targetId}`,{preferencias:_prefCap});
+        if(_rCap&&_rCap.ok) cli.preferencias=_prefCap;
+        else console.error('[capacidade] falha ao gravar preferencias.capacidade_producao — user='+targetId);
+      } else if(_capMem){
+        console.error('[capacidade] valor fora de 1-4 ignorado — "'+String(_capMem.valor).slice(0,40)+'" user='+targetId);
+      }
+    }
     // Mensagens do SISTEMA (fechamento de etapa / DNA incompleto) entram depois da limpeza, sem
     // passar por ela, e ficam gravadas na conversa como parte da resposta.
     if(avisoDnaIncompleto){ texto+='\n\n'+avisoDnaIncompleto; }

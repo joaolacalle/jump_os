@@ -150,8 +150,37 @@
   }
 
   // Aceita tanto um conteúdo ({formato:'reels', ...}) quanto uma string de formato direto.
+  // PARTICIPAÇÃO DO USUÁRIO (30/set/2026, autorizado pelo João) — DUAS perguntas diferentes, de
+  // propósito (a primeira versão juntava as duas e tirava post com FOTO do Engine 6.0 — regressão
+  // apontada pelo João e corrigida antes do merge):
+  //   ehMaterialUsuario(): o post É o arquivo do cliente — vídeo/Reels. Não vira arte do Designer
+  //     (sai da cota de imagens e da produção; o cliente envia o vídeo no card). Só vídeo.
+  //   dependeDoCliente(): o post PRECISA de algo do cliente (vídeo, ou uma foto que ele vai
+  //     enviar). Com FOTO, o post continua sendo arte do Engine 6.0 (Designer), com a foto do
+  //     cliente como INSUMO — nunca publicada crua. Esta é a pergunta que a capacidade semanal usa.
+  // A marca vem da Estratégia: `material` na tag <conteudo> (ct.material) ou gravada (meta.material).
+  var MATERIAIS_USUARIO = ['foto_produto', 'foto_pessoa', 'trabalho', 'video'];
+  function materialDoUsuario(conteudo) {
+    if (!conteudo || typeof conteudo !== 'object') return null;
+    var m = String(conteudo.material || (conteudo.meta && conteudo.meta.material) || '').toLowerCase();
+    return MATERIAIS_USUARIO.indexOf(m) >= 0 ? m : null;
+  }
   function ehMaterialUsuario(conteudoOuFormato) {
+    if (materialDoUsuario(conteudoOuFormato) === 'video') return true;
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_MATERIAL_USUARIO);
+  }
+  function dependeDoCliente(conteudo) {
+    return ehMaterialUsuario(conteudo) || !!materialDoUsuario(conteudo);
+  }
+
+  // CAPACIDADE DE PRODUÇÃO DO CLIENTE (30/set/2026, decisão do João) — quantos posts POR SEMANA
+  // podem depender de material dele. Nível 1: não produz; 2: 1 por semana; 3: 2 a 3 por semana
+  // (teto 3); 4: mais de 5 por semana (sem teto próprio — vale o número de posts da semana).
+  // Guardada em clientes.preferencias.capacidade_producao = {nivel, atualizado_em}.
+  var CAPACIDADE_SEMANAL = { 1: 0, 2: 1, 3: 3, 4: Infinity };
+  function capacidadeSemanal(nivel) {
+    var n = Number(nivel);
+    return Object.prototype.hasOwnProperty.call(CAPACIDADE_SEMANAL, n) ? CAPACIDADE_SEMANAL[n] : null;
   }
 
   function ehVertical(conteudoOuFormato) {
@@ -375,6 +404,10 @@
     horizonteDoPlano: horizonteDoPlano,
     hojeISOBrasil: hojeISOBrasil,
     tetoImagensPlano: tetoImagensPlano,
+    MATERIAIS_USUARIO: MATERIAIS_USUARIO,
+    materialDoUsuario: materialDoUsuario,
+    dependeDoCliente: dependeDoCliente,
+    capacidadeSemanal: capacidadeSemanal,
     reservaImagens: reservaImagens,
     resumoSemanasEstrategia: resumoSemanasEstrategia
   };

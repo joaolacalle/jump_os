@@ -285,8 +285,8 @@ textarea.edt{resize:vertical;line-height:1.5}
 <!-- MODAL MATERIAL DO USUÁRIO (Etapa 2, 26/ago/2026) -->
 <div class="modal-bg" id="modal-mat">
   <div class="modal">
-    <div class="modal-t">Aguardando seu vídeo</div>
-    <p style="font-size:13px;color:var(--t2);margin:-4px 0 16px;line-height:1.55">Este post já está pronto — falta só o arquivo. Envie o vídeo (ou imagem) gravado por você; depois disso ele se comporta como qualquer outro: revise, aprove e publique.</p>
+    <div class="modal-t">Aguardando seu material</div>
+    <p style="font-size:13px;color:var(--t2);margin:-4px 0 16px;line-height:1.55">Este post já está pronto — falta só o arquivo. Envie a foto ou o vídeo pedido abaixo; depois disso ele se comporta como qualquer outro: revise, aprove e publique.</p>
     <div id="mat-body"></div>
     <div class="f-group"><label class="f-label">Arquivo</label><input type="file" id="mat-file" accept="video/*,image/*"></div>
     <div class="modal-acts">
@@ -296,7 +296,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=9"></script>
-<script src="assets/classificacao.js?v=8"></script>
+<script src="assets/classificacao.js?v=9"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
@@ -829,6 +829,7 @@ function abrirMaterial(id){
   const dia=d?new Date(d).toLocaleDateString('pt-BR'):'sem data';
   const hora=d?String(d).slice(11,16):'';
   document.getElementById('mat-body').innerHTML=`
+    ${m.material_pedido?`<div class="f-group"><label class="f-label">O que enviar</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc(m.material_pedido)}</div></div>`:''}
     <div class="f-group"><label class="f-label">Formato</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc((c.formato||'').toUpperCase())}</div></div>
     <div class="f-group"><label class="f-label">Headline</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc(m.headline||c.tema||'—')}</div></div>
     <div class="f-group"><label class="f-label">Legenda</label><div style="font-size:13px;color:var(--t2);white-space:pre-wrap">${JUMP.esc(c.copy||'—')}</div></div>
@@ -917,7 +918,7 @@ function render(){
       <div class="ap-img" style="display:flex;align-items:center;justify-content:center;background:rgba(240,181,63,.08);font-size:30px">${tp.ico}</div>
       <div class="ap-body" style="padding:10px 12px">
         <div class="ap-t" style="font-size:13px">${JUMP.esc(c.tema||'Conteúdo')}</div>
-        <span class="ap-venc-tag">⏳ AGUARDANDO SEU VÍDEO</span>
+        <span class="ap-venc-tag">⏳ AGUARDANDO ${JUMP_CLASS.materialDoUsuario(c)&&JUMP_CLASS.materialDoUsuario(c)!=='video'?'SUA FOTO':'SEU VÍDEO'}</span>
         <div style="font-family:var(--M);font-size:10px;color:var(--t3);margin-top:4px">${JUMP.esc(dia)} · toque para enviar</div>
       </div>
     </div>`;
@@ -1266,7 +1267,7 @@ async function aprovar(id){
   try{
     const{data:cur}=await JUMP.sb.from('conteudos').select('status').eq('id',id).single();
     if(cur&&cur.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL){
-      JUMP.toast('Este post ainda espera o vídeo do cliente — envie o arquivo antes de aprovar.','err');
+      JUMP.toast('Este post ainda espera o seu material (foto ou vídeo) — envie o arquivo antes de aprovar.','err');
       return;
     }
   }catch(e){}

@@ -243,7 +243,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=9"></script>
-<script src="assets/classificacao.js?v=8"></script>
+<script src="assets/classificacao.js?v=9"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
@@ -616,7 +616,7 @@ async function aprovarConteudo(id,btn){
     const{data:cur}=await JUMP.sb.from('conteudos').select('status').eq('id',id).single();
     if(cur&&cur.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL){
       btn.disabled=false;btn.textContent='✓ Aprovar';
-      JUMP.toast('Este post ainda espera o vídeo do cliente.','err');
+      JUMP.toast('Este post ainda espera o seu material (foto ou vídeo).','err');
       return;
     }
     const{error}=await JUMP.sb.from('conteudos').update({status:'aprovado'}).eq('id',id);

@@ -96,4 +96,31 @@ function resumoMix(posts) {
   return (posts || []).length + ' post(s) com arte: ' + partes.join(', ');
 }
 
-module.exports = { equilibrarPlano, resumoMix, MAX_PESSOAL, MAX_TIPO, TIPOS };
+// ── CAPACIDADE DO CLIENTE POR SEMANA (30/set/2026, "Participação do usuário no conteúdo") ──
+// Nenhuma semana do plano pode pedir ao cliente mais material (fotos/vídeos dele) do que a
+// capacidade de produção que ele informou (assets/classificacao.js:capacidadeSemanal). O excesso
+// vira post AUTOMÁTICO (o sistema produz sozinho): post marcado com material perde a marca; Reels
+// ou vídeo — que só existem com o vídeo do cliente — vira post de feed com arte conceitual.
+// Dentro de cada semana, os primeiros (por data) continuam pedindo material; os seguintes viram
+// automáticos. Roda ANTES do equilíbrio visual, para os posts convertidos entrarem na variação.
+//   posts: array de <conteudo> (mutado). capSemana: número (Infinity = sem teto). semanaDe(ct): chave da semana.
+//   ehMaterial(ct): assets/classificacao.js:dependeDoCliente (vídeo OU foto pedida ao cliente).
+function limitarMaterialPorSemana(posts, capSemana, semanaDe, ehMaterial) {
+  const ajustes = [];
+  if (capSemana === Infinity || capSemana == null) return ajustes;
+  const porSemana = {};
+  (posts || []).filter(ct => ehMaterial(ct))
+    .sort((a, b) => String(a.data_sugerida || '').localeCompare(String(b.data_sugerida || '')))
+    .forEach(ct => { const k = String(semanaDe(ct)); (porSemana[k] = porSemana[k] || []).push(ct); });
+  Object.keys(porSemana).forEach(k => {
+    porSemana[k].slice(capSemana).forEach(ct => {
+      const antes = String(ct.formato || 'feed');
+      delete ct.material; delete ct.material_pedido;
+      if (ehMaterial(ct)) { ct.formato = 'feed'; ct.tipo_visual = 'conceitual'; delete ct.slides; }
+      ajustes.push({ tema: String(ct.tema || 'post').slice(0, 80), de: antes, para: String(ct.formato || 'feed') });
+    });
+  });
+  return ajustes;
+}
+
+module.exports = { equilibrarPlano, resumoMix, limitarMaterialPorSemana, MAX_PESSOAL, MAX_TIPO, TIPOS };
