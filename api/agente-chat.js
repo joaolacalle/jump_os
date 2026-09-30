@@ -127,6 +127,8 @@ const ESC = require('./_escopo-lib.js');
 const { limparTextoVisivel } = require('./_texto-lib.js');
 // Onboarding em ordem (identidade → mercado → diagnóstico → estratégia), conduzido pelo sistema.
 const ONB = require('../assets/onboarding.js');
+// Equilíbrio visual do plano (foto do cliente até 40%, nenhum tipo acima da metade) — em código.
+const EQ = require('./_equilibrio-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -1853,7 +1855,8 @@ const handler = async (req, res) => {
             +(temP?`\n• tem ${pess} foto(s) pessoal(is): pode usar "pessoal" em ATÉ 40% dos posts (é forte mas satura).`:`\n• SEM foto pessoal: NÃO use "pessoal" — não há foto do cliente. Se a cena pedir gente, use "pessoa_conceito" (pessoa genérica).`)
             +(temProd?`\n• tem ${prod} foto(s) de produto: use "produto" nos posts de oferta/vitrine/prova.`:`\n• SEM foto de produto: NÃO use "produto" — não há produto para mostrar.`)
             +((!temP&&!temProd)?`\n• ACERVO SEM PESSOA E SEM PRODUTO: o mês inteiro deve ser "conceitual" (dado/dica/lista/tese visual) e, quando a cena precisar de gente, "pessoa_conceito". NÃO prometa arte com o rosto do cliente nem com o produto — eles não existem no acervo.`:``)
-            +`\nAo emitir cada <conteudo>, o tipo_visual DEVE ser coerente com esta disponibilidade.`;
+            +`\nAo emitir cada <conteudo>, o tipo_visual DEVE ser coerente com esta disponibilidade.`
+            +`\nO sistema confere o plano ao gravar: foto do cliente em até 40% dos posts com arte e nenhum tipo acima da metade — o que passar é ajustado automaticamente. Planeje já dentro disso.`;
           // se percebeu que falta acervo, guarde na memória para o cálculo futuro
           if(!temP||!temProd){
             acervoTxt+=`\n(Se o cliente disser que NÃO tem/NÃO quer usar rosto ou produto, registre <memoria>{"chave":"acervo_sem_${!temP?'persona':'produto'}","valor":"confirmado pelo cliente"}</memoria> para os próximos planejamentos.)`;
@@ -3103,6 +3106,7 @@ const handler = async (req, res) => {
     // rodada, na ordem de `conteudos`. Usado mais abaixo pra vincular o plano mensal à sua
     // ordem de aprovação (payload.ids) — mesmo padrão que a semanal já usa (ver idsW acima).
     let idsPorConteudo=[];
+    let avisoEquilibrio=null;
     if(conteudos.length){
       try{
         // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
@@ -3150,6 +3154,26 @@ const handler = async (req, res) => {
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
         // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
+        // EQUILÍBRIO VISUAL TRAVADO (30/set/2026, pedido do João — api/_equilibrio-lib.js): antes de
+        // contar cota e gravar, o lote do PLANO que vira arte (não avulso, não Reels/vídeo) passa
+        // pelas regras em código: sem acervo não promete foto; foto do cliente até 40%; nenhum tipo
+        // acima da metade. O que passar é ajustado (espalhando no calendário) e o cliente é avisado
+        // com o resultado — nunca em silêncio.
+        if(agente==='estrategia'){
+          const _lotePlano=conteudos.filter(ct=>!ct.avulso&&!JC.ehMaterialUsuario(ct));
+          if(_lotePlano.length){
+            let _ac={pessoais:0,produtos:0};
+            try{
+              const _ups=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(pessoais,produtos)&select=categoria`);
+              (Array.isArray(_ups)?_ups:[]).forEach(u=>{ if(u.categoria==='pessoais')_ac.pessoais++; else if(u.categoria==='produtos')_ac.produtos++; });
+            }catch(e){ console.error('[equilibrio] leitura do acervo falhou — '+(e&&e.message)); }
+            const _aj=EQ.equilibrarPlano(_lotePlano,_ac);
+            if(_aj.length){
+              console.error('[equilibrio] '+_aj.length+' post(s) ajustado(s) — user='+targetId+' '+_aj.map(a=>a.de+'→'+a.para).join(','));
+              avisoEquilibrio='Equilíbrio visual do plano: ajustei '+_aj.length+' post(s) para manter a variação (sua foto em até 40% dos posts, nenhum tipo de arte acima da metade). Ficou assim: '+EQ.resumoMix(_lotePlano)+'.';
+            }
+          }
+        }
         if(agente==='estrategia'){
           const tetoPlano=JC.tetoImagensPlano(cli);
           let acumuladoCota=0;
@@ -3814,6 +3838,7 @@ const handler = async (req, res) => {
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
+    if(avisoEquilibrio) avisosPartes.push(avisoEquilibrio);
     if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
     if(avisoNadaRegistrado) avisosPartes.push('🔴 '+avisoNadaRegistrado);
     if(erroGravacao) avisosPartes.push('🔴 **Atenção: '+erroGravacao+'.** O plano acima NÃO foi salvo por completo. Avise o suporte com esta mensagem — não é preciso repetir o pedido.');
