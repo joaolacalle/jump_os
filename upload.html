@@ -37,7 +37,7 @@
 </div>
 <script src="assets/jump-core.js?v=9"></script>
 <script>
-let CTX=null,CAT='logo',FILES=[],ESCONDER_EXCLUIR=false;
+let CTX=null,CAT='logo',FILES=[],ESCONDER_EXCLUIR=false,USO={};
 const CFG={
   logo:{t:'Enviar logo',b:'PNG, JPG ou SVG · fundo transparente é ideal',accept:'image/*'},
   produtos:{t:'Enviar fotos de produtos',b:'Fotos reais — os agentes usam nos infográficos e artes',accept:'image/*'},
@@ -82,6 +82,12 @@ async function listar(){
     const{data}=await JUMP.sb.from('uploads').select('*').eq('user_id',CTX.viewId||CTX.user.id).order('created_at',{ascending:false});
     FILES=data||[];
   }catch(e){FILES=[]}
+  // Arquivos já ligados a um post pela Estratégia (meta.arquivo_id, entrega 3) — só leitura.
+  USO={};
+  try{
+    const{data:us}=await JUMP.sb.from('conteudos').select('tema,data_sugerida,arquivo_id:meta->>arquivo_id').eq('user_id',CTX.viewId||CTX.user.id).neq('status','excluido').not('meta->>arquivo_id','is',null).limit(1000);
+    (us||[]).forEach(u=>{if(u.arquivo_id&&!USO[u.arquivo_id])USO[u.arquivo_id]=u;});
+  }catch(e){}
   render();
 }
 async function baixarVidUp(url){if(!url)return;JUMP.toast('Baixando...');await JUMP.baixarArquivo(url,'video_jump.mp4');}
@@ -118,10 +124,22 @@ async function render(){
     </div>`;}).join('');
     return;
   }
-  const rows=FILES.filter(f=>f.categoria===CAT);
+  let rows=FILES.filter(f=>f.categoria===CAT);
+  // Produtos e fotos pessoais: mesma ordem que a Estratégia usa — ainda não usados primeiro (do
+  // mais novo ao mais antigo), depois os já usados em algum post.
+  const comUso=CAT==='produtos'||CAT==='pessoais';
+  if(comUso)rows=rows.filter(f=>!USO[f.id]).concat(rows.filter(f=>USO[f.id]));
+  const _selo=f=>{
+    if(!comUso)return'';
+    const u=USO[f.id];
+    const base='position:absolute;left:6px;bottom:6px;max-width:calc(100% - 12px);font-family:var(--M);font-size:9px;letter-spacing:.04em;padding:4px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    if(u){const d=u.data_sugerida?String(u.data_sugerida).slice(0,10).split('-').reverse().slice(0,2).join('/'):'';return `<div style="${base}background:rgba(0,0,0,.7);color:var(--t2)" title="Já usado no post: ${JUMP.esc(u.tema||'')}">USADO${d?' · '+d:''}</div>`;}
+    return `<div style="${base}background:var(--g);color:#000;font-weight:700" title="Ainda não usado — a Estratégia usa nos próximos posts">NOVO</div>`;
+  };
   if(!rows.length){g.innerHTML='<div style="grid-column:1/-1;font-family:var(--M);font-size:12px;color:var(--t3);text-align:center;padding:18px">Nenhum arquivo nesta categoria ainda.</div>';return}
   g.innerHTML=rows.map(f=>`<div class="up-item">
     ${CAT==='videos'?`<div style="position:relative;width:100%;height:100%;background:#000;cursor:pointer" onclick="abrirVidPrev('${f.url}')"><video src="${f.url}#t=0.5" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:14px">▶</div></div></div>`:`<img src="${f.url}" alt="">`}
+    ${_selo(f)}
     ${ESCONDER_EXCLUIR?'':`<button class="up-del" onclick="apagar('${f.id}','${f.path||''}')">✕</button>`}
     ${CAT==='gerados'?`<button class="up-del" style="right:38px;color:var(--g)" onclick="baixarArq('${f.url}',this)" title="Baixar">⬇</button>`:''}
   </div>`).join('');

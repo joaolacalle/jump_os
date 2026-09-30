@@ -243,7 +243,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=9"></script>
-<script src="assets/classificacao.js?v=9"></script>
+<script src="assets/classificacao.js?v=10"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 const AGENTS=[
@@ -479,16 +479,16 @@ const LV={basico:1,plus:2,pro:3};
     }catch(e){}
     // #3 — conteúdo expirado perto da exclusão automática (recuperável reagendando em aprovar.html).
     try{
-      const{data:exps}=await JUMP.sb.from('conteudos').select('id,expirado_em').eq('user_id',uid).eq('status',JUMP_CLASS.STATUS_EXPIRADO).not('expirado_em','is',null).limit(50);
+      const{data:exps}=await JUMP.sb.from('conteudos').select('id,formato,meta,expirado_em').eq('user_id',uid).eq('status',JUMP_CLASS.STATUS_EXPIRADO).not('expirado_em','is',null).limit(50);
       if(exps&&exps.length){
         const agoraMs=Date.now();
+        const _restam=e=>JUMP_CLASS.diasAteExclusao(e)-(agoraMs-new Date(e.expirado_em).getTime())/86400000;
         const proximos=exps.filter(e=>{
-          const diasDesde=(agoraMs-new Date(e.expirado_em).getTime())/86400000;
-          const diasRestantes=JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO-diasDesde;
+          const diasRestantes=_restam(e);
           return diasRestantes<=JUMP_CLASS.DIAS_AVISO_ANTES_EXCLUSAO && diasRestantes>0;
         });
         if(proximos.length){
-          const diasRestantesMin=Math.max(1,Math.floor(JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO-Math.max(...proximos.map(e=>(agoraMs-new Date(e.expirado_em).getTime())/86400000))));
+          const diasRestantesMin=Math.max(1,Math.floor(Math.min(...proximos.map(_restam))));
           recs.unshift({tipo:'urgente',titulo:`${proximos.length} conteúdo(s) expirado(s) serão excluídos em até ${diasRestantesMin} dia(s)`,mensagem:'Reagende antes de perder — depois de excluído não tem mais volta.',_link:'aprovar.html'});
         }
       }

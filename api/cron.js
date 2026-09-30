@@ -1577,12 +1577,17 @@ async function jobExpiracaoSemana() {
   } catch (e) { console.error('jobExpiracaoSemana (fase 1 — expirar):', e && e.message); }
 
   try {
-    const corteExclusao = new Date(Date.now() - JC.DIAS_AUTO_EXCLUSAO_EXPIRADO * 24 * 60 * 60 * 1000).toISOString();
-    const vencidos = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?status=eq.${JC.STATUS_EXPIRADO}&expirado_em=lt.${corteExclusao}&select=id,meta&limit=500`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+    // Busca pelo prazo MENOR (vídeo do cliente, 7 dias) e confere o prazo de cada post com
+    // JC.diasAteExclusao — o resto continua saindo só depois de 30 dias.
+    const _prazoMin = Math.min(JC.DIAS_AUTO_EXCLUSAO_EXPIRADO, JC.DIAS_AUTO_EXCLUSAO_EXPIRADO_VIDEO);
+    const corteExclusao = new Date(Date.now() - _prazoMin * 24 * 60 * 60 * 1000).toISOString();
+    const vencidos = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?status=eq.${JC.STATUS_EXPIRADO}&expirado_em=lt.${corteExclusao}&select=id,formato,expirado_em,meta&limit=500`, { headers: SBH() }).then(r => r.json()).catch(() => []);
     for (const v of (Array.isArray(vencidos) ? vencidos : [])) {
+      const prazo = JC.diasAteExclusao(v);
+      if (Date.now() - new Date(v.expirado_em).getTime() < prazo * 24 * 60 * 60 * 1000) continue;
       await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${v.id}`, {
         method: 'PATCH', headers: SBH(),
-        body: JSON.stringify({ status: 'excluido', meta: { ...(v.meta || {}), motivo_exclusao: 'expirado há mais de ' + JC.DIAS_AUTO_EXCLUSAO_EXPIRADO + ' dias sem aprovação nem reagendamento' } }),
+        body: JSON.stringify({ status: 'excluido', meta: { ...(v.meta || {}), motivo_exclusao: 'expirado há mais de ' + prazo + ' dias sem aprovação nem reagendamento' } }),
       }).catch(() => {});
       excluidosAutomaticos++;
     }

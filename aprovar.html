@@ -296,7 +296,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=9"></script>
-<script src="assets/classificacao.js?v=9"></script>
+<script src="assets/classificacao.js?v=10"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
@@ -1078,7 +1078,7 @@ function abrirEdicao(id){
         <input type="date" id="ed-data" value="${c.data_sugerida?String(c.data_sugerida).slice(0,10):''}" onchange="salvarData('${id}',this.value)">
       </label>
     </div>
-    ${_expiradoEdicao?`<div class="ec-alert"><div><b>Este post expirou</b> — a semana dele já fechou (ou a data já passou) sem aprovação. Reagende para uma data nova e ele volta a poder ser aprovado. Sem reagendar, é excluído automaticamente ${JUMP_CLASS.DIAS_AUTO_EXCLUSAO_EXPIRADO} dias após expirar.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`
+    ${_expiradoEdicao?`<div class="ec-alert"><div><b>Este post expirou</b> — a semana dele já fechou (ou a data já passou) sem aprovação. Reagende para uma data nova e ele volta a poder ser aprovado. Sem reagendar, é excluído automaticamente ${JUMP_CLASS.diasAteExclusao(c)} dias após expirar.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`
       :(vencido?`<div class="ec-alert"><div><b>Este post era para ${diasAtras===1?'ontem':('há '+diasAtras+' dias')}.</b> Não foi aprovado a tempo.</div><button class="btn btn-g btn-sm" onclick="reagendar('${id}')">Reagendar para amanhã</button></div>`:'')}
     ${m.alerta_defeito?((CTX&&CTX.role==='usuario')
       ? `<div class="ec-alert"><div>⚠️ ${JUMP.esc(textoAlertaDefeito(m.alerta_defeito))}</div></div>`
