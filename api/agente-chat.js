@@ -2437,11 +2437,17 @@ const handler = async (req, res) => {
     // Falha do fiscal (API fora, timeout) NUNCA é silenciosa: loga e segue com a camada 1 (dono
     // de memória e de tag), que é determinística e não depende de modelo.
     let escopo={verificado:false};
+    // REGISTRO DAS DECISÕES DO FISCAL (30/set/2026): toda vez que o fiscal barra ou manda reescrever,
+    // a decisão fica em public.logs (acao='escopo') com o trecho apontado e o começo da resposta —
+    // o log da Vercel não é acessível a quem conduz o projeto, e dois falsos positivos no Mercado
+    // não puderam ser diagnosticados sem isso. Falha ao registrar só loga; nunca derruba o turno.
+    const _logEscopo=(dados)=>sbInsert('logs',[{user_id:targetId,acao:'escopo',papel:agente,dados:Object.assign({pedido:String(mensagem).slice(0,500)},dados)}]).catch(e=>console.error('[escopo] registro em logs falhou — '+(e&&e.message)));
     if(_fiscalAtivo){
       const vPed=await _promessaPedido;
       if(vPed&&vPed.erro) console.error('[escopo] triagem do pedido indisponível — seguindo com o fiscal da resposta. agente='+agente+' user='+targetId+' erro='+vPed.erro);
       if(vPed&&vPed.bloquear){
         console.error('[escopo] pedido inteiramente de outro agente — resposta do agente descartada. agente='+agente+' dono='+vPed.dono+' user='+targetId);
+        await _logEscopo({camada:'triagem',decisao:'redirecionado',dono:vPed.dono,resposta_descartada:ESC.textoParaFiscal(texto).slice(0,2000)});
         texto=ESC.mensagemRedirecionamento(agente,vPed.dono);
         escopo={verificado:true,bloqueado:'pedido',dono:vPed.dono};
       } else {
@@ -2452,8 +2458,12 @@ const handler = async (req, res) => {
         } else if(v.invadiu){
           console.error('[escopo] resposta invadiu o agente '+v.agente_dono+' — pedindo reescrita única. agente='+agente+' user='+targetId+' trecho="'+v.trecho.slice(0,160)+'"');
           // Reescrita ÚNICA: o agente refaz só a parte dele (preserva o trabalho legítimo do turno,
-          // ex.: Identidade atualizando momento_negocio). Se a reescrita ainda invadir, ou não der
-          // para verificá-la, vale o redirecionamento fixo — nunca uma resposta não verificada.
+          // ex.: Identidade atualizando momento_negocio). A REESCRITA VALE (30/set/2026): antes ela
+          // passava por um segundo julgamento e, se o fiscal insistisse, a resposta INTEIRA virava o
+          // redirecionamento fixo — dois falsos positivos seguidos no Mercado destruíram a análise
+          // legítima, as memórias e o fechamento da etapa. Agora o redirecionamento fixo só entra se
+          // a reescrita falhar (API fora/vazia). Dados de outro agente continuam barrados em código
+          // pela camada 1 (dono de memória e de tag), que não depende de modelo.
           let reescrito=null;
           try{
             const nomeDono=ESC.NOME_PUBLICO[v.agente_dono];
@@ -2468,15 +2478,16 @@ const handler = async (req, res) => {
             if(rr.ok) reescrito=(dr.content||[]).map(c=>c.text||'').join('').trim()||null;
             else console.error('[escopo] reescrita falhou — status='+rr.status+' '+JSON.stringify(dr).slice(0,160));
           }catch(e){ console.error('[escopo] reescrita falhou — erro='+(e&&e.message)); }
-          let aceito=false;
+          const _original=ESC.textoParaFiscal(texto).slice(0,2000);
           if(reescrito){
-            const v2=await ESC.julgarResposta({agente,pedido:mensagem,resposta:reescrito,ultimaDoAgente:_ultimaDoAgente});
-            if(!v2.erro && !v2.invadiu){ texto=reescrito; aceito=true; escopo={verificado:true,reescrito:true,dono:v.agente_dono}; }
-            else console.error('[escopo] reescrita '+(v2.erro?'não pôde ser verificada ('+v2.erro+')':'ainda invadiu '+v2.agente_dono)+' — resposta trocada pelo redirecionamento fixo. agente='+agente+' user='+targetId);
-          }
-          if(!aceito){
+            texto=reescrito;
+            escopo={verificado:true,reescrito:true,dono:v.agente_dono};
+            await _logEscopo({camada:'resposta',decisao:'reescrito',dono:v.agente_dono,trecho:v.trecho,resposta_original:_original,resposta_reescrita:ESC.textoParaFiscal(reescrito).slice(0,2000)});
+          } else {
+            console.error('[escopo] reescrita indisponível — resposta trocada pelo redirecionamento fixo. agente='+agente+' user='+targetId);
             texto=ESC.mensagemRedirecionamento(agente,v.agente_dono);
             escopo={verificado:true,bloqueado:'resposta',dono:v.agente_dono};
+            await _logEscopo({camada:'resposta',decisao:'redirecionado',dono:v.agente_dono,trecho:v.trecho,resposta_original:_original});
           }
         } else {
           escopo={verificado:true};
