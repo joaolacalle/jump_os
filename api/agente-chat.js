@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-fotos-antes-do-plano-sem-data-passada';
+const VERSAO = '2026.09.30-sem-contradicao-fornece-x-sem-produto';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1564,6 +1564,7 @@ const handler = async (req, res) => {
         ciclo_encerrado_semanas_contam_de_hoje:true,
         plano_so_grava_com_fotos_prometidas_no_acervo:true,
         trava_de_datas_recusa_data_passada:true,
+        acervo_sem_x_descartado_quando_contradiz_o_que_fornece:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -3228,8 +3229,21 @@ const handler = async (req, res) => {
             const _tiposF=_memTurno.materiais_fornece!=null
               ? String(_memTurno.materiais_fornece).toLowerCase().split(/[^a-z_]+/).filter(t=>JC.MATERIAIS_USUARIO.includes(t))
               : ((((cli.preferencias||{}).capacidade_producao||{}).tipos)||[]);
-            const _semProd=!!(fatiaAtual.acervo_sem_produto||_memTurno.acervo_sem_produto);
-            const _semPess=!!(fatiaAtual.acervo_sem_persona||_memTurno.acervo_sem_persona);
+            // CONTRADIÇÃO NO MESMO TURNO (30/set/2026, caso real do João): o agente gravou "fornece
+            // trabalho" e, na MESMA resposta, "acervo_sem_produto — confirmado pelo cliente", sem o
+            // cliente ter dito isso — e o plano saiu sem as fotos. Quando as duas coisas vêm juntas,
+            // vale o que o cliente fornece: a memória de "seguir sem" é descartada (nem é gravada).
+            const _fornProd=_memTurno.materiais_fornece!=null&&(_tiposF.includes('foto_produto')||_tiposF.includes('trabalho'));
+            const _fornPess=_memTurno.materiais_fornece!=null&&_tiposF.includes('foto_pessoa');
+            const _descartarSem=ch=>{
+              console.error('[fotos-antes-do-plano] '+ch+' descartada: contradiz o que o cliente fornece neste mesmo turno. user='+targetId);
+              texto=String(texto).replace(/<memoria>([\s\S]*?)<\/memoria>/g,(m,j)=>{ try{ const o=JSON.parse(j.trim()); return (o&&String(o.chave)===ch)?'':m; }catch(e){ return m; } });
+              delete _memTurno[ch];
+            };
+            if(_fornProd&&_memTurno.acervo_sem_produto!=null)_descartarSem('acervo_sem_produto');
+            if(_fornPess&&_memTurno.acervo_sem_persona!=null)_descartarSem('acervo_sem_persona');
+            const _semProd=!!((fatiaAtual.acervo_sem_produto&&!_fornProd)||_memTurno.acervo_sem_produto);
+            const _semPess=!!((fatiaAtual.acervo_sem_persona&&!_fornPess)||_memTurno.acervo_sem_persona);
             const _pedeProd=(_tiposF.includes('foto_produto')||_tiposF.includes('trabalho'))&&!_semProd;
             const _pedePess=_tiposF.includes('foto_pessoa')&&!_semPess;
             if(_pedeProd||_pedePess){
