@@ -150,12 +150,15 @@
   }
 
   // Aceita tanto um conteúdo ({formato:'reels', ...}) quanto uma string de formato direto.
-  // MATERIAL DO USUÁRIO ALÉM DE VÍDEO (30/set/2026, "Participação do usuário no conteúdo",
-  // autorizado pelo João): um post também depende do cliente quando a Estratégia o marca com
-  // `material` (foto do produto, foto do cliente, trabalho realizado ou vídeo) — na tag
-  // <conteudo> (ct.material) ou já gravado (meta.material). Esta é a fonte única: cota, produção,
-  // "aguardando material", Aprovar e cron passam a tratar esses posts do mesmo jeito que já
-  // tratavam Reels — nenhum ponto de chamada precisou mudar.
+  // PARTICIPAÇÃO DO USUÁRIO (30/set/2026, autorizado pelo João) — DUAS perguntas diferentes, de
+  // propósito (a primeira versão juntava as duas e tirava post com FOTO do Engine 6.0 — regressão
+  // apontada pelo João e corrigida antes do merge):
+  //   ehMaterialUsuario(): o post É o arquivo do cliente — vídeo/Reels. Não vira arte do Designer
+  //     (sai da cota de imagens e da produção; o cliente envia o vídeo no card). Só vídeo.
+  //   dependeDoCliente(): o post PRECISA de algo do cliente (vídeo, ou uma foto que ele vai
+  //     enviar). Com FOTO, o post continua sendo arte do Engine 6.0 (Designer), com a foto do
+  //     cliente como INSUMO — nunca publicada crua. Esta é a pergunta que a capacidade semanal usa.
+  // A marca vem da Estratégia: `material` na tag <conteudo> (ct.material) ou gravada (meta.material).
   var MATERIAIS_USUARIO = ['foto_produto', 'foto_pessoa', 'trabalho', 'video'];
   function materialDoUsuario(conteudo) {
     if (!conteudo || typeof conteudo !== 'object') return null;
@@ -163,8 +166,11 @@
     return MATERIAIS_USUARIO.indexOf(m) >= 0 ? m : null;
   }
   function ehMaterialUsuario(conteudoOuFormato) {
-    if (materialDoUsuario(conteudoOuFormato)) return true;
+    if (materialDoUsuario(conteudoOuFormato) === 'video') return true;
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_MATERIAL_USUARIO);
+  }
+  function dependeDoCliente(conteudo) {
+    return ehMaterialUsuario(conteudo) || !!materialDoUsuario(conteudo);
   }
 
   // CAPACIDADE DE PRODUÇÃO DO CLIENTE (30/set/2026, decisão do João) — quantos posts POR SEMANA
@@ -400,6 +406,7 @@
     tetoImagensPlano: tetoImagensPlano,
     MATERIAIS_USUARIO: MATERIAIS_USUARIO,
     materialDoUsuario: materialDoUsuario,
+    dependeDoCliente: dependeDoCliente,
     capacidadeSemanal: capacidadeSemanal,
     reservaImagens: reservaImagens,
     resumoSemanasEstrategia: resumoSemanasEstrategia

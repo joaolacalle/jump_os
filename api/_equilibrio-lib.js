@@ -104,7 +104,7 @@ function resumoMix(posts) {
 // Dentro de cada semana, os primeiros (por data) continuam pedindo material; os seguintes viram
 // automáticos. Roda ANTES do equilíbrio visual, para os posts convertidos entrarem na variação.
 //   posts: array de <conteudo> (mutado). capSemana: número (Infinity = sem teto). semanaDe(ct): chave da semana.
-//   ehMaterial(ct): mesma regra de assets/classificacao.js:ehMaterialUsuario.
+//   ehMaterial(ct): assets/classificacao.js:dependeDoCliente (vídeo OU foto pedida ao cliente).
 function limitarMaterialPorSemana(posts, capSemana, semanaDe, ehMaterial) {
   const ajustes = [];
   if (capSemana === Infinity || capSemana == null) return ajustes;

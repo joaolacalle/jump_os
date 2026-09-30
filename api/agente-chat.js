@@ -542,7 +542,7 @@ Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em format
 DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
-MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Esses posts não gastam arte do teto: o cliente envia o arquivo no próprio card, na semana do post, e o sistema completa. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
+MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Com "video", o post é o vídeo dele (não gasta arte do teto). Com foto, o post continua sendo ARTE do Designer (conta no teto) e a foto dele é o insumo da arte — nunca publicada crua. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
 Pergunte-se: o cliente pediu UM PLANO/CALENDÁRIO, ou pediu UMA PEÇA ESPECÍFICA?
@@ -3184,7 +3184,7 @@ const handler = async (req, res) => {
           const _capSem=_capCli?JC.capacidadeSemanal(_capCli.nivel):null;
           if(_capSem!==null&&_capSem!==undefined){
             const _semDe=ct=>JC.semanaDoPost(ct.data_sugerida,ancoraPlano,diaLoteCliente)||('h'+(JC.semanaDoPost(ct.data_sugerida,hojeISO,diaLoteCliente)||String(ct.data_sugerida||'').slice(0,10)));
-            const _ajCap=EQ.limitarMaterialPorSemana(conteudos.filter(ct=>!ct.avulso),_capSem,_semDe,c=>JC.ehMaterialUsuario(c));
+            const _ajCap=EQ.limitarMaterialPorSemana(conteudos.filter(ct=>!ct.avulso),_capSem,_semDe,c=>JC.dependeDoCliente(c));
             if(_ajCap.length){
               console.error('[capacidade] '+_ajCap.length+' post(s) viraram automáticos — nível '+_capCli.nivel+' user='+targetId);
               avisoCapacidade='Capacidade de produção respeitada: '+_ajCap.length+' post(s) que dependeriam de material seu passaram a ser produzidos automaticamente, para não pedir mais do que você informou por semana.';
@@ -3212,7 +3212,9 @@ const handler = async (req, res) => {
         // acima da metade. O que passar é ajustado (espalhando no calendário) e o cliente é avisado
         // com o resultado — nunca em silêncio.
         if(agente==='estrategia'){
-          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.ehMaterialUsuario(ct)&&ct.finalidade!=='anuncio');
+          // fora também: post que depende de FOTO do cliente — o tipo dele vem do material pedido (ex.:
+          // foto do produto = 'produto'), nunca trocado pelo equilíbrio.
+          const _lotePlano=_intOk?[]:conteudos.filter(ct=>!ct.avulso&&!JC.dependeDoCliente(ct)&&ct.finalidade!=='anuncio');
           if(_lotePlano.length){
             let _ac={pessoais:0,produtos:0};
             try{
