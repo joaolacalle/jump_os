@@ -288,6 +288,16 @@
     return { inicio: janelas[0].inicio, fim: janelas[janelas.length - 1].fim };
   }
 
+  // ÂNCORA VIGENTE (30/set/2026, achado do João: "as datas do meu plano estão do mês passado"):
+  // a âncora gravada só vale enquanto o ciclo dela está em vigor. Terminado o horizonte de 5
+  // semanas, o plano novo conta a partir de HOJE (mesmo critério de quem ainda não aprovou plano)
+  // — nunca mais as semanas do ciclo que já acabou.
+  function ancoraVigente(ancoraISO, diaLote, hojeISO) {
+    var hoje = hojeISO || hojeISOBrasil();
+    if (!ancoraISO) return hoje;
+    return hoje <= horizonteDoPlano(ancoraISO, diaLote).fim ? ancoraISO : hoje;
+  }
+
   // 'YYYY-MM-DD' de HOJE no fuso America/Sao_Paulo. Extraído aqui (LOTE 2, 01/set/2026) porque
   // api/agente-chat.js já calculava isto inline e api/cron.js precisava do mesmo cálculo pro job
   // de expiração de semana — copiar o literal de novo seria repetir exatamente o erro que este
@@ -409,6 +419,7 @@
     janelasSemanas: janelasSemanas,
     semanaDoPost: semanaDoPost,
     horizonteDoPlano: horizonteDoPlano,
+    ancoraVigente: ancoraVigente,
     hojeISOBrasil: hojeISOBrasil,
     tetoImagensPlano: tetoImagensPlano,
     MATERIAIS_USUARIO: MATERIAIS_USUARIO,
