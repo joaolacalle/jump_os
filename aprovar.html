@@ -465,7 +465,49 @@ function _linhaPost(c,semanal){
       ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
       ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
       <div class="ec-two">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>
+      ${semanal?_fotoDoPost(c):''}
     </div>`;
+}
+// FOTO DO CLIENTE PARA O POST (30/set/2026, "Participação do usuário", entrega 2): só nos posts em
+// que a Estratégia pediu uma foto (meta.material = foto_produto/foto_pessoa/trabalho). OPCIONAL: se o
+// cliente não enviar, o Designer produz com o acervo, exatamente como sempre — nada espera por ela.
+// Enviada, fica em meta.material_url e o Engine 6.0 a usa como a foto de referência deste post
+// (api/gerar-imagem.js). Só grava a entrada: não cria post, não muda data, não dispara produção.
+function _fotoDoPost(c){
+  const mat=JUMP_CLASS.materialDoUsuario(c); if(!mat||mat==='video')return '';
+  const m=c.meta||{};
+  const status=m.material_url?'<span style="color:var(--g)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>':'<span style="color:var(--t3)">Opcional — se não enviar, o Designer usa as fotos do seu acervo.</span>';
+  return `<div class="ec-fld" style="margin-top:10px;padding:10px 12px;border:1px dashed color-mix(in srgb,var(--g) 45%,transparent);border-radius:10px">
+      <span class="ec-lab">📎 Sua foto para este post${m.material_pedido?(': '+JUMP.esc(m.material_pedido)):''}</span>
+      <div id="foto-st-${c.id}" style="font-size:12px;margin:6px 0">${status}</div>
+      <input type="file" accept="image/*" onchange="enviarFotoDoPost('${c.id}',this)">
+    </div>`;
+}
+async function enviarFotoDoPost(cid,inp){
+  const f=(inp.files||[])[0]; if(!f)return;
+  const st=document.getElementById('foto-st-'+cid);
+  if(st)st.innerHTML='<span style="color:var(--t3)">Enviando...</span>';
+  inp.disabled=true;
+  try{
+    const uid=CTX.viewId||CTX.user.id;
+    const path=uid+'/material_conteudo/'+cid+'-'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.\-_]/g,'');
+    const{error:errUp}=await JUMP.sb.storage.from('user-uploads').upload(path,f);
+    if(errUp)throw errUp;
+    const{data:pub}=JUMP.sb.storage.from('user-uploads').getPublicUrl(path);
+    // meta sempre relida do banco antes de gravar (mesmo cuidado de salvarEdicoesProposta)
+    const{data:atual,error:errLe}=await JUMP.sb.from('conteudos').select('meta').eq('id',cid).single();
+    if(errLe)throw errLe;
+    const meta=Object.assign({},(atual&&atual.meta)||{},{material_url:pub.publicUrl,material_enviado_em:new Date().toISOString()});
+    const{error:errSet}=await JUMP.sb.from('conteudos').update({meta}).eq('id',cid);
+    if(errSet)throw errSet;
+    ESTRATEGIAS.forEach(o=>(o._posts||[]).forEach(p=>{if(p.id===cid)p.meta=meta;}));
+    if(st)st.innerHTML='<span style="color:var(--g)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>';
+    JUMP.toast('✓ Foto recebida para este post.');
+  }catch(e){
+    if(st)st.innerHTML='<span style="color:#f87171">Não foi possível enviar: '+JUMP.esc(e.message||'erro')+'. Tente de novo.</span>';
+    JUMP.toast(e.message||'Erro ao enviar a foto','err');
+  }
+  inp.disabled=false;
 }
 function abrirEstrategia(id){
   const o=ESTRATEGIAS.find(x=>x.id===id); if(!o)return;

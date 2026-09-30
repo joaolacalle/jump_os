@@ -3175,6 +3175,17 @@ const handler = async (req, res) => {
         // além do que cabe, em silêncio. Só conta PRODUCAO_IMAGEM: material do usuário usa cota
         // de vídeo, tratada à parte (cotaTxt acima). Fora de escopo: avulso (não é plano).
         // Conta vem de JC.tetoImagensPlano() — fonte única, ver assets/classificacao.js.
+        // TIPO COERENTE COM A FOTO PEDIDA (30/set/2026, entrega 2): o Engine só usa a foto enviada pelo
+        // cliente nos tipos que já trabalham com foto real — 'pessoal' (foto dele) e 'produto' (foto
+        // do produto/trabalho). O post que pede foto nasce com o tipo certo, para a foto (se vier)
+        // entrar no lugar certo; se não vier, o Engine segue com o acervo, como sempre.
+        if(agente==='estrategia'){
+          conteudos.forEach(ct=>{
+            const _mat=JC.materialDoUsuario(ct);
+            if(_mat==='foto_pessoa') ct.tipo_visual='pessoal';
+            else if(_mat==='foto_produto'||_mat==='trabalho') ct.tipo_visual='produto';
+          });
+        }
         // CAPACIDADE DO CLIENTE POR SEMANA (30/set/2026, api/_equilibrio-lib.js): antes da cota e do
         // equilíbrio, nenhuma semana do PLANO pode pedir mais material ao cliente do que a
         // capacidade dele; o excesso vira automático e o cliente é avisado. Sem capacidade
