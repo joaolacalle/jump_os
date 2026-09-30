@@ -39,6 +39,16 @@ function _excedentesEspalhados(indices, manter) {
   return indices.filter(i => !ficam.has(i));
 }
 
+// FOCO DO POST (30/set/2026, "a tattoo não sai no tatuador"): o equilíbrio nunca troca o tipo de
+// um post para um que mistura assunto e foto — post sobre o produto/trabalho (foco "produto") não
+// vira foto de pessoa, e post sobre a pessoa (foco "pessoa") não vira foto de produto.
+function _compativel(ct, tipo) {
+  const f = String((ct && ct.foco) || '');
+  if (f === 'produto') return tipo !== 'pessoal' && tipo !== 'pessoa_conceito';
+  if (f === 'pessoa') return tipo !== 'produto' && tipo !== 'pessoa_conceito';
+  return true;
+}
+
 // posts: array de objetos <conteudo> (mutado no tipo_visual). acervo: {pessoais, produtos}.
 // Retorna a lista de ajustes [{tema, de, para, motivo}] — vazia se o lote já estava equilibrado.
 function equilibrarPlano(posts, acervo) {
@@ -78,7 +88,7 @@ function equilibrarPlano(posts, acervo) {
         const conta = {};
         lote.forEach(it => { conta[_tipo(it.ct)] = (conta[_tipo(it.ct)] || 0) + 1; });
         const alvo = disponiveis
-          .filter(o => o !== t && (o !== 'pessoal' || (conta.pessoal || 0) < capPessoal) && (conta[o] || 0) < capTipo)
+          .filter(o => o !== t && _compativel(lote[k].ct, o) && (o !== 'pessoal' || (conta.pessoal || 0) < capPessoal) && (conta[o] || 0) < capTipo)
           .sort((a, b) => (conta[a] || 0) - (conta[b] || 0))[0];
         if (alvo) mudar(lote[k], alvo, 'variação: nenhum tipo acima da metade do plano');
       });

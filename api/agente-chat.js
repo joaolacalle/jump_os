@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-visitas-presenciais';
+const VERSAO = '2026.09.30-foco-do-post-sem-misturar-foto';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -541,7 +541,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
 DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+FOCO (obrigatório, vale para qualquer negócio): diga do que o post trata. "produto" = o produto ou trabalho do cliente (look, tattoo, prato, serviço feito) → a foto é a do PRODUTO, nunca a da pessoa. "pessoa" = o próprio cliente (bastidor, autoridade, rotina, fala) → a foto é a DELE e o tema não coloca produto nele (nada de "vestindo o look X" ou "com a tattoo Y" no corpo dele). "ambiente" = o espaço (loja, estúdio, salão). "conceito" = dica, dado, lista. Nunca invente produto: sem foto real do produto, post de foco "produto" é conceitual (explica, não mostra um produto que não existe). O sistema confere e corrige ao gravar.
 MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Com "video", o post é o vídeo dele (não gasta arte do teto). Com foto, o post continua sendo ARTE do Designer (conta no teto) e a foto dele é o insumo da arte — nunca publicada crua. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
 ═══ COMO DECIDIR ENTRE AVULSO E PLANO DO MÊS (erre aqui e o pedido do cliente vira outra coisa) ═══
@@ -1556,6 +1557,8 @@ const handler = async (req, res) => {
         arquivo_id_validado_e_ligado_ao_post_sem_pedir_ao_cliente:true,
         o_que_fornece_e_renovacao_sincronizados_em_capacidade_producao:true,
         visitas_presenciais_como_dado_de_analise_estrategia_e_diagnostico:true,
+        foco_do_post_produto_nunca_com_foto_de_pessoa_e_vice_versa:true,
+        equilibrio_respeita_foco_do_post:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -3273,6 +3276,44 @@ const handler = async (req, res) => {
             });
           }
         }
+        // FOCO DO POST (30/set/2026, alternativa às 3 fotos — nada muda no Engine, só o que chega a
+        // ele): assunto e foto não se misturam. Foco "produto" (look, tattoo, prato) nunca usa foto da
+        // pessoa — é o que fazia a tattoo sair no corpo do tatuador; foco "pessoa" nunca usa foto de
+        // produto. Sem foto real do produto, post de produto vira conceitual (não se inventa produto).
+        // Sem foco declarado: nada muda (compatível com o que já existia).
+        if(agente==='estrategia'){
+          const _normFoco=f=>{const x=String(f||'').toLowerCase();return /produt|trabalh|servi/.test(x)?'produto':/pesso/.test(x)?'pessoa':/ambient|espa|loja|est[uú]dio/.test(x)?'ambiente':/concei/.test(x)?'conceito':'';};
+          conteudos.forEach(ct=>{ if(ct){ const f=_normFoco(ct.foco); if(f)ct.foco=f; else delete ct.foco; } });
+          if(conteudos.some(ct=>ct&&(ct.foco==='produto'||ct.foco==='pessoa'))){
+            let _fc={pessoais:0,produtos:0};
+            try{
+              const _ups=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(pessoais,produtos)&select=categoria`);
+              (Array.isArray(_ups)?_ups:[]).forEach(u=>{ if(u.categoria==='pessoais')_fc.pessoais++; else if(u.categoria==='produtos')_fc.produtos++; });
+            }catch(e){ console.error('[foco] leitura do acervo falhou — '+(e&&e.message)); }
+            conteudos.forEach(ct=>{
+              if(!ct||!ct.foco)return;
+              const _m=JC.materialDoUsuario(ct);
+              if(ct.foco==='produto'){
+                if(ct._arquivo&&ct.tipo_visual==='pessoal'){ console.error('[foco] post de produto com foto de pessoa ligada — vínculo removido. user='+targetId); delete ct._arquivo; delete ct.arquivo_id; }
+                if(_m==='foto_pessoa'){ delete ct.material; delete ct.material_pedido; }
+                const _temFotoProd=!!ct._arquivo||_fc.produtos>0||_m==='foto_produto'||_m==='trabalho';
+                if(ct.tipo_visual==='pessoal'||ct.tipo_visual==='pessoa_conceito'||(ct.tipo_visual==='produto'&&!_temFotoProd)){
+                  const _de=ct.tipo_visual; ct.tipo_visual=_temFotoProd?'produto':'conceitual';
+                  console.error('[foco] post de produto: '+_de+'→'+ct.tipo_visual+' user='+targetId);
+                }
+              }else if(ct.foco==='pessoa'){
+                if(ct._arquivo&&ct.tipo_visual==='produto'){ console.error('[foco] post da pessoa com foto de produto ligada — vínculo removido. user='+targetId); delete ct._arquivo; delete ct.arquivo_id; }
+                if(_m==='foto_produto'||_m==='trabalho'){ delete ct.material; delete ct.material_pedido; }
+                // post sobre o cliente nunca usa foto de produto nem pessoa genérica no lugar dele
+                const _temFotoDele=_fc.pessoais>0||_m==='foto_pessoa'||!!ct._arquivo;
+                if(ct.tipo_visual==='produto'||ct.tipo_visual==='pessoa_conceito'||(ct.tipo_visual==='pessoal'&&!_temFotoDele)){
+                  const _de=ct.tipo_visual; ct.tipo_visual=_temFotoDele?'pessoal':'conceitual';
+                  console.error('[foco] post da pessoa: '+_de+'→'+ct.tipo_visual+' user='+targetId);
+                }
+              }
+            });
+          }
+        }
         // TIPO COERENTE COM A FOTO PEDIDA (30/set/2026, entrega 2): o Engine só usa a foto enviada pelo
         // cliente nos tipos que já trabalham com foto real — 'pessoal' (foto dele) e 'produto' (foto
         // do produto/trabalho). O post que pede foto nasce com o tipo certo, para a foto (se vier)
@@ -3357,7 +3398,8 @@ const handler = async (req, res) => {
               // assets/classificacao.js:ehMaterialUsuario e mostrado no card em Aprovar.
               ...(JC.materialDoUsuario(ct)?{material:JC.materialDoUsuario(ct),material_pedido:String(ct.material_pedido||'').slice(0,240)}:{}),
               // arquivo do acervo ligado ao post (entrega 3) — o Engine usa material_url como a foto dele
-              ...(ct._arquivo?{arquivo_id:ct._arquivo.id,material_url:ct._arquivo.url}:{})}
+              ...(ct._arquivo?{arquivo_id:ct._arquivo.id,material_url:ct._arquivo.url}:{}),
+              ...(ct.foco?{foco:ct.foco}:{})}
           })
         }).catch(()=>null)));
         // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
