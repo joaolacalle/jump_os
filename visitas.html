@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUMP OS — Visitas</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/jump-ui.css?v=5">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Visitas presenciais (30/set/2026) — roteiro do supervisor, modelo "Roteiro Digital de Visitas". */
+.vk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.vk .card{padding:14px}.vk b{display:block;font-size:20px;margin-top:4px}
+.vk span{font-family:var(--M);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+.v-list{display:grid;gap:10px}
+.v-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid var(--bd);border-radius:12px;padding:12px 14px;background:rgba(0,0,0,.2)}
+.v-row strong{display:block;margin-bottom:3px}.v-row small{color:var(--t3);font-size:12px}
+.v-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.v-sec{margin-bottom:16px}.v-sec h2{font-size:15px;margin:0 0 12px}
+.f-textarea{min-height:80px;resize:vertical}
+.v-ci{border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(0,0,0,.2)}
+.v-ci-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.v-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.v-check{display:flex;gap:10px;align-items:center;border:1px solid var(--bd);border-radius:9px;padding:9px 11px;font-size:13px}
+.v-check input{width:17px;height:17px}
+.v-bar{position:sticky;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px;border:1px solid var(--bd);border-radius:12px;background:rgba(10,10,12,.92);backdrop-filter:blur(8px);z-index:5}
+.v-rep{white-space:pre-wrap;line-height:1.55;font-size:13px;background:rgba(0,0,0,.3);border:1px solid var(--bd);border-radius:12px;padding:14px;max-height:60vh;overflow:auto}
+.v-empty{padding:24px 14px;border:1px dashed var(--bd);border-radius:12px;text-align:center;color:var(--t3);font-size:13px}
+.v-hide{display:none!important}
+.v-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:60}
+.v-modal.open{display:flex}.v-modal .card{width:min(720px,100%);max-height:90vh;overflow:auto}
+@media(max-width:760px){.vk,.v-checks,.f-row{grid-template-columns:1fr}.v-row{grid-template-columns:1fr}.v-acts{justify-content:flex-start}}
+@media print{body *{visibility:hidden}#v-print,#v-print *{visibility:visible}#v-print{position:absolute;inset:0;display:block!important;color:#000;background:#fff;white-space:pre-wrap;font:12px/1.5 sans-serif;padding:20px}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando visitas...</div></div>
+<div class="app">
+<main class="main">
+  <div class="hd">
+    <div><div class="hd-hello">Visitas presenciais</div><h1 class="hd-h" id="v-titulo">Roteiro de <em>visitas.</em></h1></div>
+  </div>
+
+  <div id="v-sem-sup" class="card v-hide"><div style="font-size:13px;color:var(--t2);line-height:1.6">Esta conta não tem supervisor. As visitas presenciais são registradas pelo supervisor que atende a conta. Sem supervisor, não há visitas para preencher.</div></div>
+
+  <section id="v-lista" class="v-hide">
+    <div class="vk">
+      <div class="card"><span>Última visita</span><b id="k-ult">—</b></div>
+      <div class="card"><span>Próxima visita</span><b id="k-prox">—</b></div>
+      <div class="card"><span>Total de visitas</span><b id="k-tot">0</b></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+        <h2 style="font-size:15px;margin:0">Histórico de visitas</h2>
+        <button class="btn btn-g btn-sm v-hide" id="b-nova" onclick="novaVisita()">+ Nova visita</button>
+      </div>
+      <div id="v-rows" class="v-list"></div>
+    </div>
+  </section>
+
+  <section id="v-form" class="v-hide">
+    <div class="card v-sec">
+      <div style="margin-bottom:12px"><button class="btn btn-o btn-sm" onclick="voltarLista()">← Voltar</button></div>
+      <div class="f-row" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+        <div class="f-group"><label class="f-label">Data da visita</label><input id="v-data" type="date" class="f-input"></div>
+        <div class="f-group"><label class="f-label">Status</label><select id="v-status" class="f-select"><option>Visita concluída</option><option>Conteúdo em produção</option><option>Pendente</option><option>Aguardando cliente</option></select></div>
+        <div class="f-group"><label class="f-label">Próxima visita</label><input id="v-prox" type="date" class="f-input"></div>
+      </div>
+    </div>
+    <div class="card v-sec"><h2>1. Conversa com o cliente</h2>
+      <div class="f-group"><label class="f-label">O que mudou desde a última visita?</label><textarea id="d-mudancas" class="f-textarea f-input" placeholder="Novidades, mudanças no negócio, acontecimentos importantes..."></textarea></div>
+      <div class="f-row">
+        <div class="f-group"><label class="f-label">O que está vendendo bem?</label><textarea id="d-vendendo" class="f-textarea f-input"></textarea></div>
+        <div class="f-group"><label class="f-label">O que precisa vender mais?</label><textarea id="d-precisa_vender" class="f-textarea f-input"></textarea></div>
+      </div>
+      <div class="f-group"><label class="f-label">Dúvidas e objeções dos clientes</label><textarea id="d-objecoes" class="f-textarea f-input" placeholder="O que os clientes perguntam? O que está travando vendas?"></textarea></div>
+      <div class="f-group"><label class="f-label">Promoções, eventos, datas ou oportunidades</label><textarea id="d-oportunidades" class="f-textarea f-input"></textarea></div>
+    </div>
+    <div class="card v-sec"><h2>2. Análise do supervisor</h2>
+      <div class="f-group"><label class="f-label">Instagram / presença digital</label><textarea id="d-instagram" class="f-textarea f-input" placeholder="Perfil, bio, destaques, posicionamento, frequência, conteúdo..."></textarea></div>
+      <div class="f-group"><label class="f-label">Anúncios / leads</label><textarea id="d-anuncios" class="f-textarea f-input" placeholder="Campanhas, qualidade dos leads, abordagem, oportunidades de teste..."></textarea></div>
+      <div class="f-group"><label class="f-label">Diagnóstico e oportunidade principal</label><textarea id="d-diagnostico" class="f-textarea f-input"></textarea></div>
+    </div>
+    <div class="card v-sec">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0">3. Ideias de conteúdo</h2><button class="btn btn-o btn-sm v-edit" onclick="addConteudo()">+ Adicionar</button></div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Ideias anotadas na visita. Os agentes usam como dado de análise, não como post obrigatório.</div>
+      <div id="v-conteudos"></div>
+    </div>
+    <div class="card v-sec">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0">4. Checklist de captação</h2><span id="v-cap-n" class="pill pill-c">0 concluídos</span></div>
+      <div class="v-checks" id="v-checks"></div>
+      <div class="f-group"><label class="f-label">Pendências / o que ficou faltando</label><textarea id="d-pendencias" class="f-textarea f-input"></textarea></div>
+    </div>
+    <div class="card v-sec"><h2>5. Próximas ações</h2>
+      <div class="f-group"><label class="f-label">O que precisa ser feito após a visita?</label><textarea id="d-acoes" class="f-textarea f-input"></textarea></div>
+      <div class="f-group"><label class="f-label">Prioridade para a próxima visita</label><textarea id="d-prioridade_proxima" class="f-textarea f-input"></textarea></div>
+      <div class="f-group"><label class="f-label">Observações gerais</label><textarea id="d-observacoes" class="f-textarea f-input"></textarea></div>
+    </div>
+    <div class="v-bar">
+      <button class="btn btn-g btn-sm v-edit" onclick="salvar(true)">Salvar visita</button>
+      <button class="btn btn-o btn-sm" onclick="relatorioAtual()">Gerar relatório</button>
+      <button class="btn btn-r btn-sm v-edit v-hide" id="b-excluir" onclick="excluir()">Excluir visita</button>
+      <span id="v-salvo" style="font-family:var(--M);font-size:11px;color:var(--t3)"></span>
+    </div>
+  </section>
+</main>
+</div>
+
+<div class="v-modal" id="v-rel" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="font-size:15px;margin:0">Relatório da visita</h2><button class="btn btn-o btn-sm" onclick="document.getElementById('v-rel').classList.remove('open')">Fechar</button></div>
+    <div id="v-rel-t" class="v-rep"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn btn-o btn-sm" onclick="copiarRel()">Copiar texto</button><button class="btn btn-g btn-sm" onclick="window.print()">Imprimir / PDF</button></div>
+  </div>
+</div>
+<div id="v-print" style="display:none"></div>
+
+<script src="assets/jump-core.js?v=10"></script>
+<script>
+let CTX=null,ALVO=null,PODE_EDITAR=false,VISITAS=[],ATUAL=null;
+const CAMPOS=['mudancas','vendendo','precisa_vender','objecoes','oportunidades','instagram','anuncios','diagnostico','pendencias','acoes','prioridade_proxima','observacoes'];
+const CAPTACAO=['Reels','VSL / anúncio','Stories','Fotos','B-roll','Produto / serviço','Equipe / atendimento','Bastidores','Depoimento','Fachada / ambiente'];
+const FORMATOS=['Reel','VSL / anúncio','Story','Foto','Institucional','Depoimento','Carrossel'];
+const $=id=>document.getElementById(id);
+const esc=s=>JUMP.esc(s==null?'':String(s));
+const hojeISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmt=v=>{if(!v)return'—';const[y,m,d]=String(v).slice(0,10).split('-');return d+'/'+m+'/'+y};
+
+(async()=>{
+  try{
+    JUMP.sidebar('visitas');
+    CTX=await JUMP.guard();
+    ALVO=CTX.viewCliente||CTX.cliente;
+    JUMP.setUser(ALVO,CTX.user);
+    // Só o supervisor da conta preenche. Cliente e admin só leem. Sem supervisor: sem visitas.
+    PODE_EDITAR=!!(ALVO.supervisor_id&&ALVO.supervisor_id===CTX.user.id&&ALVO.id!==CTX.user.id);
+    $('v-titulo').innerHTML='Visitas de <em>'+esc(ALVO.nome||ALVO.email||'cliente')+'.</em>';
+    if(!ALVO.supervisor_id){$('v-sem-sup').classList.remove('v-hide');}
+    else{
+      $('b-nova').classList.toggle('v-hide',!PODE_EDITAR);
+      montarChecks();
+      await carregar();
+      $('v-lista').classList.remove('v-hide');
+    }
+    $('loading').classList.add('hide');
+  }catch(e){}
+})();
+
+async function carregar(){
+  try{
+    const{data}=await JUMP.sb.from('visitas').select('*').eq('cliente_id',ALVO.id).order('data',{ascending:false}).order('created_at',{ascending:false});
+    VISITAS=data||[];
+  }catch(e){VISITAS=[]}
+  $('k-tot').textContent=VISITAS.length;
+  $('k-ult').textContent=VISITAS[0]?fmt(VISITAS[0].data):'—';
+  const prox=VISITAS.map(v=>v.proxima_data).filter(d=>d&&d>=hojeISO()).sort()[0];
+  $('k-prox').textContent=prox?fmt(prox):'—';
+  $('v-rows').innerHTML=VISITAS.length?VISITAS.map(v=>`<div class="v-row"><div><strong>${fmt(v.data)} <span class="pill pill-c" style="margin-left:6px">${esc(v.status)}</span></strong><small>${esc(((v.dados||{}).diagnostico||(v.dados||{}).precisa_vender||'Sem diagnóstico registrado').slice(0,160))}</small></div><div class="v-acts"><button class="btn btn-o btn-sm" onclick="abrir('${v.id}')">${PODE_EDITAR?'Abrir':'Ver'}</button><button class="btn btn-o btn-sm" onclick="relatorio('${v.id}')">Relatório</button></div></div>`).join('')
+    :`<div class="v-empty">${PODE_EDITAR?'Nenhuma visita registrada. Clique em "+ Nova visita".':'Nenhuma visita registrada ainda.'}</div>`;
+}
+
+function montarChecks(){
+  $('v-checks').innerHTML=CAPTACAO.map((x,i)=>`<label class="v-check"><input type="checkbox" value="${esc(x)}" id="cap_${i}" onchange="contarCaps()"><span>${esc(x)}</span></label>`).join('');
+}
+function contarCaps(){$('v-cap-n').textContent=document.querySelectorAll('#v-checks input:checked').length+' concluídos'}
+
+function addConteudo(c={}){
+  const el=document.createElement('div');el.className='v-ci';
+  el.innerHTML=`<div class="v-ci-h"><strong style="font-size:13px">Ideia</strong><button type="button" class="btn btn-r btn-sm v-edit" onclick="this.closest('.v-ci').remove();numerar()">Remover</button></div>
+    <div class="f-row"><div class="f-group"><label class="f-label">Formato</label><select class="f-select ci-formato">${FORMATOS.map(f=>`<option>${esc(f)}</option>`).join('')}</select></div>
+    <div class="f-group"><label class="f-label">Objetivo</label><input class="f-input ci-objetivo" placeholder="Ex.: gerar leads"></div></div>
+    <div class="f-group"><label class="f-label">Tema / assunto</label><input class="f-input ci-tema"></div>
+    <div class="f-group"><label class="f-label">Gancho / abertura</label><input class="f-input ci-gancho"></div>
+    <div class="f-group"><label class="f-label">Roteiro / mensagem principal</label><textarea class="f-textarea f-input ci-roteiro"></textarea></div>
+    <div class="f-group"><label class="f-label">Cenas / B-roll necessários</label><textarea class="f-textarea f-input ci-cenas"></textarea></div>
+    <div class="f-group"><label class="f-label">CTA</label><input class="f-input ci-cta"></div>`;
+  el.querySelector('.ci-formato').value=FORMATOS.includes(c.formato)?c.formato:'Reel';
+  ['objetivo','tema','gancho','roteiro','cenas','cta'].forEach(k=>{el.querySelector('.ci-'+k).value=c[k]||''});
+  $('v-conteudos').appendChild(el);numerar();
+}
+function numerar(){document.querySelectorAll('#v-conteudos .v-ci').forEach((el,i)=>{el.querySelector('.v-ci-h strong').textContent='Ideia '+(i+1)})}
+function coletarConteudos(){
+  return[...document.querySelectorAll('#v-conteudos .v-ci')].map(el=>{const o={formato:el.querySelector('.ci-formato').value};['objetivo','tema','gancho','roteiro','cenas','cta'].forEach(k=>{o[k]=el.querySelector('.ci-'+k).value.trim()});return o})
+    .filter(o=>o.objetivo||o.tema||o.gancho||o.roteiro||o.cenas||o.cta);
+}
+
+function preencher(v){
+  const d=(v&&v.dados)||{};
+  $('v-data').value=(v&&v.data)||hojeISO();
+  $('v-status').value=(v&&v.status)||'Visita concluída';
+  $('v-prox').value=(v&&v.proxima_data)||'';
+  CAMPOS.forEach(k=>{$('d-'+k).value=d[k]||''});
+  $('v-conteudos').innerHTML='';
+  (Array.isArray(d.conteudos)&&d.conteudos.length?d.conteudos:(PODE_EDITAR?[{}]:[])).forEach(addConteudo);
+  document.querySelectorAll('#v-checks input').forEach(i=>{i.checked=(d.captacao||[]).includes(i.value)});
+  contarCaps();
+  $('b-excluir').classList.toggle('v-hide',!(v&&v.id));
+  $('v-salvo').textContent='';
+  // leitura (cliente/admin): tudo desabilitado, sem botões de edição
+  document.querySelectorAll('#v-form input,#v-form select,#v-form textarea').forEach(e=>{e.disabled=!PODE_EDITAR});
+  document.querySelectorAll('#v-form .v-edit').forEach(e=>{if(!PODE_EDITAR)e.classList.add('v-hide')});
+}
+function mostrarForm(){$('v-lista').classList.add('v-hide');$('v-form').classList.remove('v-hide');window.scrollTo({top:0,behavior:'smooth'})}
+function voltarLista(){$('v-form').classList.add('v-hide');$('v-lista').classList.remove('v-hide');carregar()}
+function novaVisita(){if(!PODE_EDITAR)return;ATUAL=null;preencher(null);mostrarForm()}
+function abrir(id){ATUAL=VISITAS.find(v=>v.id===id)||null;if(!ATUAL)return;preencher(ATUAL);mostrarForm()}
+
+function coletar(){
+  const dados={};CAMPOS.forEach(k=>{dados[k]=$('d-'+k).value.trim()});
+  dados.conteudos=coletarConteudos();
+  dados.captacao=[...document.querySelectorAll('#v-checks input:checked')].map(i=>i.value);
+  return{data:$('v-data').value||hojeISO(),status:$('v-status').value,proxima_data:$('v-prox').value||null,dados};
+}
+async function salvar(voltar){
+  if(!PODE_EDITAR)return null;
+  const obj=coletar();
+  try{
+    let r;
+    if(ATUAL&&ATUAL.id)r=await JUMP.sb.from('visitas').update({...obj,updated_at:new Date().toISOString()}).eq('id',ATUAL.id).select().single();
+    else r=await JUMP.sb.from('visitas').insert({...obj,cliente_id:ALVO.id,supervisor_id:CTX.user.id}).select().single();
+    if(r.error)throw r.error;
+    ATUAL=r.data;
+    $('b-excluir').classList.remove('v-hide');
+    $('v-salvo').textContent='Salvo agora';
+    JUMP.toast('✓ Visita salva');
+    if(voltar)voltarLista();
+    return ATUAL;
+  }catch(e){JUMP.toast('Erro ao salvar a visita','err');return null}
+}
+async function excluir(){
+  if(!PODE_EDITAR||!ATUAL||!ATUAL.id)return;
+  if(!confirm('Excluir esta visita?'))return;
+  try{const{error}=await JUMP.sb.from('visitas').delete().eq('id',ATUAL.id);if(error)throw error;ATUAL=null;JUMP.toast('Visita excluída');voltarLista()}
+  catch(e){JUMP.toast('Erro ao excluir','err')}
+}
+
+function textoRelatorio(v){
+  const d=v.dados||{},t=x=>x||'—';
+  const cs=(d.conteudos||[]).map((x,i)=>`\nIDEIA ${i+1}\nFormato: ${t(x.formato)}\nTema: ${t(x.tema)}\nObjetivo: ${t(x.objetivo)}\nGancho: ${t(x.gancho)}\nRoteiro: ${t(x.roteiro)}\nCenas/B-roll: ${t(x.cenas)}\nCTA: ${t(x.cta)}`).join('\n');
+  return `RELATÓRIO DE VISITA\n\nCliente: ${t(ALVO.nome||ALVO.email)}\nData: ${fmt(v.data)}\nStatus: ${t(v.status)}\nPróxima visita: ${fmt(v.proxima_data)}\n\n1. CONVERSA COM O CLIENTE\nMudanças / novidades: ${t(d.mudancas)}\nO que está vendendo bem: ${t(d.vendendo)}\nO que precisa vender mais: ${t(d.precisa_vender)}\nDúvidas / objeções: ${t(d.objecoes)}\nPromoções / oportunidades: ${t(d.oportunidades)}\n\n2. ANÁLISE DO SUPERVISOR\nInstagram / presença digital: ${t(d.instagram)}\nAnúncios / leads: ${t(d.anuncios)}\nDiagnóstico / oportunidade principal: ${t(d.diagnostico)}\n\n3. IDEIAS DE CONTEÚDO${cs||'\n—'}\n\n4. CAPTAÇÃO\nRealizado: ${(d.captacao||[]).join(', ')||'—'}\nPendências: ${t(d.pendencias)}\n\n5. PRÓXIMAS AÇÕES\n${t(d.acoes)}\n\nPrioridade para a próxima visita: ${t(d.prioridade_proxima)}\nObservações: ${t(d.observacoes)}`;
+}
+function mostrarRel(v){const tx=textoRelatorio(v);$('v-rel-t').textContent=tx;$('v-print').textContent=tx;$('v-rel').classList.add('open')}
+function relatorio(id){const v=VISITAS.find(x=>x.id===id);if(v)mostrarRel(v)}
+async function relatorioAtual(){
+  if(PODE_EDITAR){const v=await salvar(false);if(v)mostrarRel(v);return}
+  if(ATUAL)mostrarRel(ATUAL);
+}
+async function copiarRel(){try{await navigator.clipboard.writeText($('v-rel-t').textContent);JUMP.toast('Relatório copiado')}catch(e){JUMP.toast('Selecione o texto e copie manualmente','err')}}
+</script>
+</body>
+</html>

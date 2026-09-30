@@ -153,9 +153,9 @@
   </div>
 </div>
 
-<script src="assets/jump-core.js?v=9"></script>
+<script src="assets/jump-core.js?v=10"></script>
 <script>
-let CTX=null,USERS=[],SUPID=null,LIMITE=0;
+let CTX=null,USERS=[],SUPID=null,LIMITE=0,VIS={};
 
 (async()=>{
   try{
@@ -208,6 +208,15 @@ function renderCotasPainel(COTAS){
 async function carregar(){
   const{data}=await JUMP.sb.from('clientes').select('*').eq('supervisor_id',SUPID).order('created_at',{ascending:false});
   USERS=data||[];
+  // Visitas presenciais (30/set/2026): última e próxima visita de cada conta, para a mini gestão.
+  VIS={};
+  try{
+    if(USERS.length){
+      const{data:vs}=await JUMP.sb.from('visitas').select('cliente_id,data,proxima_data').in('cliente_id',USERS.map(u=>u.id)).order('data',{ascending:false}).limit(2000);
+      const hoje=new Date().toISOString().slice(0,10);
+      (vs||[]).forEach(v=>{const o=VIS[v.cliente_id]=VIS[v.cliente_id]||{ult:null,prox:null,n:0};o.n++;if(!o.ult)o.ult=v.data;if(v.proxima_data&&v.proxima_data>=hoje&&(!o.prox||v.proxima_data<o.prox))o.prox=v.proxima_data;});
+    }
+  }catch(e){VIS={}}
   const ativos=USERS.filter(u=>!u.bloqueado).length;
   const bloq=USERS.filter(u=>u.bloqueado).length;
   const cort=USERS.filter(u=>u.cortesia_ate).length;
@@ -277,6 +286,10 @@ function setFiltro(v){
   });
   renderTable();
 }
+function _visTxt(id){
+  const o=VIS[id];const f=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
+  return `<span class="u-mail">Visitas: ${o?o.n:0} · última ${f(o&&o.ult)} · próxima ${f(o&&o.prox)}</span>`;
+}
 function renderTable(){
   const q=(document.getElementById('search').value||'').toLowerCase();
   const rows=USERS.filter(u=>{
@@ -292,7 +305,7 @@ function renderTable(){
     const lim=u.limites||{},uso=u.uso||{};
     const cort=u.cortesia_ate?(u.cortesia_ate==='ilimitado'||new Date(u.cortesia_ate).getFullYear()>2090?'Ilimitada':('até '+new Date(u.cortesia_ate).toLocaleDateString('pt-BR'))):'—';
     return `<tr>
-      <td><div class="u-cell"><strong>${JUMP.esc(u.nome||'—')}</strong><span class="u-mail">${JUMP.esc(u.email||'')}</span></div></td>
+      <td><div class="u-cell"><strong>${JUMP.esc(u.nome||'—')}</strong><span class="u-mail">${JUMP.esc(u.email||'')}</span>${_visTxt(u.id)}</div></td>
       <td><select class="sel-mini" onchange="setPlano('${u.id}',this.value)">
         <option value="basico"${u.plano==='basico'?' selected':''}>Básico</option>
         <option value="plus"${u.plano==='plus'?' selected':''}>Plus</option>
@@ -302,6 +315,7 @@ function renderTable(){
       <td>${barHtml(uso.tokens||0,lim.tokens||0)}${barHtml(uso.imagens||0,lim.imagens||0)}</td>
       <td><div class="td-acts">
         <a class="btn btn-o btn-sm" href="dashboard-usuario.html?ver=${u.id}">Acessar painel →</a>
+        <a class="btn btn-o btn-sm" href="visitas.html?ver=${u.id}">Visitas</a>
         <button class="btn btn-o btn-sm" onclick="abrirEditar('${u.id}')">Editar</button>
         <button class="btn btn-o btn-sm" onclick="abrirLimites('${u.id}')">Limites</button>
         <button class="btn btn-o btn-sm" onclick="abrirSenha('${u.id}')">Senha</button>
