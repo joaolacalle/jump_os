@@ -20,7 +20,7 @@
   "crons": [
     {
       "path": "/api/cron?job=estrategia",
-      "schedule": "0 9 25 * *"
+      "schedule": "10 9 * * *"
     },
     {
       "path": "/api/cron?job=publicar",

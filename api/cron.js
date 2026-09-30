@@ -1,6 +1,6 @@
 // api/cron.js — Crons consolidados (estratégia + renovação de tokens em 1 função)
 // Resolve o limite de funções da Vercel. Decide o job por ?job=
-//   ?job=estrategia → avisa 5 dias antes de fechar o ciclo de 30d de CADA cliente (preferencias.estrategia_em)
+//   ?job=estrategia → avisa o fim do ciclo real do plano (âncora + 5 semanas, dia do ciclo semanal) — diário
 //   ?job=tokens     → renova tokens da Meta que expiram em < 10 dias (diário)
 // Protegido por CRON_SECRET.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
@@ -37,41 +37,58 @@ function _hojeSPComoData(iso) { return new Date(iso + 'T00:00:00Z'); }
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
-// ── JOB 1: aviso da PRÓXIMA estratégia — 5 dias antes de fechar o ciclo do usuário ──
-//    O ciclo conta a partir da DATA DA ESTRATÉGIA de cada cliente (preferencias.estrategia_em),
-//    não do dia 25 do mês. Roda diário; avisa uma única vez por ciclo.
+// ── JOB 1: aviso do PRÓXIMO plano da Estratégia — alinhado ao ciclo REAL (30/set/2026) ──
+//    Antes: contava 30 dias desde preferencias.estrategia_em (data em que o plano foi ESCRITO) e a
+//    Vercel só rodava este job no dia 25 — dois relógios diferentes do que a própria Estratégia usa
+//    para travar plano novo (horizonte de 5 semanas a partir de preferencias.plano_ancora_em,
+//    alinhado ao dia do ciclo semanal de Configurações, preferencias.dia_lote — ver "TRAVA DE CICLO"
+//    em api/agente-chat.js). Resultado: o recado convidava a "pedir o plano do próximo mês" com o
+//    plano atual ainda em vigor — um plano em cima do outro, que a trava então recusava.
+//    Agora usa o MESMO horizonte (JC.horizonteDoPlano, fonte única) e roda todo dia:
+//      - AVISO_ANTES dias antes do fim: só informa a data em que o próximo plano libera;
+//      - depois do fim: avisa que já pode pedir o plano do novo ciclo.
+//    Um recado de cada tipo por ciclo (tag com a âncora). Nunca gera plano sozinho.
 async function jobEstrategia() {
-  const CICLO = 30, AVISO_ANTES = 5;
+  const AVISO_ANTES = 3;
   const clientes = await fetch(
     `${SUPABASE_URL}/rest/v1/clientes?status=eq.ativo&select=id,nome,plano,tipo_cortesia,cortesia_ate,preferencias`, { headers: SBH() }
   ).then(r => r.json());
   if (!Array.isArray(clientes)) return { avisos: 0 };
+  const hoje = JC.hojeISOBrasil();
+  const _mais1 = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+  const _br = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
   let criados = 0, semCiclo = 0;
   for (const c of clientes) {
     // pula quem está no período de teste (a estratégia do trial é de 7 dias, não mensal)
     if (c.tipo_cortesia === 'trial' && c.cortesia_ate && new Date(c.cortesia_ate).getTime() > Date.now()) continue;
     const pref = (c.preferencias && typeof c.preferencias === 'object') ? c.preferencias : {};
-    if (!pref.estrategia_em) { semCiclo++; continue; } // ainda não gerou a 1ª estratégia
-    const inicio = new Date(pref.estrategia_em).getTime();
-    const fimCiclo = inicio + CICLO * 864e5;
-    const faltam = Math.ceil((fimCiclo - Date.now()) / 864e5);
-    if (faltam > AVISO_ANTES || faltam < 0) continue; // só na janela dos 5 dias finais
-    const tag = `estrategia_ciclo_${new Date(inicio).toISOString().slice(0, 10)}`;
+    if (!pref.plano_ancora_em) { semCiclo++; continue; } // nenhum plano aprovado ainda
+    const fim = JC.horizonteDoPlano(pref.plano_ancora_em, pref.dia_lote).fim;
+    const libera = _mais1(fim);
+    const faltam = Math.round((new Date(fim + 'T12:00:00Z') - new Date(hoje + 'T12:00:00Z')) / 864e5);
+    let tipo = null;
+    if (hoje > fim) tipo = 'liberado';
+    else if (faltam <= AVISO_ANTES) tipo = 'pre';
+    if (!tipo) continue;
+    const tag = `estrategia_ciclo_${pref.plano_ancora_em}_${tipo}`;
     const existe = await fetch(
       `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${c.id}&mensagem=like.*${tag}*&select=id&limit=1`, { headers: SBH() }
     ).then(r => r.json()).catch(() => []);
     if (Array.isArray(existe) && existe.length) continue; // já avisado neste ciclo
-    const quando = faltam <= 0 ? 'hoje' : (faltam === 1 ? 'amanhã' : `em ${faltam} dias`);
-    await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+    const msg = tipo === 'pre'
+      ? `Seu plano atual vai até ${_br(fim)}. O plano do próximo ciclo libera em ${_br(libera)} — nesse dia, abra o Agente de Estratégia e peça o novo plano. Até lá, o plano atual continua valendo.`
+      : `Seu ciclo de conteúdo terminou em ${_br(fim)}. Abra o Agente de Estratégia e peça o plano do novo ciclo.`;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
       method: 'POST', headers: SBH(),
       body: JSON.stringify({
         user_id: c.id, tipo: 'info',
-        titulo: 'Hora de planejar o próximo mês',
-        mensagem: `Sua estratégia atual fecha o ciclo ${quando}. Abra o Agente de Estratégia e peça o plano do próximo mês — eu já disparo as ordens para o Designer e a Publicação. [${tag}]`,
+        titulo: tipo === 'pre' ? 'Seu ciclo está terminando' : 'Hora de planejar o novo ciclo',
+        mensagem: msg + ` [${tag}]`,
         lido: false, resolvido: false,
       }),
-    }).catch(() => {});
-    criados++;
+    }).catch(() => null);
+    if (!r || !r.ok) console.error('[estrategia] recado de ciclo não gravado — user=' + c.id);
+    else criados++;
   }
   return { avisos: criados, sem_ciclo: semCiclo };
 }

@@ -150,8 +150,31 @@
   }
 
   // Aceita tanto um conteúdo ({formato:'reels', ...}) quanto uma string de formato direto.
+  // MATERIAL DO USUÁRIO ALÉM DE VÍDEO (30/set/2026, "Participação do usuário no conteúdo",
+  // autorizado pelo João): um post também depende do cliente quando a Estratégia o marca com
+  // `material` (foto do produto, foto do cliente, trabalho realizado ou vídeo) — na tag
+  // <conteudo> (ct.material) ou já gravado (meta.material). Esta é a fonte única: cota, produção,
+  // "aguardando material", Aprovar e cron passam a tratar esses posts do mesmo jeito que já
+  // tratavam Reels — nenhum ponto de chamada precisou mudar.
+  var MATERIAIS_USUARIO = ['foto_produto', 'foto_pessoa', 'trabalho', 'video'];
+  function materialDoUsuario(conteudo) {
+    if (!conteudo || typeof conteudo !== 'object') return null;
+    var m = String(conteudo.material || (conteudo.meta && conteudo.meta.material) || '').toLowerCase();
+    return MATERIAIS_USUARIO.indexOf(m) >= 0 ? m : null;
+  }
   function ehMaterialUsuario(conteudoOuFormato) {
+    if (materialDoUsuario(conteudoOuFormato)) return true;
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_MATERIAL_USUARIO);
+  }
+
+  // CAPACIDADE DE PRODUÇÃO DO CLIENTE (30/set/2026, decisão do João) — quantos posts POR SEMANA
+  // podem depender de material dele. Nível 1: não produz; 2: 1 por semana; 3: 2 a 3 por semana
+  // (teto 3); 4: mais de 5 por semana (sem teto próprio — vale o número de posts da semana).
+  // Guardada em clientes.preferencias.capacidade_producao = {nivel, atualizado_em}.
+  var CAPACIDADE_SEMANAL = { 1: 0, 2: 1, 3: 3, 4: Infinity };
+  function capacidadeSemanal(nivel) {
+    var n = Number(nivel);
+    return Object.prototype.hasOwnProperty.call(CAPACIDADE_SEMANAL, n) ? CAPACIDADE_SEMANAL[n] : null;
   }
 
   function ehVertical(conteudoOuFormato) {
@@ -375,6 +398,9 @@
     horizonteDoPlano: horizonteDoPlano,
     hojeISOBrasil: hojeISOBrasil,
     tetoImagensPlano: tetoImagensPlano,
+    MATERIAIS_USUARIO: MATERIAIS_USUARIO,
+    materialDoUsuario: materialDoUsuario,
+    capacidadeSemanal: capacidadeSemanal,
     reservaImagens: reservaImagens,
     resumoSemanasEstrategia: resumoSemanasEstrategia
   };

@@ -110,7 +110,7 @@ const CHAVES_DO_AGENTE = {
   identidade: new Set([...CHAVES_DNA_MARCA, 'revisao_identidade']),
   mercado: new Set(['concorrentes', 'lacunas_mercado', 'oportunidades', 'formatos_nicho', 'revisao_mercado']),
   diagnostico: new Set(['pontos_fortes', 'pontos_corrigir', 'prioridades', 'melhor_horario', 'melhor_formato', 'revisao_diagnostico']),
-  estrategia: new Set(['estrategia_completada', 'perfil_video', 'acervo_sem_persona', 'acervo_sem_produto', ...DNA_VIDEO]),
+  estrategia: new Set(['estrategia_completada', 'perfil_video', 'capacidade_producao', 'acervo_sem_persona', 'acervo_sem_produto', ...DNA_VIDEO]),
   criativo: new Set([]),
   publicacao: new Set([]),
   trafego: new Set([]),
