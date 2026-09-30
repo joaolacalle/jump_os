@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-ancora-vigente-ciclo-encerrado';
+const VERSAO = '2026.09.30-fotos-antes-do-plano-sem-data-passada';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -141,12 +141,14 @@ const JC = require('../assets/classificacao.js');
 // decidiu nunca mais fazer). Só se aplica a conteúdo do PLANO (avulso:false) — avulso não tem
 // horizonte de plano, fica de fora por definição. Sem data_sugerida ou em formato inesperado,
 // não é esta trava que deve pegar (fora do escopo do item 3) — deixa passar.
-function travaDeDatas(ct, ancoraISO, diaLote) {
+function travaDeDatas(ct, ancoraISO, diaLote, hojeISO) {
   if (!ct || ct.avulso) return;
   const raw = ct.data_sugerida;
   if (!raw) return;
   const data = String(raw).slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+  // data que já passou nunca entra no plano (30/set/2026: plano gravado inteiro com datas de agosto)
+  if (hojeISO && data < hojeISO) throw new Error('data ' + data + ' já passou (hoje é ' + hojeISO + ')');
   const hz = JC.horizonteDoPlano(ancoraISO, diaLote);
   if (data < hz.inicio || data > hz.fim) {
     throw new Error('data ' + data + ' fora do horizonte do plano (' + hz.inicio + ' a ' + hz.fim + ')');
@@ -1560,6 +1562,9 @@ const handler = async (req, res) => {
         foco_do_post_produto_nunca_com_foto_de_pessoa_e_vice_versa:true,
         equilibrio_respeita_foco_do_post:true,
         ciclo_encerrado_semanas_contam_de_hoje:true,
+        plano_so_grava_com_fotos_prometidas_no_acervo:true,
+        trava_de_datas_recusa_data_passada:true,
+        detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -2310,6 +2315,8 @@ const handler = async (req, res) => {
         (_cap&&Array.isArray(_cap.tipos)&&_cap.tipos.length?('\nO QUE O CLIENTE FORNECE: '+_cap.tipos.join(', ')+'. Só peça material destes tipos — o sistema recusa pedido de outro tipo.'):'')+
         (_cap&&_cap.renovacao?('\nNOVIDADE NO NEGÓCIO: '+_cap.renovacao+'.'):'')+
         '\nAo saber, registre: <memoria>{"chave":"capacidade_producao","valor":"1|2|3|4"}</memoria> <memoria>{"chave":"materiais_fornece","valor":"foto_produto,foto_pessoa,trabalho,video (só os que ele fornece)"}</memoria> <memoria>{"chave":"renovacao_produto","valor":"semanal|quinzenal|mensal|raramente"}</memoria>. O sistema aplica os limites em código: o que passar vira post automático.'+
+        '\nFOTOS ANTES DO PLANO: se ele disse que fornece um tipo de foto que ainda NÃO está em Meus Arquivos (veja ACERVO DE IMAGENS: produtos=0 ou fotos pessoais=0), NÃO monte o plano ainda. Peça, em 1 frase, que suba essas fotos em Meus Arquivos (Produtos = produto, trabalho realizado, telas do sistema; Fotos pessoais = fotos dele) e que avise quando terminar. Quando ele avisar, confira a contagem no ACERVO e só então monte o plano. Se ele preferir seguir sem elas, registre <memoria>{"chave":"acervo_sem_produto","valor":"cliente preferiu seguir sem"}</memoria> (ou acervo_sem_persona) e monte. O sistema recusa gravar o plano enquanto faltar a foto prometida.'+
+        '\nDEPOIS DE EMITIR O PLANO: o próximo passo é o cliente aprovar em Aprovações. Não ofereça detalhar nenhuma semana antes disso. Depois de aprovado, o detalhamento começa pela semana atual (Semana 1).'+
         '\nREGRA: posts que dependem do cliente (Reels/vídeo, ou foto marcada com "material") nunca passam da capacidade dele na semana. O restante do mix vai para feed/carrossel/story (o Designer produz).'+
         '\n⚠️ REGRA (histórico: já foi tentado dar o dado real e o agente inventou por cima 3x; já foi tentado esconder o dado e o agente inventou do mesmo jeito 4x — nenhuma das duas apostas sozinha resolveu): use EXATAMENTE os números acima, como estão. NUNCA calcule, some, subtraia, arredonde ou derive um terceiro número a partir deles — "usadas X de Y" e "até Z cabem agora" já são os números finais, prontos. Se o cliente perguntar quanto sobra ou quanto já usou, responda com esses mesmos números, sem fazer nenhuma conta nova. Se perguntar algo que não está nos números acima (ex.: saldo de um mês passado), diga que não tem esse dado agora — nunca estime.';
     }
@@ -3182,6 +3189,7 @@ const handler = async (req, res) => {
     let idsPorConteudo=[];
     let avisoEquilibrio=null;
     let avisoCapacidade=null;
+    let avisoFotosFaltando=null;
     if(conteudos.length){
       try{
         // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
@@ -3208,6 +3216,38 @@ const handler = async (req, res) => {
             invalidos.push(_cicloRemovidos+' peça(s) do plano recusada(s): '+cicloAtivoBloqueio);
           }
         }
+        // FOTOS PROMETIDAS ANTES DO PLANO (30/set/2026, achado do João: "eu disse que fornecia fotos,
+        // não subi, e ele montou o plano como se eu não tivesse"): se o cliente disse que fornece um
+        // tipo de foto e Meus Arquivos ainda não tem nenhuma dessa pasta, o PLANO não é gravado —
+        // a Estratégia pede o upload, confere e só então monta. Escape: memória acervo_sem_produto /
+        // acervo_sem_persona (cliente preferiu seguir sem). Avulso não é afetado.
+        if(agente==='estrategia'&&!_intOk&&conteudos.some(ct=>ct&&!ct.avulso)){
+          try{
+            const _memTurno={};
+            String(texto||'').replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{ try{const o=JSON.parse(j.trim()); if(o&&o.chave)_memTurno[String(o.chave)]=String(o.valor||'');}catch(e){} return _; });
+            const _tiposF=_memTurno.materiais_fornece!=null
+              ? String(_memTurno.materiais_fornece).toLowerCase().split(/[^a-z_]+/).filter(t=>JC.MATERIAIS_USUARIO.includes(t))
+              : ((((cli.preferencias||{}).capacidade_producao||{}).tipos)||[]);
+            const _semProd=!!(fatiaAtual.acervo_sem_produto||_memTurno.acervo_sem_produto);
+            const _semPess=!!(fatiaAtual.acervo_sem_persona||_memTurno.acervo_sem_persona);
+            const _pedeProd=(_tiposF.includes('foto_produto')||_tiposF.includes('trabalho'))&&!_semProd;
+            const _pedePess=_tiposF.includes('foto_pessoa')&&!_semPess;
+            if(_pedeProd||_pedePess){
+              const _upsF=await sbGet(`uploads?user_id=eq.${targetId}&categoria=in.(pessoais,produtos)&select=categoria`);
+              const _nP=(Array.isArray(_upsF)?_upsF:[]).filter(u=>u.categoria==='pessoais').length;
+              const _nProd=(Array.isArray(_upsF)?_upsF:[]).filter(u=>u.categoria==='produtos').length;
+              const _faltam=[];
+              if(_pedeProd&&_nProd===0)_faltam.push('fotos de produto/trabalho (Meus Arquivos → Produtos)');
+              if(_pedePess&&_nP===0)_faltam.push('fotos suas (Meus Arquivos → Fotos pessoais)');
+              if(_faltam.length){
+                let _rem=0;
+                for(let i=conteudos.length-1;i>=0;i--){ if(conteudos[i]&&!conteudos[i].avulso){ conteudos.splice(i,1); _rem++; } }
+                console.error('[fotos-antes-do-plano] plano não gravado ('+_rem+' post(s)) — faltam: '+_faltam.join(' e ')+' user='+targetId);
+                avisoFotosFaltando='O plano ainda não foi gravado: você disse que fornece '+_faltam.join(' e ')+', mas essa pasta está vazia. Suba as fotos e me avise que eu confiro e monto o plano. Se preferir seguir sem elas, é só dizer.';
+              }
+            }
+          }catch(e){ console.error('[fotos-antes-do-plano] conferência falhou — seguindo sem a trava. user='+targetId+' '+(e&&e.message)); }
+        }
         for(let i=conteudos.length-1;i>=0;i--){
           try{
             cardinalidade(conteudos[i]);
@@ -3215,7 +3255,7 @@ const handler = async (req, res) => {
             // cardinalidade — reject, não corrige. Escopo só do PLANO (avulso fica de fora, por
             // definição das próprias funções). Âncora de trabalho é ancoraPlano (a real, se já
             // houver aprovação mensal; hoje, se ainda não houver — calculada uma vez no topo).
-            travaDeDatas(conteudos[i], ancoraPlano, diaLoteCliente);
+            travaDeDatas(conteudos[i], ancoraPlano, diaLoteCliente, hojeISO);
             if(emTrial) travaTrial(conteudos[i], cli.cortesia_ate);
           }
           catch(e){ invalidos.push(String((conteudos[i]&&conteudos[i].tema)||'peça')+': '+e.message); conteudos.splice(i,1); }
@@ -4037,6 +4077,7 @@ const handler = async (req, res) => {
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
+    if(avisoFotosFaltando) avisosPartes.push(avisoFotosFaltando);
     if(avisoCapacidade) avisosPartes.push(avisoCapacidade);
     if(avisoEquilibrio) avisosPartes.push(avisoEquilibrio);
     if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
