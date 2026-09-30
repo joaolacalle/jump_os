@@ -1631,7 +1631,26 @@ module.exports = async (req, res) => {
       // 'pessoal' para o mesmo teto — agora que pessoa_conceito nunca usa foto real, isso deixa o
       // teto mais apertado do que precisa para 'pessoal' (conta uma peça que nunca gastava foto
       // real contra a cota de quem gasta). Reportado ao cliente, decisão própria dele.
-      if (tipo === 'pessoal' && primeiroSlide && !sem_foto_pessoa) {
+      // FOTO ENVIADA PELO CLIENTE PARA ESTE POST (30/set/2026, "Participação do usuário", entrega 2,
+      // autorizado pelo João — SÓ ENTRADA, nenhuma etapa do Engine muda): quando a Estratégia pediu
+      // uma foto ao cliente para este post e ele enviou (conteudos.meta.material_url, gravada no
+      // card da semana em Aprovar), ESSA foto é a referência escolhida — no lugar da escolhida do
+      // acervo, pelo MESMO caminho (baseImgs, mesma tag 'pessoa'/'produto', mesma fidelidade).
+      // Não enviou → nada muda: o acervo é usado exatamente como sempre.
+      let fotoDoCliente = null;
+      if (conteudo_id && primeiroSlide && (tipo === 'pessoal' || tipo === 'produto')) {
+        try {
+          const [ctM] = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${encodeURIComponent(conteudo_id)}&user_id=eq.${targetId}&select=meta`, { headers: SBH() }).then(r => r.json());
+          const mu = ctM && ctM.meta && ctM.meta.material_url;
+          if (mu && /^https:\/\//.test(String(mu))) fotoDoCliente = String(mu);
+        } catch (e) { console.error('[material-cliente] leitura de meta.material_url falhou — conteudo=' + conteudo_id + ' ' + (e && e.message)); }
+      }
+      if (fotoDoCliente) {
+        const im = await baixarImg(fotoDoCliente);
+        if (im) baseImgs.push({ ...im, tag: tipo === 'pessoal' ? 'pessoa' : 'produto' });
+        else { console.error('[material-cliente] foto do cliente não pôde ser baixada — usando o acervo. conteudo=' + conteudo_id); fotoDoCliente = null; }
+      }
+      if (!fotoDoCliente && tipo === 'pessoal' && primeiroSlide && !sem_foto_pessoa) {
         const fotos = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.pessoais&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
         // PERMUTAÇÃO: alterna entre as fotos da pasta (nunca repete a mesma) — usa as mais recentes.
         if (Array.isArray(fotos) && fotos.length) {
@@ -1640,7 +1659,7 @@ module.exports = async (req, res) => {
         }
       }
       // TIPO 'produto' = FOTO REAL do produto (intocável). Só no 1º slide.
-      if (tipo === 'produto' && primeiroSlide) {
+      if (!fotoDoCliente && tipo === 'produto' && primeiroSlide) {
         const prods = await fetch(`${SUPABASE_URL}/rest/v1/uploads?user_id=eq.${targetId}&categoria=eq.produtos&select=url,created_at&order=created_at.desc&limit=8`, { headers: SBH() }).then(r => r.json());
         // PRODUTO: usa as MAIS RECENTES da pasta, alternando entre elas a cada criativo.
         if (Array.isArray(prods) && prods.length) {
