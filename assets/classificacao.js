@@ -271,10 +271,26 @@
   // pra este arquivo: o painel de estado precisa do mesmo número que o prompt da Estratégia já usa
   // pra cota, calculado do MESMO jeito — reserva de 20% pra avulso/recriação. `api/agente-chat.js`
   // passa a chamar esta função em vez de ter a própria cópia.
+  // RESERVA DE IMAGENS — REGRA ÚNICA (30/set/2026, decisão do João). Antes a reserva existia em
+  // dois lugares com contas diferentes: aqui era 80% do que SOBRAVA no mês; em api/gerar-imagem.js
+  // (trava da fila automática) era 80% do TOTAL. Agora os dois usam esta função. A reserva protege
+  // os pedidos avulsos de última hora do cliente — recriação NÃO sai daqui, tem cota própria
+  // (limites.reloads, ver api/gerar-imagem.js). Regra: 20% do limite de imagens do plano,
+  // arredondado para cima (então o plano fica com 80% arredondado para BAIXO), com mínimo de 5
+  // imagens de reserva; em plano pequeno (menos de 10) o mínimo cai para a metade, e abaixo de 5
+  // imagens não há reserva (o lote nasceria morto — mesmo piso que gerar-imagem já tinha). O
+  // limite vem de clientes.limites.imagens: mudou o plano no painel admin, a conta acompanha.
+  function reservaImagens(limite) {
+    var lim = Math.max(0, Math.floor(Number(limite) || 0));
+    if (lim < 5) return 0;
+    return Math.max(Math.min(5, Math.floor(lim / 2)), Math.ceil(lim * 0.2));
+  }
+  // Quantas peças com arte o PLANO ainda pode usar: (limite − reserva) − o que já foi usado no mês
+  // (uso.imagens soma tudo: plano e avulsos).
   function tetoImagensPlano(cli) {
     var lim = Number((cli && cli.limites || {}).imagens || 0);
     var us = Number((cli && cli.uso || {}).imagens || 0);
-    return Math.floor(Math.max(0, lim - us) * 0.8);
+    return Math.max(0, lim - reservaImagens(lim) - us);
   }
 
   // Resumo REAL do plano, por semana — fonte única entre o bloco injetado no prompt da Estratégia
@@ -359,6 +375,7 @@
     horizonteDoPlano: horizonteDoPlano,
     hojeISOBrasil: hojeISOBrasil,
     tetoImagensPlano: tetoImagensPlano,
+    reservaImagens: reservaImagens,
     resumoSemanasEstrategia: resumoSemanasEstrategia
   };
 });
