@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-foco-do-post-sem-misturar-foto';
+const VERSAO = '2026.09.30-ancora-vigente-ciclo-encerrado';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1559,6 +1559,7 @@ const handler = async (req, res) => {
         visitas_presenciais_como_dado_de_analise_estrategia_e_diagnostico:true,
         foco_do_post_produto_nunca_com_foto_de_pessoa_e_vice_versa:true,
         equilibrio_respeita_foco_do_post:true,
+        ciclo_encerrado_semanas_contam_de_hoje:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
@@ -2167,7 +2168,9 @@ const handler = async (req, res) => {
     // âncora de trabalho — mesmo critério do card mensal, que recalcula "como se aprovado hoje".
     const hojeISO=hojeBR_ISO(_hojeBR);
     const diaLoteCliente=(cli.preferencias&&cli.preferencias.dia_lote);
-    const ancoraPlano=(cli.preferencias&&cli.preferencias.plano_ancora_em)||hojeISO;
+    // Ciclo já encerrado: as semanas do plano novo contam de hoje (JC.ancoraVigente), nunca do
+    // ciclo que acabou — antes o agente recebia as 5 semanas passadas como janelas do plano novo.
+    const ancoraPlano=JC.ancoraVigente(cli.preferencias&&cli.preferencias.plano_ancora_em,diaLoteCliente,hojeISO);
     const janelasCliente=JC.janelasSemanas(ancoraPlano,diaLoteCliente);
     const semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
     // JANELA DE PLANEJAMENTO COMO DADO, NÃO TEXTO (28/ago/2026 — ver APRENDIZADOS.md, "JANELA

@@ -464,7 +464,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=10"></script>
-<script src="assets/classificacao.js?v=10"></script>
+<script src="assets/classificacao.js?v=11"></script>
 <script src="assets/onboarding.js?v=3"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -1619,7 +1619,7 @@ async function atualizarEstadoEstrategia(){
     const cli=(cliRows&&cliRows[0])||{};
     const hojeISO=JUMP_CLASS.hojeISOBrasil();
     const diaLote=(cli.preferencias||{}).dia_lote;
-    const ancoraPlano=(cli.preferencias||{}).plano_ancora_em||hojeISO;
+    const ancoraPlano=JUMP_CLASS.ancoraVigente((cli.preferencias||{}).plano_ancora_em,diaLote,hojeISO);
     const janelas=JUMP_CLASS.janelasSemanas(ancoraPlano,diaLote);
     const r=JUMP_CLASS.resumoSemanasEstrategia(posts||[],cards||[],janelas,ancoraPlano,diaLote);
     const _ddmm=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
@@ -1640,7 +1640,14 @@ async function atualizarEstadoEstrategia(){
     const usImg=Number(JUMP.usoDoMes(cli).imagens||0);
     const limImg=Number((cli.limites||{}).imagens||0);
     const cotaHtml=limImg?('<div class="estado-cota">Peças com arte: usadas '+usImg+' de '+limImg+' no mês (soma tudo — plano, avulsos e recriações). Até '+teto+' cabem agora neste plano.</div>'):'';
-    estadoHtml=linhas+avulsosHtml+cotaHtml;
+    // ciclo anterior encerrado: avisa que as semanas mostradas são as do plano novo, a partir de hoje
+    const _ancGrav=(cli.preferencias||{}).plano_ancora_em;
+    let cicloHtml='';
+    if(_ancGrav&&_ancGrav!==ancoraPlano){
+      const _hzAnt=JUMP_CLASS.horizonteDoPlano(_ancGrav,diaLote);
+      cicloHtml='<div class="estado-linha" style="color:var(--t3)">Ciclo anterior ('+_ddmm(_hzAnt.inicio)+' a '+_ddmm(_hzAnt.fim)+') encerrado. As semanas abaixo são do novo plano, contadas a partir de hoje.</div>';
+    }
+    estadoHtml=cicloHtml+linhas+avulsosHtml+cotaHtml;
     // indicador: semana ATUAL vazia (nenhum post) OU sem copy (nenhum dos posts gravados tem
     // copy ainda) — as duas leituras que motivaram este painel (achado de 09/09).
     const atual=r.porSemana.find(b=>hojeISO>=b.inicio&&hojeISO<=b.fim)||r.porSemana[0];
