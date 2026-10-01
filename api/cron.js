@@ -1057,7 +1057,7 @@ async function jobProduzir(soUid) {
         body: JSON.stringify(itens.map(it => ({
           user_id: o.user_id, tema: it.tema || brief, copy: it.copy || '',
           formato: it.formato || 'feed', tipo_visual: it.tipo_visual || 'conceitual',
-          data_sugerida: amanha, data_agendada: amanha + 'T09:00:00',
+          data_sugerida: amanha, data_agendada: JC.agendaSP(amanha, '09:00'),
           status: 'rascunho', origem_agente: 'criativo',
           // FILA TÉCNICA — item 4 (09/set/2026): este era o único caminho do sistema que ainda
           // gravava `origem` nula em `conteudos` — todo o resto já migrou pra Falha 3 (ver
@@ -1557,7 +1557,7 @@ async function jobExpiracaoSemana() {
       const janelas = JC.janelasSemanas(ancora, dl);
       const pendentes = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material)&data_sugerida=not.is.null&select=id,status,data_sugerida,data_agendada,meta&limit=500`, { headers: SBH() }).then(r => r.json()).catch(() => []);
       for (const p of (Array.isArray(pendentes) ? pendentes : [])) {
-        const dataRef = String(p.data_agendada || p.data_sugerida || '').slice(0, 10);
+        const dataRef = p.data_agendada ? JC.diaSP(p.data_agendada) : String(p.data_sugerida || '').slice(0, 10);
         if (!dataRef) continue;
         const semana = JC.semanaDoPost(p.data_sugerida, ancora, dl);
         const janela = (semana != null) ? janelas[semana - 1] : null;

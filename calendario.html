@@ -121,7 +121,7 @@
 </div>
 
 <script src="assets/jump-core.js?v=10"></script>
-<script src="assets/classificacao.js?v=12"></script>
+<script src="assets/classificacao.js?v=13"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
@@ -374,7 +374,7 @@ async function criarPublicacaoManual(){
       user_id:uid, tema:tema, copy:copy,
       formato:formato, status:JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL,
       origem:'avulso', origem_agente:'usuario',
-      data_sugerida:dataISO, data_agendada:dataISO+'T'+hora+':00',
+      data_sugerida:dataISO, data_agendada:JUMP_CLASS.agendaSP(dataISO,hora),
       meta:{headline:tema||'', criado_manual:true}
     }).select().single();
     if(error)throw error;

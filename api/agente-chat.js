@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-repeticao-flexivel-fiscal-datas';
+const VERSAO = '2026.10.01-horario-do-post-em-brasilia';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -544,7 +544,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 Monte o MÊS INTEIRO — as 4 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
 DATA: escolha SEMPRE uma data dentro de uma das 4 janelas do bloco "SEU PLANO — AS 4 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","publico":"segmento do público","dor":"a dor ou objeção que o post ataca, nas palavras do cliente final","etapa":"atrair|convencer|vender","angulo":"erro_comum|demonstracao|comparacao|bastidor|caso_real|objecao|pergunta_frequente|passo_a_passo|opiniao|mito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","publico":"segmento do público","dor":"a dor ou objeção que o post ataca, nas palavras do cliente final","etapa":"atrair|convencer|vender","angulo":"erro_comum|demonstracao|comparacao|bastidor|caso_real|objecao|pergunta_frequente|passo_a_passo|opiniao|mito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","hora":"HH:MM","avulso":false}</conteudo>
+HORÁRIO de cada post ("hora", horário de Brasília): use o melhor horário real das MÉTRICAS do contexto (melhor_horario) quando houver; senão, o horário que o Diagnóstico recomendou nas memórias (prioridades / melhor horário). Distribua entre as faixas recomendadas (não ponha tudo no mesmo horário). Sem nenhum dado de horário, use "09:00".
 TEMAS QUE VENDEM (regra dura, conferida em código — plano fora dela não é gravado):
 - MAPA DE DEMANDA antes do plano: se não existem as memórias dores_publico e objecoes_compra, PRIMEIRO faça ao cliente, numa só mensagem e com estas palavras, as 2 perguntas: "O que seus clientes mais perguntam antes de comprar?" e "Por que quem não comprou desistiu?". Não monte o mapa nem o plano nessa mensagem. Quando ele responder, monte o mapa para 2-3 segmentos do público (dores reais nas palavras dele, objeções de compra, perguntas frequentes, o que o faz decidir) cruzando a resposta dele com concorrentes e lacunas do Mercado, visitas do supervisor e pesquisa web, e registre <memoria> segmentos_publico, dores_publico, objecoes_compra, perguntas_frequentes, gatilhos_compra. O sistema descarta o mapa registrado sem as 2 perguntas feitas e respondidas.
 - Cada post ataca UMA dor ou objeção de UM segmento. O tema é uma situação concreta que esse público reconhece, não uma descrição do produto.
@@ -1580,6 +1581,8 @@ const handler = async (req, res) => {
         ciclo_do_plano_4_semanas:true,
         repeticao_ate_2_por_angulo_dor_e_tema_quase_igual:true,
         fiscal_datas_do_plano_sao_da_estrategia:true,
+        estrategia_define_horario_do_post:true,
+        data_agendada_gravada_em_horario_de_brasilia:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2242,7 +2245,7 @@ const handler = async (req, res) => {
       try{
         const agd=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(aprovado,agendado)&order=data_agendada.asc&limit=30&select=formato,status,data_agendada,meta`);
         if(Array.isArray(agd)&&agd.length){
-          const linhas=agd.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+c.status+' \u00b7 '+t;}).join('\n');
+          const linhas=agd.map(c=>{const d=c.data_agendada?(JC.diaSP(c.data_agendada)+' '+(JC.horaSP(c.data_agendada)||'')).trim():'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+c.status+' \u00b7 '+t;}).join('\n');
           dataTxt+='\n\nPOSTS APROVADOS/AGENDADOS NO CALENDÁRIO (você JÁ tem tudo aqui \u2014 NUNCA peça "link do calendário", ele não existe; estes publicam sozinhos nas datas):\n'+linhas;
         }else{
           dataTxt+='\n\nAinda não há posts aprovados/agendados. Quando o cliente aprovar conteúdos na página Aprovar, eles aparecem aqui e publicam sozinhos \u2014 você NUNCA precisa de link do calendário.';
@@ -2257,7 +2260,7 @@ const handler = async (req, res) => {
       try{
         const pub=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.publicado&order=publicado_em.desc&limit=10&select=formato,data_agendada,publicado_em,meta`);
         if(Array.isArray(pub)&&pub.length){
-          const linhasPub=pub.map(c=>{const d=(c.publicado_em?String(c.publicado_em):c.data_agendada?String(c.data_agendada):'').slice(0,10)||'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t;}).join('\n');
+          const linhasPub=pub.map(c=>{const d=JC.diaSP(c.publicado_em||c.data_agendada||'')||'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t;}).join('\n');
           dataTxt+='\n\nÚLTIMOS PUBLICADOS (mais recentes primeiro \u2014 dado pronto):\n'+linhasPub;
         }else{
           dataTxt+='\n\nAinda não há nenhum post publicado para este cliente.';
@@ -2266,7 +2269,7 @@ const handler = async (req, res) => {
       try{
         const falhas=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.aprovado&erro_publicacao=not.is.null&order=data_agendada.asc&limit=15&select=formato,data_agendada,erro_publicacao,meta`);
         if(Array.isArray(falhas)&&falhas.length){
-          const linhasFalha=falhas.map(c=>{const d=c.data_agendada?String(c.data_agendada).slice(0,10):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t+' \u00b7 erro: '+String(c.erro_publicacao||'').slice(0,120);}).join('\n');
+          const linhasFalha=falhas.map(c=>{const d=c.data_agendada?JC.diaSP(c.data_agendada):'sem data';const t=String((c.meta||{}).headline||(c.meta||{}).tema||c.formato||'post').slice(0,60);return '- '+d+' \u00b7 '+t+' \u00b7 erro: '+String(c.erro_publicacao||'').slice(0,120);}).join('\n');
           dataTxt+='\n\nFALHAS DE PUBLICAÇÃO (ainda pendentes de resolver \u2014 dado pronto, NUNCA diga que publicou):\n'+linhasFalha;
         }else{
           dataTxt+='\n\nNenhuma falha de publicação pendente agora.';
@@ -3517,6 +3520,8 @@ const handler = async (req, res) => {
             user_id:targetId, tema:ct.tema, copy:ct.copy,
             formato:ct.formato||'feed', tipo_visual:ct.tipo_visual||'conceitual',
             data_sugerida:ct.data_sugerida||null, status:statusInicial(ct), origem_agente:agente,
+            // horário do post definido pela Estratégia (Brasília); sem hora válida, fica para o padrão 09:00 na aprovação
+            ...(agente==='estrategia'&&ct.data_sugerida&&/^([01]\d|2[0-3]):[0-5]\d$/.test(String(ct.hora||'').trim())?{data_agendada:JC.agendaSP(ct.data_sugerida,String(ct.hora).trim())}:{}),
             // FALHA 3 (09/set/2026, ver APRENDIZADOS.md "FALHA 3 — RELATÓRIO FINAL DA MIGRATION"):
             // `origem` é dado explícito de nascença — plano ou avulso, gravado uma vez, nunca mais
             // inferido depois por card aberto/fechado. Os quatro caminhos (plano mensal, avulso

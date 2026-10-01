@@ -464,7 +464,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=10"></script>
-<script src="assets/classificacao.js?v=12"></script>
+<script src="assets/classificacao.js?v=13"></script>
 <script src="assets/onboarding.js?v=3"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -1040,7 +1040,7 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt,vinc){
         user_id:uid, tema:(vinc.tema||titulo||'Conteúdo avulso'),
         copy:(vinc.copy||txt||''), formato:(vinc.formato||'feed'),
         tipo_visual:(vinc.tipo_visual||'conceitual'),
-        data_sugerida:dia, data_agendada:dia+'T09:00:00',
+        data_sugerida:dia, data_agendada:JUMP_CLASS.agendaSP(dia,'09:00'),
         status:'aguardando_aprovacao', origem_agente:'criativo', midia_url:dOut.url,
         meta:{headline:vinc.headline||'', subheadline:vinc.subheadline||'', cta_arte:vinc.cta_arte||'',
               oferta:vinc.oferta||'', pilar:vinc.pilar||'', avulso:true, ordem_id:vinc.ordem_id||null}
