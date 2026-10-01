@@ -102,9 +102,19 @@ function motivoFunil(posts) {
   return '';
 }
 
+// A fala anterior do agente fez as 2 perguntas do mapa? (o que perguntam antes de comprar / por
+// que quem não comprou desistiu). Tolerante a variação de redação, exigente nas duas ideias.
+function perguntouMapa(falaAnterior) {
+  const t = _sem(falaAnterior);
+  if (!t.includes('?')) return false;
+  const p1 = /(pergunt|duvid)\w*[^?]{0,60}antes de (comprar|fechar|assinar|contratar)|antes de (comprar|fechar|assinar|contratar)[^?]{0,60}(pergunt|duvid)/.test(t);
+  const p2 = /(nao (comprou|comprar|fechou|fechar|assinou|assinar|contratou)|desist)/.test(t);
+  return p1 && p2;
+}
+
 function mapaCompleto(memorias) {
   const m = memorias || {};
   return CHAVES_MAPA_OBRIGATORIAS.every(k => String(m[k] || '').trim().length > 0);
 }
 
-module.exports = { CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, motivoFunil, mapaCompleto };
+module.exports = { perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, motivoFunil, mapaCompleto };

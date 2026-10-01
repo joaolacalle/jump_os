@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-temas-que-vendem-mapa-de-demanda';
+const VERSAO = '2026.10.01-mapa-so-depois-de-perguntar';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -546,7 +546,7 @@ DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO �
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","publico":"segmento do público","dor":"a dor ou objeção que o post ataca, nas palavras do cliente final","etapa":"atrair|convencer|vender","angulo":"erro_comum|demonstracao|comparacao|bastidor|caso_real|objecao|pergunta_frequente|passo_a_passo|opiniao|mito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
 TEMAS QUE VENDEM (regra dura, conferida em código — plano fora dela não é gravado):
-- MAPA DE DEMANDA antes do plano: se não existem as memórias dores_publico e objecoes_compra, monte-as primeiro. Para 2-3 segmentos do público: dores reais nas palavras dele, objeções de compra, perguntas frequentes e o que o faz decidir. Fontes: concorrentes e lacunas do Mercado, visitas do supervisor, pesquisa web (reclamações e perguntas reais do público) e 2 perguntas ao cliente numa só mensagem: "o que seus clientes mais perguntam antes de comprar?" e "por que quem não comprou desistiu?". Registre <memoria> segmentos_publico, dores_publico, objecoes_compra, perguntas_frequentes, gatilhos_compra.
+- MAPA DE DEMANDA antes do plano: se não existem as memórias dores_publico e objecoes_compra, PRIMEIRO faça ao cliente, numa só mensagem e com estas palavras, as 2 perguntas: "O que seus clientes mais perguntam antes de comprar?" e "Por que quem não comprou desistiu?". Não monte o mapa nem o plano nessa mensagem. Quando ele responder, monte o mapa para 2-3 segmentos do público (dores reais nas palavras dele, objeções de compra, perguntas frequentes, o que o faz decidir) cruzando a resposta dele com concorrentes e lacunas do Mercado, visitas do supervisor e pesquisa web, e registre <memoria> segmentos_publico, dores_publico, objecoes_compra, perguntas_frequentes, gatilhos_compra. O sistema descarta o mapa registrado sem as 2 perguntas feitas e respondidas.
 - Cada post ataca UMA dor ou objeção de UM segmento. O tema é uma situação concreta que esse público reconhece, não uma descrição do produto.
 - Funil: cerca de 50% atrair (dor ou erro comum do público, sem falar do produto), 30% convencer (demonstração, objeção, comparação), 20% vender (oferta com prova real). Recusado se atrair < 30% ou vender > 40%.
 - Proibido no tema: dado interno da conta do cliente (seguidores dele, ticket médio, faturamento); falar do dono em terceira pessoa; palavras vazias (transforme, descubra, de verdade, sem complicação, segredo, jornada, alavancar, potencializar, próximo nível); repetir o mesmo ângulo para a mesma dor.
@@ -1576,6 +1576,7 @@ const handler = async (req, res) => {
         temas_que_vendem_mapa_de_demanda_e_campos_por_post:true,
         trava_anti_generico_em_codigo:true,
         mistura_do_funil_atrair_convencer_vender:true,
+        mapa_de_demanda_so_depois_das_2_perguntas_respondidas:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2606,6 +2607,22 @@ const handler = async (req, res) => {
       if(_r.removidas.length){
         console.error('[escopo] tags de outro agente descartadas — agente='+agente+' tags='+_r.removidas.join(',')+' user='+targetId);
         texto=_r.texto;
+      }
+    }
+
+    // MAPA DE DEMANDA SÓ DEPOIS DE PERGUNTAR (01/out/2026, pedido do João: "ele precisa sempre
+    // perguntar antes"): numa tentativa real a Estratégia montou dores/objeções sozinha, só com o
+    // Mercado. Agora as memórias do mapa (api/_demanda-lib.js:CHAVES_MAPA) só valem se a fala
+    // ANTERIOR do agente fez as 2 perguntas ao cliente (o que perguntam antes de comprar / por que
+    // quem não comprou desistiu) e o cliente respondeu nesta mensagem. Senão, saem do texto antes
+    // de qualquer parser — e sem mapa o plano não é gravado (trava de temas, mais abaixo).
+    if(agente==='estrategia'&&!_intOk){
+      const _perguntou=DEM.perguntouMapa(_ultimaDoAgente);
+      const _respondeu=String(mensagem||'').trim().length>=15;
+      if(!(_perguntou&&_respondeu)){
+        let _cortadas=0;
+        texto=String(texto).replace(/<memoria>([\s\S]*?)<\/memoria>/g,(m,j)=>{ try{ const o=JSON.parse(j.trim()); if(o&&DEM.CHAVES_MAPA.includes(String(o.chave))){ _cortadas++; return ''; } return m; }catch(e){ return m; } });
+        if(_cortadas) console.error('[mapa-de-demanda] '+_cortadas+' memória(s) do mapa descartada(s): o agente não fez as 2 perguntas antes (ou o cliente não respondeu). user='+targetId);
       }
     }
 
