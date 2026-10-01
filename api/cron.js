@@ -692,6 +692,23 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
     }
   }
+  // DISPARO PELO PRÓPRIO USUÁRIO (01/out/2026): aprovou o mensal → detalha a 1ª semana DELE agora,
+  // sem esperar a rodada de 5 min do cron. Mesmo padrão do 'produzir_meu' (autenticado por JWT) e a
+  // MESMA função do cron (jobDetalharSemana), só restrita ao próprio cliente — todas as travas dela
+  // (ordem em andamento, 2 tentativas/24h, card só com a semana completa) continuam valendo.
+  if (job0 === 'detalhar_meu') {
+    try {
+      const tkUser = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (!tkUser) return res.status(401).json({ error: 'sem token' });
+      const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: KEY(), Authorization: `Bearer ${tkUser}` } }).then(r => r.json()).catch(() => null);
+      const uid = u && u.id;
+      if (!uid) return res.status(401).json({ error: 'token inválido' });
+      const r = await jobDetalharSemana(uid);
+      return res.status(200).json({ ok: true, job: 'detalhar_meu', ...r });
+    } catch (e) {
+      return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
+    }
+  }
   // Segurança: só executa com o segredo certo
   const auth = req.headers['authorization'] || '';
   const qsec = (req.query && req.query.secret) || '';
@@ -1278,13 +1295,14 @@ async function jobProduzir(soUid) {
 // detalhamento garante o card 'aprovar_semana' em Aprovações (garantirCardAprovarSemana). Os
 // botões continuam existindo, só deixam de ser obrigatórios. No máximo 1 cliente por execução e
 // 2 tentativas por semana a cada 24h — erro fica visível na ordem, nunca em silêncio.
-async function jobDetalharSemana() {
+async function jobDetalharSemana(soUid) {
   const base = String(process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')).replace(/\/+$/, '');
   if (!base || !process.env.CRON_SECRET) return { detalhamento: 'sem SITE_URL/CRON_SECRET' };
   const hoje = JC.hojeISOBrasil();
   const daqui3 = (() => { const d = new Date(hoje + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 3); return d.toISOString().slice(0, 10); })();
   const ativos = await clientesElegiveisSemana(KEY());
   for (const c of (Array.isArray(ativos) ? ativos : [])) {
+    if (soUid && c.id !== soUid) continue; // disparo do próprio cliente (detalhar_meu): só ele
     const pref = c.preferencias || {};
     const ancora = pref.plano_ancora_em;
     if (!ancora) continue;
