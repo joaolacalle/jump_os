@@ -800,6 +800,11 @@ async function aprovarProposta(id,tarefa,btn){
         if(errAnc)console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',errAnc);
       }catch(e){console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',e&&e.message);}
       if(btn)btn.textContent='Aprovando...';
+      // DISPARO IMEDIATO (01/out/2026): com a âncora já gravada, pede ao servidor para detalhar a
+      // 1ª semana AGORA (api/cron.js?job=detalhar_meu — a mesma função do cron, só deste cliente),
+      // em vez de esperar a rodada de até 5 min. keepalive: o pedido sobrevive ao recarregar da
+      // página logo abaixo. Não espera a resposta; se falhar, o cron de 5 min faz o mesmo trabalho.
+      try{ JUMP.authFetch('/api/cron?job=detalhar_meu',{method:'POST',keepalive:true}).catch(e=>console.error('[aprovar_estrategia] disparo do detalhamento falhou — o cron de 5 min cobre:',e&&e.message)); }catch(e){}
       // DETALHAMENTO NO SERVIDOR (01/out/2026): o navegador não chama mais a Estratégia aqui — se a
       // página fechasse no meio, a primeira semana ficava sem texto e sem card. A automação
       // (api/cron.js, jobDetalharSemana, a cada 5 min) detalha a primeira semana logo após esta
@@ -868,7 +873,7 @@ async function aprovarProposta(id,tarefa,btn){
       }else if(falhouAutoDetalhe){
         JUMP.toast('✓ Planejamento aprovado! ⚠️ Não consegui iniciar a copy da Semana 1 automaticamente — abra o Agente de Estratégia e clique em "Escrever a copy da semana" para destravar as artes.','err');
       }else{
-        JUMP.toast(ids.length?'✓ Planejamento aprovado! A primeira semana está pronta para sua aprovação.':'✓ Planejamento aprovado! A Estratégia prepara os textos da primeira semana em alguns minutos — o card aparece aqui em Aprovações.');
+        JUMP.toast(ids.length?'✓ Planejamento aprovado! A primeira semana está pronta para sua aprovação.':'✓ Planejamento aprovado! A Estratégia já está preparando os textos da primeira semana — o card aparece aqui em Aprovações em cerca de 1 minuto (atualize a página).');
       }
     }
     location.reload();
