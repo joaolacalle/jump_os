@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-semana-de-trabalho-e-ancora-antes';
+const VERSAO = '2026.10.01-card-semanal-so-completo';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1584,6 +1584,8 @@ const handler = async (req, res) => {
         estrategia_define_horario_do_post:true,
         data_agendada_gravada_em_horario_de_brasilia:true,
         semana_vazia_abre_a_proxima_com_posts:true,
+        card_semanal_so_com_semana_completa:true,
+        detalhamento_sem_pesquisa_web:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2421,7 +2423,7 @@ const handler = async (req, res) => {
         // fonte que qualquer outro ponto do sistema usa a partir de agora.
         const piso=semanaAtualCliente.inicio;
         const lim=semanaAtualCliente.fim;
-        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida,meta&order=data_sugerida.asc&limit=8`);
+        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.,and(formato.ilike.*reel*,roteiro.is.null))&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida,meta&order=data_sugerida.asc&limit=8`);
         if(Array.isArray(wk)&&wk.length){
           // CONTINUIDADE ENTRE SEMANAS (28/ago/2026, item 5 — ver APRENDIZADOS.md, "JANELA DE
           // PLANEJAMENTO"): qual semana está sendo detalhada vem de dado calculado (dia_lote +
@@ -2478,6 +2480,10 @@ const handler = async (req, res) => {
     // da resposta (camada 2) continua valendo para ela.
     const _pedidoCurto=String(mensagem).trim().split(/\s+/).length<=3 && String(mensagem).trim().length<=25;
     const _promessaPedido=(_fiscalAtivo && !_pedidoCurto) ? ESC.julgarPedido({agente,pedido:mensagem,ultimaDoAgente:_ultimaDoAgente}) : null;
+    // DETALHAMENTO SEM PESQUISA NA WEB (01/out/2026): no detalhamento da semana (e no modo interno) a
+    // busca só gerava ruído ("desconsidere a busca acima") e gastava a resposta — que chegou a
+    // parar no meio, com 3 de 5 posts detalhados. Pesquisa fica para o planejamento.
+    const _semBuscaWeb=_intOk||/detalh/i.test(String(mensagem||''));
     const _maxTokensAgente=(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500));
 
     // Anthropic
@@ -2497,7 +2503,7 @@ const handler = async (req, res) => {
         // caminho, nada muda (mesmo array de sempre, só para agente==='estrategia').
         ...(forcarDirecaoAvulsa
           ? {tools:[TOOL_DIRECAO_AVULSA],tool_choice:{type:'tool',name:TOOL_DIRECAO_AVULSA_NOME}}
-          : (agente==='estrategia'?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{}))
+          : (agente==='estrategia'&&!_semBuscaWeb?{tools:[{type:'web_search_20250305',name:'web_search',max_uses:2}]}:{}))
       }),
     });
     let data=await aRes.json();
@@ -3094,7 +3100,7 @@ const handler = async (req, res) => {
         const lim=semanaAtualCliente.fim;
         let wk=null;
         try{
-          wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta`);
+          wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&midia_url=is.null&data_sugerida=lte.${lim}&select=id,formato,copy,meta,roteiro,data_sugerida`);
         }catch(e){
           console.error('[ordem] criador semanal: leitura de wk falhou (exceção):', e && e.message);
         }
@@ -3139,7 +3145,18 @@ const handler = async (req, res) => {
             console.error('[ordem] garantirCardAprovarSemana: leitura de wk falhou, garantia não pôde rodar — user='+targetId);
           }else{
             const _idsSemana=wkArr.map(c=>c.id);
-            if(_idsSemana.length){
+            // CARD SÓ COM A SEMANA COMPLETA (01/out/2026, caso real: detalhamento parou em 3 de 5 e o
+            // card nasceu com 2 posts sem texto): se algum post da semana aberta ainda não tem copy
+            // (ou Reels sem roteiro), o card NÃO nasce agora — a automação (api/cron.js,
+            // jobDetalharSemana) completa os que faltam e o card nasce na passada que fechar a semana.
+            const _ehReel=c=>/reel|video/i.test(String(c.formato||''));
+            const _faltando=wkArr.filter(c=>String(c.data_sugerida||'').slice(0,10)>=semanaAtualCliente.inicio)
+              .filter(c=>!(c.copy&&String(c.copy).trim())||(_ehReel(c)&&!(c.roteiro&&String(c.roteiro).trim())));
+            if(_faltando.length){
+              notaSemanal=(notaSemanal?notaSemanal+' ':'')+'O texto de '+_faltando.length+' post(s) da semana ainda não ficou pronto — o sistema completa sozinho em alguns minutos e o card de aprovação aparece em seguida.';
+              console.error('[ordem] card semanal adiado: '+_faltando.length+' post(s) sem copy/roteiro — user='+targetId);
+            }
+            if(_idsSemana.length&&!_faltando.length){
               // CAMADA 1 (mesmo padrão do backstop, mais abaixo — "além do banco, respeita o que já
               // foi atendido nesta mesma requisição"): registra ANTES de chamar garantir. Achado no
               // teste desta correção — a dedup de garantirCardAprovarSemana só pergunta "já existe

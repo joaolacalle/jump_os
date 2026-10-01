@@ -169,6 +169,32 @@ textarea.edt{resize:vertical;line-height:1.5}
 #modal-estr .ec-fld input,#modal-estr .ec-fld textarea{width:100%;background:transparent;border:0;outline:none;color:var(--t1);
   font-family:var(--B);font-size:14px;line-height:1.6;resize:vertical}
 #modal-estr .ec-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#modal-estr .ec-alert{margin:18px 34px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-radius:13px;
+  background:rgba(240,181,63,.09);border:1px solid rgba(240,181,63,.3);font-size:13px;color:var(--t2)}
+/* PLANNER (inspiração: Planner da Meta Business Suite) — linha por post */
+#modal-estr .pl-row{display:grid;grid-template-columns:74px 64px 1fr;gap:16px;align-items:start;padding:16px;border-radius:16px;
+  background:color-mix(in srgb,var(--ch) 96%,var(--t1) 4%);border:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
+#modal-estr .pl-when{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 0;border-radius:12px;
+  background:color-mix(in srgb,var(--t1) 5%,transparent)}
+#modal-estr .pl-dow{font-family:var(--M);font-size:10px;letter-spacing:.12em;color:var(--t3)}
+#modal-estr .pl-day{font-size:24px;font-weight:800;color:var(--t1);line-height:1.1}
+#modal-estr .pl-mon{font-family:var(--M);font-size:9.5px;color:var(--t3)}
+#modal-estr .pl-hour{margin-top:6px;font-family:var(--M);font-size:11px;font-weight:700;color:var(--g)}
+#modal-estr .pl-thumb{width:64px;height:64px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;
+  background:color-mix(in srgb,var(--g) 9%,transparent);border:1px solid color-mix(in srgb,var(--g) 22%,transparent)}
+#modal-estr .pl-main{min-width:0}
+#modal-estr .pl-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+#modal-estr .pl-chip{font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:99px;
+  color:var(--t1);background:color-mix(in srgb,var(--t1) 8%,transparent)}
+#modal-estr .pl-chip-o{color:var(--t2);background:transparent;border:1px solid color-mix(in srgb,var(--t1) 14%,transparent)}
+#modal-estr .pl-st{margin-left:auto;font-family:var(--M);font-size:9.5px;font-weight:700;letter-spacing:.06em;padding:3px 10px;border-radius:99px}
+#modal-estr .pl-ok{color:#4ade80;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3)}
+#modal-estr .pl-warn{color:#f0b53f;background:rgba(240,181,63,.1);border:1px solid rgba(240,181,63,.35)}
+#modal-estr .pl-muted{color:var(--t3);background:color-mix(in srgb,var(--t1) 5%,transparent)}
+#modal-estr .pl-lab{font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+#modal-estr .pl-tema{font-size:15px;font-weight:700;color:var(--t1);line-height:1.4;margin-bottom:4px}
+#modal-estr .pl-dor{font-size:12px;color:var(--t3);margin-bottom:12px}
+@media(max-width:640px){#modal-estr .pl-row{grid-template-columns:58px 1fr}#modal-estr .pl-thumb{display:none}}
 #modal-estr .ec-foot{position:sticky;bottom:0;display:flex;padding:18px 34px 26px;
   background:color-mix(in srgb,var(--ch) 92%,#000 8%);border-top:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
 #modal-estr .ec-foot-r{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
@@ -458,14 +484,32 @@ function focarCard(){
 function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
 function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
 function _linhaPost(c,semanal){
+  // LINHA NO ESTILO PLANNER (01/out/2026, inspiração: Planner da Meta Business Suite): data/hora à
+  // esquerda, miniatura com o formato, conteúdo à direita e status do texto. O TEMA aprovado no
+  // mensal aparece fixo no card semanal — headline e legenda são o detalhamento DESSE tema, não
+  // outro plano.
   const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=JUMP_CLASS.diaSP(d), hora=JUMP_CLASS.horaSP(c.data_agendada)||'09:00';
-  return `<div class="ec-post">
-      <div class="ec-post-h">${JUMP.esc((c.formato||'feed').toUpperCase())}${m.pilar?(' · '+JUMP.esc(m.pilar)):''}</div>
-      ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema do post',c.tema||'')}
-      ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
-      ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
-      <div class="ec-two">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>
-      ${semanal?_fotoDoPost(c):''}
+  const fmt=String(c.formato||'feed').toLowerCase(), ehReel=/reel|video/.test(fmt), ehCar=/carros/.test(fmt), ehSto=/story/.test(fmt);
+  const ico=ehReel?'🎬':ehCar?'🗂':ehSto?'📱':'🖼';
+  const rot=ehReel?'Reels':ehCar?('Carrossel'+(m.total_slides>1?' · '+m.total_slides:'')):ehSto?'Story':'Feed';
+  const dObj=dia?new Date(dia+'T12:00:00Z'):null;
+  const dSem=dObj?['DOM','SEG','TER','QUA','QUI','SEX','SÁB'][dObj.getUTCDay()]:'—', dNum=dia?dia.slice(8,10):'--', dMes=dia?dia.slice(5,7):'';
+  const temTexto=!!(c.copy&&String(c.copy).trim()), temRot=!ehReel||!!(c.roteiro&&String(c.roteiro).trim());
+  const st=!semanal?['Planejado','muted']:(c.status===JUMP_CLASS.STATUS_AGUARDANDO_MATERIAL?['Aguardando seu material','warn']:(temTexto&&temRot?['Texto pronto','ok']:['Texto em preparo','warn']));
+  const etapa={atrair:'Atrair',convencer:'Convencer',vender:'Vender'}[m.etapa]||'';
+  return `<div class="pl-row">
+      <div class="pl-when"><span class="pl-dow">${dSem}</span><span class="pl-day">${dNum}</span><span class="pl-mon">${dMes?dMes+'/'+dia.slice(0,4):''}</span><span class="pl-hour">${JUMP.esc(hora)}</span></div>
+      <div class="pl-thumb" title="${rot}">${ico}</div>
+      <div class="pl-main">
+        <div class="pl-top"><span class="pl-chip">${rot}</span>${m.pilar?`<span class="pl-chip pl-chip-o">${JUMP.esc(m.pilar)}</span>`:''}${etapa?`<span class="pl-chip pl-chip-o">${etapa}</span>`:''}<span class="pl-st pl-${st[1]}">${st[0]}</span></div>
+        ${semanal?`<div class="pl-lab">Tema aprovado no plano</div><div class="pl-tema">${JUMP.esc(c.tema||'—')}</div>${m.dor?`<div class="pl-dor">Para ${JUMP.esc(m.publico||'o público')} · ataca: ${JUMP.esc(m.dor)}</div>`:''}`:_inp(c.id,'tema','Tema do post',c.tema||'')}
+        ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):''}
+        ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
+        ${semanal&&ehReel?_txt(c.id,'roteiro','Roteiro do Reels',c.roteiro||''):''}
+        ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
+        <div class="ec-two">${_inp(c.id,'dia','Data',dia,'date')}${_inp(c.id,'hora','Horário',hora,'time')}</div>
+        ${semanal?_fotoDoPost(c):''}
+      </div>
     </div>`;
 }
 // FOTO DO CLIENTE PARA O POST (30/set/2026, "Participação do usuário", entrega 2): só nos posts em
@@ -518,7 +562,7 @@ function abrirEstrategia(id){
   const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
   let linhas, prazoTxt='';
   if(semanal){
-    linhas=posts.map(c=>_linhaPost(c,true)).join('');
+    linhas=posts.slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||''))).map(c=>_linhaPost(c,true)).join('');
     // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), aviso obrigatório #1
     // ("no card semanal, o prazo de aprovação"): a semana FECHA na data abaixo — o que não for
     // aprovado até lá EXPIRA (não acumula pra semana seguinte). Usa a âncora REAL do plano (já
@@ -529,8 +573,10 @@ function abrirEstrategia(id){
       const ancoraReal=(cliW.preferencias&&cliW.preferencias.plano_ancora_em);
       if(ancoraReal){
         const dlW=(cliW.preferencias&&cliW.preferencias.dia_lote);
-        const hojeW=new Date().toISOString().slice(0,10);
-        const janW=JUMP_CLASS.janelasSemanas(ancoraReal,dlW).find(j=>hojeW>=j.inicio&&hojeW<=j.fim);
+        // prazo da semana DOS POSTS deste card (não a de hoje — a semana de trabalho pode ser a próxima)
+        const hojeW=JUMP_CLASS.hojeISOBrasil();
+        const _d1=posts.map(c=>JUMP_CLASS.diaSP(c.data_agendada||c.data_sugerida)).filter(Boolean).sort()[0]||hojeW;
+        const janW=JUMP_CLASS.janelasSemanas(ancoraReal,dlW).find(j=>_d1>=j.inicio&&_d1<=j.fim);
         if(janW){
           const _dd=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
           prazoTxt=`<div class="ec-alert"><div>⏰ <b>Prazo de aprovação: ${_dd(janW.fim)}.</b> Posts desta semana que não forem aprovados até lá expiram (não acumulam pra semana seguinte) — dá pra reagendar depois, mas é melhor aprovar a tempo.</div></div>`;
@@ -605,6 +651,7 @@ async function salvarEdicoesProposta(){
     const f=porPost[id], patch={}, meta={};
     if(f.tema!=null)patch.tema=f.tema;
     if(f.copy!=null)patch.copy=f.copy;
+    if(f.roteiro!=null)patch.roteiro=f.roteiro;
     if(f.headline!=null)meta.headline=f.headline;
     if(f.cta!=null)meta.cta_arte=f.cta;
     if(f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
@@ -748,24 +795,12 @@ async function aprovarProposta(id,tarefa,btn){
         const{error:errAnc}=await JUMP.sb.from('clientes').update({preferencias:{...prefAtual,plano_ancora_em:hojeISO}}).eq('id',uid);
         if(errAnc)console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',errAnc);
       }catch(e){console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',e&&e.message);}
-      if(btn)btn.textContent='Preparando a primeira semana...';
-      // DIAGNÓSTICO (não é retry): antes essa chamada era fire-and-forget, sem log nem aviso — se
-      // falhasse, o usuário nunca sabia que precisava abrir a Estratégia manualmente. Agora só
-      // detectamos e avisamos; nenhuma nova tentativa automática é adicionada aqui.
-      let falhouAutoDetalhe=false;
-      try{
-        const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
-        if(tk){
-          const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da semana aberta (bloco POSTS DA SEMANA PARA DETALHAR). Não gere artes ainda. Faça direto, sem perguntar nada.'})});
-          if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
-          else{
-            // FRONTEIRA ENTRE AGENTES (29/set/2026): resposta barrada pelo fiscal de escopo não
-            // detalhou nada — conta como falha para o aviso abaixo, nunca como sucesso silencioso.
-            const dAuto=await rAuto.json().catch(()=>null);
-            if(dAuto&&dAuto.escopo&&dAuto.escopo.bloqueado){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo barrado pelo fiscal de escopo',dAuto.escopo);}
-          }
-        }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
-      }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
+      if(btn)btn.textContent='Aprovando...';
+      // DETALHAMENTO NO SERVIDOR (01/out/2026): o navegador não chama mais a Estratégia aqui — se a
+      // página fechasse no meio, a primeira semana ficava sem texto e sem card. A automação
+      // (api/cron.js, jobDetalharSemana, a cada 5 min) detalha a primeira semana logo após esta
+      // aprovação e cria o card semanal quando a semana estiver completa.
+      const falhouAutoDetalhe=false;
       // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
       // Fase 1 (25/ago/2026 — plano "Trilha de material do usuário"): esta query era a causa raiz
       // do A2 — não tinha filtro de formato nenhum (reels entravam direto) e não tinha piso de
@@ -801,7 +836,9 @@ async function aprovarProposta(id,tarefa,btn){
       // única, nunca de literal escrito aqui.
       [].concat(JUMP_CLASS.FORMATOS_MATERIAL_USUARIO||[],JUMP_CLASS.FORMATOS_EM_VALIDACAO||[]).forEach(termo=>{qSem1=qSem1.not('formato','ilike','%'+termo+'%')});
       const{data:sem1}=await qSem1.order('data_sugerida',{ascending:true});
-      const ids=(sem1||[]).filter(c=>c.copy&&String(c.copy).trim()).map(c=>c.id);
+      // card só com a semana COMPLETA (mesma regra do servidor): se algum post ainda não tem copy, não cria
+      const _todos=(sem1||[]);
+      const ids=(_todos.length&&_todos.every(c=>c.copy&&String(c.copy).trim()))?_todos.map(c=>c.id):[];
       // item 7 do gate da aprovação semanal (27/ago/2026): este INSERT não conferia se já
       // existia um card 'aprovar_semana' em aberto (ou uma ordem de produção já rodando) antes
       // de criar outro — cron.js (drip semanal) já fazia essa checagem, aqui faltava. Sem isso,
@@ -827,7 +864,7 @@ async function aprovarProposta(id,tarefa,btn){
       }else if(falhouAutoDetalhe){
         JUMP.toast('✓ Planejamento aprovado! ⚠️ Não consegui iniciar a copy da Semana 1 automaticamente — abra o Agente de Estratégia e clique em "Escrever a copy da semana" para destravar as artes.','err');
       }else{
-        JUMP.toast(ids.length?'✓ Planejamento aprovado! A Semana 1 está pronta para sua aprovação.':'✓ Planejamento aprovado! A Semana 1 será liberada em instantes.');
+        JUMP.toast(ids.length?'✓ Planejamento aprovado! A primeira semana está pronta para sua aprovação.':'✓ Planejamento aprovado! A Estratégia prepara os textos da primeira semana em alguns minutos — o card aparece aqui em Aprovações.');
       }
     }
     location.reload();
