@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-ciclo-de-4-semanas';
+const VERSAO = '2026.10.01-repeticao-flexivel-fiscal-datas';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -549,7 +549,7 @@ TEMAS QUE VENDEM (regra dura, conferida em código — plano fora dela não é g
 - MAPA DE DEMANDA antes do plano: se não existem as memórias dores_publico e objecoes_compra, PRIMEIRO faça ao cliente, numa só mensagem e com estas palavras, as 2 perguntas: "O que seus clientes mais perguntam antes de comprar?" e "Por que quem não comprou desistiu?". Não monte o mapa nem o plano nessa mensagem. Quando ele responder, monte o mapa para 2-3 segmentos do público (dores reais nas palavras dele, objeções de compra, perguntas frequentes, o que o faz decidir) cruzando a resposta dele com concorrentes e lacunas do Mercado, visitas do supervisor e pesquisa web, e registre <memoria> segmentos_publico, dores_publico, objecoes_compra, perguntas_frequentes, gatilhos_compra. O sistema descarta o mapa registrado sem as 2 perguntas feitas e respondidas.
 - Cada post ataca UMA dor ou objeção de UM segmento. O tema é uma situação concreta que esse público reconhece, não uma descrição do produto.
 - Funil: cerca de 50% atrair (dor ou erro comum do público, sem falar do produto), 30% convencer (demonstração, objeção, comparação), 20% vender (oferta com prova real). Recusado se atrair < 30% ou vender > 40%.
-- Proibido no tema: dado interno da conta do cliente (seguidores dele, ticket médio, faturamento); falar do dono em terceira pessoa; palavras vazias (transforme, descubra, de verdade, sem complicação, segredo, jornada, alavancar, potencializar, próximo nível); repetir o mesmo ângulo para a mesma dor.
+- Proibido no tema: dado interno da conta do cliente (seguidores dele, ticket médio, faturamento); falar do dono em terceira pessoa; palavras vazias (transforme, descubra, de verdade, sem complicação, segredo, jornada, alavancar, potencializar, próximo nível); usar o mesmo ângulo para a mesma dor mais de 2 vezes, ou dois temas quase iguais.
 - Teste da troca: se trocando o nome da marca pelo de um concorrente o tema continua valendo, ele é genérico. Refaça com um detalhe que só esta marca tem (número real, caso real, funcionalidade específica).
 FOCO (obrigatório, vale para qualquer negócio): diga do que o post trata. "produto" = o produto ou trabalho do cliente (look, tattoo, prato, serviço feito) → a foto é a do PRODUTO, nunca a da pessoa. "pessoa" = o próprio cliente (bastidor, autoridade, rotina, fala) → a foto é a DELE e o tema não coloca produto nele (nada de "vestindo o look X" ou "com a tattoo Y" no corpo dele). "ambiente" = o espaço (loja, estúdio, salão). "conceito" = dica, dado, lista. Nunca invente produto: sem foto real do produto, post de foco "produto" é conceitual (explica, não mostra um produto que não existe). O sistema confere e corrige ao gravar.
 MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Com "video", o post é o vídeo dele (não gasta arte do teto). Com foto, o post continua sendo ARTE do Designer (conta no teto) e a foto dele é o insumo da arte — nunca publicada crua. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
@@ -1578,6 +1578,8 @@ const handler = async (req, res) => {
         mistura_do_funil_atrair_convencer_vender:true,
         mapa_de_demanda_so_depois_das_2_perguntas_respondidas:true,
         ciclo_do_plano_4_semanas:true,
+        repeticao_ate_2_por_angulo_dor_e_tema_quase_igual:true,
+        fiscal_datas_do_plano_sao_da_estrategia:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -3317,14 +3319,11 @@ const handler = async (req, res) => {
             _motivoGeral='antes do plano, a Estratégia precisa montar o mapa de demanda do seu público (dores e objeções de compra). Responda as perguntas dela e peça o plano de novo';
           }else{
             const _nomes=DEM.nomesDoDono(_mapaQ.marca);
-            const _vistos=new Set();
             _plano.forEach(ct=>{
               const m=DEM.motivoRecusa(ct,{nomesDono:_nomes});
-              if(m){ _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": '+m); return; }
-              const k=DEM.chaveRepeticao(ct);
-              if(_vistos.has(k)) _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": repete o mesmo ângulo para a mesma dor de outro post');
-              _vistos.add(k);
+              if(m) _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": '+m);
             });
+            if(!_problemas.length) _problemas.push(...DEM.repeticoes(_plano));
             if(!_problemas.length) _motivoGeral=DEM.motivoFunil(_plano);
           }
           if(_motivoGeral||_problemas.length){
