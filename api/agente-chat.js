@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.09.30-sem-contradicao-fornece-x-sem-produto';
+const VERSAO = '2026.10.01-reescrita-do-fiscal-preserva-tags';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1565,6 +1565,7 @@ const handler = async (req, res) => {
         plano_so_grava_com_fotos_prometidas_no_acervo:true,
         trava_de_datas_recusa_data_passada:true,
         acervo_sem_x_descartado_quando_contradiz_o_que_fornece:true,
+        reescrita_do_fiscal_preserva_tags_tecnicas_da_resposta_original:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2564,13 +2565,21 @@ const handler = async (req, res) => {
             else console.error('[escopo] reescrita falhou — status='+rr.status+' '+JSON.stringify(dr).slice(0,160));
           }catch(e){ console.error('[escopo] reescrita falhou — erro='+(e&&e.message)); }
           const _original=ESC.textoParaFiscal(texto).slice(0,2000);
+          // A REESCRITA SÓ TROCA A FALA, NUNCA OS DADOS (01/out/2026, caso real do João: o fiscal
+          // marcou "montei 13 posts" da Estratégia como trabalho do Designer e a reescrita voltou
+          // sem as 13 tags <conteudo> — o plano sumiu e nenhum card foi criado). As tags técnicas
+          // da resposta original voltam sempre; as que não são deste agente continuam saindo na
+          // camada 1b logo abaixo (dono de cada tag, em código).
+          const _RE_TAGS=/<([a-z_]+)>[\s\S]*?<\/\1>|<checkin_completo\s*\/>/g;
+          const _tagsOriginais=String(texto).match(_RE_TAGS)||[];
+          const _comTags=fala=>String(fala).replace(_RE_TAGS,'').trim()+(_tagsOriginais.length?'\n'+_tagsOriginais.join('\n'):'');
           if(reescrito){
-            texto=reescrito;
+            texto=_comTags(reescrito);
             escopo={verificado:true,reescrito:true,dono:v.agente_dono};
             await _logEscopo({camada:'resposta',decisao:'reescrito',dono:v.agente_dono,trecho:v.trecho,resposta_original:_original,resposta_reescrita:ESC.textoParaFiscal(reescrito).slice(0,2000)});
           } else {
             console.error('[escopo] reescrita indisponível — resposta trocada pelo redirecionamento fixo. agente='+agente+' user='+targetId);
-            texto=ESC.mensagemRedirecionamento(agente,v.agente_dono);
+            texto=_comTags(ESC.mensagemRedirecionamento(agente,v.agente_dono));
             escopo={verificado:true,bloqueado:'resposta',dono:v.agente_dono};
             await _logEscopo({camada:'resposta',decisao:'redirecionado',dono:v.agente_dono,trecho:v.trecho,resposta_original:_original});
           }
