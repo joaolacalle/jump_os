@@ -1269,6 +1269,86 @@ async function jobProduzir(soUid) {
   return { ordens: ordensFeitas, artes, direcoes_avulsas: direcoesAvulsas, copias_criativo: copiasCriativo, fichas_tecnicas: fichasTecnicas };
 }
 
+// ═══ DETALHAMENTO AUTOMÁTICO DA SEMANA (01/out/2026, pedido do João: "existem os botões, mas
+// isso precisa ser automático") ═══
+// Com o plano mensal aprovado, a copy de cada semana nasce sozinha: a semana de trabalho (a
+// corrente, ou a próxima com posts se a corrente estiver vazia — mesma regra de agente-chat.js)
+// é detalhada quando já começou ou começa em até 3 dias e ainda tem post sem copy. Cria a ordem
+// 'detalhar_semana' (aparece em Tarefas) e chama a Estratégia em modo interno; o próprio
+// detalhamento garante o card 'aprovar_semana' em Aprovações (garantirCardAprovarSemana). Os
+// botões continuam existindo, só deixam de ser obrigatórios. No máximo 1 cliente por execução e
+// 2 tentativas por semana a cada 24h — erro fica visível na ordem, nunca em silêncio.
+async function jobDetalharSemana() {
+  const base = String(process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')).replace(/\/+$/, '');
+  if (!base || !process.env.CRON_SECRET) return { detalhamento: 'sem SITE_URL/CRON_SECRET' };
+  const hoje = JC.hojeISOBrasil();
+  const daqui3 = (() => { const d = new Date(hoje + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 3); return d.toISOString().slice(0, 10); })();
+  const ativos = await clientesElegiveisSemana(KEY());
+  for (const c of (Array.isArray(ativos) ? ativos : [])) {
+    const pref = c.preferencias || {};
+    const ancora = pref.plano_ancora_em;
+    if (!ancora) continue;
+    const hz = JC.horizonteDoPlano(ancora, pref.dia_lote);
+    if (hoje > hz.fim) continue; // ciclo encerrado: nada a detalhar
+    const janelas = JC.janelasSemanas(ancora, pref.dia_lote);
+    let posts;
+    try {
+      posts = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material,aprovado)&or=(origem.eq.plano,origem.is.null)&data_sugerida=gte.${hz.inicio}&data_sugerida=lte.${hz.fim}&select=id,status,copy,data_sugerida&limit=300`, { headers: SBH() }).then(r => r.json());
+    } catch (e) { console.error('[detalhar-auto] leitura de posts falhou — user=' + c.id + ' ' + (e && e.message)); continue; }
+    if (!Array.isArray(posts) || !posts.length) continue;
+    const dia = p => String(p.data_sugerida || '').slice(0, 10);
+    const naJanela = j => posts.filter(p => dia(p) >= j.inicio && dia(p) <= j.fim);
+    let sem = janelas.find(j => hoje >= j.inicio && hoje <= j.fim) || null;
+    if (!sem || !naJanela(sem).length) sem = janelas.find(j => j.fim >= hoje && naJanela(j).length) || null;
+    if (!sem || sem.inicio > daqui3) continue; // ainda não é hora desta semana
+    const semCopy = naJanela(sem).filter(p => p.status === 'rascunho' && !(p.copy && String(p.copy).trim()));
+    if (!semCopy.length) continue;
+    // ordem em andamento ou tentativas demais nas últimas 24h → não repete
+    let ords = [];
+    try {
+      const desde = new Date(Date.now() - 24 * 3600e3).toISOString();
+      ords = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&tarefa=eq.detalhar_semana&created_at=gte.${desde}&select=id,status,payload,created_at`, { headers: SBH() }).then(r => r.json());
+    } catch (e) { continue; }
+    ords = Array.isArray(ords) ? ords : [];
+    const emAndamento = ords.some(o => (o.status === 'pendente' || o.status === 'processando') && (Date.now() - new Date(o.created_at).getTime()) < 30 * 60e3);
+    const tentativas = ords.filter(o => o.payload && o.payload.inicio === sem.inicio).length;
+    if (emAndamento || tentativas >= 2) continue;
+    // ordens velhas presas viram erro visível antes da nova tentativa
+    for (const o of ords.filter(o => o.status === 'pendente' || o.status === 'processando')) {
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${o.id}`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ status: 'erro', payload: { ...(o.payload || {}), erros: [{ tema: 'detalhar_semana', motivo: 'detalhamento automático sem resposta em 30 min' }] } }) }).catch(() => {});
+    }
+    const ddmm = iso => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+    let ordem = null;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico`, {
+        method: 'POST', headers: { ...SBH(), 'Prefer': 'return=representation' },
+        body: JSON.stringify({ user_id: c.id, de_agente: 'sistema', para_agente: 'estrategia', tarefa: 'detalhar_semana', status: 'processando', total: semCopy.length, progresso: 0,
+          detalhe: 'Copy da Semana ' + sem.semana + ' (' + ddmm(sem.inicio) + ' a ' + ddmm(sem.fim) + ') — automático',
+          payload: { semana: sem.semana, inicio: sem.inicio, fim: sem.fim, ids: semCopy.map(p => p.id), automatico: true } }),
+      });
+      const j = await r.json().catch(() => null);
+      ordem = Array.isArray(j) ? j[0] : null;
+      if (!r.ok || !ordem) { console.error('[detalhar-auto] criar ordem falhou — user=' + c.id + ' status=' + r.status); continue; }
+    } catch (e) { console.error('[detalhar-auto] criar ordem falhou — user=' + c.id + ' ' + (e && e.message)); continue; }
+    let ok = false, motivo = '';
+    try {
+      const r = await fetch(`${base}/api/agente-chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET },
+        body: JSON.stringify({ agente: 'estrategia', user_id: c.id, ordem_id: ordem.id, mensagem: 'Detalhe agora (headline, subheadline, prova, CTA, copy e roteiros dos reels) SOMENTE os posts da semana aberta (bloco POSTS DA SEMANA PARA DETALHAR), todos de uma vez. Não gere artes. Faça direto, sem perguntar nada.' }),
+      });
+      const d = await r.json().catch(() => null);
+      ok = !!(r.ok && d && Number(d.detalhados || 0) > 0);
+      if (!ok) motivo = r.ok ? 'a Estratégia não detalhou nenhum post' : ('status ' + r.status + ' ' + String((d && d.error) || '').slice(0, 120));
+    } catch (e) { motivo = 'exceção: ' + (e && e.message); }
+    if (!ok) {
+      console.error('[detalhar-auto] falhou — user=' + c.id + ' ordem=' + ordem.id + ' ' + motivo);
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${ordem.id}&status=in.(pendente,processando)`, { method: 'PATCH', headers: SBH(), body: JSON.stringify({ status: 'erro', payload: { ...(ordem.payload || {}), erros: [{ tema: 'detalhar_semana', motivo }] } }) }).catch(() => {});
+    }
+    return { detalhamento: ok ? 'ok' : 'falhou', user: c.id, semana: sem.semana }; // 1 cliente por execução
+  }
+  return { detalhamento: 'nada a fazer' };
+}
+
 async function jobOrdens() {
   // EXPIRAÇÃO: ordem pendente há mais de 7 dias não é mais "atual" (sobra de testes/onboardings
   // antigos). Sai da fila viva e vai para o histórico como 'expirada', com o motivo registrado —
@@ -1680,7 +1760,10 @@ async function jobLimpeza() {
       // em si (lock/retry/watchdog ficam exatamente como estavam). Ver api/_cadeia-lib.js.
       let cadeia = {};
       try { cadeia = await verificarTimeoutCadeia(); } catch (e) { console.error('[cadeia-lib] verificarTimeoutCadeia falhou:', e.message); }
-      return res.status(200).json({ ok: true, job, ...r, cadeia });
+      // detalhamento automático da semana — passo irmão, isolado (não mexe no worker de produção)
+      let detalhe = {};
+      try { detalhe = await jobDetalharSemana(); } catch (e) { console.error('[detalhar-auto] falhou:', e && e.message); }
+      return res.status(200).json({ ok: true, job, ...r, cadeia, ...detalhe });
     }
     if (job === 'ordens') {
       const r = await jobOrdens();

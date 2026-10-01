@@ -15,6 +15,9 @@
     },
     "api/video-webhook.js": {
       "maxDuration": 30
+    },
+    "api/cron.js": {
+      "maxDuration": 300
     }
   },
   "crons": [
