@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-mapa-so-depois-de-perguntar';
+const VERSAO = '2026.10.01-ciclo-de-4-semanas';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -512,8 +512,8 @@ Análises a considerar: (1) dados do OS_DATA (marca, nicho, público, produto, m
 Entregue ao cliente, em texto LIMPO e organizado:
 - RESUMO: para [marca] no nicho [x], objetivo [y], recomendo [frequência] posts/semana focando [mix], porque [justificativa].
 - POR QUÊ (breve: tipo de negócio, momento, algoritmo, concorrência, recursos).
-- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" (as 5 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
-  MÊS INTEIRO, EM UMA ÚNICA RESPOSTA (OBRIGATÓRIO — LOTE 2, 01/set/2026): monte as 5 semanas AGORA, nesta mesma resposta, com a tag <conteudo> de CADA post do mês inteiro. NUNCA pergunte "quer que eu siga com a Semana 2?" nem espere confirmação para continuar — isso era um workaround do limite de tamanho de resposta que não existe mais: o formato aqui é LEVE (tema/formato/data — sem copy, sem roteiro, ver TEMPO 1 abaixo), então o mês inteiro cabe numa resposta só. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
+- CRONOGRAMA do mês (datas, horário, formato, tema) — respeitando a frequência, o bloco "QUANTO VOCÊ PODE PLANEJAR" do contexto (teto de peças com arte, teto de vídeos, perfil de captação) e o bloco "SEU PLANO — AS 4 SEMANAS E O QUE JÁ ESTÁ GRAVADO" (as 4 semanas com datas prontas — nunca calcule você mesmo onde cada semana começa ou termina). Nunca planeje mais vídeos do que o teto nem do que o cliente consegue gravar.
+  MÊS INTEIRO, EM UMA ÚNICA RESPOSTA (OBRIGATÓRIO — LOTE 2, 01/set/2026): monte as 4 semanas AGORA, nesta mesma resposta, com a tag <conteudo> de CADA post do mês inteiro. NUNCA pergunte "quer que eu siga com a Semana 2?" nem espere confirmação para continuar — isso era um workaround do limite de tamanho de resposta que não existe mais: o formato aqui é LEVE (tema/formato/data — sem copy, sem roteiro, ver TEMPO 1 abaixo), então o mês inteiro cabe numa resposta só. Semana 1 vazia só é aceitável quando o teto de peças com arte já chegou a zero — nesse caso, diga isso ao cliente em vez de simplesmente pular pra Semana 2.
 - RESULTADO ESPERADO (crescimento, engajamento, save rate, conversões — realista, com base nos benchmarks).
 Pergunte se pode produzir os conteúdos.
 
@@ -541,8 +541,8 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 - Não repita temas já usados. Cada post tem um pilar (educação/prova/autoridade/oferta/bastidor).
 
 ▸ TEMPO 1 — ARQUITETURA MENSAL (quando pedirem a estratégia/plano do mês)
-Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
-DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
+Monte o MÊS INTEIRO — as 4 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
+DATA: escolha SEMPRE uma data dentro de uma das 4 janelas do bloco "SEU PLANO — AS 4 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
 <conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","publico":"segmento do público","dor":"a dor ou objeção que o post ataca, nas palavras do cliente final","etapa":"atrair|convencer|vender","angulo":"erro_comum|demonstracao|comparacao|bastidor|caso_real|objecao|pergunta_frequente|passo_a_passo|opiniao|mito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
 TEMAS QUE VENDEM (regra dura, conferida em código — plano fora dela não é gravado):
@@ -1577,6 +1577,7 @@ const handler = async (req, res) => {
         trava_anti_generico_em_codigo:true,
         mistura_do_funil_atrair_convencer_vender:true,
         mapa_de_demanda_so_depois_das_2_perguntas_respondidas:true,
+        ciclo_do_plano_4_semanas:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2178,7 +2179,7 @@ const handler = async (req, res) => {
       dataTxt+=`\nCALENDÁRIO REAL DOS PRÓXIMOS 40 DIAS (use EXATAMENTE estes dias da semana ao planejar):\n${cal.join(' · ')}\nAo escrever "data_sugerida" use o formato YYYY-MM-DD e confira o dia da semana nesta lista.`;
     }
     // ANCORAGEM DAS SEMANAS (28/ago/2026): âncora ÚNICA para tudo que precisa saber "quais são
-    // as 5 semanas do plano" ou "qual semana é hoje" neste request — nenhum outro ponto deste
+    // as 4 semanas do plano" ou "qual semana é hoje" neste request — nenhum outro ponto deste
     // arquivo calcula piso/teto de data por conta própria a partir daqui (ver JC.janelasSemanas
     // em assets/classificacao.js pro porquê). A âncora REAL só é gravada em
     // clientes.preferencias.plano_ancora_em no momento do clique de aprovação mensal
@@ -2233,7 +2234,7 @@ const handler = async (req, res) => {
       // Fica só o que descreve: as 5 linhas de estado, o limite de data (fato sobre o mecanismo:
       // "o sistema recusa e avisa" — não é uma ordem, é a mesma natureza das linhas de estado) e
       // a frase de contenção final.
-      dataTxt+=`\n\n═══ SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO (dado pronto, NUNCA recalcule nem estime) ═══\n${resumoSemanas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). As linhas acima descrevem o que JÁ existe — nunca afirme ao cliente que uma semana foi detalhada, tem copy ou tem card de aprovação além do que a linha dela diz.`;
+      dataTxt+=`\n\n═══ SEU PLANO — AS 4 SEMANAS E O QUE JÁ ESTÁ GRAVADO (dado pronto, NUNCA recalcule nem estime) ═══\n${resumoSemanas}\nToda "data_sugerida" que você escrever PRECISA cair dentro de uma dessas 5 janelas — fora disso o sistema recusa a peça e avisa o cliente, ela não é salva (nunca corrigida pra data mais próxima). As linhas acima descrevem o que JÁ existe — nunca afirme ao cliente que uma semana foi detalhada, tem copy ou tem card de aprovação além do que a linha dela diz.`;
     }
     if(agente==='publicacao'){
       try{
@@ -2432,7 +2433,7 @@ const handler = async (req, res) => {
           // FILA TÉCNICA — item 4 (15/set/2026, autorizado pelo João): antes, lista vazia deixava
           // semanaTxt em '' — nenhum sinal no prompt de que não há candidato, e o agente já
           // inventou conteúdo/id por cima desse silêncio (incidente de 08/09, PATCH recusado).
-          // Mesmo padrão de "SEU PLANO — AS 5 SEMANAS..." (dataTxt, acima) e "SITUAÇÃO REAL DA
+          // Mesmo padrão de "SEU PLANO — AS 4 SEMANAS..." (dataTxt, acima) e "SITUAÇÃO REAL DA
           // SUA FILA" (Criativo, abaixo): o estado real vira DADO explícito no contexto, nunca uma
           // instrução de comportamento — o comentário da linha ~1297 já registra por que prosa
           // pedindo bom comportamento sozinha falhou (3x dado real + inventou por cima, 4x
@@ -2993,7 +2994,7 @@ const handler = async (req, res) => {
     // semana ATUAL (semanaAtualCliente, já calculada uma vez no topo do request, mesma fonte única
     // de sempre) pode ser detalhada agora — uma semana passada ou futura é RECUSADA aqui, em
     // código, nunca só por instrução ao agente. Post sem semana válida (JC.semanaDoPost retorna
-    // null — avulso, ou fora do horizonte de 5 semanas) fica de fora desta trava por definição,
+    // null — avulso, ou fora do horizonte de 4 semanas) fica de fora desta trava por definição,
     // mesmo critério que travaDeDatas/travaTrial já usam pra avulso.
     let detalhesForaDaSemana=0;
     let avisoDetalheForaDaSemana=null;
@@ -3196,7 +3197,7 @@ const handler = async (req, res) => {
     // Estágio A do mapa de duplicidade — antes só existia checagem de card ABERTO (mais abaixo,
     // "ex", na criação do card); um plano já APROVADO não impedia um segundo nascer pro mesmo
     // ciclo. Definição de "ciclo" (reportada ao João antes de implementar, conforme pedido):
-    // o horizonte de 5 semanas contado a partir da ÂNCORA REAL do plano (JC.horizonteDoPlano,
+    // o horizonte de 4 semanas contado a partir da ÂNCORA REAL do plano (JC.horizonteDoPlano,
     // mesma fonte única de sempre) — não mês-calendário, que não bate com o desenho de âncora já
     // usado no resto do sistema desde ANCORAGEM DAS SEMANAS. Só bloqueia quando: (a) já existe
     // uma âncora real gravada (plano_ancora_em — ou seja, algum plano já foi aprovado alguma

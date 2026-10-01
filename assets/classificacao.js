@@ -224,7 +224,7 @@
   // calculavam cada uma por conta própria (mesmo padrão de bug já visto neste arquivo: regra
   // igual, ou divergente, escrita em lugares diferentes). O card da Semana 1 nunca nasceu, a
   // copy nunca foi escrita — silenciosamente. A partir de agora, QUALQUER ponto que precise
-  // saber "disto quais 5 semanas o plano cobre" ou "de qual semana é este post" chama as
+  // saber "disto quais 4 semanas o plano cobre" ou "de qual semana é este post" chama as
   // funções abaixo. Nenhum ponto novo calcula piso/teto de data por conta própria.
   //
   // Semana 1 = do dia da aprovação mensal até o domingo anterior ao próximo "dia de lote"
@@ -260,16 +260,21 @@
     var ancora = _toDataUTC(ancoraISO);
     var proximo = _maisDias(ancora, 1);
     while (proximo.getUTCDay() !== dl) { proximo = _maisDias(proximo, 1); }
+    // CICLO DE 4 SEMANAS (01/out/2026, pedido do João: "5 semanas parece estranho"): a Semana 1
+    // vai da âncora até a véspera do próximo dia do lote; se esse pedaço tiver menos de 4 dias, ele
+    // se junta à semana cheia seguinte (Semana 1 com 8 a 10 dias). Depois, 3 semanas cheias. O
+    // ciclo fica com 25 a 31 dias — cerca de um mês — e sempre 4 semanas.
+    if (Math.round((proximo - ancora) / 864e5) < 4) proximo = _maisDias(proximo, 7);
     var janelas = [{ semana: 1, inicio: _isoData(ancora), fim: _isoData(_maisDias(proximo, -1)) }];
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 3; i++) {
       var ini = _maisDias(proximo, i * 7);
       janelas.push({ semana: i + 2, inicio: _isoData(ini), fim: _isoData(_maisDias(ini, 6)) });
     }
     return janelas;
   }
 
-  // A quais das 5 semanas pertence `dataSugerida` ('YYYY-MM-DD' ou ISO completo — só a parte da
-  // data é usada)? Retorna 1..5, ou null se a data cai fora do horizonte do plano (a chamadora
+  // A quais das 4 semanas pertence `dataSugerida` ('YYYY-MM-DD' ou ISO completo — só a parte da
+  // data é usada)? Retorna 1..4, ou null se a data cai fora do horizonte do plano (a chamadora
   // decide o que fazer com null — a REGRA deste projeto é recusar e avisar, nunca corrigir pra
   // dentro da janela mais próxima; ver "trava de datas" em api/agente-chat.js).
   function semanaDoPost(dataSugerida, ancoraISO, diaLote) {
@@ -282,14 +287,14 @@
     return null;
   }
 
-  // {inicio,fim} do horizonte inteiro do plano (Semana 1 até o fim da Semana 5).
+  // {inicio,fim} do horizonte inteiro do plano (Semana 1 até o fim da Semana 4).
   function horizonteDoPlano(ancoraISO, diaLote) {
     var janelas = janelasSemanas(ancoraISO, diaLote);
     return { inicio: janelas[0].inicio, fim: janelas[janelas.length - 1].fim };
   }
 
   // ÂNCORA VIGENTE (30/set/2026, achado do João: "as datas do meu plano estão do mês passado"):
-  // a âncora gravada só vale enquanto o ciclo dela está em vigor. Terminado o horizonte de 5
+  // a âncora gravada só vale enquanto o ciclo dela está em vigor. Terminado o horizonte de 4
   // semanas, o plano novo conta a partir de HOJE (mesmo critério de quem ainda não aprovou plano)
   // — nunca mais as semanas do ciclo que já acabou.
   function ancoraVigente(ancoraISO, diaLote, hojeISO) {
@@ -369,7 +374,7 @@
     (Array.isArray(posts) ? posts : []).forEach(function (c) {
       var sem = null;
       try { sem = semanaDoPost(c.data_sugerida, ancoraISO, diaLote); } catch (e) {}
-      if (sem === null || !porSemanaMapa[sem]) return; // fora do horizonte de 5 semanas — não é assunto deste resumo
+      if (sem === null || !porSemanaMapa[sem]) return; // fora do horizonte de 4 semanas — não é assunto deste resumo
       var b = porSemanaMapa[sem];
       b.total++;
       if (c.copy && String(c.copy).trim()) b.comCopy++;
