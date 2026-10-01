@@ -1,6 +1,6 @@
 // api/cron.js — Crons consolidados (estratégia + renovação de tokens em 1 função)
 // Resolve o limite de funções da Vercel. Decide o job por ?job=
-//   ?job=estrategia → avisa o fim do ciclo real do plano (âncora + 5 semanas, dia do ciclo semanal) — diário
+//   ?job=estrategia → avisa o fim do ciclo real do plano (âncora + 4 semanas, dia do ciclo semanal) — diário
 //   ?job=tokens     → renova tokens da Meta que expiram em < 10 dias (diário)
 // Protegido por CRON_SECRET.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
@@ -40,7 +40,7 @@ const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','ag
 // ── JOB 1: aviso do PRÓXIMO plano da Estratégia — alinhado ao ciclo REAL (30/set/2026) ──
 //    Antes: contava 30 dias desde preferencias.estrategia_em (data em que o plano foi ESCRITO) e a
 //    Vercel só rodava este job no dia 25 — dois relógios diferentes do que a própria Estratégia usa
-//    para travar plano novo (horizonte de 5 semanas a partir de preferencias.plano_ancora_em,
+//    para travar plano novo (horizonte de 4 semanas a partir de preferencias.plano_ancora_em,
 //    alinhado ao dia do ciclo semanal de Configurações, preferencias.dia_lote — ver "TRAVA DE CICLO"
 //    em api/agente-chat.js). Resultado: o recado convidava a "pedir o plano do próximo mês" com o
 //    plano atual ainda em vigor — um plano em cima do outro, que a trava então recusava.
@@ -1535,7 +1535,7 @@ async function jobExpiracaoSemana() {
   //         o post pertence já fechou (fim da janela < hoje) — pega o caso em que a data isolada
   //         do post, por algum motivo (reagendamento anterior que não trocou de semana, borda de
   //         fuso), ainda não parecia vencida sozinha. Post sem semana válida (avulso, ou fora do
-  //         horizonte de 5 semanas — JC.semanaDoPost retorna null) fica de fora, mesmo critério
+  //         horizonte de 4 semanas — JC.semanaDoPost retorna null) fica de fora, mesmo critério
   //         que travaDeDatas/travaTrial (agente-chat.js) já usam.
   //   FASE 2 (exclui): conteúdo 'expirado' há mais de JC.DIAS_AUTO_EXCLUSAO_EXPIRADO dias vira
   //     'excluido' — SOFT DELETE (o mesmo status que o resto do sistema já usa pra remoção,

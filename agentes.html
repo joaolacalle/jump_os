@@ -464,7 +464,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 </main>
 </div>
 <script src="assets/jump-core.js?v=10"></script>
-<script src="assets/classificacao.js?v=11"></script>
+<script src="assets/classificacao.js?v=12"></script>
 <script src="assets/onboarding.js?v=3"></script>
 <script src="assets/jump-guia.js"></script>
 <script>
@@ -1548,13 +1548,13 @@ let PODE_DETALHAR=false;
 function cmdCalendario(){
   // Se a semana já está no calendário sem copy, o pedido é detalhar; senão, montar o plano.
   if(PODE_DETALHAR)return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
-  enviarTexto('Monte o plano do meu ciclo: as 5 semanas com tema, formato e data de cada post, conferindo os dias no calendário real.');
+  enviarTexto('Monte o plano do meu ciclo: as 4 semanas com tema, formato e data de cada post, conferindo os dias no calendário real.');
 }
 // PAINEL DE ESTADO REAL (Frente 2 / Nível 3, 09/set/2026 — ver APRENDIZADOS.md "PAINEL DE ESTADO
 // REAL — IMPLEMENTAÇÃO"): esta função fazia só a trava do botão antigo (cmdCalendario, quando o
 // botão do cabeçalho disparava a ação direto). Agora o botão abre um popup com o estado real
 // primeiro — a ação de gerar/detalhar mora DENTRO do popup — então esta função passou a também
-// buscar e montar esse estado (5 semanas + cota) e decidir o indicador visual (.ag-dot) no botão.
+// buscar e montar esse estado (4 semanas + cota) e decidir o indicador visual (.ag-dot) no botão.
 // Chamada nos MESMOS dois gatilhos de sempre — seleção do agente (mais abaixo) e depois de cada
 // resposta (dentro de enviarTexto, quando AG==='estrategia') — cobre "ao abrir" e "após cada
 // resposta", os dois gatilhos de atualização pedidos pro painel, sem nenhum gatilho novo.
@@ -1588,7 +1588,7 @@ async function atualizarEstadoEstrategia(){
     }
   }catch(e){ travaMsg='Não consegui checar o andamento agora — tente de novo em instantes.'; }
 
-  // 2) estado real das 5 semanas + cota. Busca `clientes` fresco (não reaproveita CTX.cliente em
+  // 2) estado real das 4 semanas + cota. Busca `clientes` fresco (não reaproveita CTX.cliente em
   // memória — uso/limites podem ter mudado desde que a página carregou; o painel promete dado
   // real, não dado de quando a aba abriu) e as mesmas duas tabelas que api/agente-chat.js lê.
   let estadoHtml=null, dotAtivo=false;
@@ -1614,7 +1614,7 @@ async function atualizarEstadoEstrategia(){
       // deliberada — nunca inferir `origem` de dado ausente) e todo conteúdo anterior à migration
       // ficou com `origem IS NULL`. Não entra na contagem de avulso acima (seria a mesma inferência
       // que a Falha 3 baniu) — é uma contagem À PARTE, só de quem também não tem `data_sugerida`
-      // (ou seja: não aparece em nenhuma das 5 semanas acima nem no balde de avulso — cai fora de
+      // (ou seja: não aparece em nenhuma das 4 semanas acima nem no balde de avulso — cai fora de
       // tudo, o ponto cego real). Reportado como o que é, nunca rotulado como avulso.
       JUMP.sb.from('conteudos').select('id',{count:'exact',head:true}).eq('user_id',uid).is('origem',null).is('data_sugerida',null).eq('status','aguardando_aprovacao'),
       // PRÓXIMO PASSO (01/out/2026): fotos que o cliente disse fornecer e a escolha de seguir sem elas
@@ -1667,7 +1667,7 @@ async function atualizarEstadoEstrategia(){
     const faltaPess=tiposCli.includes('foto_pessoa')&&nPess===0&&!semPess;
     if(TRAVA_APROVAR_PLANO) PROXIMO_PASSO={rot:'Aprovar plano',txt:'Seu plano do mês está pronto. Confira e aprove em Aprovações para a produção começar.',acao:'aprovar'};
     else if(!totalPlano&&(faltaProd||faltaPess)) PROXIMO_PASSO={rot:'Subir fotos',txt:'Antes do plano, suba '+(faltaProd?'as fotos de produto/trabalho em Meus Arquivos → Produtos':'suas fotos em Meus Arquivos → Fotos pessoais')+'. Depois avise a Estratégia.',acao:'fotos',aba:faltaProd?'produtos':'pessoais'};
-    else if(!totalPlano&&!travaMsg) PROXIMO_PASSO={rot:'Montar plano',txt:'Você ainda não tem plano neste ciclo. Peça à Estratégia o plano das 5 semanas.',acao:'montar'};
+    else if(!totalPlano&&!travaMsg) PROXIMO_PASSO={rot:'Montar plano',txt:'Você ainda não tem plano neste ciclo. Peça à Estratégia o plano das 4 semanas.',acao:'montar'};
     else if(atual&&atual.cardStatus==='aguardando') PROXIMO_PASSO={rot:'Aprovar semana',txt:'Os posts da semana atual estão prontos para você aprovar em Aprovações.',acao:'aprovar'};
     else if(PODE_DETALHAR) PROXIMO_PASSO={rot:'Detalhar semana',txt:'A semana atual ainda não tem os textos. Peça à Estratégia para escrever.',acao:'detalhar'};
     const passoHtml=PROXIMO_PASSO?('<div style="border:1px solid rgba(240,181,63,.45);background:rgba(240,181,63,.08);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.5;color:var(--t2)"><b style="color:#f0b53f">Próximo passo: '+PROXIMO_PASSO.rot+'</b><br>'+PROXIMO_PASSO.txt+'</div>'):'';
