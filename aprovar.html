@@ -732,7 +732,23 @@ async function aprovarProposta(id,tarefa,btn){
       // também — mesmo bug do fechamento do card semanal, mesma correção.
       const{error:errConcluir}=await JUMP.sb.from('ordens_servico').update({status:'concluida',concluida_em:new Date().toISOString()}).eq('id',id);
       if(errConcluir)console.error('[aprovar_estrategia] update concluida falhou:',errConcluir);
-      if(btn)btn.textContent='Preparando a Semana 1...';
+      // ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md): a data REAL de aprovação vira
+      // a âncora do plano, gravada em preferencias (mesmo padrão que dia_lote já usa — JSONB
+      // existente, sem migration, sem coluna nova). É o que fixa de vez os limites de Semana
+      // 1..5 (até este clique, o card mensal só EXIBIA os grupos recalculados "como se fosse
+      // hoje" — ver abrirEstrategia). Item 2 do pedido.
+      // gravada ANTES do detalhamento automático (01/out/2026): ele pode levar mais de um minuto e,
+      // se a página fosse fechada nesse meio, a âncora nunca era gravada.
+      const hojeISO=JUMP_CLASS.hojeISOBrasil();
+      let dl=1, prefAtual={};
+      try{
+        const{data:cAtual}=await JUMP.sb.from('clientes').select('preferencias').eq('id',uid).limit(1);
+        prefAtual=((cAtual&&cAtual[0])||{}).preferencias||{};
+        dl=(prefAtual.dia_lote!=null)?prefAtual.dia_lote:1;
+        const{error:errAnc}=await JUMP.sb.from('clientes').update({preferencias:{...prefAtual,plano_ancora_em:hojeISO}}).eq('id',uid);
+        if(errAnc)console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',errAnc);
+      }catch(e){console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',e&&e.message);}
+      if(btn)btn.textContent='Preparando a primeira semana...';
       // DIAGNÓSTICO (não é retry): antes essa chamada era fire-and-forget, sem log nem aviso — se
       // falhasse, o usuário nunca sabia que precisava abrir a Estratégia manualmente. Agora só
       // detectamos e avisamos; nenhuma nova tentativa automática é adicionada aqui.
@@ -740,7 +756,7 @@ async function aprovarProposta(id,tarefa,btn){
       try{
         const tk=(JUMP.freshToken?await JUMP.freshToken():null)||null;
         if(tk){
-          const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da SEMANA 1 do calendário. Não gere artes ainda. Faça direto, sem perguntar nada.'})});
+          const rAuto=await fetch('/api/agente-chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({agente:'estrategia',ver_id:CTX.viewId||null,mensagem:'Detalhe agora (headline, copy e roteiros) SOMENTE os posts da semana aberta (bloco POSTS DA SEMANA PARA DETALHAR). Não gere artes ainda. Faça direto, sem perguntar nada.'})});
           if(!rAuto.ok){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo respondeu status',rAuto.status);}
           else{
             // FRONTEIRA ENTRE AGENTES (29/set/2026): resposta barrada pelo fiscal de escopo não
@@ -750,19 +766,6 @@ async function aprovarProposta(id,tarefa,btn){
           }
         }else{falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo não executado: sem token');}
       }catch(e){falhouAutoDetalhe=true;console.error('[detalhar_semana] auto-disparo falhou:',e&&e.message);}
-      // ANCORAGEM DAS SEMANAS (28/ago/2026 — ver APRENDIZADOS.md): a data REAL de aprovação vira
-      // a âncora do plano, gravada em preferencias (mesmo padrão que dia_lote já usa — JSONB
-      // existente, sem migration, sem coluna nova). É o que fixa de vez os limites de Semana
-      // 1..5 (até este clique, o card mensal só EXIBIA os grupos recalculados "como se fosse
-      // hoje" — ver abrirEstrategia). Item 2 do pedido.
-      const hojeISO=new Date().toISOString().slice(0,10);
-      let dl=1, prefAtual={};
-      try{
-        const{data:cAtual}=await JUMP.sb.from('clientes').select('preferencias').eq('id',uid).limit(1);
-        prefAtual=((cAtual&&cAtual[0])||{}).preferencias||{};
-        dl=(prefAtual.dia_lote!=null)?prefAtual.dia_lote:1;
-        await JUMP.sb.from('clientes').update({preferencias:{...prefAtual,plano_ancora_em:hojeISO}}).eq('id',uid);
-      }catch(e){console.error('[aprovar_estrategia] gravar plano_ancora_em falhou:',e&&e.message);}
       // cria o card da SEMANA 1 (determinístico: os posts que já têm copy)
       // Fase 1 (25/ago/2026 — plano "Trilha de material do usuário"): esta query era a causa raiz
       // do A2 — não tinha filtro de formato nenhum (reels entravam direto) e não tinha piso de
@@ -775,7 +778,15 @@ async function aprovarProposta(id,tarefa,btn){
       //  1) exclui material do usuário construindo o filtro a partir da fonte única, nunca de
       //     literais escritos aqui — se a lista mudar em assets/classificacao.js, esta query
       //     muda junto, sem precisar tocar neste arquivo.
-      const janela1=JUMP_CLASS.janelasSemanas(hojeISO,dl)[0];
+      // semana de trabalho: a 1ª semana (a partir de hoje) que tem post do plano — mesma regra do servidor
+      const _jans=JUMP_CLASS.janelasSemanas(hojeISO,dl);
+      let janela1=_jans[0];
+      try{
+        const{data:_pp}=await JUMP.sb.from('conteudos').select('data_sugerida').eq('user_id',uid).in('status',['rascunho','aguardando_copy','aguardando_material']).or('origem.eq.plano,origem.is.null').gte('data_sugerida',_jans[0].inicio).lte('data_sugerida',_jans[_jans.length-1].fim).limit(200);
+        const _ds=(_pp||[]).map(x=>String(x.data_sugerida||'').slice(0,10));
+        const _tem=j=>_ds.some(d=>d>=j.inicio&&d<=j.fim);
+        if(_ds.length&&!_tem(janela1)){ const _p=_jans.find(j=>_tem(j)); if(_p)janela1=_p; }
+      }catch(e){console.error('[aprovar_estrategia] semana de trabalho: leitura falhou',e&&e.message);}
       const piso=janela1.inicio;
       const lim=janela1.fim;
       let qSem1=JUMP.sb.from('conteudos').select('id,copy').eq('user_id',uid).eq('status','rascunho').is('midia_url',null).gte('data_sugerida',piso).lte('data_sugerida',lim);

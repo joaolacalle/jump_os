@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-horario-do-post-em-brasilia';
+const VERSAO = '2026.10.01-semana-de-trabalho-e-ancora-antes';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -1583,6 +1583,7 @@ const handler = async (req, res) => {
         fiscal_datas_do_plano_sao_da_estrategia:true,
         estrategia_define_horario_do_post:true,
         data_agendada_gravada_em_horario_de_brasilia:true,
+        semana_vazia_abre_a_proxima_com_posts:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2196,7 +2197,22 @@ const handler = async (req, res) => {
     // ciclo que acabou — antes o agente recebia as 5 semanas passadas como janelas do plano novo.
     const ancoraPlano=JC.ancoraVigente(cli.preferencias&&cli.preferencias.plano_ancora_em,diaLoteCliente,hojeISO);
     const janelasCliente=JC.janelasSemanas(ancoraPlano,diaLoteCliente);
-    const semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
+    let semanaAtualCliente=janelasCliente.find(j=>hojeISO>=j.inicio&&hojeISO<=j.fim)||janelasCliente[0];
+    // SEMANA DE TRABALHO (01/out/2026, caso real: plano aprovado numa quinta com a Semana 1 de
+    // 01 a 04/10 sem nenhum post — nada a detalhar, nenhum card semanal, fluxo travado): se a semana
+    // corrente não tem post do plano, a semana aberta para detalhar/aprovar é a PRÓXIMA que tem.
+    if(agente==='estrategia'){
+      try{
+        const _fimHz=janelasCliente[janelasCliente.length-1].fim;
+        const _pp=await sbGet(`conteudos?user_id=eq.${targetId}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material,aprovado)&or=(origem.eq.plano,origem.is.null)&data_sugerida=gte.${janelasCliente[0].inicio}&data_sugerida=lte.${_fimHz}&select=data_sugerida&limit=200`);
+        const _datas=(Array.isArray(_pp)?_pp:[]).map(x=>String(x.data_sugerida||'').slice(0,10));
+        const _temPost=j=>_datas.some(d=>d>=j.inicio&&d<=j.fim);
+        if(_datas.length&&!_temPost(semanaAtualCliente)){
+          const _prox=janelasCliente.find(j=>j.fim>=hojeISO&&j.inicio>semanaAtualCliente.inicio&&_temPost(j));
+          if(_prox) semanaAtualCliente=_prox;
+        }
+      }catch(e){ console.error('[semana-de-trabalho] leitura falhou — seguindo com a semana do calendário. user='+targetId+' '+(e&&e.message)); }
+    }
     // JANELA DE PLANEJAMENTO COMO DADO, NÃO TEXTO (28/ago/2026 — ver APRENDIZADOS.md, "JANELA
     // DE PLANEJAMENTO — parâmetro de sistema, não texto"): as 5 janelas concretas do plano vêm
     // prontas, calculadas pela fonte única (mesma que qualquer outro ponto do sistema usa) — a
