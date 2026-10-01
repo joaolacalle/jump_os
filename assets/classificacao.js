@@ -309,6 +309,29 @@
   // arquivo existe pra evitar (ver cabeçalho do arquivo). agente-chat.js continua com o cálculo
   // inline que já tinha (não foi trocado por esta função nesta rodada, pra não mexer em código
   // que já funciona fora do escopo do Lote 2) — mas nenhum ponto NOVO deve recalcular isso.
+  // HORÁRIO DE POSTAGEM EM BRASÍLIA (01/out/2026): data_agendada é timestamptz e o banco roda em
+  // UTC — "2026-10-05T09:00:00" sem fuso virava 09:00 UTC (06:00 em Brasília) e o post sairia 3h
+  // antes. Toda gravação passa a levar o fuso de Brasília (-03:00, sem horário de verão desde 2019)
+  // e toda leitura de dia/hora para exibir converte de volta para Brasília.
+  function agendaSP(dia, hora) {
+    var d = String(dia || '').slice(0, 10);
+    var h = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(hora || '')) ? String(hora) : '09:00';
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? (d + 'T' + h + ':00-03:00') : null;
+  }
+  function _partesSP(ts) {
+    var s = String(ts || '');
+    if (!s) return null;
+    if (s.length <= 10) return { dia: s, hora: null };
+    if (!/([zZ]|[+-]\d{2}(:?\d{2})?)$/.test(s)) return { dia: s.slice(0, 10), hora: s.slice(11, 16) || null };
+    var norm = s.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+    var ms = new Date(norm).getTime();
+    if (isNaN(ms)) return { dia: s.slice(0, 10), hora: s.slice(11, 16) || null };
+    var iso = new Date(ms - 3 * 3600 * 1000).toISOString();
+    return { dia: iso.slice(0, 10), hora: iso.slice(11, 16) };
+  }
+  function diaSP(ts) { var p = _partesSP(ts); return p ? p.dia : ''; }
+  function horaSP(ts) { var p = _partesSP(ts); return p ? p.hora : null; }
+
   function hojeISOBrasil() {
     var TZ = 'America/Sao_Paulo';
     var d = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
@@ -426,6 +449,9 @@
     horizonteDoPlano: horizonteDoPlano,
     ancoraVigente: ancoraVigente,
     hojeISOBrasil: hojeISOBrasil,
+    agendaSP: agendaSP,
+    diaSP: diaSP,
+    horaSP: horaSP,
     tetoImagensPlano: tetoImagensPlano,
     MATERIAIS_USUARIO: MATERIAIS_USUARIO,
     materialDoUsuario: materialDoUsuario,

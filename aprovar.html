@@ -296,7 +296,7 @@ textarea.edt{resize:vertical;line-height:1.5}
   </div>
 </div>
 <script src="assets/jump-core.js?v=10"></script>
-<script src="assets/classificacao.js?v=12"></script>
+<script src="assets/classificacao.js?v=13"></script>
 <script>
 let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],PLANO='basico';
 (async()=>{
@@ -458,7 +458,7 @@ function focarCard(){
 function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
 function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
 function _linhaPost(c,semanal){
-  const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10), hora=String(d).slice(11,16)||'09:00';
+  const m=c.meta||{}, d=(c.data_agendada||c.data_sugerida||''), dia=JUMP_CLASS.diaSP(d), hora=JUMP_CLASS.horaSP(c.data_agendada)||'09:00';
   return `<div class="ec-post">
       <div class="ec-post-h">${JUMP.esc((c.formato||'feed').toUpperCase())}${m.pilar?(' · '+JUMP.esc(m.pilar)):''}</div>
       ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):_inp(c.id,'tema','Tema do post',c.tema||'')}
@@ -550,7 +550,7 @@ function abrirEstrategia(id){
     const porSemana={1:[],2:[],3:[],4:[],5:[]};
     const foraDoHorizonte=[];
     posts.forEach(c=>{
-      const d=(c.data_agendada||c.data_sugerida||''), dia=String(d).slice(0,10);
+      const d=(c.data_agendada||c.data_sugerida||''), dia=JUMP_CLASS.diaSP(d);
       const sem=JUMP_CLASS.semanaDoPost(dia,hojeISO,dl);
       if(sem)porSemana[sem].push(c); else foraDoHorizonte.push(c);
     });
@@ -575,7 +575,7 @@ function abrirEstrategia(id){
       // Não deveria acontecer (a trava de datas em api/agente-chat.js já recusa no momento da
       // geração) — se aparecer, é sinal de conteúdo antigo de antes desta correção. Mostra em
       // vez de esconder: nunca some conteúdo em silêncio.
-      linhas+=`<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">FORA DO HORIZONTE DE 5 SEMANAS</div>`+foraDoHorizonte.map(c=>_linhaPost(c,false)).join('');
+      linhas+=`<div style="font-family:var(--M);font-size:11px;letter-spacing:1px;color:var(--t3);text-transform:uppercase;margin:16px 0 6px;font-weight:800">FORA DO HORIZONTE DE 4 SEMANAS</div>`+foraDoHorizonte.map(c=>_linhaPost(c,false)).join('');
     }
   }
   document.getElementById('estr-body').innerHTML=`
@@ -607,7 +607,7 @@ async function salvarEdicoesProposta(){
     if(f.copy!=null)patch.copy=f.copy;
     if(f.headline!=null)meta.headline=f.headline;
     if(f.cta!=null)meta.cta_arte=f.cta;
-    if(f.dia){patch.data_sugerida=f.dia;patch.data_agendada=f.dia+'T'+((f.hora||'09:00'))+':00';}
+    if(f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
     if(Object.keys(meta).length){
       const{data:atual}=await JUMP.sb.from('conteudos').select('meta').eq('id',id).single();
       patch.meta=Object.assign({},(atual&&atual.meta)||{},meta);
@@ -873,7 +873,7 @@ function abrirMaterial(id){
   const m=c.meta||{};
   const d=c.data_agendada||c.data_sugerida;
   const dia=d?new Date(d).toLocaleDateString('pt-BR'):'sem data';
-  const hora=d?String(d).slice(11,16):'';
+  const hora=JUMP_CLASS.horaSP(c.data_agendada)||'';
   document.getElementById('mat-body').innerHTML=`
     ${m.material_pedido?`<div class="f-group"><label class="f-label">O que enviar</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc(m.material_pedido)}</div></div>`:''}
     <div class="f-group"><label class="f-label">Formato</label><div style="font-size:14px;color:var(--t1)">${JUMP.esc((c.formato||'').toUpperCase())}</div></div>
@@ -1108,7 +1108,7 @@ function abrirEdicao(id){
           <div class="ec-set-r"><span>Formato</span><div class="ec-ro-v">${tp.ico} ${JUMP.esc(tp.label)}${sl.length>1?(' · '+sl.length):''}</div></div>
           <div class="ec-set-r"><span>Publicar em</span><div class="ec-ro-v">📸 Instagram</div></div>
           <div class="ec-set-r"><span>Data e hora</span>
-            <label class="ec-inline ec-edit"><input type="time" id="ed-hora" value="${(c.data_agendada&&String(c.data_agendada).slice(11,16))||'09:00'}" onchange="salvarHora('${id}',this.value)"></label>
+            <label class="ec-inline ec-edit"><input type="time" id="ed-hora" value="${JUMP_CLASS.horaSP(c.data_agendada)||'09:00'}" onchange="salvarHora('${id}',this.value)"></label>
           </div>
         </div>
 
@@ -1179,8 +1179,12 @@ function navSlideEdit(d){
 async function salvarData(id,val){
   if(!val)return;
   try{
-    await JUMP.sb.from('conteudos').update({data_sugerida:val}).eq('id',id);
-    const c=ITENS.find(x=>x.id===id); if(c)c.data_sugerida=val;
+    // se o post já tem horário agendado, ele acompanha a data nova (mesmo horário, em Brasília)
+    const c=ITENS.find(x=>x.id===id);
+    const patchD={data_sugerida:val};
+    if(c&&c.data_agendada)patchD.data_agendada=JUMP_CLASS.agendaSP(val,JUMP_CLASS.horaSP(c.data_agendada));
+    await JUMP.sb.from('conteudos').update(patchD).eq('id',id);
+    if(c){c.data_sugerida=val;if(patchD.data_agendada)c.data_agendada=patchD.data_agendada;}
     JUMP.toast('✓ Data alterada.');
   }catch(e){JUMP.toast('Erro ao salvar data','err')}
 }
@@ -1238,7 +1242,7 @@ async function salvarHora(id,hora){
   try{
     const d=(document.getElementById('ed-data')||{}).value||'';
     if(!d)return JUMP.toast('Defina a data primeiro.','err');
-    await JUMP.sb.from('conteudos').update({data_agendada:d+'T'+(hora||'09:00')+':00'}).eq('id',id);
+    await JUMP.sb.from('conteudos').update({data_agendada:JUMP_CLASS.agendaSP(d,hora)}).eq('id',id);
     JUMP.toast('✓ Horário salvo: '+hora);
   }catch(e){JUMP.toast('Erro ao salvar horário','err')}
 }
@@ -1334,7 +1338,7 @@ async function aprovar(id){
     const patchAprovar={status:'aprovado'};
     if(!c||!c.data_agendada){
       const diaBase=String((c&&(c.data_sugerida))||'').slice(0,10);
-      if(/^\d{4}-\d{2}-\d{2}$/.test(diaBase))patchAprovar.data_agendada=diaBase+'T09:00:00';
+      if(/^\d{4}-\d{2}-\d{2}$/.test(diaBase))patchAprovar.data_agendada=JUMP_CLASS.agendaSP(diaBase,'09:00');
     }
     await JUMP.sb.from('conteudos').update(patchAprovar).eq('id',id);
     // dispara a publicação do próprio usuário (se já estiver na data/hora, publica agora; futuro espera o cron)
