@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-card-semanal-so-completo';
+const VERSAO = '2026.10.01-plano-corrigido-automatico';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -2487,6 +2487,7 @@ const handler = async (req, res) => {
     const _maxTokensAgente=(agente==='estrategia')?8000:((agente==='diagnostico'||agente==='mercado')?4000:((agente==='identidade'||agente==='criativo')?3000:1500));
 
     // Anthropic
+    const _tIniAgente=Date.now(); // orçamento de tempo da correção automática do plano (mais abaixo)
     const aRes=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
@@ -2816,6 +2817,7 @@ const handler = async (req, res) => {
 
     // Extrair conteúdos planejados (Estratégia grava cada post na tabela 'conteudos')
     const conteudos=[];
+    const _textoComTags=texto; // resposta com as tags <conteudo>: base da correção automática do plano
     texto=texto.replace(/<conteudo>([\s\S]*?)<\/conteudo>/g,(_,j)=>{
       try{const o=JSON.parse(j.trim());if(o.tema)conteudos.push(o)}catch(e){}
       return '';
@@ -3349,23 +3351,61 @@ const handler = async (req, res) => {
           String(texto||'').replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{ try{const o=JSON.parse(j.trim()); if(o&&o.chave)_memQ[String(o.chave)]=String(o.valor||'');}catch(e){} return _; });
           const _mapaQ={...fatiaAtual,..._memQ};
           const _plano=conteudos.filter(ct=>ct&&!ct.avulso);
-          const _problemas=[];
-          let _motivoGeral='';
-          if(!DEM.mapaCompleto(_mapaQ)){
-            _motivoGeral='antes do plano, a Estratégia precisa montar o mapa de demanda do seu público (dores e objeções de compra). Responda as perguntas dela e peça o plano de novo';
-          }else{
-            const _nomes=DEM.nomesDoDono(_mapaQ.marca);
-            _plano.forEach(ct=>{
-              const m=DEM.motivoRecusa(ct,{nomesDono:_nomes});
-              if(m) _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": '+m);
-            });
-            if(!_problemas.length) _problemas.push(...DEM.repeticoes(_plano));
-            if(!_problemas.length) _motivoGeral=DEM.motivoFunil(_plano);
+          let _chk=DEM.checarPlano(_plano,_mapaQ);
+          // CORREÇÃO AUTOMÁTICA (01/out/2026, pedido do João: "um tema ruim derrubou o plano e a
+          // correção ficou comigo"): quando o problema é só de TEMA (não o mapa, que depende de
+          // respostas do cliente), o próprio sistema devolve a lista de problemas para a Estratégia
+          // reenviar o plano corrigido — UMA vez, sem pesquisa web, só tags <conteudo>. O plano novo
+          // passa pela MESMA checagem (DEM.checarPlano); só se ela aprovar ele substitui o original.
+          // Falhou, cortou, demorou ou veio vazio → segue exatamente como antes (plano não gravado +
+          // aviso). Memórias, fala e avulsos da resposta original não mudam. Orçamento de tempo:
+          // só tenta se a resposta original saiu em até 150s (a função tem 300s).
+          let _corrigido=false, _tentouCorrigir=false;
+          if(!_chk.faltaMapa&&(_chk.geral||_chk.problemas.length)&&(Date.now()-_tIniAgente)<150000){
+            const _lista=_chk.geral?[_chk.geral]:_chk.problemas;
+            _tentouCorrigir=true;
+            let _tmo=null;
+            try{
+              const _ctrl=new AbortController();
+              _tmo=setTimeout(()=>_ctrl.abort(),Math.max(30000,Math.min(120000,240000-(Date.now()-_tIniAgente))));
+              const rq=await fetch('https://api.anthropic.com/v1/messages',{
+                method:'POST',signal:_ctrl.signal,
+                headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+                body:JSON.stringify({model:MODEL_DE(agente),max_tokens:_maxTokensAgente,system,
+                  ...(MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{}),
+                  messages:[...messages,
+                    {role:'assistant',content:String(_textoComTags||'').trim()||'(vazio)'},
+                    {role:'user',content:'[SISTEMA — CONTROLE DE QUALIDADE DOS TEMAS, não é o cliente] O plano acima NÃO foi gravado. Problemas: '+_lista.slice(0,12).join(' · ')+'. Reenvie o plano COMPLETO ('+_plano.length+' posts), corrigindo só o necessário e mantendo datas, horários, formatos e o restante de cada post. Responda SOMENTE com as tags <conteudo> — sem texto, sem <memoria>, sem outras tags.'}]}),
+              });
+              const dq=await rq.json().catch(()=>({}));
+              if(rq.ok&&dq.stop_reason!=='max_tokens'){
+                const _novos=[];
+                String((dq.content||[]).map(c=>c.text||'').join('')).replace(/<conteudo>([\s\S]*?)<\/conteudo>/g,(_,j)=>{ try{const o=JSON.parse(j.trim()); if(o&&o.tema&&!o.avulso&&!o.criativo_url)_novos.push(o);}catch(e){} return _; });
+                const _chk2=_novos.length?DEM.checarPlano(_novos,_mapaQ):null;
+                if(_chk2&&!_chk2.geral&&!_chk2.problemas.length){
+                  for(let i=conteudos.length-1;i>=0;i--){ if(conteudos[i]&&!conteudos[i].avulso) conteudos.splice(i,1); }
+                  conteudos.push(..._novos);
+                  _corrigido=true;
+                  console.error('[temas-que-vendem] plano corrigido automaticamente ('+_plano.length+' → '+_novos.length+' post(s)) user='+targetId);
+                } else {
+                  console.error('[temas-que-vendem] correção automática não passou na checagem ('+_novos.length+' post(s)) user='+targetId);
+                }
+              } else {
+                console.error('[temas-que-vendem] correção automática falhou — status='+rq.status+' stop='+(dq&&dq.stop_reason)+' user='+targetId);
+              }
+            }catch(e){ console.error('[temas-que-vendem] correção automática falhou — '+(e&&e.message)+' user='+targetId); }
+            finally{ if(_tmo) clearTimeout(_tmo); }
+            sbInsert('logs',[{user_id:targetId,acao:'qualidade_plano',papel:agente,dados:{problemas:_lista.slice(0,12),corrigido:_corrigido}}]).catch(()=>{});
+            if(_corrigido) _chk={geral:'',problemas:[],faltaMapa:false};
           }
+          const _problemas=_chk.problemas;
+          const _motivoGeral=_chk.faltaMapa
+            ?'antes do plano, a Estratégia precisa montar o mapa de demanda do seu público (dores e objeções de compra). Responda as perguntas dela e peça o plano de novo'
+            :_chk.geral;
           if(_motivoGeral||_problemas.length){
             for(let i=conteudos.length-1;i>=0;i--){ if(conteudos[i]&&!conteudos[i].avulso) conteudos.splice(i,1); }
             console.error('[temas-que-vendem] plano não gravado ('+_plano.length+' post(s)) — '+(_motivoGeral||_problemas.length+' tema(s) recusado(s)')+' user='+targetId);
-            avisoQualidade='O plano não foi gravado — controle de qualidade dos temas: '
+            avisoQualidade='O plano não foi gravado — controle de qualidade dos temas'+(_tentouCorrigir?' (já tentei corrigir automaticamente uma vez)':'')+': '
               +(_motivoGeral||(_problemas.length+' tema(s) recusado(s): '+_problemas.slice(0,6).join(' · ')+(_problemas.length>6?' · e mais '+(_problemas.length-6):'')))
               +'. Peça "refaça o plano" e a Estratégia corrige e envia de novo.';
           }
@@ -3373,6 +3413,8 @@ const handler = async (req, res) => {
         // plano recusado (fotos ou qualidade): a memória "estratégia concluída" desta resposta não vale
         if(avisoQualidade||avisoFotosFaltando){
           texto=String(texto).replace(/<memoria>([\s\S]*?)<\/memoria>/g,(m,j)=>{ try{ const o=JSON.parse(j.trim()); return (o&&String(o.chave)==='estrategia_completada')?'':m; }catch(e){ return m; } });
+          // a fala não pode dizer "pronto para aprovação" se o plano não foi gravado (DEM.falaPlanoNaoSalvo)
+          texto=DEM.falaPlanoNaoSalvo(texto);
         }
         for(let i=conteudos.length-1;i>=0;i--){
           try{

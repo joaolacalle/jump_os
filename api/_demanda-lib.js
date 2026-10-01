@@ -134,9 +134,43 @@ function perguntouMapa(falaAnterior) {
   return p1 && p2;
 }
 
+// CHECAGEM DO PLANO INTEIRO (01/out/2026): mesma ordem de sempre — mapa de demanda, cada post,
+// repetição, funil. Devolve { geral, problemas }: 'geral' só quando o mapa falta (depende do cliente,
+// não dá para a Estratégia corrigir sozinha) ou a mistura do funil está fora; 'problemas' = temas.
+// Usada na 1ª checagem e na reconferência depois da correção automática (mesma regra, uma fonte).
+function checarPlano(plano, mapa) {
+  const problemas = [];
+  if (!mapaCompleto(mapa)) return { geral: 'mapa', problemas, faltaMapa: true };
+  const nomes = nomesDoDono((mapa || {}).marca);
+  (plano || []).forEach(ct => {
+    const m = motivoRecusa(ct, { nomesDono: nomes });
+    if (m) problemas.push('"' + String(ct.tema || 'post').slice(0, 70) + '": ' + m);
+  });
+  if (!problemas.length) problemas.push(...repeticoes(plano));
+  const geral = problemas.length ? '' : motivoFunil(plano);
+  return { geral, problemas, faltaMapa: false };
+}
+
+// FALA HONESTA QUANDO O PLANO NÃO FOI GRAVADO (01/out/2026, caso real: a Estratégia escreveu
+// "o plano está pronto para aprovação em Tarefas" e o controle de qualidade tinha recusado o plano —
+// o João viu "erro" sem entender). Tira da fala só as frases que prometem o card/aprovação e diz que
+// o plano não foi salvo; o motivo vem no aviso do sistema logo abaixo. Nunca mexe dentro de tags.
+const RE_PROMESSA_PLANO = /(pronto para (a |sua )?aprova|aprova[çc][ãa]o em (tarefas|aprovar)|assim que (voc[êe] )?aprovar|card[^.!?\n]{0,40}(aprovar|aprova[çc][ãa]o)|plano[^.!?\n]{0,40}(est[áa]|foi) (gravad|salv)o)/i;
+function falaPlanoNaoSalvo(texto) {
+  const partes = String(texto == null ? '' : texto).split(/(<([a-z_]+)>[\s\S]*?<\/\2>)/g);
+  const out = [];
+  for (let i = 0; i < partes.length; i++) {
+    const p = partes[i];
+    if (p == null) continue;
+    if (/^<([a-z_]+)>[\s\S]*<\/\1>$/.test(p)) { out.push(p); i++; continue; } // tag inteira (pula o grupo do nome)
+    out.push(p.replace(/[^.!?\n<>]*[.!?]?/g, f => (f.trim() && RE_PROMESSA_PLANO.test(f)) ? '' : f));
+  }
+  return out.join('').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() + '\n\n⚠️ O plano ainda não foi salvo — veja o motivo logo abaixo.';
+}
+
 function mapaCompleto(memorias) {
   const m = memorias || {};
   return CHAVES_MAPA_OBRIGATORIAS.every(k => String(m[k] || '').trim().length > 0);
 }
 
-module.exports = { perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, repeticoes, motivoFunil, mapaCompleto };
+module.exports = { falaPlanoNaoSalvo, checarPlano, perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, repeticoes, motivoFunil, mapaCompleto };
