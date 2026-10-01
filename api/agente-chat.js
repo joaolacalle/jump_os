@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-reescrita-do-fiscal-preserva-tags';
+const VERSAO = '2026.10.01-temas-que-vendem-mapa-de-demanda';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -129,6 +129,7 @@ const { limparTextoVisivel } = require('./_texto-lib.js');
 const ONB = require('../assets/onboarding.js');
 // Equilíbrio visual do plano (foto do cliente até 40%, nenhum tipo acima da metade) — em código.
 const EQ = require('./_equilibrio-lib.js');
+const DEM=require('./_demanda-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -543,7 +544,13 @@ REGRAS DE PLANEJAMENTO (padrão JUMP OS Social Mídia):
 Monte o MÊS INTEIRO — as 5 semanas, TODAS, nesta mesma resposta — em formato LEVE: pilar, tema, formato e data de cada post. NÃO escreva copy, headline, subheadline, prova, cta_arte NEM roteiro agora (isso é exclusivo do Tempo 2, só para a semana que estiver aberta para detalhamento — ver "POSTS DA SEMANA PARA DETALHAR"). Este card é só tema/formato/data/hora, por isso o mês inteiro cabe numa resposta só — não pergunte se pode seguir para a próxima semana, as 5 já vêm juntas.
 DATA: escolha SEMPRE uma data dentro de uma das 5 janelas do bloco "SEU PLANO — AS 5 SEMANAS E O QUE JÁ ESTÁ GRAVADO" do contexto — cada semana já vem com as datas prontas (não calcule, não invente, não use o calendário de 40 dias pra decidir onde uma semana começa ou termina, ele é só pra conferir o dia da semana). Cubra as 5 semanas, mesmo a última sendo mais distante.
 Emita UMA tag por post, ANTES de qualquer texto:
-<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+<conteudo>{"tema":"...","formato":"feed|carrossel|reels|story","tipo_visual":"pessoal|pessoa_conceito|produto|conceitual","foco":"produto|pessoa|ambiente|conceito","publico":"segmento do público","dor":"a dor ou objeção que o post ataca, nas palavras do cliente final","etapa":"atrair|convencer|vender","angulo":"erro_comum|demonstracao|comparacao|bastidor|caso_real|objecao|pergunta_frequente|passo_a_passo|opiniao|mito","pilar":"educação|prova|autoridade|oferta|bastidor","data_sugerida":"YYYY-MM-DD","avulso":false}</conteudo>
+TEMAS QUE VENDEM (regra dura, conferida em código — plano fora dela não é gravado):
+- MAPA DE DEMANDA antes do plano: se não existem as memórias dores_publico e objecoes_compra, monte-as primeiro. Para 2-3 segmentos do público: dores reais nas palavras dele, objeções de compra, perguntas frequentes e o que o faz decidir. Fontes: concorrentes e lacunas do Mercado, visitas do supervisor, pesquisa web (reclamações e perguntas reais do público) e 2 perguntas ao cliente numa só mensagem: "o que seus clientes mais perguntam antes de comprar?" e "por que quem não comprou desistiu?". Registre <memoria> segmentos_publico, dores_publico, objecoes_compra, perguntas_frequentes, gatilhos_compra.
+- Cada post ataca UMA dor ou objeção de UM segmento. O tema é uma situação concreta que esse público reconhece, não uma descrição do produto.
+- Funil: cerca de 50% atrair (dor ou erro comum do público, sem falar do produto), 30% convencer (demonstração, objeção, comparação), 20% vender (oferta com prova real). Recusado se atrair < 30% ou vender > 40%.
+- Proibido no tema: dado interno da conta do cliente (seguidores dele, ticket médio, faturamento); falar do dono em terceira pessoa; palavras vazias (transforme, descubra, de verdade, sem complicação, segredo, jornada, alavancar, potencializar, próximo nível); repetir o mesmo ângulo para a mesma dor.
+- Teste da troca: se trocando o nome da marca pelo de um concorrente o tema continua valendo, ele é genérico. Refaça com um detalhe que só esta marca tem (número real, caso real, funcionalidade específica).
 FOCO (obrigatório, vale para qualquer negócio): diga do que o post trata. "produto" = o produto ou trabalho do cliente (look, tattoo, prato, serviço feito) → a foto é a do PRODUTO, nunca a da pessoa. "pessoa" = o próprio cliente (bastidor, autoridade, rotina, fala) → a foto é a DELE e o tema não coloca produto nele (nada de "vestindo o look X" ou "com a tattoo Y" no corpo dele). "ambiente" = o espaço (loja, estúdio, salão). "conceito" = dica, dado, lista. Nunca invente produto: sem foto real do produto, post de foco "produto" é conceitual (explica, não mostra um produto que não existe). O sistema confere e corrige ao gravar.
 MATERIAL DO CLIENTE: quando um post precisa de material que só o cliente tem (foto do produto novo, foto dele, foto de um trabalho realizado, vídeo), acrescente na mesma tag "material":"foto_produto|foto_pessoa|trabalho|video" e "material_pedido":"o que ele deve enviar, em 1 frase concreta (ex.: 3 fotos do look novo no provador, luz natural)". Reels sempre dependem de vídeo dele. Com "video", o post é o vídeo dele (não gasta arte do teto). Com foto, o post continua sendo ARTE do Designer (conta no teto) e a foto dele é o insumo da arte — nunca publicada crua. Respeite a CAPACIDADE DE PRODUÇÃO do contexto — nunca peça mais do que ele consegue por semana; o resto é automático.
 CARDINALIDADE (regra dura): "slides" existe SOMENTE quando formato="carrossel", e nesse caso é OBRIGATÓRIO — informe o NÚMERO de imagens (2 a 10; capa + demais em ordem). Para "feed", "story" e "reels" NUNCA inclua "slides": são peças de UMA imagem. Uma peça única jamais deve ser declarada como carrossel. ATENÇÃO AO TETO: cada slide consome 1 peça do teto do bloco "QUANTO VOCÊ PODE PLANEJAR" — um carrossel de 5 gasta 5 do teto de peças com arte. Conte TODOS os slides ao respeitar esse teto. Para os outros formatos, não use "slides".
@@ -1566,6 +1573,9 @@ const handler = async (req, res) => {
         trava_de_datas_recusa_data_passada:true,
         acervo_sem_x_descartado_quando_contradiz_o_que_fornece:true,
         reescrita_do_fiscal_preserva_tags_tecnicas_da_resposta_original:true,
+        temas_que_vendem_mapa_de_demanda_e_campos_por_post:true,
+        trava_anti_generico_em_codigo:true,
+        mistura_do_funil_atrair_convencer_vender:true,
         detalhar_semana_so_apos_aprovacao_do_plano:true,
         ficha_tecnica_parte2_aviso_ao_vivo_chat_mensagens_apos_patch_de_sucesso_no_cron:true,
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
@@ -2388,7 +2398,7 @@ const handler = async (req, res) => {
         // fonte que qualquer outro ponto do sistema usa a partir de agora.
         const piso=semanaAtualCliente.inicio;
         const lim=semanaAtualCliente.fim;
-        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida&order=data_sugerida.asc&limit=8`);
+        const wk=await sbGet(`conteudos?user_id=eq.${targetId}&status=eq.rascunho&or=(copy.is.null,copy.eq.)&data_sugerida=gte.${piso}&data_sugerida=lte.${lim}&select=id,tema,formato,data_sugerida,meta&order=data_sugerida.asc&limit=8`);
         if(Array.isArray(wk)&&wk.length){
           // CONTINUIDADE ENTRE SEMANAS (28/ago/2026, item 5 — ver APRENDIZADOS.md, "JANELA DE
           // PLANEJAMENTO"): qual semana está sendo detalhada vem de dado calculado (dia_lote +
@@ -2414,7 +2424,8 @@ const handler = async (req, res) => {
           // só a copy está; as artes ficam pendentes da aprovação. Deixar como estava
           // contradiria, duas frases depois, a correção que acabou de ser feita.
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
-            wk.map(p=>`id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`).join('\n')+
+            wk.map(p=>{ const _m=p.meta||{}; return `id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`+(_m.dor?` · para: ${_m.publico} · dor: ${_m.dor} · etapa: ${_m.etapa} · ângulo: ${_m.angulo}`:''); }).join('\n')+
+            '\nA copy e o roteiro de cada post atacam exatamente a dor indicada, para aquele público, no tom da etapa (atrair: sem vender; convencer: prova e demonstração; vender: oferta com prova real e CTA direto).'+
             '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
         } else if(Array.isArray(wk)){
           // FILA TÉCNICA — item 4 (15/set/2026, autorizado pelo João): antes, lista vazia deixava
@@ -3200,6 +3211,7 @@ const handler = async (req, res) => {
     let avisoEquilibrio=null;
     let avisoCapacidade=null;
     let avisoFotosFaltando=null;
+    let avisoQualidade=null;
     if(conteudos.length){
       try{
         // PORTÃO: o PLANO MENSAL da Estratégia nasce 'proposto' (espera 'Aprovar a estratégia').
@@ -3270,6 +3282,44 @@ const handler = async (req, res) => {
               }
             }
           }catch(e){ console.error('[fotos-antes-do-plano] conferência falhou — seguindo sem a trava. user='+targetId+' '+(e&&e.message)); }
+        }
+        // TEMAS QUE VENDEM (01/out/2026, api/_demanda-lib.js): o PLANO só é gravado com o mapa de
+        // demanda do comprador montado e com cada post dizendo para quem é, que dor ataca, a etapa do
+        // funil e o ângulo — sem dado interno, sem dono em 3ª pessoa, sem palavra vazia, sem repetir
+        // ângulo+dor, com a mistura do funil no lugar. Se algo falha, o plano INTEIRO volta para a
+        // Estratégia refazer (nunca um plano pela metade). Avulso não é afetado.
+        if(agente==='estrategia'&&!_intOk&&conteudos.some(ct=>ct&&!ct.avulso)){
+          const _memQ={};
+          String(texto||'').replace(/<memoria>([\s\S]*?)<\/memoria>/g,(_,j)=>{ try{const o=JSON.parse(j.trim()); if(o&&o.chave)_memQ[String(o.chave)]=String(o.valor||'');}catch(e){} return _; });
+          const _mapaQ={...fatiaAtual,..._memQ};
+          const _plano=conteudos.filter(ct=>ct&&!ct.avulso);
+          const _problemas=[];
+          let _motivoGeral='';
+          if(!DEM.mapaCompleto(_mapaQ)){
+            _motivoGeral='antes do plano, a Estratégia precisa montar o mapa de demanda do seu público (dores e objeções de compra). Responda as perguntas dela e peça o plano de novo';
+          }else{
+            const _nomes=DEM.nomesDoDono(_mapaQ.marca);
+            const _vistos=new Set();
+            _plano.forEach(ct=>{
+              const m=DEM.motivoRecusa(ct,{nomesDono:_nomes});
+              if(m){ _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": '+m); return; }
+              const k=DEM.chaveRepeticao(ct);
+              if(_vistos.has(k)) _problemas.push('"'+String(ct.tema||'post').slice(0,70)+'": repete o mesmo ângulo para a mesma dor de outro post');
+              _vistos.add(k);
+            });
+            if(!_problemas.length) _motivoGeral=DEM.motivoFunil(_plano);
+          }
+          if(_motivoGeral||_problemas.length){
+            for(let i=conteudos.length-1;i>=0;i--){ if(conteudos[i]&&!conteudos[i].avulso) conteudos.splice(i,1); }
+            console.error('[temas-que-vendem] plano não gravado ('+_plano.length+' post(s)) — '+(_motivoGeral||_problemas.length+' tema(s) recusado(s)')+' user='+targetId);
+            avisoQualidade='O plano não foi gravado — controle de qualidade dos temas: '
+              +(_motivoGeral||(_problemas.length+' tema(s) recusado(s): '+_problemas.slice(0,6).join(' · ')+(_problemas.length>6?' · e mais '+(_problemas.length-6):'')))
+              +'. Peça "refaça o plano" e a Estratégia corrige e envia de novo.';
+          }
+        }
+        // plano recusado (fotos ou qualidade): a memória "estratégia concluída" desta resposta não vale
+        if(avisoQualidade||avisoFotosFaltando){
+          texto=String(texto).replace(/<memoria>([\s\S]*?)<\/memoria>/g,(m,j)=>{ try{ const o=JSON.parse(j.trim()); return (o&&String(o.chave)==='estrategia_completada')?'':m; }catch(e){ return m; } });
         }
         for(let i=conteudos.length-1;i>=0;i--){
           try{
@@ -3465,7 +3515,9 @@ const handler = async (req, res) => {
               ...(JC.materialDoUsuario(ct)?{material:JC.materialDoUsuario(ct),material_pedido:String(ct.material_pedido||'').slice(0,240)}:{}),
               // arquivo do acervo ligado ao post (entrega 3) — o Engine usa material_url como a foto dele
               ...(ct._arquivo?{arquivo_id:ct._arquivo.id,material_url:ct._arquivo.url}:{}),
-              ...(ct.foco?{foco:ct.foco}:{})}
+              ...(ct.foco?{foco:ct.foco}:{}),
+              // temas que vendem: para quem, que dor, etapa do funil e ângulo — guiam a copy e o roteiro
+              ...(ct.dor?{publico:ct.publico,dor:ct.dor,etapa:ct.etapa,angulo:ct.angulo}:{})}
           })
         }).catch(()=>null)));
         // ETAPA 1: captura os ids reais gravados, pareados com o `ct` de origem — H() já pedia
@@ -4101,6 +4153,7 @@ const handler = async (req, res) => {
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
     if(avisoFotosFaltando) avisosPartes.push(avisoFotosFaltando);
+    if(avisoQualidade) avisosPartes.push(avisoQualidade);
     if(avisoCapacidade) avisosPartes.push(avisoCapacidade);
     if(avisoEquilibrio) avisosPartes.push(avisoEquilibrio);
     if(avisoDnaCortado) avisosPartes.push('⚠️ '+avisoDnaCortado);
