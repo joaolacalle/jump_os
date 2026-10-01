@@ -1548,7 +1548,7 @@ let PODE_DETALHAR=false;
 function cmdCalendario(){
   // Se a semana já está no calendário sem copy, o pedido é detalhar; senão, montar o plano.
   if(PODE_DETALHAR)return enviarTexto('Detalhe os posts desta semana: escreva a headline da arte e a copy pronta de cada um (roteiro só nos reels).');
-  enviarTexto('Gere a estratégia desta semana para o meu nicho: temas, formatos e datas, conferindo os dias no calendário real.');
+  enviarTexto('Monte o plano do meu ciclo: as 5 semanas com tema, formato e data de cada post, conferindo os dias no calendário real.');
 }
 // PAINEL DE ESTADO REAL (Frente 2 / Nível 3, 09/set/2026 — ver APRENDIZADOS.md "PAINEL DE ESTADO
 // REAL — IMPLEMENTAÇÃO"): esta função fazia só a trava do botão antigo (cmdCalendario, quando o
@@ -1565,17 +1565,19 @@ function cmdCalendario(){
 // a fala pro humano é formatada diferente da fala pro agente (ver `linhas` abaixo): mesma conta,
 // dois textos, cada um pro seu leitor.
 let PAINEL_ESTRATEGIA_ABERTO=false;
+let PROXIMO_PASSO=null, TRAVA_APROVAR_PLANO=false;
 async function atualizarEstadoEstrategia(){
   const uid=CTX.viewId||CTX.user.id;
   // 1) trava do ciclo (regra idêntica à do botão antigo) — decide PODE_DETALHAR e a mensagem de
   // bloqueio, se houver, pro botão de ação dentro do popup.
   let travaMsg=null;
+  PROXIMO_PASSO=null; TRAVA_APROVAR_PLANO=false;
   try{
     const{data:ord}=await JUMP.sb.from('ordens_servico').select('tarefa,status').eq('user_id',uid)
       .in('status',['aguardando_aprovacao','pendente','processando'])
       .in('tarefa',['aprovar_estrategia','detalhar_semana','criar_post']);
     const tem=t=>(ord||[]).some(o=>o.tarefa===t);
-    if(tem('aprovar_estrategia'))travaMsg='Você tem uma estratégia aguardando aprovação em Tarefas de serviço.';
+    if(tem('aprovar_estrategia')){travaMsg='Você tem uma estratégia aguardando aprovação em Tarefas de serviço.';TRAVA_APROVAR_PLANO=true;}
     else if(tem('detalhar_semana'))travaMsg='Esta semana já está em andamento — use "Escrever a copy da semana" na caixa de ordens acima.';
     else if(tem('criar_post'))travaMsg='O Designer está produzindo os criativos desta semana. Aguarde concluir.';
     if(travaMsg){PODE_DETALHAR=false;}
@@ -1591,7 +1593,7 @@ async function atualizarEstadoEstrategia(){
   // real, não dado de quando a aba abriu) e as mesmas duas tabelas que api/agente-chat.js lê.
   let estadoHtml=null, dotAtivo=false;
   try{
-    const[{data:cliRows},{data:posts},{data:cards},{count:avulsosCount},{count:semOrigemCount}]=await Promise.all([
+    const[{data:cliRows},{data:posts},{data:cards},{count:avulsosCount},{count:semOrigemCount},{data:upsPasso},{data:memPasso}]=await Promise.all([
       JUMP.sb.from('clientes').select('preferencias,uso,limites').eq('id',uid).limit(1),
       // CORREÇÃO DO JOÃO (09/set/2026, ver APRENDIZADOS.md "PAINEL DE ESTADO REAL — CORREÇÕES DO
       // JOÃO"): lista de EXCLUSÃO trocada por lista de INCLUSÃO — `JUMP_CLASS.STATUS_ATIVOS_
@@ -1615,6 +1617,9 @@ async function atualizarEstadoEstrategia(){
       // (ou seja: não aparece em nenhuma das 5 semanas acima nem no balde de avulso — cai fora de
       // tudo, o ponto cego real). Reportado como o que é, nunca rotulado como avulso.
       JUMP.sb.from('conteudos').select('id',{count:'exact',head:true}).eq('user_id',uid).is('origem',null).is('data_sugerida',null).eq('status','aguardando_aprovacao'),
+      // PRÓXIMO PASSO (01/out/2026): fotos que o cliente disse fornecer e a escolha de seguir sem elas
+      JUMP.sb.from('uploads').select('categoria').eq('user_id',uid).in('categoria',['produtos','pessoais']),
+      JUMP.sb.from('memorias').select('chave').eq('user_id',uid).in('chave',['acervo_sem_produto','acervo_sem_persona']),
     ]);
     const cli=(cliRows&&cliRows[0])||{};
     const hojeISO=JUMP_CLASS.hojeISOBrasil();
@@ -1623,10 +1628,13 @@ async function atualizarEstadoEstrategia(){
     const janelas=JUMP_CLASS.janelasSemanas(ancoraPlano,diaLote);
     const r=JUMP_CLASS.resumoSemanasEstrategia(posts||[],cards||[],janelas,ancoraPlano,diaLote);
     const _ddmm=iso=>{const p=String(iso).split('-');return p[2]+'/'+p[1];};
+    // semana atual destacada; semanas que já passaram ficam apagadas (01/out/2026)
     const linhas=r.porSemana.map(b=>{
-      const copyTxt=b.total?(b.comCopy+' de '+b.total+' com copy'):'nenhum post ainda';
-      const cardTxt=b.cardStatus==='aprovado'?'card aprovado':b.cardStatus==='aguardando'?'card aguardando aprovação':'sem card aberto';
-      return '<div class="estado-linha"><b>Semana '+b.semana+'</b> — '+_ddmm(b.inicio)+' a '+_ddmm(b.fim)+'<br>'+copyTxt+' · '+cardTxt+'</div>';
+      const ehAtual=hojeISO>=b.inicio&&hojeISO<=b.fim, passou=b.fim<hojeISO;
+      const cardTxt=b.cardStatus==='aprovado'?'aprovada':b.cardStatus==='aguardando'?'aguardando sua aprovação':'';
+      const info=b.total?([b.total+' post'+(b.total>1?'s':''),b.comCopy+' com texto',cardTxt].filter(Boolean).join(' · ')):'nenhum post ainda';
+      const est=ehAtual?' style="border-left:3px solid var(--g);padding-left:10px"':(passou?' style="opacity:.45"':'');
+      return '<div class="estado-linha"'+est+'><b>Semana '+b.semana+'</b>'+(ehAtual?' <span style="font-size:11px;color:var(--g)">(atual)</span>':'')+' — '+_ddmm(b.inicio)+' a '+_ddmm(b.fim)+'<br>'+info+'</div>';
     }).join('');
     const nAvulsos=Number(avulsosCount||0);
     const nSemOrigem=Number(semOrigemCount||0);
@@ -1647,11 +1655,24 @@ async function atualizarEstadoEstrategia(){
       const _hzAnt=JUMP_CLASS.horizonteDoPlano(_ancGrav,diaLote);
       cicloHtml='<div class="estado-linha" style="color:var(--t3)">Ciclo anterior ('+_ddmm(_hzAnt.inicio)+' a '+_ddmm(_hzAnt.fim)+') encerrado. As semanas abaixo são do novo plano, contadas a partir de hoje.</div>';
     }
-    estadoHtml=cicloHtml+linhas+avulsosHtml+cotaHtml;
-    // indicador: semana ATUAL vazia (nenhum post) OU sem copy (nenhum dos posts gravados tem
-    // copy ainda) — as duas leituras que motivaram este painel (achado de 09/09).
-    const atual=r.porSemana.find(b=>hojeISO>=b.inicio&&hojeISO<=b.fim)||r.porSemana[0];
-    dotAtivo=!!(atual&&(atual.total===0||atual.comCopy===0));
+    // PRÓXIMO PASSO (01/out/2026, pedido do João): o ponto amarelo só aparece quando existe uma
+    // ação do cliente AGORA, e o botão diz qual. Tudo em dia (ou o sistema trabalhando sozinho,
+    // ex.: Designer produzindo) = nenhum aviso, nenhum ponto. Ordem de prioridade abaixo.
+    const atual=r.porSemana.find(b=>hojeISO>=b.inicio&&hojeISO<=b.fim)||null;
+    const totalPlano=r.porSemana.reduce((a,b)=>a+(b.total||0),0);
+    const tiposCli=(((cli.preferencias||{}).capacidade_producao||{}).tipos)||[];
+    const nProd=(upsPasso||[]).filter(u=>u.categoria==='produtos').length, nPess=(upsPasso||[]).filter(u=>u.categoria==='pessoais').length;
+    const semProd=(memPasso||[]).some(m=>m.chave==='acervo_sem_produto'), semPess=(memPasso||[]).some(m=>m.chave==='acervo_sem_persona');
+    const faltaProd=(tiposCli.includes('foto_produto')||tiposCli.includes('trabalho'))&&nProd===0&&!semProd;
+    const faltaPess=tiposCli.includes('foto_pessoa')&&nPess===0&&!semPess;
+    if(TRAVA_APROVAR_PLANO) PROXIMO_PASSO={rot:'Aprovar plano',txt:'Seu plano do mês está pronto. Confira e aprove em Aprovações para a produção começar.',acao:'aprovar'};
+    else if(!totalPlano&&(faltaProd||faltaPess)) PROXIMO_PASSO={rot:'Subir fotos',txt:'Antes do plano, suba '+(faltaProd?'as fotos de produto/trabalho em Meus Arquivos → Produtos':'suas fotos em Meus Arquivos → Fotos pessoais')+'. Depois avise a Estratégia.',acao:'fotos',aba:faltaProd?'produtos':'pessoais'};
+    else if(!totalPlano&&!travaMsg) PROXIMO_PASSO={rot:'Montar plano',txt:'Você ainda não tem plano neste ciclo. Peça à Estratégia o plano das 5 semanas.',acao:'montar'};
+    else if(atual&&atual.cardStatus==='aguardando') PROXIMO_PASSO={rot:'Aprovar semana',txt:'Os posts da semana atual estão prontos para você aprovar em Aprovações.',acao:'aprovar'};
+    else if(PODE_DETALHAR) PROXIMO_PASSO={rot:'Detalhar semana',txt:'A semana atual ainda não tem os textos. Peça à Estratégia para escrever.',acao:'detalhar'};
+    const passoHtml=PROXIMO_PASSO?('<div style="border:1px solid rgba(240,181,63,.45);background:rgba(240,181,63,.08);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.5;color:var(--t2)"><b style="color:#f0b53f">Próximo passo: '+PROXIMO_PASSO.rot+'</b><br>'+PROXIMO_PASSO.txt+'</div>'):'';
+    estadoHtml=passoHtml+cicloHtml+linhas+avulsosHtml+cotaHtml;
+    dotAtivo=!!PROXIMO_PASSO;
   }catch(e){
     estadoHtml='<div style="padding:16px 0;color:var(--t3);font-size:13px">Não consegui carregar o estado agora.</div>';
   }
@@ -1659,9 +1680,8 @@ async function atualizarEstadoEstrategia(){
   // 3) indicador visual no botão do cabeçalho.
   const btn=document.getElementById('btn-abrirPainelEstrategia');
   if(btn){
-    const dotExistente=btn.querySelector('.ag-dot');
-    if(dotAtivo&&!dotExistente)btn.insertAdjacentHTML('afterbegin','<span class="ag-dot"></span>');
-    else if(!dotAtivo&&dotExistente)dotExistente.remove();
+    // rótulo diz a ação pendente; sem pendência volta a "Seu plano", sem ponto
+    btn.innerHTML=(dotAtivo?'<span class="ag-dot"></span>':'')+'📅 '+(PROXIMO_PASSO?PROXIMO_PASSO.rot:'Seu plano');
   }
 
   // 4) se o popup estiver aberto agora, atualiza o conteúdo ao vivo — cobre o gatilho "após cada
@@ -1671,13 +1691,16 @@ async function atualizarEstadoEstrategia(){
 
 function renderPainelEstrategia(estadoHtml,travaMsg){
   document.getElementById('estado-corpo').innerHTML=estadoHtml||'';
-  const acaoBtn=travaMsg
-    ?('<button class="btn btn-o" disabled title="'+String(travaMsg).replace(/"/g,'&quot;')+'" style="width:100%;opacity:.6;cursor:not-allowed">'+travaMsg+'</button>')
-    :('<button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();cmdCalendario()">'+(PODE_DETALHAR?'✍️ Escrever a copy da semana':'📅 Montar a estratégia da semana')+'</button>');
+  // um único botão: o do próximo passo. Sem próximo passo, só o atualizar (nenhum aviso).
+  const P=PROXIMO_PASSO;
+  const acaoBtn=!P?'':
+    P.acao==='aprovar'?'<button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();location.href=\'aprovar.html\'">✅ '+P.rot+'</button>':
+    P.acao==='fotos'?'<button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();location.href=\'upload.html?aba='+P.aba+'\'">📤 '+P.rot+'</button>':
+    '<button class="btn btn-g" style="width:100%" onclick="fecharPainelEstado();cmdCalendario()">'+(P.acao==='detalhar'?'✍️ ':'📅 ')+P.rot+'</button>';
   document.getElementById('estado-acao').innerHTML=
     '<div style="display:flex;gap:8px;margin-top:16px;align-items:stretch">'+
       '<button class="btn btn-o btn-sm" onclick="atualizarEstadoEstrategia()" title="Atualizar">🔄</button>'+
-      '<div style="flex:1">'+acaoBtn+'</div>'+
+      (acaoBtn?'<div style="flex:1">'+acaoBtn+'</div>':'')+
     '</div>';
 }
 
