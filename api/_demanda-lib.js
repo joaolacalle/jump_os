@@ -86,6 +86,28 @@ function motivoRecusa(ct, opts) {
   return '';
 }
 
+// REPETIÇÃO NO PLANO (ajustado 01/out/2026 — caso real: mapa com uma dor central e 13 posts; a
+// regra antiga "nunca o mesmo ângulo para a mesma dor" tornava o plano impossível e derrubou tudo
+// por 1 tema). Agora: o mesmo ângulo para a mesma dor vale até 2 vezes no plano, e o que é
+// recusado de verdade é tema quase igual a outro (mesmas palavras). Devolve a lista de problemas.
+function _palavras(t) { return new Set(_sem(t).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3)); }
+function repeticoes(posts) {
+  const problemas = [];
+  const cont = {};
+  const vistos = [];
+  (posts || []).forEach(ct => {
+    const tema = String(ct.tema || 'post');
+    const k = chaveRepeticao(ct);
+    cont[k] = (cont[k] || 0) + 1;
+    if (cont[k] > 2) problemas.push('"' + tema.slice(0, 70) + '": terceiro post com o mesmo ângulo para a mesma dor — varie o ângulo');
+    const pw = _palavras(tema);
+    const igual = pw.size < 3 ? null : vistos.find(v => v.pw.size >= 3 && (() => { const inter = [...pw].filter(w => v.pw.has(w)).length; const uni = new Set([...pw, ...v.pw]).size; return uni && inter / uni >= 0.55; })());
+    if (igual) problemas.push('"' + tema.slice(0, 70) + '": quase igual a "' + igual.tema.slice(0, 50) + '"');
+    vistos.push({ tema, pw });
+  });
+  return problemas;
+}
+
 // Chave de repetição: mesmo ângulo para a mesma dor.
 function chaveRepeticao(ct) { return (ct.angulo || '') + '|' + _sem(ct.dor).replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 3).slice(0, 6).sort().join(' '); }
 
@@ -117,4 +139,4 @@ function mapaCompleto(memorias) {
   return CHAVES_MAPA_OBRIGATORIAS.every(k => String(m[k] || '').trim().length > 0);
 }
 
-module.exports = { perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, motivoFunil, mapaCompleto };
+module.exports = { perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, repeticoes, motivoFunil, mapaCompleto };
