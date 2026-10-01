@@ -1293,16 +1293,33 @@ async function jobDetalharSemana() {
     const janelas = JC.janelasSemanas(ancora, pref.dia_lote);
     let posts;
     try {
-      posts = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material,aprovado)&or=(origem.eq.plano,origem.is.null)&data_sugerida=gte.${hz.inicio}&data_sugerida=lte.${hz.fim}&select=id,status,copy,data_sugerida&limit=300`, { headers: SBH() }).then(r => r.json());
+      posts = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=in.(rascunho,proposto,aguardando_aprovacao,aguardando_copy,aguardando_material,aprovado)&or=(origem.eq.plano,origem.is.null)&data_sugerida=gte.${hz.inicio}&data_sugerida=lte.${hz.fim}&select=id,status,copy,roteiro,formato,data_sugerida&limit=300`, { headers: SBH() }).then(r => r.json());
     } catch (e) { console.error('[detalhar-auto] leitura de posts falhou — user=' + c.id + ' ' + (e && e.message)); continue; }
     if (!Array.isArray(posts) || !posts.length) continue;
     const dia = p => String(p.data_sugerida || '').slice(0, 10);
     const naJanela = j => posts.filter(p => dia(p) >= j.inicio && dia(p) <= j.fim);
     let sem = janelas.find(j => hoje >= j.inicio && hoje <= j.fim) || null;
     if (!sem || !naJanela(sem).length) sem = janelas.find(j => j.fim >= hoje && naJanela(j).length) || null;
-    if (!sem || sem.inicio > daqui3) continue; // ainda não é hora desta semana
-    const semCopy = naJanela(sem).filter(p => p.status === 'rascunho' && !(p.copy && String(p.copy).trim()));
+    if (!sem) continue;
+    const ehReel = p => /reel|video/i.test(String(p.formato || ''));
+    const falta = p => !(p.copy && String(p.copy).trim()) || (ehReel(p) && !(p.roteiro && String(p.roteiro).trim()));
+    const semCopy = naJanela(sem).filter(p => p.status === 'rascunho' && falta(p));
     if (!semCopy.length) continue;
+    // QUANDO DETALHAR: 3 dias antes da semana, como sempre — e AGORA, sem esperar, em dois casos
+    // (01/out/2026): (1) semana pela metade (já tem post com texto, falta o resto); (2) primeira
+    // semana logo depois de aprovar o mensal (nenhum card semanal neste ciclo ainda) — o
+    // detalhamento saiu do navegador (aprovar.html) e passou a ser só daqui.
+    if (sem.inicio > daqui3) {
+      const parcial = naJanela(sem).some(p => p.copy && String(p.copy).trim());
+      let primeira = false;
+      if (!parcial) {
+        try {
+          const cards = await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${c.id}&tarefa=in.(aprovar_semana,criar_post)&created_at=gte.${ancora}&select=id&limit=1`, { headers: SBH() }).then(r => r.json());
+          primeira = Array.isArray(cards) && !cards.length;
+        } catch (e) { primeira = false; }
+      }
+      if (!parcial && !primeira) continue; // ainda não é hora desta semana
+    }
     // ordem em andamento ou tentativas demais nas últimas 24h → não repete
     let ords = [];
     try {
