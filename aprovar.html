@@ -137,13 +137,15 @@ textarea.edt{resize:vertical;line-height:1.5}
 </style>
 <style>
 /* card de ESTRATÉGIA: mesmo formato/proporção do card de conteúdo (consistência no Aprovar) */
-.ap-card-estr .ap-estr-cap{aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  background:linear-gradient(150deg,color-mix(in srgb,var(--g) 20%,transparent),color-mix(in srgb,var(--a2,var(--g)) 16%,transparent));
-  border-bottom:1px solid color-mix(in srgb,var(--t1) 8%,transparent)}
-.ap-card-estr .ap-estr-cap span{font-size:34px;line-height:1}
-.ap-card-estr .ap-estr-cap b{font-family:var(--M);font-size:10px;letter-spacing:.16em;color:var(--g)}
-.ap-card-estr .ap-badge{font-family:var(--M);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
-  color:#f0b53f;background:rgba(240,181,63,.12);border:1px solid rgba(240,181,63,.34);border-radius:99px;padding:3px 9px}
+.ap-card-estr .ap-pl{align-items:stretch;justify-content:flex-start;font-size:inherit;
+  background:color-mix(in srgb,var(--ch) 70%,#000 30%)}
+.ap-card-estr .ap-pl-lista{position:absolute;inset:0;display:flex;flex-direction:column;gap:5px;padding:38px 10px 30px;min-width:0;overflow:hidden}
+.ap-card-estr .ap-pl-l{display:grid;grid-template-columns:44px 18px 1fr;gap:6px;align-items:center;padding:6px 8px;border-radius:8px;
+  background:color-mix(in srgb,var(--t1) 5%,transparent);border:1px solid color-mix(in srgb,var(--t1) 7%,transparent)}
+.ap-card-estr .ap-pl-l b{font-family:var(--M);font-size:9.5px;letter-spacing:.06em;color:var(--g);font-weight:700}
+.ap-card-estr .ap-pl-l span{font-size:12px;line-height:1}
+.ap-card-estr .ap-pl-l i{font-style:normal;font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-card-estr .ap-pl-mais{font-family:var(--M);font-size:9.5px;color:var(--t3);text-align:center;padding-top:2px}
 /* modal da estratégia: mesma linguagem do card de conteúdo */
 #modal-estr .modal{max-width:920px!important;width:96vw;padding:0!important;border-radius:22px;
   background:color-mix(in srgb, var(--ch) 88%, #000 12%);max-height:94vh;overflow:auto}
@@ -162,17 +164,18 @@ textarea.edt{resize:vertical;line-height:1.5}
 #modal-estr .ec-post{background:color-mix(in srgb,var(--ch) 96%,var(--t1) 4%);border:1px solid color-mix(in srgb,var(--t1) 9%,transparent);
   border-radius:16px;padding:18px}
 #modal-estr .ec-post-h{font-family:var(--M);font-size:10.5px;letter-spacing:.12em;color:var(--g);margin-bottom:12px}
-#modal-estr .ec-fld{display:block;border-radius:13px;padding:11px 14px;margin-bottom:10px;
-  background:color-mix(in srgb,var(--ch) 70%,#000 30%);border:1px solid color-mix(in srgb,var(--g) 28%,transparent);transition:.16s}
-#modal-estr .ec-fld:focus-within{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 15%,transparent)}
-#modal-estr .ec-lab{display:block;font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--g);margin-bottom:6px}
-#modal-estr .ec-fld input,#modal-estr .ec-fld textarea{width:100%;background:transparent;border:0;outline:none;color:var(--t1);
-  font-family:var(--B);font-size:14px;line-height:1.6;resize:vertical}
+#modal-estr .ec-fld{display:block;margin-bottom:12px}
+#modal-estr .ec-lab{display:block;font-family:var(--M);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin-bottom:7px}
+#modal-estr .ec-fld input,#modal-estr .ec-fld textarea{width:100%;outline:none;color:var(--t1);font-family:var(--B);font-size:14px;line-height:1.6;resize:vertical;
+  border-radius:14px;padding:12px 16px;background:color-mix(in srgb,var(--ch) 70%,#000 30%);
+  border:1px solid color-mix(in srgb,var(--g) 30%,transparent);transition:.16s;box-sizing:border-box}
+#modal-estr .ec-fld input:hover,#modal-estr .ec-fld textarea:hover{border-color:color-mix(in srgb,var(--g) 55%,transparent)}
+#modal-estr .ec-fld input:focus,#modal-estr .ec-fld textarea:focus{border-color:var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 15%,transparent)}
 #modal-estr .ec-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #modal-estr .ec-alert{margin:18px 34px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-radius:13px;
   background:rgba(240,181,63,.09);border:1px solid rgba(240,181,63,.3);font-size:13px;color:var(--t2)}
 /* PLANNER (inspiração: Planner da Meta Business Suite) — linha por post */
-#modal-estr .pl-row{display:grid;grid-template-columns:74px 64px 1fr;gap:16px;align-items:start;padding:16px;border-radius:16px;
+#modal-estr .pl-row{display:grid;grid-template-columns:74px 64px 1fr;gap:18px;align-items:start;padding:22px;border-radius:18px;
   background:color-mix(in srgb,var(--ch) 96%,var(--t1) 4%);border:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
 #modal-estr .pl-when{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 0;border-radius:12px;
   background:color-mix(in srgb,var(--t1) 5%,transparent)}
@@ -192,8 +195,8 @@ textarea.edt{resize:vertical;line-height:1.5}
 #modal-estr .pl-warn{color:#f0b53f;background:rgba(240,181,63,.1);border:1px solid rgba(240,181,63,.35)}
 #modal-estr .pl-muted{color:var(--t3);background:color-mix(in srgb,var(--t1) 5%,transparent)}
 #modal-estr .pl-lab{font-family:var(--M);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
-#modal-estr .pl-tema{font-size:15px;font-weight:700;color:var(--t1);line-height:1.4;margin-bottom:4px}
-#modal-estr .pl-dor{font-size:12px;color:var(--t3);margin-bottom:12px}
+#modal-estr .pl-tema{font-size:15px;font-weight:700;color:var(--t1);line-height:1.4;margin-bottom:14px}
+#modal-estr .pl-dor{font-size:12px;color:var(--t3);margin:-10px 0 14px}
 @media(max-width:640px){#modal-estr .pl-row{grid-template-columns:58px 1fr}#modal-estr .pl-thumb{display:none}}
 #modal-estr .ec-foot{position:sticky;bottom:0;display:flex;padding:18px 34px 26px;
   background:color-mix(in srgb,var(--ch) 92%,#000 8%);border-top:1px solid color-mix(in srgb,var(--t1) 9%,transparent)}
@@ -481,8 +484,9 @@ function focarCard(){
   el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
   setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
 }
-function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
-function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">✎ ${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
+function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
+function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
+function _postsOrdenados(ps){return (ps||[]).slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||'')));}
 function _linhaPost(c,semanal){
   // LINHA NO ESTILO PLANNER (01/out/2026, inspiração: Planner da Meta Business Suite): data/hora à
   // esquerda, miniatura com o formato, conteúdo à direita e status do texto. O TEMA aprovado no
@@ -562,7 +566,7 @@ function abrirEstrategia(id){
   const semanal=(o.tarefa==='aprovar_semana'), posts=o._posts||[];
   let linhas, prazoTxt='';
   if(semanal){
-    linhas=posts.slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||''))).map(c=>_linhaPost(c,true)).join('');
+    linhas=_postsOrdenados(posts).map(c=>_linhaPost(c,true)).join('');
     // LOTE 2 — item 5 (semana não cumulativa, com vencimento, 01/set/2026), aviso obrigatório #1
     // ("no card semanal, o prazo de aprovação"): a semana FECHA na data abaixo — o que não for
     // aprovado até lá EXPIRA (não acumula pra semana seguinte). Usa a âncora REAL do plano (já
@@ -991,12 +995,29 @@ function render(){
   }
   // P6 — GRADE ENXUTA: só o criativo + badge. Sem botões. Clicar abre o card de edição.
   const cardsEstr=ESTRATEGIAS.map(o=>{
-    const semanal=(o.tarefa==='aprovar_semana'), n=(o._posts||[]).length;
-    return `<div class="ap-card ap-card-mini ap-card-estr" onclick="abrirEstrategia('${o.id}')" style="cursor:pointer">
-      <div class="ap-img ap-estr-cap"><span>${semanal?'🗓':'📋'}</span><b>${semanal?'SEMANAL':'MENSAL'}</b></div>
+    // ITEM E (01/out/2026): o card da Estratégia segue o MESMO molde dos cards de feed/carrossel —
+    // prévia no topo com a etiqueta do tipo no canto (como "🖼 FEED"), contador no canto de baixo
+    // (como "▤ 5" do carrossel), título embaixo e "abrir para revisar →". A prévia é uma mini agenda
+    // dos posts (estilo Planner da Meta), no lugar da arte que ainda não existe.
+    const semanal=(o.tarefa==='aprovar_semana'), ps=_postsOrdenados(o._posts||[]), n=ps.length;
+    const dias=ps.map(c=>JUMP_CLASS.diaSP(c.data_agendada||c.data_sugerida)).filter(Boolean);
+    const fx=d=>d.slice(8,10)+'/'+d.slice(5,7);
+    const periodo=dias.length?(fx(dias[0])+(dias.length>1&&dias[dias.length-1]!==dias[0]?' – '+fx(dias[dias.length-1]):'')):'';
+    const linhas=ps.slice(0,4).map(c=>{
+      const d=JUMP_CLASS.diaSP(c.data_agendada||c.data_sugerida), f=String(c.formato||'feed').toLowerCase();
+      const dw=d?['DOM','SEG','TER','QUA','QUI','SEX','SÁB'][new Date(d+'T12:00:00Z').getUTCDay()]:'—';
+      const ic=/reel|video/.test(f)?'🎬':/carros/.test(f)?'🗂':/story/.test(f)?'📱':'🖼';
+      return `<div class="ap-pl-l"><b>${dw} ${d?d.slice(8,10):'--'}</b><span>${ic}</span><i>${JUMP.esc(c.tema||'Post')}</i></div>`;
+    }).join('')+(n>4?`<div class="ap-pl-mais">+ ${n-4} post(s)</div>`:'');
+    return `<div class="ap-card ap-card-mini ap-card-estr" id="card-${o.id}" onclick="abrirEstrategia('${o.id}')" style="cursor:pointer">
+      <div class="ap-img ap-pl" style="position:relative">
+        <div class="ap-pl-lista">${linhas||'<div class="ap-pl-mais">sem posts</div>'}</div>
+        <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px">${semanal?'🗓 SEMANA':'📋 PLANO DO MÊS'}</span>
+        <span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:var(--M);font-size:9.5px;padding:3px 7px;border-radius:6px">▤ ${n}</span>
+      </div>
       <div class="ap-body" style="padding:10px 12px">
-        <div class="ap-t" style="font-size:13px">${JUMP.esc(semanal?('Semana · '+n+' post(s)'):('Plano do mês · '+n+' post(s)'))}</div>
-        <div class="ap-meta"><span class="ap-badge">Aguardando aprovação</span></div>
+        <div class="ap-t" style="font-size:13px">${JUMP.esc((semanal?'Estratégia da semana':'Estratégia do mês')+(periodo?' · '+periodo:''))}</div>
+        <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:3px">abrir para revisar →</div>
       </div>
     </div>`;
   }).join('');
