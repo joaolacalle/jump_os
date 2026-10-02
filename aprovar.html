@@ -274,6 +274,8 @@ textarea.edt{resize:vertical;line-height:1.5}
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="spin-i"></span><span id="fila-status" style="font-family:var(--M);font-size:13px;color:var(--t2)">Gerando artes…</span></div>
     <div style="font-size:11px;color:var(--t3);margin-top:6px">As artes do seu plano estão sendo criadas uma a uma. Você pode aguardar aqui.</div>
   </div>
+  <!-- TEMPO DE PRODUÇÃO (02/out/2026, pedido do João: aviso sutil e visível do tempo que as artes levam) -->
+  <div id="producao-info" style="display:none;margin:-4px 0 14px;padding:9px 14px;border-radius:10px;font-size:12.5px;color:var(--t2);background:color-mix(in srgb,var(--g) 6%,transparent);border:1px solid color-mix(in srgb,var(--g) 22%,transparent)"></div>
   <div class="ap-grid" id="ap-grid"></div>
   <div class="card" id="vazio" style="display:none"><div style="text-align:center;padding:24px;font-family:var(--M);font-size:13px;color:var(--t3)">✓ Nenhum conteúdo aguardando.<br><span style="font-size:11px">Quando os agentes gerarem conteúdo, ele aparece aqui para sua revisão.</span></div></div>
 </main>
@@ -364,6 +366,7 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],P
       const _uid=CTX.viewId||CTX.user.id;
       const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',_uid).like('tarefa','aprovar_%').eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
       ESTRATEGIAS=estr||[];
+      atualizarProducao();
       // BARRA "ESPERANDO ARTE" SÓ PARA PRODUÇÃO TRAVADA (02/out/2026): antes contava todo rascunho com
       // texto — inclusive de semanas AINDA NÃO APROVADAS — e o botão "Gerar artes" produzia sem
       // aprovação, gastando cota (e aparecia enquanto a produção já rodava). Agora só entra post que
@@ -484,6 +487,28 @@ async function regerarCarrossel(id){
     }catch(e){JUMP.toast('Falhou o slide '+n+'. Sigo para o próximo.','err')}
   }
   await recarregar(); abrirEdicao(id); JUMP.toast('✓ Carrossel recriado.');
+}
+// TEMPO DE PRODUÇÃO (02/out/2026): enquanto houver produção de artes em andamento (ordem criar_post
+// pendente/rodando), uma linha discreta mostra quantas imagens já saíram e quanto tempo cada uma leva
+// (medido em produção: ~2 a 4 min por imagem, incluindo direção de arte e conferência do texto).
+// Atualiza sozinha a cada minuto e traz as artes novas para a grade sem recarregar a página.
+let _prodTimer=null,_prodFeitas=-1;
+async function atualizarProducao(){
+  const el=document.getElementById('producao-info'); if(!el||!CTX)return;
+  try{
+    const{data:ord}=await JUMP.sb.from('ordens_servico').select('status,total,progresso,payload').eq('user_id',CTX.viewId||CTX.user.id).eq('tarefa','criar_post').in('status',['pendente','processando']);
+    const lista=ord||[];
+    if(!lista.length){ el.style.display='none'; if(_prodTimer){clearInterval(_prodTimer);_prodTimer=null;} if(_prodFeitas>=0){_prodFeitas=-1;try{recarregar()}catch(e){}} return; }
+    let tot=0,feitas=0;
+    lista.forEach(o=>{const p=o.payload||{};tot+=Number(p.slide_count||o.total||0);feitas+=Number(p.completed_slide_count||o.progresso||0);});
+    const faltam=Math.max(0,tot-feitas);
+    el.innerHTML='🎨 <b style="color:var(--t1);font-weight:600">Suas artes estão sendo produzidas</b>'+(tot?(' — '+Math.min(feitas,tot)+' de '+tot+' imagem(ns) prontas'):'')
+      +'. Cada imagem leva cerca de 2 a 4 minutos'+(faltam>1?(' (faltam ~'+(faltam*2)+' a '+(faltam*4)+' min)'):'')+'; elas aparecem aqui sozinhas — pode fechar a página.';
+    el.style.display='block';
+    if(_prodFeitas>=0&&feitas!==_prodFeitas){try{recarregar()}catch(e){}}
+    _prodFeitas=feitas;
+    if(!_prodTimer)_prodTimer=setInterval(atualizarProducao,60000);
+  }catch(e){ console.error('[aprovar] produção: leitura falhou',e&&e.message); }
 }
 async function recarregar(){
   const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
@@ -939,8 +964,8 @@ async function aprovarProposta(id,tarefa,btn){
         JUMP.toast(ids.length?'✓ Planejamento aprovado! A primeira semana está pronta para sua aprovação.':'✓ Planejamento aprovado! A Estratégia já está preparando os textos da primeira semana — o card aparece aqui em Aprovações em cerca de 1 minuto (atualize a página).');
       }
     }
-    _progresso('Pronto ✓');
-    setTimeout(()=>location.reload(),1200); // dá tempo de ler a confirmação
+    _progresso(semanal?'Pronto ✓ — artes em produção (cerca de 2 a 4 min por imagem)':'Pronto ✓');
+    setTimeout(()=>location.reload(),semanal?2600:1200); // dá tempo de ler a confirmação
   }catch(e){_progresso(null);JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}try{recarregar()}catch(_){}}
 }
 // ETAPA 1 — DESCARTE REAL (25/ago/2026): antes, fechar o card de proposta (mensal/semanal) só

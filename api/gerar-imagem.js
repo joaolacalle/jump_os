@@ -427,8 +427,8 @@ function engine6(M, o) {
     '',
     // CTA E SELO POR CÓDIGO (decisão 4): o selo (label) some da conta do modelo tanto quanto o
     // CTA — a seção inteira não tem sentido quando quem desenha o selo é código, depois do corte.
-    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : '=== 3. EVIDENT LABEL ===',
-    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : ('The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.'),
+    (o.composicaoAtiva || o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : '=== 3. EVIDENT LABEL ===',
+    (o.composicaoAtiva || o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : ('The label reads like a small editorial title: immediate visual prominence, 8-12% of composition width, contrast 7:1 minimum, color ' + (CTA || 'the CTA color') + ', highlighted position, never blended into the background.'),
     '',
     '=== 4. BRANDING ===',
     // 23/set/2026 (decisão 4, autorizado pelo João): a proibição era ampla demais — proibia
@@ -559,7 +559,7 @@ function engine6(M, o) {
       ? 'Zero text, letters, digits, labels, pills, logos or watermarks anywhere in the image — not even the brand name? Only the palette colors above? Photo with controlled contrast? 3 depth layers present? Negative space respected? Left half left calm and uncluttered for the system to cover? Safe zones clear? If any answer is NO, fix the composition BEFORE rendering.'
       // CTA E SELO POR CÓDIGO (decisão 4): checklist não pergunta mais por CTA nem por label —
       // nenhum dos dois é renderizado pelo modelo neste caminho.
-      : ('Headline <=8 words? Support copy <=12 words? ' + (o.ctaSeloPorCodigo ? '' : 'CTA <=2? ') + 'Proof point <=6 words, number+noun shape? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? ' + (o.ctaSeloPorCodigo ? '' : 'Label 8-12% width with 7:1 contrast? ') + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
+      : ('Headline <=8 words? Support copy <=12 words? ' + (o.ctaSeloPorCodigo ? '' : 'CTA <=2? ') + 'Proof point <=6 words, number+noun shape? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? ' + ((o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : 'Label 8-12% width with 7:1 contrast? ') + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
     '',
     '=== 13. PARAMETERS ===',
     // densidade_visual (23/set/2026): substitui o PAR intensidade/complexidade (não só a
@@ -577,7 +577,7 @@ function engine6(M, o) {
     // CTA E SELO POR CÓDIGO (decisão 4): com o.ctaSeloPorCodigo, o selo some do CONTEÚDO pedido ao
     // modelo — o próprio texto do selo é decidido em gerar-imagem.js (pilar||label) e desenhado
     // depois, por código, nunca inventado pelo modelo de imagem.
-    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : ((o.label || o.pilar || M.marca)
+    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : !SELO_NA_ARTE ? 'LABEL: none — do NOT render any category label, tag, badge or selo (e.g. "AUTORIDADE", "EDUCAÇÃO"); use that space for the headline and the support copy.' : ((o.label || o.pilar || M.marca)
       ? ('LABEL: "' + String(o.label || o.pilar || M.marca).toUpperCase() + '"')
       : 'LABEL: derive a SHORT category word (1-2 words, uppercase) from the theme itself — it must describe the CONTENT (e.g. "MÉTODO", "BASTIDORES", "RESULTADO"). Never write the name of any software, tool or platform that is not this client\'s own brand.'),
     o.composicaoAtiva
@@ -615,7 +615,7 @@ function engine6(M, o) {
       ? ('QUALITY: ultra detailed, Instagram production-ready, premium finish, real photographic scene. Validate before rendering: zero text/letters/digits/labels/logos/watermarks anywhere? palette locked? 3 depth layers? negative space ' + (densVisual || vazio) + '? left half calm and uncluttered? safe zones respected?')
       // CTA E SELO POR CÓDIGO (decisão 4): mesmo ajuste do checklist acima — "label 8-12% at 7:1"
       // não faz sentido quando o modelo não desenha nenhum label.
-      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: piece text word count ≤22? proof point ≤6 words, number+noun? palette locked? ' + (o.ctaSeloPorCodigo ? '' : 'label 8-12% at 7:1? ') + (hierarquiaVS ? ('reading priority follows the brand\'s own declared hierarchy') : 'headline dominant 50-60%') + '? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
+      : ('QUALITY: ultra detailed, Instagram production-ready, premium finish. Validate the checklist before rendering: piece text word count ≤22? proof point ≤6 words, number+noun? palette locked? ' + ((o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : 'label 8-12% at 7:1? ') + (hierarquiaVS ? ('reading priority follows the brand\'s own declared hierarchy') : 'headline dominant 50-60%') + '? 3 depth layers? negative space ' + (densVisual || vazio) + '? safe zones respected? spelling perfect?'),
   ].filter(Boolean).join('\n');
 }
 
@@ -676,6 +676,10 @@ const MODEL_IMAGEM_TEXTO = () => trimEnv(process.env.AGENT_MODEL_IMAGEM_TEXTO) |
 // modelo futuro voltar a errar acento ou posição. Nunca decidida por modelo (não é `if (modelo ===
 // 'gpt-image-1')`) — é uma escolha de produto, registrada aqui, não uma capacidade do modelo.
 const CTA_SELO_POR_CODIGO = false;
+// SELO/LABEL NA ARTE (02/out/2026, pedido do João: "a placa de AUTORIDADE pode ser removida e dar
+// espaço para mais texto"): false = a peça não leva selo de categoria. Some a seção 3 (EVIDENT LABEL),
+// a linha LABEL do conteúdo vira proibição explícita e os checklists deixam de pedir o selo.
+const SELO_NA_ARTE = false;
 
 // MODO DA PEÇA — decidido no código (determinístico, testável), não pelo modelo.
 //   CENA      = o canvas inteiro é UMA FOTOGRAFIA de um lugar real; o texto é objeto físico.
