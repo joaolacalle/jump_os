@@ -506,7 +506,9 @@ function _slidesDoPost(c){
   const sl=((c.meta||{}).slides_texto)||[], n=sl.length;
   return '<div class="pl-lab" style="margin-bottom:8px">Roteiro do carrossel · '+n+' slides</div>'+sl.map((it,i)=>{
     const papel=i===0?'Capa':(i===n-1?'Fechamento':'Slide '+(i+1));
-    return '<div class="ec-two" style="grid-template-columns:1.3fr 1fr">'+_inp(c.id,'sh_'+(i+1),(i+1)+' · '+papel+' — título',it.headline||'')+_inp(c.id,'st_'+(i+1),'texto de apoio',it.texto||'')+'</div>';
+    return '<div style="border-left:2px solid color-mix(in srgb,var(--g) 35%,transparent);padding-left:12px;margin-bottom:6px">'
+      +'<div class="ec-two" style="grid-template-columns:1fr 1.4fr">'+_inp(c.id,'sh_'+(i+1),(i+1)+' · '+papel+' — título',it.headline||'')+_inp(c.id,'st_'+(i+1),'texto de apoio (até 12 palavras)',it.texto||'')+'</div>'
+      +_inp(c.id,'sv_'+(i+1),'cena — o que aparece na imagem',it.visual||'')+'</div>';
   }).join('');
 }
 function _postsOrdenados(ps){return (ps||[]).slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||'')));}
@@ -689,7 +691,7 @@ async function salvarEdicoesProposta(){
     if(mud.cta&&f.cta!=null)meta.cta_arte=f.cta;
     // roteiro do carrossel: campos sh_N (título) / st_N (texto) do slide N
     const slidesEd={};
-    Object.keys(mud).forEach(k=>{const mm=k.match(/^s([ht])_(\d+)$/);if(mm){(slidesEd[mm[2]]=slidesEd[mm[2]]||{})[mm[1]==='h'?'headline':'texto']=f[k];}});
+    Object.keys(mud).forEach(k=>{const mm=k.match(/^s([htv])_(\d+)$/);if(mm){(slidesEd[mm[2]]=slidesEd[mm[2]]||{})[mm[1]==='h'?'headline':(mm[1]==='t'?'texto':'visual')]=f[k];}});
     if((mud.dia||mud.hora)&&f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
     gravacoes.push((async()=>{
       if(Object.keys(meta).length||Object.keys(slidesEd).length){

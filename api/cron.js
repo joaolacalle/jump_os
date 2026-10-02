@@ -1133,7 +1133,9 @@ async function jobProduzir(soUid) {
           prompt: _headline || c.tema || '', tamanho: '4:5',
           tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
           headline: _headline, subheadline: _subheadline, prova: _prova,
-          cta_arte: _cta_arte, oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
+          // carrossel com roteiro: o contexto da cena é o "visual" do slide (o Diretor deduz a cena
+          // pelo contexto — com a legenda geral, todo slide virava o mesmo escritório)
+          cta_arte: _cta_arte, oferta: m.oferta || '', copy: (_txSlide && _txSlide.contexto) ? _txSlide.contexto : (c.copy || ''), pilar: m.pilar || '',
           // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
           // cada geração carrega o slide e o total — gravarSlide monta meta.slides[] com isso
           slide: nSlide, total: alvo.tot,
