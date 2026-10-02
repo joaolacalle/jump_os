@@ -3238,7 +3238,10 @@ const handler = async (req, res) => {
             notaSemanal=(notaSemanal?notaSemanal+' ':'')+'⚠️ Não consegui conferir os posts prontos da semana para garantir o card de aprovação — avise o suporte com esta mensagem antes de aprovar a produção manualmente.';
             console.error('[ordem] garantirCardAprovarSemana: leitura de wk falhou, garantia não pôde rodar — user='+targetId);
           }else{
-            const _idsSemana=wkArr.map(c=>c.id);
+            // só os posts DESTA semana (02/out/2026): wk vai até o fim da semana sem piso, para pegar
+            // material atrasado; mas o card é da semana detalhada — misturar o post de outra semana
+            // (com card próprio já aberto) fazia a trava de duplicidade barrar o card novo.
+            const _idsSemana=wkArr.filter(c=>String(c.data_sugerida||'').slice(0,10)>=semanaAtualCliente.inicio).map(c=>c.id);
             // CARD SÓ COM A SEMANA COMPLETA (01/out/2026, caso real: detalhamento parou em 3 de 5 e o
             // card nasceu com 2 posts sem texto): se algum post da semana aberta ainda não tem copy
             // (ou Reels sem roteiro), o card NÃO nasce agora — a automação (api/cron.js,
