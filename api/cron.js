@@ -1327,13 +1327,17 @@ async function jobDetalharSemana(soUid) {
     if (!Array.isArray(posts) || !posts.length) continue;
     const dia = p => String(p.data_sugerida || '').slice(0, 10);
     const naJanela = j => posts.filter(p => dia(p) >= j.inicio && dia(p) <= j.fim);
-    let sem = janelas.find(j => hoje >= j.inicio && hoje <= j.fim) || null;
-    if (!sem || !naJanela(sem).length) sem = janelas.find(j => j.fim >= hoje && naJanela(j).length) || null;
-    if (!sem) continue;
     const ehReel = p => /reel|video/i.test(String(p.formato || ''));
     const falta = p => !(p.copy && String(p.copy).trim()) || (ehReel(p) && !(p.roteiro && String(p.roteiro).trim()));
-    const semCopy = naJanela(sem).filter(p => p.status === 'rascunho' && falta(p));
-    if (!semCopy.length) continue;
+    // SEMANA A DETALHAR (02/out/2026): a primeira semana, da atual em diante, que ainda tem post sem
+    // texto. Antes só olhava a semana em curso — com ela completa, a PRÓXIMA nunca era adiantada e
+    // só ganhava texto no dia em que começava (o "3 dias antes" abaixo nunca era alcançado).
+    let sem = null, semCopy = [];
+    for (const j of janelas.filter(j => j.fim >= hoje && naJanela(j).length)) {
+      const f = naJanela(j).filter(p => p.status === 'rascunho' && falta(p));
+      if (f.length) { sem = j; semCopy = f; break; }
+    }
+    if (!sem) continue;
     // QUANDO DETALHAR: 3 dias antes da semana, como sempre — e AGORA, sem esperar, em dois casos
     // (01/out/2026): (1) semana pela metade (já tem post com texto, falta o resto); (2) primeira
     // semana logo depois de aprovar o mensal (nenhum card semanal neste ciclo ainda) — o
@@ -1510,7 +1514,7 @@ async function jobOrdens() {
     // vazia legítima (consulta OK, sem rascunho na janela) continua sem logar nada.
     let daSemana;
     try {
-      const rDaSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniSemISO}&data_sugerida=lte.${fimSemISO}&select=id&limit=50`, { headers: SBH() });
+      const rDaSemana = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?user_id=eq.${c.id}&status=eq.rascunho&midia_url=is.null&data_sugerida=gte.${iniSemISO}&data_sugerida=lte.${fimSemISO}&select=id,copy,roteiro,formato&limit=50`, { headers: SBH() });
       if (!rDaSemana.ok) {
         let motivo = ''; try { const j = await rDaSemana.json(); motivo = j.message || j.hint || j.details || JSON.stringify(j).slice(0, 200); } catch (e) {}
         console.error('[jobOrdens] drip semanal: consulta de daSemana falhou — status=' + rDaSemana.status + ' motivo=' + String(motivo).slice(0, 200) + ' user=' + c.id);
@@ -1530,8 +1534,14 @@ async function jobOrdens() {
     // garantirCardAprovarSemana (api/_semana-lib.js) — mesma regra de sempre (se a Semana 1,
     // criada em aprovar.html, ou outra semana já estiver aberta, pula e tenta de novo no próximo
     // dia_lote), só que num lugar único, compartilhado com api/agente-chat.js.
+    // CARD SÓ COM A SEMANA COMPLETA (02/out/2026, regra A de 01/out): semana ainda sem texto não
+    // vira card aqui — o detalhamento automático (jobDetalharSemana, a cada 5 min, 3 dias antes)
+    // escreve os textos e o próprio detalhamento cria o card completo. Antes este passo criava o
+    // card vazio ("precisa_detalhar"), que além de mostrar posts sem texto bloqueava o card certo.
+    const _faltaTxt = p => !(p.copy && String(p.copy).trim()) || (/reel|video/i.test(String(p.formato || '')) && !(p.roteiro && String(p.roteiro).trim()));
+    if (daSemana.some(_faltaTxt)) continue;
     const ids = daSemana.map(x => x.id);
-    const _g = await garantirCardAprovarSemana(KEY(), c.id, ids, 'estrategia', { precisa_detalhar: true });
+    const _g = await garantirCardAprovarSemana(KEY(), c.id, ids, 'estrategia');
     // REPARO AVULSO (05/set/2026): antes este contador somava mesmo quando o INSERT falhava em
     // silêncio (fetch sem checar .ok, achado na varredura da Família 1) — agora só conta quando
     // o card foi de fato criado.
