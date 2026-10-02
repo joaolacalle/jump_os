@@ -168,9 +168,38 @@ function falaPlanoNaoSalvo(texto) {
   return out.join('').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() + '\n\n⚠️ O plano ainda não foi salvo — veja o motivo logo abaixo.';
 }
 
+// NÚMEROS DA PRÓPRIA CONTA NO TEXTO DO POST (02/out/2026, pedido do João: "por que ele fica incluindo
+// informações do meu perfil, como 964 pessoas já seguem? não é pra falar do meu perfil e sim dos
+// usuários"). O Diagnóstico registra no DNA leituras sobre a conta (ex.: pontos_fortes = "964
+// seguidores já cativos...") — dado de diagnóstico, certo para decidir estratégia, errado como
+// argumento no post. A trava compara com os números REAIS da conta (seguidores das métricas e os
+// números que aparecem junto de "seguidor" nas memórias), então não barra post legítimo sobre o
+// público ("como passar dos 1.000 seguidores").
+function numerosDaConta(memorias, seguidoresMetrica) {
+  const nums = new Set();
+  const add = v => { const n = String(v || '').replace(/[.\s]/g, ''); if (/^\d{3,}$/.test(n)) nums.add(n); };
+  if (seguidoresMetrica != null) add(seguidoresMetrica);
+  Object.values(memorias || {}).forEach(val => {
+    const t = String(val || '');
+    if (!/seguid|follower/i.test(t)) return;
+    (t.match(/\d[\d.]*\d|\d+/g) || []).forEach(add);
+  });
+  return [...nums];
+}
+// Devolve o número da conta encontrado no texto ('' se nenhum) — ou a frase de métrica interna genérica.
+function dadoDaConta(texto, nums) {
+  const t = String(texto || '');
+  if (!t.trim()) return '';
+  const limpo = t.replace(/(\d)\.(?=\d{3}\b)/g, '$1');
+  const achado = (nums || []).find(n => new RegExp('(^|[^\\d])' + n + '([^\\d]|$)').test(limpo));
+  if (achado) return achado;
+  if (RE_METRICA_INTERNA.test(t)) return 'métrica da própria conta';
+  return '';
+}
+
 function mapaCompleto(memorias) {
   const m = memorias || {};
   return CHAVES_MAPA_OBRIGATORIAS.every(k => String(m[k] || '').trim().length > 0);
 }
 
-module.exports = { falaPlanoNaoSalvo, checarPlano, perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, repeticoes, motivoFunil, mapaCompleto };
+module.exports = { numerosDaConta, dadoDaConta, falaPlanoNaoSalvo, checarPlano, perguntouMapa, CHAVES_MAPA, CHAVES_MAPA_OBRIGATORIAS, ETAPAS, ANGULOS, PALAVRAS_VAZIAS, normalizarEtapa, normalizarAngulo, nomesDoDono, motivoRecusa, chaveRepeticao, repeticoes, motivoFunil, mapaCompleto };
