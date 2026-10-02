@@ -490,6 +490,15 @@ function focarCard(){
 }
 function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" data-orig="${JUMP.esc(val==null?'':String(val))}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
 function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" data-orig="${JUMP.esc(val==null?'':String(val))}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
+// ROTEIRO DO CARROSSEL NO CARD (02/out/2026, api/_carrossel-lib.js): um bloco por slide — capa,
+// desenvolvimento, fechamento — editável. Slide 1 é a capa (a headline da arte).
+function _slidesDoPost(c){
+  const sl=((c.meta||{}).slides_texto)||[], n=sl.length;
+  return '<div class="pl-lab" style="margin-bottom:8px">Roteiro do carrossel · '+n+' slides</div>'+sl.map((it,i)=>{
+    const papel=i===0?'Capa':(i===n-1?'Fechamento':'Slide '+(i+1));
+    return '<div class="ec-two" style="grid-template-columns:1.3fr 1fr">'+_inp(c.id,'sh_'+(i+1),(i+1)+' · '+papel+' — título',it.headline||'')+_inp(c.id,'st_'+(i+1),'texto de apoio',it.texto||'')+'</div>';
+  }).join('');
+}
 function _postsOrdenados(ps){return (ps||[]).slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||'')));}
 function _linhaPost(c,semanal){
   // LINHA NO ESTILO PLANNER (01/out/2026, inspiração: Planner da Meta Business Suite): data/hora à
@@ -511,7 +520,7 @@ function _linhaPost(c,semanal){
       <div class="pl-main">
         <div class="pl-top"><span class="pl-chip">${rot}</span>${m.pilar?`<span class="pl-chip pl-chip-o">${JUMP.esc(m.pilar)}</span>`:''}${etapa?`<span class="pl-chip pl-chip-o">${etapa}</span>`:''}<span class="pl-st pl-${st[1]}">${st[0]}</span></div>
         ${semanal?`<div class="pl-lab">Tema aprovado no plano</div><div class="pl-tema">${JUMP.esc(c.tema||'—')}</div>${m.dor?`<div class="pl-dor">Para ${JUMP.esc(m.publico||'o público')} · ataca: ${JUMP.esc(m.dor)}</div>`:''}`:_inp(c.id,'tema','Tema do post',c.tema||'')}
-        ${semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):''}
+        ${(semanal&&ehCar&&Array.isArray(m.slides_texto)&&m.slides_texto.length)?_slidesDoPost(c):(semanal?_inp(c.id,'headline','Headline da arte',m.headline||''):'')}
         ${semanal?_txt(c.id,'copy','Legenda',c.copy||''):''}
         ${semanal&&ehReel?_txt(c.id,'roteiro','Roteiro do Reels',c.roteiro||''):''}
         ${semanal?_inp(c.id,'cta','CTA da arte',m.cta_arte||''):''}
@@ -668,11 +677,20 @@ async function salvarEdicoesProposta(){
     if(mud.roteiro&&f.roteiro!=null)patch.roteiro=f.roteiro;
     if(mud.headline&&f.headline!=null)meta.headline=f.headline;
     if(mud.cta&&f.cta!=null)meta.cta_arte=f.cta;
+    // roteiro do carrossel: campos sh_N (título) / st_N (texto) do slide N
+    const slidesEd={};
+    Object.keys(mud).forEach(k=>{const mm=k.match(/^s([ht])_(\d+)$/);if(mm){(slidesEd[mm[2]]=slidesEd[mm[2]]||{})[mm[1]==='h'?'headline':'texto']=f[k];}});
     if((mud.dia||mud.hora)&&f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
     gravacoes.push((async()=>{
-      if(Object.keys(meta).length){
+      if(Object.keys(meta).length||Object.keys(slidesEd).length){
         const{data:atual}=await JUMP.sb.from('conteudos').select('meta').eq('id',id).single();
         patch.meta=Object.assign({},(atual&&atual.meta)||{},meta);
+        if(Object.keys(slidesEd).length&&Array.isArray(patch.meta.slides_texto)){
+          const sl=patch.meta.slides_texto.map(x=>({...x}));
+          Object.keys(slidesEd).forEach(n=>{const i=Number(n)-1;if(sl[i])sl[i]={...sl[i],...slidesEd[n]};});
+          patch.meta.slides_texto=sl;
+          if(sl[0]){patch.meta.headline=sl[0].headline;patch.meta.subheadline=sl[0].texto;} // capa = headline da arte
+        }
       }
       if(Object.keys(patch).length){
         const{error}=await JUMP.sb.from('conteudos').update(patch).eq('id',id);

@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.01-plano-corrigido-automatico';
+const VERSAO = '2026.10.02-carrossel-por-slide';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -103,7 +103,7 @@ const TOOL_DIRECAO_AVULSA={
       pilar:{type:'string',enum:['educação','prova','autoridade','oferta','bastidor']},
       headline:{type:'string',pattern:'^(\\S+\\s+){0,7}\\S+$',description:'O gancho da arte, frase completa. Máx 8 palavras — limite do Engine, validado de verdade na geração da imagem.'},
       subheadline:{type:'string',pattern:'^(\\S+\\s+){0,5}\\S+$',description:'A segunda parte do texto: o porquê da headline, cria desejo/tensão. Máx 6 palavras — limite do Engine.'},
-      prova:{type:'string',description:'1 dado, número ou fato REAL do DNA da marca que sustenta a promessa. Vazio se não houver — nunca invente.'},
+      prova:{type:'string',description:'1 fato REAL que importa a quem compra (resultado do cliente final, preço vs alternativa) e sustenta a promessa. Nunca número da própria conta da marca (seguidores, alcance, engajamento, faturamento). Vazio se não houver — nunca invente.'},
       cta_arte:{type:'string',pattern:'^(\\S+\\s+){0,1}\\S+$',description:'Chamada curta que vai NA ARTE (ex.: SAIBA MAIS, QUERO TESTAR). Máx 2 palavras — limite do Engine.'},
       copy:{type:'string',description:'Legenda do Instagram, separada da arte (máx 600 caracteres, hook + CTA). Deixe vazio se o formato da peça for "story" — story não leva legenda, regra da Meta.'},
     },
@@ -130,6 +130,7 @@ const ONB = require('../assets/onboarding.js');
 // Equilíbrio visual do plano (foto do cliente até 40%, nenhum tipo acima da metade) — em código.
 const EQ = require('./_equilibrio-lib.js');
 const DEM=require('./_demanda-lib.js');
+const CAR=require('./_carrossel-lib.js');
 // FONTE ÚNICA de classificação de conteúdo (produzível em imagem × depende de material do
 // usuário) — ver assets/classificacao.js. Nenhum ponto deste arquivo testa formato por conta
 // própria a partir de agora (Fase 1 do plano "Trilha de material do usuário", 25/ago/2026).
@@ -528,7 +529,7 @@ Você trabalha em DOIS TEMPOS — nunca misture os dois na mesma resposta:
 MIX VISUAL OBRIGATÓRIO (regra do Content Engine 6.0: "foto pessoa = 2 slides max em 5"):
 Ao definir "tipo_visual" de cada post, DISTRIBUA — nunca use o mesmo tipo em tudo:
 - "pessoal" (foto real do cliente): NO MÁXIMO 40% dos posts do período. É o mais forte, mas satura.
-REGRA DO TEXTO DA ARTE (converte, não só emociona): uma arte com só a headline fica pobre e não vende. Todo <detalhe> deve trazer o BLOCO COMPLETO: (1) headline = o gancho; (2) subheadline = a SEGUNDA parte, o porquê, o que cria desejo ou tensão; (3) prova = um dado/número/fato REAL do OS_DATA que sustenta a promessa (jamais inventado — se não houver, deixe vazio); (4) cta_arte = a ação. É VOCÊ, Estratégia, quem compõe esse texto e o entrega mastigado ao Designer — o Designer não inventa texto, ele distribui na cena o que você mandou. Headline sem subheadline é entrega incompleta.
+REGRA DO TEXTO DA ARTE (converte, não só emociona): uma arte com só a headline fica pobre e não vende. Todo <detalhe> deve trazer o BLOCO COMPLETO: (1) headline = o gancho; (2) subheadline = a SEGUNDA parte, o porquê, o que cria desejo ou tensão; (3) prova = um fato REAL que importa a QUEM COMPRA e sustenta a promessa — resultado que o cliente final obtém (ex.: tempo economizado), preço comparado à alternativa, o que está incluso (jamais inventado; NUNCA número da própria conta da marca — seguidores, alcance, engajamento, faturamento: isso é diagnóstico interno, não argumento de venda, e é recusado em código; se não houver prova boa, deixe vazio); (4) cta_arte = a ação. É VOCÊ, Estratégia, quem compõe esse texto e o entrega mastigado ao Designer — o Designer não inventa texto, ele distribui na cena o que você mandou. Headline sem subheadline é entrega incompleta.
 - "produto": use nos posts de oferta/prova/lançamento — o sistema usa as fotos reais de produto do cliente.
 - "conceitual": use nos educativos/técnicos — composição gráfica, mockups, screenshots, sem pessoa.
 - "pessoa_conceito": só quando a cena PRECISA de gente e o post não é sobre o cliente.
@@ -578,7 +579,8 @@ Depois das tags, escreva um resumo curto (lógica do mês, pilares, frequência,
 
 ▸ TEMPO 2 — DETALHAMENTO DA SEMANA (quando o cliente pedir para detalhar/produzir a semana)
 Para CADA post listado, escreva a headline da arte e a copy pronta. Roteiro SOMENTE se o formato for reels. Emita as tags ANTES do texto, usando o id exato:
-<detalhe>{"id":"ID_DO_POST","headline":"gancho da arte (máx 8 palavras, frase COMPLETA)","subheadline":"a SEGUNDA parte do texto: 1 frase que explica o PORQUÊ da headline e cria contexto/desejo (máx 6 palavras — limite do Engine, validado em código; 18/set/2026: estava sem o limite aqui, e um subheadline gerado com 14 palavras só era recusado depois, na geração da imagem, gastando uma rodada)","prova":"1 dado, número ou fato REAL do OS_DATA que sustenta a promessa (ou vazio — NUNCA invente)","cta_arte":"chamada curta que vai NA ARTE (ex: SAIBA MAIS, QUERO TESTAR), máx 2 palavras","copy":"legenda do Instagram, separada da arte (máx 600 caract., hook + CTA)","oferta":"oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio"}</detalhe>
+CARROSSEL É UMA HISTÓRIA, NÃO VÁRIAS CAPAS: para carrossel, o <detalhe> traz também "slides" — UM item por slide, na ordem, exatamente o número de slides do post: slide 1 = CAPA (o gancho chamativo — é a headline da arte); slides do meio = cada um desenvolve UMA parte do tema (um sinal, um passo, um erro, um argumento), em sequência lógica que explica a capa; último slide = conclusão + chamada (o cta_arte vai só nele). Cada item: {"headline":"máx 8 palavras","texto":"máx 6 palavras"}. Sem esse roteiro o carrossel não é salvo (conferido em código).
+<detalhe>{"id":"ID_DO_POST","headline":"gancho da arte (máx 8 palavras, frase COMPLETA)","subheadline":"a SEGUNDA parte do texto: 1 frase que explica o PORQUÊ da headline e cria contexto/desejo (máx 6 palavras — limite do Engine, validado em código; 18/set/2026: estava sem o limite aqui, e um subheadline gerado com 14 palavras só era recusado depois, na geração da imagem, gastando uma rodada)","prova":"1 fato REAL que importa a quem compra (resultado do cliente final, preço vs alternativa) — nunca número da própria conta (seguidores etc.); ou vazio — NUNCA invente","cta_arte":"chamada curta que vai NA ARTE (ex: SAIBA MAIS, QUERO TESTAR), máx 2 palavras","copy":"legenda do Instagram, separada da arte (máx 600 caract., hook + CTA)","oferta":"oferta real ou vazio","roteiro":"só p/ reels: roteiro com tempos e takes; senão vazio","slides":"só p/ carrossel: [{\"headline\":\"capa\",\"texto\":\"...\"},{\"headline\":\"parte 1\",\"texto\":\"...\"},...,{\"headline\":\"conclusão\",\"texto\":\"...\"}]; senão omita"}</detalhe>
 Detalhe SÓ os posts listados (a semana), nunca o mês todo.
 
 REGRA CRÍTICA (o calendário do cliente depende disso): descrever o plano em texto NÃO grava nada. Todo post citado PRECISA da sua tag na MESMA resposta.
@@ -2449,9 +2451,9 @@ const handler = async (req, res) => {
           // só a copy está; as artes ficam pendentes da aprovação. Deixar como estava
           // contradiria, duas frases depois, a correção que acabou de ser feita.
           semanaTxt='\n\n═══ POSTS DA SEMANA PARA DETALHAR — SEMANA '+semanaAtualCliente.semana+' do plano ('+semanaAtualCliente.inicio+' a '+semanaAtualCliente.fim+'), '+wk.length+' post(s) ═══\n'+
-            wk.map(p=>{ const _m=p.meta||{}; return `id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'} · ${p.tema}`+(_m.dor?` · para: ${_m.publico} · dor: ${_m.dor} · etapa: ${_m.etapa} · ângulo: ${_m.angulo}`:''); }).join('\n')+
+            wk.map(p=>{ const _m=p.meta||{}; return `id:${p.id} · ${p.data_sugerida?String(p.data_sugerida).slice(0,10):'sem data'} · ${p.formato||'feed'}${/carros/i.test(String(p.formato||''))?(' de '+(Number(_m.total_slides)||'?')+' slides (preencha "slides" com exatamente esse número)'):''} · ${p.tema}`+(_m.dor?` · para: ${_m.publico} · dor: ${_m.dor} · etapa: ${_m.etapa} · ângulo: ${_m.angulo}`:''); }).join('\n')+
             '\nA copy e o roteiro de cada post atacam exatamente a dor indicada, para aquele público, no tom da etapa (atrair: sem vender; convencer: prova e demonstração; vender: oferta com prova real e CTA direto).'+
-            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
+            '\nEsta semana ainda não tem copy. Quando fizer sentido detalhar, emita uma tag <detalhe> para CADA id acima — TODOS de uma vez, nenhum de fora. Cada <detalhe> com o BLOCO COMPLETO (headline, subheadline, prova, cta_arte, copy), quando for carrossel o campo "slides" (um item por slide: capa, desenvolvimento, conclusão) e, quando o formato for reels/vídeo, o campo "roteiro" preenchido (0-3s hook, desenvolvimento, clímax, CTA, takes). Não deixe NENHUM post sem copy nem NENHUM reel sem roteiro. Detalhar prepara o card de aprovação da semana (\'aprovar_semana\') — a produção das artes só começa depois que o cliente aprovar esse card em Aprovações, nunca automaticamente ao detalhar. Depois, em 1 frase, avise o cliente que a copy da semana está pronta e que a produção das artes começa assim que ele aprovar o card da semana em Aprovações.';
         } else if(Array.isArray(wk)){
           // FILA TÉCNICA — item 4 (15/set/2026, autorizado pelo João): antes, lista vazia deixava
           // semanaTxt em '' — nenhum sinal no prompt de que não há candidato, e o agente já
@@ -2862,7 +2864,10 @@ const handler = async (req, res) => {
     // perceber). Um avulso não tem essa falha: a arte aparece ou o usuário vê que não apareceu.
     // Era justamente ali que o mecanismo mais errava — fica de fora.
     const pedidoAvulso=/avulso|uma arte|um post|um criativo|promo(ção|cao)|esse post|este post/i.test(String(mensagem||''));
-    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo && !pedidoAvulso){
+    // resposta de DETALHAMENTO (tem <detalhe>) não é plano prometido: a legenda de um post pode citar
+    // "calendário" e disparava este reparo à toa (02/out/2026, achado no teste do carrossel).
+    const _ehDetalhamento=/<detalhe>/.test(texto);
+    if(agente==='estrategia' && conteudos.length===0 && prometeuConteudo && !pedidoAvulso && !_ehDetalhamento){
       try{
         const r2=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
@@ -3039,7 +3044,35 @@ const handler = async (req, res) => {
     // (nenhum avisoPartes novo) — só visibilidade server-side, pra honrar "nenhum muda
     // comportamento".
     let detalhesIdInvalido=0;
+    let detalhesRecusados=0;
+    let avisoDetalheRecusado=null;
     if(detalhes.length){
+      // NÚMEROS DA PRÓPRIA CONTA (02/out/2026, DEM.numerosDaConta): seguidores das métricas + números
+      // que aparecem junto de "seguidor" nas memórias. Lidos uma vez por resposta.
+      let _numsConta=[];
+      try{
+        let _seg=null;
+        try{ const mt=await sbGet(`metricas?user_id=eq.${targetId}&order=data_coleta.desc&limit=1&select=seguidores`); if(Array.isArray(mt)&&mt[0])_seg=mt[0].seguidores; }catch(e){}
+        _numsConta=DEM.numerosDaConta(fatiaAtual,_seg);
+      }catch(e){ console.error('[detalhe] números da conta: leitura falhou — trava sem eles. user='+targetId+' '+(e&&e.message)); }
+      // CONFERÊNCIA DO TEXTO DO POST (02/out/2026). Muta d (prova com número da conta é esvaziada —
+      // prova é opcional) e devolve a lista de problemas que impedem salvar:
+      //  - número/métrica da própria conta na headline, subheadline, legenda, roteiro ou slides;
+      //  - carrossel sem roteiro de slides válido (CAR.problemasSlides: um item por slide, limites do Engine).
+      const _problemasDetalhe=(d,atual)=>{
+        const probs=[];
+        if(d.prova&&DEM.dadoDaConta(d.prova,_numsConta)){ console.error('[detalhe] prova com dado da própria conta descartada — id='+d.id+' prova="'+String(d.prova).slice(0,80)+'"'); d.prova=''; }
+        const _campos={headline:d.headline,subheadline:d.subheadline,legenda:d.copy,roteiro:d.roteiro};
+        for(const k in _campos){ const x=DEM.dadoDaConta(_campos[k],_numsConta); if(x){ probs.push(k+' usa número da própria conta ('+x+') — o post fala da realidade de quem compra, não do perfil da marca'); } }
+        if(/carros/i.test(String(atual.formato||''))){
+          const tot=Number((atual.meta||{}).total_slides)||0;
+          const pS=CAR.problemasSlides(d.slides,tot);
+          if(pS) probs.push(pS);
+          else CAR.normalizarSlides(d.slides).forEach((it,i)=>{ const x=DEM.dadoDaConta(it.headline+' '+it.texto,_numsConta); if(x) probs.push('slide '+(i+1)+' usa número da própria conta ('+x+')'); });
+        }
+        return probs;
+      };
+      const _validos=[], _refazer=[];
       for(const d of detalhes){
         try{
           const [atual]=await sbGet(`conteudos?id=eq.${d.id}&user_id=eq.${targetId}&select=meta,formato,copy,data_sugerida`);
@@ -3047,7 +3080,58 @@ const handler = async (req, res) => {
           if(atual.copy&&String(atual.copy).trim()){ detalhesIgnorados++; continue; }
           const _semDoId=JC.semanaDoPost(atual.data_sugerida,ancoraPlano,diaLoteCliente);
           if(_semDoId!==null && _semDoId!==semanaAtualCliente.semana){ detalhesForaDaSemana++; continue; }
+          const probs=_problemasDetalhe(d,atual);
+          if(probs.length) _refazer.push({d,atual,probs}); else _validos.push({d,atual});
+        }catch(e){ detalhesFalhos++; console.error('[detalhe] conferência falhou (exceção) para id='+(d&&d.id)+':', e&&e.message); }
+      }
+      // CORREÇÃO AUTOMÁTICA DO DETALHE (02/out/2026, mesmo padrão do plano): os posts recusados voltam
+      // UMA vez para a Estratégia, com os problemas, e só o que passar na MESMA conferência é salvo.
+      // Orçamento de tempo igual ao do plano (resposta original em até 150s; chamada com timeout).
+      if(_refazer.length&&(Date.now()-_tIniAgente)<150000){
+        let _tmoD=null;
+        try{
+          const _ctrlD=new AbortController();
+          _tmoD=setTimeout(()=>_ctrlD.abort(),Math.max(30000,Math.min(120000,240000-(Date.now()-_tIniAgente))));
+          const _lista=_refazer.map(x=>'id '+x.d.id+': '+x.probs.join('; ')).join(' · ');
+          const rq=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',signal:_ctrlD.signal,
+            headers:{'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+            body:JSON.stringify({model:MODEL_DE(agente),max_tokens:_maxTokensAgente,system,
+              ...(agente==='estrategia'&&MODEL_DE('estrategia')!==MODEL()?{output_config:{effort:'low'}}:{}),
+              messages:[...messages,
+                {role:'assistant',content:String(_textoComTags||'').trim()||'(vazio)'},
+                {role:'user',content:'[SISTEMA — CONFERÊNCIA DO TEXTO, não é o cliente] Estes posts NÃO foram salvos: '+_lista+'. Reenvie SOMENTE a tag <detalhe> completa de cada um destes ids, corrigida. Responda só com as tags, sem texto.'}]}),
+          });
+          const dq=await rq.json().catch(()=>({}));
+          if(rq.ok&&dq.stop_reason!=='max_tokens'){
+            const _novos={};
+            String((dq.content||[]).map(c=>c.text||'').join('')).replace(/<detalhe>([\s\S]*?)<\/detalhe>/g,(_,j)=>{ try{const o=JSON.parse(j.trim()); if(o&&o.id)_novos[String(o.id)]=o;}catch(e){} return _; });
+            for(let i=_refazer.length-1;i>=0;i--){
+              const x=_refazer[i], nv=_novos[String(x.d.id)];
+              if(!nv) continue;
+              const p2=_problemasDetalhe(nv,x.atual);
+              if(!p2.length){ _validos.push({d:nv,atual:x.atual}); _refazer.splice(i,1); }
+              else x.probs=p2;
+            }
+          } else console.error('[detalhe] correção automática falhou — status='+rq.status+' stop='+(dq&&dq.stop_reason)+' user='+targetId);
+        }catch(e){ console.error('[detalhe] correção automática falhou — '+(e&&e.message)+' user='+targetId); }
+        finally{ if(_tmoD) clearTimeout(_tmoD); }
+      }
+      if(_refazer.length){
+        detalhesRecusados=_refazer.length;
+        _refazer.forEach(x=>console.error('[detalhe] não salvo (conferência do texto) — id='+x.d.id+' '+x.probs.join('; ')));
+        sbInsert('logs',[{user_id:targetId,acao:'conferencia_detalhe',papel:agente,dados:{recusados:_refazer.map(x=>({id:x.d.id,problemas:x.probs}))}}]).catch(()=>{});
+        avisoDetalheRecusado=_refazer.length+' post(s) não foram salvos na conferência do texto ('+_refazer[0].probs[0]+(_refazer.length>1||_refazer[0].probs.length>1?'; …':'')+') — o sistema tenta de novo sozinho em alguns minutos.';
+      }
+      for(const {d,atual} of _validos){
+        try{
           const meta={...(atual.meta||{}),headline:d.headline||'',subheadline:d.subheadline||'',prova:d.prova||'',cta_arte:d.cta_arte||'',oferta:d.oferta||''};
+          // carrossel: o roteiro dos slides vira meta.slides_texto; a capa (slide 1) é a fonte da headline/subheadline
+          if(/carros/i.test(String(atual.formato||''))){
+            const _sl=CAR.normalizarSlides(d.slides);
+            meta.slides_texto=_sl;
+            if(_sl[0]){ meta.headline=_sl[0].headline; meta.subheadline=_sl[0].texto; }
+          }
           const r=await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${d.id}&user_id=eq.${targetId}`,{
             method:'PATCH',headers:H(),
             body:JSON.stringify({copy:d.copy||null,roteiro:d.roteiro||null,meta})
@@ -4248,6 +4332,7 @@ const handler = async (req, res) => {
     if(avisoCicloAtivo) avisosPartes.push('⚠️ '+avisoCicloAtivo);
     if(avisoDetalheDuplicado) avisosPartes.push('⚠️ '+avisoDetalheDuplicado);
     if(avisoDetalheForaDaSemana) avisosPartes.push('⚠️ '+avisoDetalheForaDaSemana);
+    if(avisoDetalheRecusado) avisosPartes.push('⚠️ '+avisoDetalheRecusado);
     if(avisoImagemDescartada) avisosPartes.push('⚠️ '+avisoImagemDescartada);
     if(avisoFotosFaltando) avisosPartes.push(avisoFotosFaltando);
     if(avisoQualidade) avisosPartes.push(avisoQualidade);
@@ -4348,7 +4433,7 @@ const handler = async (req, res) => {
 
     if(avisosTxt){ texto+='\n\n'+avisosTxt; }
     if(falhaGravarConversa){ texto+='\n\n⚠️ **Esta troca pode não ter sido salva no histórico por uma falha técnica.** Se for importante, tire um print — ao recarregar a página ela pode não aparecer.'; }
-    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,memorias_novas:novas.length,memorias_recusadas:memoriasRecusadas,escopo,checkin,onboarding:onbResposta||{estado:cli.onboarding||{},etapa_atual:ONB.estado(cli.onboarding).etapaAtual},tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
+    return res.status(200).json({resposta:texto,truncado:truncou,detalhados,detalhes_ignorados:detalhesIgnorados,detalhes_fora_da_semana:detalhesForaDaSemana,detalhes_falhos:detalhesFalhos,detalhes_id_invalido:detalhesIdInvalido,detalhes_recusados:detalhesRecusados,memorias_novas:novas.length,memorias_recusadas:memoriasRecusadas,escopo,checkin,onboarding:onbResposta||{estado:cli.onboarding||{},etapa_atual:ONB.estado(cli.onboarding).etapaAtual},tokens:novoUso.tokens,gerar_imagem:imgReq,aplicar_tema:aplicarTema,ordens:ordens.length,conteudos:conteudos.length,automacoes:automacoes.length,video_editando:videoEditando,correcoes_texto:correcoesTexto});
   } catch(err){
     console.error('agente-chat:',err.message);
     return res.status(500).json({error:'Erro interno do agente'});

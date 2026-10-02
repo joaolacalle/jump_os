@@ -22,6 +22,7 @@ const ONB = require('../assets/onboarding.js');
 // job de drip semanal) agora vem de um módulo único, também consultado por api/agente-chat.js —
 // ver api/_semana-lib.js para o porquê (Família 2 do Contrato: mesma decisão em N lugares).
 const { garantirCardAprovarSemana, clientesElegiveisSemana } = require('./_semana-lib.js');
+const CAR = require('./_carrossel-lib.js');
 // FILA TÉCNICA — item 3 (09/set/2026, ver APRENDIZADOS.md "FILA TÉCNICA — CINCO CORREÇÕES"):
 // `jobMetricas`, `jobSeguranca` e `jobOrdens` calculavam "hoje" com `new Date()` cru (UTC, o
 // fuso do processo na Vercel) em vez de `JC.hojeISOBrasil()` (fonte única de "hoje" já usada no
@@ -1113,6 +1114,12 @@ async function jobProduzir(soUid) {
         // porque a correção abaixo substitui SÓ o campo que estourou o limite, antes da
         // retentativa — o resto do corpo (prompt, tipo, formato, slide etc.) nunca muda.
         let _headline = m.headline || '', _subheadline = m.subheadline || '', _cta_arte = m.cta_arte || '';
+        // CARROSSEL POR SLIDE (02/out/2026, api/_carrossel-lib.js): com roteiro de slides, cada slide
+        // recebe o texto DELE (capa, desenvolvimento, fechamento); prova só na capa, CTA só no último.
+        // Sem roteiro (carrosséis antigos), nada muda: o mesmo texto em todos, como antes.
+        const _txSlide = CAR.textoDoSlide(m, nSlide, alvo.tot);
+        let _prova = m.prova || '';
+        if (_txSlide) { _headline = _txSlide.headline; _subheadline = _txSlide.subheadline; _cta_arte = _txSlide.cta_arte; _prova = _txSlide.prova; }
         const corpoGerarImagem = () => ({
           user_id: o.user_id, conteudo_id: c.id,
           // PRECEDÊNCIA (Etapa 1, 16/set/2026, "Engine — Etapas 1 e 2"): antes era
@@ -1125,7 +1132,7 @@ async function jobProduzir(soUid) {
           // gerar-imagem.js) — erro explícito, nunca mais um placeholder silencioso.
           prompt: _headline || c.tema || '', tamanho: '4:5',
           tipo: c.tipo_visual || 'conceitual', formato: c.formato || 'feed',
-          headline: _headline, subheadline: _subheadline, prova: m.prova || '',
+          headline: _headline, subheadline: _subheadline, prova: _prova,
           cta_arte: _cta_arte, oferta: m.oferta || '', copy: c.copy || '', pilar: m.pilar || '',
           // regeneração controlada: mantém todo o contexto original e aplica só o pedido do cliente
           // cada geração carrega o slide e o total — gravarSlide monta meta.slides[] com isso
@@ -1203,7 +1210,11 @@ async function jobProduzir(soUid) {
               // dentro do limite continua sendo só validarTextoDaPeca, na retentativa a seguir —
               // esta gravação não valida nada, só não deixa a correção já aceita se perder.
               try {
-                m[_campo] = _valorCorrigido;
+                // com roteiro de slides, a correção pertence ao texto DESTE slide (não à capa)
+                if (_txSlide && _campo !== 'cta_arte' && Array.isArray(m.slides_texto) && m.slides_texto[nSlide - 1]) {
+                  m.slides_texto[nSlide - 1] = { ...m.slides_texto[nSlide - 1], [_campo === 'headline' ? 'headline' : 'texto']: _valorCorrigido };
+                  if (nSlide === 1) m[_campo] = _valorCorrigido;
+                } else m[_campo] = _valorCorrigido;
                 const rPersistCorr = await fetch(`${SUPABASE_URL}/rest/v1/conteudos?id=eq.${c.id}`, {
                   method: 'PATCH', headers: SBH(), body: JSON.stringify({ meta: m }),
                 });
