@@ -197,6 +197,11 @@ module.exports = async (req, res) => {
   // ── ACTIVATE (POST): encerra o período de teste por vontade do cliente ──
   if (action === 'activate') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    // DESLIGADO (02/out/2026): liberava o plano completo encerrando o teste só no nosso lado, sem o
+    // PayPal cobrar nada — dava para usar o Pro de graça e cancelar antes do 7º dia. O plano assinado
+    // passa a valer quando o teste termina (cobrança do PayPal). Mantido como 410 para versões
+    // antigas da tela receberem uma resposta clara.
+    return res.status(410).json({ error: 'A ativação antecipada foi desativada. Seu plano completo é liberado automaticamente ao fim do período de teste, quando a assinatura começa a ser cobrada.' });
     try {
       const user = await authUser(req);
       if (!user) return res.status(401).json({ error: 'Não autenticado' });

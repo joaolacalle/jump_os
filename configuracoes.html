@@ -186,13 +186,8 @@
         <!-- Período de teste: botão para ativar a assinatura agora -->
         <div id="cfg-trial-box" style="display:none;margin-top:14px;border-top:1px solid var(--bd);padding-top:14px">
           <div class="box box-g" style="margin-bottom:12px">
-            <p style="margin:0;font-size:13px;line-height:1.6">✨ <strong>Você está no período de teste</strong> — faltam <span id="cfg-trial-dias">7</span> dia(s). Durante o teste, sua cota de geração é reduzida.</p>
+            <p style="margin:0;font-size:13px;line-height:1.6">✨ <strong>Você está no período de teste</strong> — faltam <span id="cfg-trial-dias">7</span> dia(s). Durante o teste você usa o <strong>plano Básico</strong>, com cota de geração reduzida. Seu plano <strong id="cfg-trial-plano">Básico</strong> é liberado automaticamente em <strong id="cfg-trial-fim">—</strong>, quando a assinatura começa a ser cobrada.</p>
           </div>
-          <label style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--t2);line-height:1.55;cursor:pointer;margin-bottom:12px">
-            <input type="checkbox" id="cfg-trial-ok" style="margin-top:3px;flex-shrink:0">
-            <span>Quero <strong>ativar minha assinatura agora</strong> e liberar a cota completa. Entendo que, ao fazer isso por vontade própria, <strong>encerro o período de teste</strong> e a cobrança passa a valer, abrindo mão do tempo de teste restante.</span>
-          </label>
-          <button class="btn btn-g" id="cfg-ativar-btn" onclick="ativarAssinatura()" disabled>Ativar assinatura agora</button>
         </div>
 
         <div style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.6">Para mudar de plano ou cancelar, acesse sua conta no PayPal ou fale com o suporte. Veja a <a href="reembolso.html" style="color:var(--g)">Política de Reembolso</a>.</div>
@@ -280,8 +275,8 @@ function harmoniaDe(marca,modo){
     document.getElementById('cfg-tel').value=(CTX.viewCliente&&CTX.viewCliente.telefone)||CTX.cliente.telefone||'';
     document.getElementById('cfg-email').value=(CTX.viewCliente&&CTX.viewCliente.email)||CTX.user.email||'';
     const cliAtual=CTX.viewCliente||CTX.cliente;
-    const p=cliAtual.plano||'basico';
-    document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1);
+    const p=cliAtual.plano_assinado||cliAtual.plano||'basico';
+    document.getElementById('cfg-plano').textContent='Plano '+p.charAt(0).toUpperCase()+p.slice(1)+(cliAtual.plano_assinado?' · em teste no Básico':'');
     // status + período de teste
     const emTrial=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now() && cliAtual.tipo_cortesia==='trial';
     const ehCortesiaPaga=cliAtual.cortesia_ate && new Date(cliAtual.cortesia_ate).getTime()>Date.now() && cliAtual.tipo_cortesia!=='trial';
@@ -290,11 +285,10 @@ function harmoniaDe(marca,modo){
       const dias=Math.max(1,Math.ceil((new Date(cliAtual.cortesia_ate).getTime()-Date.now())/864e5));
       document.getElementById('cfg-trial-dias').textContent=dias;
       document.getElementById('cfg-trial-box').style.display='block';
-      // só o dono pode ativar (não o supervisor visualizando)
-      if(CTX.viewId&&CTX.viewId!==CTX.user.id){
-        document.getElementById('cfg-ativar-btn').style.display='none';
-        document.querySelector('#cfg-trial-box label').style.display='none';
-      }
+      const _fim=new Date(cliAtual.cortesia_ate).toLocaleDateString('pt-BR');
+      const _ass=(cliAtual.plano_assinado||'basico');
+      document.getElementById('cfg-trial-fim').textContent=_fim;
+      document.getElementById('cfg-trial-plano').textContent=_ass.charAt(0).toUpperCase()+_ass.slice(1);
     }
     // status das conexões (movido da dashboard)
     carregarConexoes();

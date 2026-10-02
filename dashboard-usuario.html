@@ -284,6 +284,7 @@ const LV={basico:1,plus:2,pro:3};
     if(ver&&ver!==user.id&&(ctx.role==='supervisor'||ctx.role==='admin')){
       const{data:alvo}=await JUMP.sb.from('clientes').select('*').eq('id',ver).single();
       if(alvo){
+        if(window.JUMP_CLASS&&JUMP_CLASS.aplicarPlanoDoTrial)JUMP_CLASS.aplicarPlanoDoTrial(alvo); // trial sempre no Básico
         viewing=alvo;cliente=alvo;
         // banner roxo removido — o aviso verde do topo (view-banner do core) já acompanha todas as páginas
       }
@@ -293,7 +294,7 @@ const LV={basico:1,plus:2,pro:3};
     const _conta=viewing||cliente;
     const plano=_conta.plano||'basico';
     const level=LV[plano]||1;
-    document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1);
+    document.getElementById('pp-plan').textContent='Plano '+plano.charAt(0).toUpperCase()+plano.slice(1)+(_conta.plano_assinado?' · teste':'');
     document.getElementById('hd-status').textContent=(_conta.status==='ativo')?'operando.':'aguardando ativação.';
     try{
       // "O consumo do mês passado nunca é exibido como se fosse deste mês" (26/set/2026): antes
