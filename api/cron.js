@@ -2,6 +2,7 @@
 // Resolve o limite de funções da Vercel. Decide o job por ?job=
 //   ?job=estrategia → avisa o fim do ciclo real do plano (âncora + 4 semanas, dia do ciclo semanal) — diário
 //   ?job=tokens     → renova tokens da Meta que expiram em < 10 dias (diário)
+//   ?job=ads        → lê a conta de anúncios (Meta Ads, só leitura) e avisa o que pede ação (diário)
 // Protegido por CRON_SECRET.
 const SUPABASE_URL = 'https://fcdjzubdxikpvcqvalnt.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
@@ -145,6 +146,96 @@ async function jobTokens() {
     } else { ok++; }
   }
   return { total: contas.length, renovados, expirados, saudaveis: ok };
+}
+
+// ── JOB ADS: leitura diária da conta de anúncios (Agente de Tráfego — fase 1, 02/out/2026) ──
+//    Só LÊ (ver api/_ads-lib.js — a lib não tem nenhuma função que escreva na conta do cliente).
+//    Por conexão tipo='ads' com conta escolhida: grava o retrato do dia em ads_metricas (o Agente
+//    de Tráfego lê daí) e transforma em recado só o que pede ação (conta com restrição, anúncio
+//    reprovado, fadiga de criativo, campanha gastando sem resultado). Cada alerta é avisado no
+//    máximo 1x a cada 7 dias (tag na mensagem, mesmo padrão do jobEstrategia).
+//    Token do login do Facebook dura 60 dias e NÃO se renova sozinho — avisa 7 dias antes.
+async function jobAds() {
+  const ADS = require('./_ads-lib.js');
+  const contas = await fetch(
+    `${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.ads&select=id,user_id,token,meta`, { headers: SBH() }
+  ).then(r => r.json()).catch(() => []);
+  if (!Array.isArray(contas) || !contas.length) return { contas: 0 };
+  const hoje = JC.hojeISOBrasil();
+
+  // recado com dedupe: mesma tag nos últimos `dias` dias → não repete
+  async function recado(userId, tag, titulo, mensagem, dias = 7) {
+    const desde = new Date(Date.now() - dias * 864e5).toISOString();
+    const existe = await fetch(
+      `${SUPABASE_URL}/rest/v1/recados?user_id=eq.${userId}&mensagem=like.*${encodeURIComponent('[' + tag + ']')}*&created_at=gte.${desde}&select=id&limit=1`, { headers: SBH() }
+    ).then(r => r.json()).catch(() => []);
+    if (Array.isArray(existe) && existe.length) return false;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/recados`, {
+      method: 'POST', headers: SBH(),
+      body: JSON.stringify({ user_id: userId, tipo: 'alerta', titulo, mensagem: `${mensagem} [${tag}]`, lido: false, resolvido: false }),
+    }).catch(() => null);
+    if (!r || !r.ok) { console.error('[ads] recado não gravado — user=' + userId + ' tag=' + tag); return false; }
+    return true;
+  }
+  async function marcarToken(c, status) {
+    await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?id=eq.${c.id}`, {
+      method: 'PATCH', headers: SBH(), body: JSON.stringify({ meta: { ...(c.meta || {}), token_status: status } }),
+    }).catch(() => {});
+  }
+
+  let coletadas = 0, alertas = 0, semConta = 0, tokenRuim = 0; const erros = [];
+  for (const c of contas) {
+    const meta = c.meta || {};
+    try {
+      if (!c.token) continue;
+      const expEm = meta.token_expira_em ? new Date(meta.token_expira_em).getTime() : 0;
+      if (expEm && expEm <= Date.now()) {
+        tokenRuim++;
+        if (meta.token_status !== 'expirado') await marcarToken(c, 'expirado');
+        await recado(c.user_id, `ads_token_expirado_${meta.token_expira_em.slice(0, 10)}`, 'Reconecte o Meta Ads',
+          'A conexão com o Meta Ads expirou (a Meta exige renovar a cada 60 dias). Acesse "Conectar contas" e reconecte para o Agente de Tráfego voltar a ler suas campanhas.', 30);
+        continue;
+      }
+      if (expEm && expEm - Date.now() < 7 * 864e5) {
+        await recado(c.user_id, `ads_token_vence_${meta.token_expira_em.slice(0, 10)}`, 'Meta Ads: reconexão em breve',
+          `A conexão com o Meta Ads vence em ${meta.token_expira_em.slice(8, 10)}/${meta.token_expira_em.slice(5, 7)} (a Meta exige renovar a cada 60 dias). Reconecte em "Conectar contas" para não interromper a leitura das campanhas.`, 30);
+      }
+      if (!meta.ad_account_id) {
+        semConta++;
+        await recado(c.user_id, 'ads_escolher_conta', 'Escolha sua conta de anúncios',
+          'Você conectou o Meta Ads, mas ainda não escolheu qual conta de anúncios o JUMP deve ler. Acesse "Conectar contas" para escolher.');
+        continue;
+      }
+
+      const snap = await ADS.coletarConta(c.token, meta.ad_account_id);
+      const achados = ADS.detectarAlertas(snap);
+      const up = await fetch(`${SUPABASE_URL}/rest/v1/ads_metricas?on_conflict=user_id,data_coleta`, {
+        method: 'POST', headers: { ...SBH(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ user_id: c.user_id, data_coleta: hoje, ad_account_id: meta.ad_account_id, dados: snap, alertas: achados }),
+      });
+      if (!up.ok) {
+        const txt = await up.text().catch(() => '');
+        erros.push('gravar ' + c.user_id + ': ' + txt.slice(0, 140));
+        continue;
+      }
+      coletadas++;
+      if (meta.token_status && meta.token_status !== 'ok') await marcarToken(c, 'ok');
+      for (const a of achados) {
+        if (await recado(c.user_id, `ads_${a.chave}`, a.titulo, a.msg)) alertas++;
+      }
+    } catch (e) {
+      if (ADS.erroDeToken(e)) {
+        tokenRuim++;
+        await marcarToken(c, 'invalido');
+        await recado(c.user_id, 'ads_token_invalido', 'Reconecte o Meta Ads',
+          'O Meta Ads recusou o acesso do JUMP (a permissão foi removida ou a senha do Facebook mudou). Acesse "Conectar contas" e reconecte para o Agente de Tráfego voltar a ler suas campanhas.');
+      } else {
+        erros.push(c.user_id + ': ' + String(e.message || e).slice(0, 140));
+      }
+    }
+  }
+  if (erros.length) console.error('[ads] falhas:', erros.join(' | '));
+  return { contas: contas.length, coletadas, alertas, sem_conta: semConta, token_ruim: tokenRuim, erros: erros.length };
 }
 
 // ── JOB 3: monitoramento de segurança (detecta padrões suspeitos e avisa o admin) ──
@@ -1804,6 +1895,10 @@ async function jobLimpeza() {
       const r = await jobMetricas();
       return res.status(200).json({ ok: true, job, ...r });
     }
+    if (job === 'ads') {
+      const r = await jobAds();
+      return res.status(200).json({ ok: true, job, ...r });
+    }
     if (job === 'seguranca') {
       const r = await jobSeguranca();
       return res.status(200).json({ ok: true, job, ...r });
@@ -1850,7 +1945,7 @@ async function jobLimpeza() {
       const r = await jobExpiracaoSemana();
       return res.status(200).json({ ok: true, job, ...r });
     }
-    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, seguranca, ordens, resgate, publicar, limpeza, expiracao ou revisoes)' });
+    return res.status(400).json({ error: 'job inválido (use ?job=estrategia, produzir, tokens, ads, seguranca, ordens, resgate, publicar, limpeza, expiracao ou revisoes)' });
   } catch (e) {
     console.error('cron:', e.message);
     return res.status(500).json({ error: 'falha no cron', job });
