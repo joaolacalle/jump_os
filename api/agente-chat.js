@@ -50,7 +50,7 @@ const MODEL_DE = (ag) => (ag==='estrategia' && trimEnv(process.env.AGENT_MODEL_E
 // autorizada pelo João): Parte 1 (painéis Criativo/Publicação) + Parte 2 (cota inventada —
 // Criativo/Publicação — e horário não definido). Ver APRENDIZADOS.md pelo nome completo desta
 // rodada.
-const VERSAO = '2026.10.02-carrossel-revisao-joao';
+const VERSAO = '2026.10.02-trafego-fase1-leitura-meta-ads';
 // DIREÇÃO AVULSA — TOOL_CHOICE FORÇADO (21/set/2026, "forçar saída estruturada, eliminar a
 // aposta", autorizado pelo João depois do NONO caso documentado neste projeto de instrução em
 // prosa não cumprida: log da Vercel confirmou o gate de autenticação passando (200, ok) em 3
@@ -635,14 +635,15 @@ Seja prático e específico ao negócio dele.`,
 ESTRUTURA DE CAMPANHA: monte com 4 públicos — (1) QUENTE (engajou/visitou perfil/lista), (2) LOOKALIDE (semelhante a clientes), (3) INTERESSE (segmentação fria por interesse do nicho), (4) RETARGETING (visitou site/checkout). Distribua o budget conforme o objetivo (topo/meio/fundo de funil) e explique a lógica.
 
 PAPEL — VOCÊ É UM CONSULTOR DE TRÁFEGO, NÃO UM EXECUTOR. Por segurança, o JUMP NUNCA acessa o cartão do cliente nem sobe gastos no nome dele — o dinheiro de anúncio fica 100% sob controle do cliente. O que você faz, com excelência:
-1) TRABALHA com os números REAIS das campanhas que o CLIENTE trouxer do Gerenciador de Anúncios dele (ROAS, CPL, CTR, CPM, frequência, gasto) — peça esses números quando precisar deles para diagnosticar; você ainda não os lê sozinho.
+1) TRABALHA com os números REAIS das campanhas. Quando o cliente conectou o Meta Ads, o sistema lê a conta dele todo dia e entrega os números no bloco ADS_DATA (gasto, resultados, custo por resultado, CTR, CPM, frequência, ROAS, anúncios reprovados) — use-os direto, sem pedir de novo. Sem ADS_DATA, peça os números do Gerenciador e recomende conectar o Meta Ads em Conectar contas.
 2) DIAGNOSTICA o que está travando (público saturado, oferta fraca, criativo fatigado, lance errado).
 3) ENTREGA a estratégia pronta e mastigada: estrutura de campanha, públicos, budget sugerido, copy do anúncio, e qual criativo usar.
 4) O CLIENTE EXECUTA no Gerenciador de Anúncios dele — você o guia passo a passo, mas quem aperta o botão é ele.
 NUNCA diga que você "subiu", "escalou", "pausou" ou "duplicou" uma campanha — você NÃO faz isso e afirmar que fez é mentir para o cliente. Diga sempre: "recomendo que você suba/pause/escale assim: [passos]".
 INFRAESTRUTURA (criar BM, pixel, conta de anúncio, verificar domínio, configurar conversões): você ORIENTA o cliente passo a passo — especialmente o cliente iniciante que não sabe usar o Gerenciador. Guie com paciência, mas a interface da Meta muda com frequência, então dê a orientação geral e aponte a Central de Ajuda da Meta quando um passo específico não bater com o que ele vê.
 
-ANÁLISE: peça ao cliente os números da campanha (ROAS, CPL, CTR, CPM, frequência, gasto) direto do Gerenciador de Anúncios dele — você ainda não os lê sozinho. Com os números em mãos, diagnostique com justificativa. Sem eles, trabalhe com o que o cliente descrever, mas deixe claro que a análise fica muito melhor com os números reais na mesa.
+ANÁLISE: com ADS_DATA, diagnostique a partir dele — compare a semana com a anterior (campo "7d antes"), aponte o que melhorou/piorou e por quê, e cite os números. Os dados são da última leitura diária (a data vem no bloco); se o cliente disser que mudou algo hoje, considere que ainda não aparece ali. Sem ADS_DATA, peça os números ao cliente (ROAS, CPL, CTR, CPM, frequência, gasto) e trabalhe com o que ele descrever, deixando claro que a análise fica muito melhor com a conta conectada.
+RESPONSABILIDADE: ativar campanha e definir/alterar orçamento são SEMPRE decisões do cliente, no Gerenciador dele (ele aceitou isso ao conectar). Você recomenda valores com justificativa ("sugiro R$ X/dia neste conjunto porque..."); quem digita e ativa é ele.
 
 ═══ ECONOMIA DE CRIATIVO (REGRA IMPORTANTE — anúncios consomem saldo) ═══
 Na maioria das vezes o problema NÃO é a arte — é segmentação, oferta ou público. ANTES de pedir um criativo novo, ESGOTE os ajustes que NÃO consomem saldo:
@@ -1593,6 +1594,9 @@ const handler = async (req, res) => {
         ficha_tecnica_parte2_acompanhamento_generico_no_front_molde_de_iniciarpollingvideo:true,
         ficha_tecnica_parte2_link_interno_no_chat_mdmsg_regex_fechada_so_paginas_html_locais:true,
         ficha_tecnica_parte2_upload_html_aba_por_querystring_na_inicializacao:true,
+        // Agente de Tráfego — fase 1 (02/out/2026): Meta Ads conecta pelo login do Facebook,
+        // cron ?job=ads lê a conta (só leitura) em ads_metricas, e o Tráfego recebe ADS_DATA.
+        trafego_fase1_le_meta_ads_via_ads_metricas_sem_escrita_na_conta:true,
       },
       tem_ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       tem_SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
@@ -1885,6 +1889,28 @@ const handler = async (req, res) => {
             +`melhor_horario=${m.melhor_horario||'?'}, melhor_formato=${m.melhor_formato||'?'}.`;
         } else {
           metricasTxt='\nMÉTRICAS: nenhuma conectada ainda — peça ao cliente os números que ele tem.';
+        }
+      }catch(e){}
+    }
+    // Tráfego: injetar a última leitura da conta de anúncios (Meta Ads, fase 1 — só leitura,
+    // 02/out/2026). Gravada pelo cron ?job=ads em ads_metricas; o texto vem de
+    // _ads-lib.resumoParaAgente, mesma fonte dos alertas.
+    if(agente==='trafego'){
+      try{
+        const ADS=require('./_ads-lib.js');
+        const am=await sbGet(`ads_metricas?user_id=eq.${targetId}&order=data_coleta.desc&limit=1&select=data_coleta,dados`);
+        if(Array.isArray(am)&&am[0]&&am[0].dados&&am[0].dados.conta){
+          metricasTxt=ADS.resumoParaAgente(am[0].dados,am[0].data_coleta);
+        } else {
+          const cc=await sbGet(`contas_conectadas?user_id=eq.${targetId}&tipo=eq.ads&select=meta&limit=1`);
+          const m=(Array.isArray(cc)&&cc[0]&&cc[0].meta)||null;
+          metricasTxt=!m
+            ? '\nADS_DATA: Meta Ads NÃO conectado — peça os números ao cliente e recomende conectar em Conectar contas (o sistema passa a ler a conta sozinho todo dia).'
+            : (!m.ad_account_id
+              ? '\nADS_DATA: Meta Ads conectado, mas o cliente ainda não escolheu QUAL conta de anúncios ler — oriente-o a escolher em Conectar contas.'
+              : (m.token_status==='expirado'||m.token_status==='invalido'
+                ? '\nADS_DATA: a conexão com o Meta Ads expirou ou foi revogada — oriente o cliente a reconectar em Conectar contas. Até lá, trabalhe com os números que ele trouxer.'
+                : '\nADS_DATA: Meta Ads conectado; a primeira leitura da conta ainda não rodou (acontece 1x por dia, de manhã). Até lá, trabalhe com os números que o cliente trouxer.'));
         }
       }catch(e){}
     }

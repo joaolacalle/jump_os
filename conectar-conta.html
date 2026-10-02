@@ -62,14 +62,25 @@
   <div class="card">
     <div class="step"><div class="step-n">1</div><div><div class="step-t">Tenha uma conta de anúncios ativa</div><div class="step-b">Criada no Gerenciador de Negócios da Meta (business.facebook.com), com forma de pagamento configurada.</div></div></div>
     <div class="step"><div class="step-n">2</div><div><div class="step-t">Conecte com o mesmo Facebook</div><div class="step-b">Use o mesmo login da etapa do Instagram — o sistema identifica suas contas de anúncio automaticamente.</div></div></div>
-    <div class="step"><div class="step-n">3</div><div><div class="step-t">Escolha a conta de anúncios</div><div class="step-b">Se tiver mais de uma, você seleciona qual o JUMP OS deve <strong>ler</strong>.</div></div></div>
+    <div class="step"><div class="step-n">3</div><div><div class="step-t">Escolha a conta de anúncios</div><div class="step-b">Se tiver mais de uma, você seleciona qual o JUMP OS deve <strong>ler</strong>. O JUMP só lê — ativar e definir orçamento continuam sempre com você.</div></div></div>
     <div style="margin-top:14px;padding:14px 16px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:12px">
       <div style="font-weight:700;font-size:13.5px;margin-bottom:6px">🔒 Por que o JUMP não mexe nas suas campanhas sozinho</div>
       <div style="font-size:12.5px;color:var(--t2);line-height:1.65">Seu dinheiro de anúncio e seus dados de pagamento ficam <strong>só com você</strong>. O JUMP nunca acessa seu cartão nem sobe gastos no seu nome — por segurança sua e da ferramenta. Nosso Consultor de Tráfego faz o trabalho de inteligência: <strong>lê seus números reais</strong> (ROAS, custo por lead, cliques), diagnostica o que está travando e te entrega a estratégia pronta. <strong>Você aprova e executa com um clique no seu próprio Gerenciador.</strong> Você no controle do dinheiro, a IA no controle da estratégia.</div>
     </div>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:12.5px;color:var(--t2);line-height:1.6;cursor:pointer">
+      <input type="checkbox" id="ads-aceite" style="margin-top:3px;flex-shrink:0">
+      <span><strong style="color:var(--t1)">Li e concordo:</strong> ativar campanhas e definir orçamento são decisões minhas, feitas no meu Gerenciador de Anúncios. O JUMP lê os números e prepara recomendações; nunca ativa campanha nem altera orçamento.</span>
+    </label>
     <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
       <button class="btn btn-g" id="btn-ads" onclick="conectar('ads')">Conectar Meta Ads →</button>
       <span class="pill" id="ads-pill" style="display:none"></span>
+    </div>
+    <div id="ads-escolher" style="display:none;margin-top:16px;padding:14px 16px;border:1px solid var(--bd);border-radius:12px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Qual conta de anúncios o JUMP deve ler?</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="ads-conta" style="flex:1;min-width:200px;padding:9px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg2,transparent);color:var(--t1)"></select>
+        <button class="btn btn-g btn-sm" id="btn-ads-conta" onclick="escolherContaAds()">Salvar</button>
+      </div>
     </div>
   </div>
 
@@ -101,7 +112,7 @@ let CTX=null,ESCONDER_DESCONECTAR=false;
       history.replaceState(null,'','conectar-conta.html');
     }
     if(p.get('erro')){
-      const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada. Certifique-se de autorizar acesso às Páginas na tela do Facebook.',sem_instagram_vinculado:'Sua Página do Facebook existe, mas o Instagram comercial não está vinculado a ela. Acesse as configurações do Instagram → Conta → Vinculada ao Facebook.',sem_conta_ads:'Nenhuma conta de anúncios encontrada. Verifique se tem uma conta no Gerenciador de Negócios.',token:'Falha na autorização. Tente novamente.',instagram_ja_vinculado:'Este perfil do Instagram já está conectado a outra conta do JUMP OS. Cada perfil pode ser usado em uma conta por vez — entre na conta original ou fale com o suporte para transferir.',interno:'Erro inesperado. Tente novamente — se persistir, fale com o suporte.'};
+      const ERROS={autorizacao_cancelada:'Autorização cancelada no Facebook.',sem_pagina:'Nenhuma Página do Facebook encontrada. Certifique-se de autorizar acesso às Páginas na tela do Facebook.',sem_instagram_vinculado:'Sua Página do Facebook existe, mas o Instagram comercial não está vinculado a ela. Acesse as configurações do Instagram → Conta → Vinculada ao Facebook.',sem_conta_ads:'Nenhuma conta de anúncios encontrada. Verifique se tem uma conta no Gerenciador de Negócios.',permissao_ads:'A permissão de leitura dos anúncios não foi concedida. Conecte de novo e mantenha marcada a opção de acesso aos anúncios na tela da Meta.',aceite_ausente:'Marque o aceite de responsabilidade antes de conectar o Meta Ads.',estado_invalido:'O link de conexão expirou. Tente novamente.',token:'Falha na autorização. Tente novamente.',instagram_ja_vinculado:'Este perfil do Instagram já está conectado a outra conta do JUMP OS. Cada perfil pode ser usado em uma conta por vez — entre na conta original ou fale com o suporte para transferir.',interno:'Erro inesperado. Tente novamente — se persistir, fale com o suporte.'};
       const detalhe=p.get('msg')?(' — Detalhe técnico: '+decodeURIComponent(p.get('msg'))):'';
       JUMP.toast((ERROS[p.get('erro')]||'Erro na conexão.')+detalhe,'err');
       if(detalhe)try{alert('Detalhe do erro (envie ao suporte):\n'+decodeURIComponent(p.get('msg')))}catch(e){}
@@ -119,6 +130,7 @@ let CTX=null,ESCONDER_DESCONECTAR=false;
           </div>`).join('');
         cc.forEach(c=>{
           const ig=(c.tipo||'').includes('insta');
+          if(c.tipo==='ads')mostrarEscolhaAds(c,p.get('escolher')==='1');
           const pill=document.getElementById(ig?'ig-pill':'ads-pill');
           const btn=document.getElementById(ig?'btn-ig':'btn-ads');
           if(pill){pill.style.display='inline-flex';pill.className='pill pill-g';pill.textContent='● Conectado'}
@@ -130,7 +142,36 @@ let CTX=null,ESCONDER_DESCONECTAR=false;
   }catch(e){}
 })();
 
+/* Meta Ads: com mais de uma conta de anúncios autorizada, o cliente escolhe qual o JUMP lê.
+   A lista vem da própria conexão (meta.contas_ads); o servidor só aceita um id dessa lista. */
+function mostrarEscolhaAds(c,forcar){
+  const m=c.meta||{};const contas=m.contas_ads||[];
+  if(contas.length<2&&m.ad_account_id)return;
+  if(!contas.length)return;
+  const sel=document.getElementById('ads-conta');
+  sel.innerHTML=contas.map(x=>`<option value="${JUMP.esc(x.id)}"${x.id===m.ad_account_id?' selected':''}>${JUMP.esc(x.nome)}${x.negocio?' · '+JUMP.esc(x.negocio):''}${x.status!==1?' ('+JUMP.esc(x.status_txt)+')':''}</option>`).join('');
+  const box=document.getElementById('ads-escolher');
+  box.style.display='block';
+  if(forcar||!m.ad_account_id)box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function escolherContaAds(){
+  const btn=document.getElementById('btn-ads-conta');btn.disabled=true;
+  try{
+    const tk=(await JUMP.freshToken())||CTX.token;
+    const r=await fetch('/api/meta-oauth',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body:JSON.stringify({acao:'escolher_conta',ad_account_id:document.getElementById('ads-conta').value,alvo:CTX.viewId||CTX.user.id})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||'erro');
+    JUMP.toast('✓ Conta de anúncios definida: '+d.conta+'. A leitura acontece todo dia de manhã.');
+    setTimeout(()=>location.reload(),900);
+  }catch(e){JUMP.toast('Não foi possível salvar a conta: '+e.message,'err');btn.disabled=false}
+}
+
 async function conectar(tipo){
+  if(tipo==='ads'&&!document.getElementById('ads-aceite').checked){
+    JUMP.toast('Marque o aceite de responsabilidade para conectar o Meta Ads.','err');
+    document.getElementById('ads-aceite').focus();return;
+  }
   const btn=document.getElementById(tipo==='instagram'?'btn-ig':'btn-ads');
   btn.disabled=true;btn.innerHTML='<span class="spin-i"></span> Abrindo Meta...';
   try{
@@ -139,7 +180,7 @@ async function conectar(tipo){
        pelo servidor se quem está logado for admin/supervisor. */
     const alvo=CTX.viewId||CTX.user.id;
     const tk=(await JUMP.freshToken())||CTX.token;
-    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&alvo='+alvo,{headers:{'Authorization':'Bearer '+tk}});
+    const r=await fetch('/api/meta-oauth?tipo='+tipo+'&alvo='+alvo+(tipo==='ads'?'&aceite=1':''),{headers:{'Authorization':'Bearer '+tk}});
     if(r.ok){const d=await r.json();if(d.url){location.href=d.url;return}}
     throw new Error('pending');
   }catch(e){

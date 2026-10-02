@@ -32,12 +32,19 @@ async function tratarPost(req, res) {
     if (!payload) return res.status(400).json({ error: 'signed_request ausente' });
     // valida a assinatura HMAC-SHA256 com o segredo do app
     const crypto = require('crypto');
-    const esperado = crypto.createHmac('sha256', process.env.META_APP_SECRET || '')
-      .update(payload).digest('base64url');
-    if (sig !== esperado) return res.status(401).json({ error: 'assinatura inválida' });
+    // Instagram assina com a chave do app do Instagram; o login do Facebook (Meta Ads), com a do
+    // app — aceita qualquer uma das duas (iguais quando META_FB_APP_SECRET não está definida).
+    const segredos = [...new Set([process.env.META_APP_SECRET, process.env.META_FB_APP_SECRET].filter(Boolean))];
+    const assinaturaOk = segredos.some(seg => crypto.createHmac('sha256', seg).update(payload).digest('base64url') === sig);
+    if (!assinaturaOk) return res.status(401).json({ error: 'assinatura inválida' });
     const dados = JSON.parse(Buffer.from(payload, 'base64url').toString());
     const igUser = String(dados.user_id || '');
     if (igUser) {
+      // Login do Facebook (Meta Ads): o user_id do signed_request é o id do usuário do Facebook
+      // no app — apaga a conexão de Ads gravada com esse fb_user_id.
+      await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.ads&meta->>fb_user_id=eq.${encodeURIComponent(igUser)}`, {
+        method: 'DELETE', headers: SBH(),
+      }).catch(() => {});
       // apaga a conexão (token + dados da Meta) do usuário que removeu o app.
       // igUser (user_id do signed_request da Meta) é o id "app-scoped" — mesma semântica de
       // meta.ig_app_id. Casa por ig_id OU ig_app_id (mesmo padrão da trava anti-pirataria e do
@@ -54,6 +61,67 @@ async function tratarPost(req, res) {
     console.error('meta-desautorizacao:', e.message);
     return res.status(200).json({ ok: true }); // nunca falhar o handshake da Meta
   }
+}
+
+// ── META ADS (02/out/2026, Agente de Tráfego — fase 1, só leitura) ──────────────────────────
+// Login do Facebook: code → token curto → token longo (60 dias, NÃO renovável sozinho: perto de
+// vencer, o cron avisa o cliente para reconectar). Confere se ads_read foi mesmo concedido (o
+// cliente pode desmarcar na tela da Meta), lista as contas de anúncio e grava a conexão
+// tipo='ads'. Com 1 conta ativa, já escolhe; com várias, a tela pede para o cliente escolher.
+async function conectarAds({ code, uid, aceiteEm, volta }) {
+  const ADS = require('./_ads-lib.js');
+  if (!aceiteEm) return volta('erro=aceite_ausente');
+  const t1 = await fetch(`${ADS.GRAPH}/oauth/access_token?` + new URLSearchParams({
+    client_id: ADS.fbAppId(), client_secret: ADS.fbAppSecret(), redirect_uri: REDIRECT, code,
+  })).then(r => r.json()).catch(() => ({}));
+  if (!t1.access_token) {
+    console.error('ads token curto:', JSON.stringify(t1).slice(0, 300));
+    return volta('erro=token');
+  }
+  const t2 = await fetch(`${ADS.GRAPH}/oauth/access_token?` + new URLSearchParams({
+    grant_type: 'fb_exchange_token', client_id: ADS.fbAppId(), client_secret: ADS.fbAppSecret(), fb_exchange_token: t1.access_token,
+  })).then(r => r.json()).catch(() => ({}));
+  const token = t2.access_token || t1.access_token;
+  const expiraSeg = Number(t2.expires_in) || (60 * 24 * 3600);
+  const tokenExpiraEm = new Date(Date.now() + expiraSeg * 1000).toISOString();
+
+  let fbUserId = '', concedidas = [];
+  try {
+    const me = await ADS.graphGet('me', { fields: 'id' }, token);
+    fbUserId = String(me.id || '');
+    const perms = await ADS.graphGet('me/permissions', {}, token);
+    concedidas = (perms.data || []).filter(p => p.status === 'granted').map(p => p.permission);
+  } catch (e) {
+    console.error('ads me/permissions:', e.message);
+    return volta('erro=token');
+  }
+  if (!concedidas.includes('ads_read')) return volta('erro=permissao_ads');
+
+  let contas = [];
+  try { contas = await ADS.listarContas(token); }
+  catch (e) { console.error('ads adaccounts:', e.message); return volta('erro=token'); }
+  if (!contas.length) return volta('erro=sem_conta_ads');
+  const ativas = contas.filter(c => c.status === 1);
+  const escolhida = contas.length === 1 ? contas[0] : (ativas.length === 1 ? ativas[0] : null);
+
+  const meta = {
+    fb_user_id: fbUserId,
+    contas_ads: contas,
+    ad_account_id: escolhida ? escolhida.id : null,
+    ad_account_nome: escolhida ? escolhida.nome : '',
+    moeda: escolhida ? escolhida.moeda : '',
+    fuso: escolhida ? escolhida.fuso : '',
+    escopos: concedidas,
+    token_expira_em: tokenExpiraEm,
+    aceite_responsabilidade_em: aceiteEm,
+    aceite_texto: 'Ativar campanhas e definir orçamento são decisões minhas, feitas no meu Gerenciador de Anúncios. O JUMP lê os números e prepara recomendações; nunca ativa campanha nem altera orçamento.',
+    via: 'oauth',
+  };
+  await sbDel('contas_conectadas', `user_id=eq.${uid}&tipo=eq.ads`);
+  await sbIns('contas_conectadas', {
+    user_id: uid, tipo: 'ads', nome: escolhida ? escolhida.nome : 'Meta Ads', token, meta,
+  });
+  return volta(escolhida ? 'conectado=ads' : 'conectado=ads&escolher=1');
 }
 
 module.exports = async (req, res) => {
@@ -77,7 +145,7 @@ module.exports = async (req, res) => {
     // adulterada, uid trocado com a assinatura de outro payload, ou state vencido) cai no mesmo
     // erro genérico, ANTES de qualquer chamada à Meta — nunca loga a assinatura em si, só o
     // motivo, pra não deixar nem um fiapo dela em log nenhum.
-    let uid, tipo;
+    let uid, tipo, aceiteEm = '';
     try {
       const crypto = require('crypto');
       const partes = String(state).split('.');
@@ -88,15 +156,18 @@ module.exports = async (req, res) => {
       const assBuf = Buffer.from(assinatura);
       const espBuf = Buffer.from(esperada);
       if (assBuf.length !== espBuf.length || !crypto.timingSafeEqual(assBuf, espBuf)) throw new Error('assinatura');
-      const [uidP, tipoP, expP] = Buffer.from(payload, 'base64url').toString().split('|');
+      const [uidP, tipoP, expP, aceiteP] = Buffer.from(payload, 'base64url').toString().split('|');
       const exp = Number(expP);
       if (!Number.isFinite(exp) || Math.floor(Date.now() / 1000) > exp) throw new Error('vencido');
       if (!uidP) throw new Error('uid-ausente');
       uid = uidP; tipo = tipoP;
+      if (aceiteP && Number.isFinite(Number(aceiteP))) aceiteEm = new Date(Number(aceiteP) * 1000).toISOString();
     } catch (e) {
       console.error('meta-callback: state recusado —', e.message);
       return volta('erro=estado_invalido');
     }
+    // Meta Ads usa o login do Facebook — fluxo de token totalmente diferente do Instagram.
+    if (tipo === 'ads') return await conectarAds({ code, uid, aceiteEm, volta });
     // 1. Código → token curto (endpoint do Instagram)
     const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',

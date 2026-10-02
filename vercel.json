@@ -34,6 +34,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron?job=ads",
+      "schedule": "20 9 * * *"
+    },
+    {
       "path": "/api/cron?job=seguranca",
       "schedule": "0 7 * * *"
     },
