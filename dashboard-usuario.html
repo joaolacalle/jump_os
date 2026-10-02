@@ -365,18 +365,33 @@ const LV={basico:1,plus:2,pro:3};
       {done:adsOn,t:'Conectar o Meta Ads',b:'O Consultor de Tráfego lê seus números reais e diz o que ajustar.',link:'conectar-conta.html#ads',btn:'Conectar →',min:3},
       {done:upVideo,t:'Enviar um vídeo bruto para edição',b:'O Agente Editor corta, legenda e entrega pronto.',link:'upload.html',btn:'Enviar →',min:3},
     ].filter(t=>t.min<=level);
+    // AVISOS ENXUTOS (02/out/2026): o bloco grande só aparece enquanto falta algo ESSENCIAL (check-in,
+    // Instagram, logo). Recursos opcionais (Meta Ads, vídeo bruto) viram uma linha discreta, que o
+    // cliente pode dispensar ("não agora" — lembrado neste navegador).
+    const ESSENCIAIS=TASKS.filter(t=>t.min<=1), OPCIONAIS=TASKS.filter(t=>t.min>1&&!t.done);
+    let _dispensou=false; try{_dispensou=localStorage.getItem('jump_opcionais_dispensados_'+uid)==='1';}catch(e){}
+    if(!ESSENCIAIS.some(t=>!t.done)){
+      const boxT0=document.getElementById('tasks-box');
+      if(OPCIONAIS.length&&!_dispensou&&boxT0){
+        boxT0.style.display='block';
+        boxT0.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--t2)"><span style="font-family:var(--M);font-size:10.5px;letter-spacing:.1em;color:var(--t3)">OPCIONAL</span>'
+          +OPCIONAIS.map(t=>'<a href="'+t.link+'" style="color:var(--g)">'+JUMP.esc(t.t)+' →</a>').join('<span style="color:var(--t3)">·</span>')
+          +'<button type="button" onclick="try{localStorage.setItem(\'jump_opcionais_dispensados_'+uid+'\',\'1\')}catch(e){};document.getElementById(\'tasks-box\').style.display=\'none\'" style="margin-left:auto;background:transparent;border:0;color:var(--t3);cursor:pointer;font-size:12px">não agora ✕</button></div>';
+      } else if(boxT0) boxT0.style.display='none';
+    }
     const feitas=TASKS.filter(t=>t.done).length;
     const boxT=document.getElementById('tasks-box');
-    if(TASKS.length&&feitas<TASKS.length){
+    if(ESSENCIAIS.some(t=>!t.done)&&TASKS.length&&feitas<TASKS.length){
       boxT.style.display='block';
-      document.getElementById('tasks-prog').textContent=feitas+' de '+TASKS.length+' concluídas';
-      document.getElementById('tasks-list').innerHTML=TASKS.filter(t=>!t.done).map(t=>
+      document.getElementById('tasks-prog').textContent=ESSENCIAIS.filter(t=>t.done).length+' de '+ESSENCIAIS.length+' concluídas';
+      document.getElementById('tasks-list').innerHTML=ESSENCIAIS.filter(t=>!t.done).map(t=>
         `<div class="task">
           <div class="task-chk">○</div>
           <div><div class="task-t">${t.t}</div><div class="task-b">${t.b}</div></div>
           <a href="${t.link}" class="btn btn-g btn-sm">${t.btn}</a>
         </div>`).join('');
-    } else if(boxT){ boxT.style.display='none'; }
+    } else if(boxT&&ESSENCIAIS.every(t=>t.done)){ /* tratado acima (linha opcional ou nada) */ }
+    else if(boxT){ boxT.style.display='none'; }
     // Criativos aguardando aprovação são PRIORIDADE: aparecem sempre que existirem,
     // mesmo com o onboarding em andamento (antes ficavam escondidos e o usuário não via).
     {
@@ -536,8 +551,11 @@ const LV={basico:1,plus:2,pro:3};
         var _ob=cliente.onboarding||{}, e;
         if(!_ob.checkin) e={ico:'👤',t:'Comece pelo check-in',b:'Conte sobre seu negócio uma vez com o Agente de Identidade — tudo parte daí.',cta:'Fazer check-in →',link:'agentes.html?agente=identidade'};
         else if(!igOn) e={ico:'📸',t:'Conecte seu Instagram',b:'Libera a publicação automática e o diagnóstico real do perfil.',cta:'Conectar Instagram →',link:'conectar-conta.html'};
-        else e={ico:'🚀',t:'Você está no ar!',b:'Peça um novo plano de conteúdo à Estratégia ou acompanhe seu desempenho abaixo.',cta:'Falar com a Estratégia →',link:'agentes.html?agente=estrategia'};
+        // AVISOS ENXUTOS (02/out/2026, pedido do João): "Você está no ar!" não pede ação nenhuma —
+        // com tudo certo, o card de próximo passo não aparece (mesma regra do botão "Seu plano").
+        else e=null;
         var _pp=document.getElementById('proximo-passo');
+        if(_pp&&!e){_pp.style.display='none';return;}
         if(_pp)_pp.innerHTML='<div class="prox-ico">'+e.ico+'</div><div class="prox-txt"><div class="prox-lbl">Próximo passo</div><div class="prox-t">'+e.t+'</div><div class="prox-b">'+e.b+'</div></div><a href="'+(JUMP.verLink?JUMP.verLink(e.link):e.link)+'" class="prox-cta">'+e.cta+'</a>';
       })();
     }catch(e){}

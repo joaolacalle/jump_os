@@ -40,9 +40,10 @@
 <div class="loading" id="loading"><div class="ld-spin"></div><div class="ld-t">Carregando ordens...</div></div>
 <div class="app">
 <main class="main">
-  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em></h1></div><button class="btn btn-g btn-sm" id="btn-incluir-tarefa" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
+  <div class="hd"><div><div class="hd-hello" id="hd-hello">Tarefas de Serviço</div><h1 class="hd-h">Suas <em>tarefas de serviço</em> <button type="button" onclick="var e=document.getElementById('ord-intro');e.style.display=e.style.display==='none'?'block':'none'" title="O que é esta página?" aria-label="O que é esta página?" style="vertical-align:middle;font-size:14px;width:26px;height:26px;border-radius:50%;cursor:pointer;background:transparent;color:var(--t3);border:1px solid color-mix(in srgb,var(--t1) 18%,transparent)">i</button></h1></div><button class="btn btn-g btn-sm" id="btn-incluir-tarefa" onclick="abrirIncluirOrdem()">📋 Incluir tarefa</button></div>
   <div id="banner-ver-como" style="display:none;margin:-8px 0 18px;padding:10px 14px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);font-size:13px;color:var(--t2)"></div>
-  <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Acompanhe aqui o que os agentes estão executando, em tempo real. Esta página é de <b>gerenciamento</b>: você vê o andamento e pode cancelar um processo. As <b>aprovações</b> acontecem na página <a href="aprovar.html" style="color:var(--g)">Aprovar</a>.</p>
+  <!-- AVISOS ENXUTOS (02/out/2026): explicação fica atrás do "i" do título, aberta só quando o cliente quiser -->
+  <p id="ord-intro" style="display:none;font-size:13.5px;color:var(--t2);line-height:1.6;margin:-8px 0 18px;max-width:640px">Acompanhe aqui o que os agentes estão executando, em tempo real. Esta página é de <b>gerenciamento</b>: você vê o andamento e pode cancelar um processo. As <b>aprovações</b> acontecem na página <a href="aprovar.html" style="color:var(--g)">Aprovar</a>.</p>
 
   <div class="ord-filtros">
     <button class="ord-f on" data-f="fila" onclick="filtrar('fila',this)">📋 Fila</button>
