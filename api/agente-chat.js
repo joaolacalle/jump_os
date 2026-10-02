@@ -2037,6 +2037,11 @@ const handler = async (req, res) => {
     // Histórico recente
     let hist=await sbGet(`chat_mensagens?user_id=eq.${targetId}&agente=eq.${agente}&order=created_at.desc&limit=10&select=role,conteudo`);
     if(!Array.isArray(hist))hist=[];
+    // DETALHAMENTO AUTOMÁTICO SEM HISTÓRICO (02/out/2026, caso real): a ordem detalhar_semana do cron
+    // já diz quais posts detalhar; o histórico só confundia — a Estratégia leu "a Semana 1 já está
+    // pronta" de uma conversa anterior e não detalhou o post que tinha sido zerado para recriar.
+    // Os dados reais dos posts (bloco POSTS DA SEMANA PARA DETALHAR) seguem no contexto.
+    if(_intOk&&_ordemInternaInfo&&_ordemInternaInfo.tarefa==='detalhar_semana') hist=[];
     // Histórico do agente passa pela MESMA limpeza da gravação (api/_texto-lib.js): conversas antigas,
     // gravadas antes dela, também deixam de reenviar negrito/separadores/linhas vazias a cada turno.
     const messages=(hist||[]).reverse().map(m=>({role:m.role==='user'?'user':'assistant',content:m.role==='user'?m.conteudo:limparTextoVisivel(m.conteudo,agente)}));
