@@ -269,6 +269,7 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
       <button class="btn btn-g" id="promo-save" onclick="salvarPromo()" style="flex:1">Criar automação</button>
       <button class="btn btn-o" onclick="fecharPromo()">Cancelar</button>
     </div>
+    <div id="promo-webhook" style="font-size:11.5px;font-family:var(--M);margin-top:10px"></div>
     <div id="promo-list" style="margin-top:16px"></div>
   </div>
 </div>
@@ -2089,6 +2090,20 @@ async function abrirPromo(){
   document.getElementById('promo-overlay').style.display='flex';
   document.getElementById('promo-result').innerHTML='';
   listarPromo();
+  checarWebhookDm();
+}
+// Refaz e confere a inscrição da conta na Meta (comentários + DMs). Sem ela a Meta não avisa os
+// comentários e a automação fica muda (02/out/2026). Só para o próprio dono (não no "ver como").
+async function checarWebhookDm(){
+  const el=document.getElementById('promo-webhook');
+  if(!el||CTX.viewId)return;
+  el.innerHTML='<span style="color:var(--t3)">Conferindo a ligação com o Instagram…</span>';
+  try{
+    const r=await JUMP.authFetch('/api/cron?job=webhook_meu',{method:'POST'}).then(x=>x.json());
+    if(r&&r.comentarios){el.innerHTML='<span style="color:var(--g)">✓ Instagram ligado: comentários e DMs chegando ao JUMP.</span>';}
+    else if(r&&r.motivo==='sem_conta'){el.innerHTML='<span style="color:var(--red)">Conecte seu Instagram para a automação funcionar.</span>';}
+    else{el.innerHTML='<span style="color:var(--red)">O Instagram não confirmou o envio de comentários. Reconecte sua conta em Conectar conta.</span>';}
+  }catch(e){el.innerHTML='';}
 }
 function fecharPromo(){document.getElementById('promo-overlay').style.display='none';}
 
@@ -2124,6 +2139,7 @@ async function salvarPromo(){
     document.getElementById('promo-msg').value='';
     document.getElementById('promo-link').value='';
     listarPromo();
+    checarWebhookDm();
   }catch(e){
     res.innerHTML='<span style="color:var(--red)">Erro: '+(e.message||'tente novamente')+'</span>';
   }
