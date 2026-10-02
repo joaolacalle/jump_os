@@ -131,13 +131,19 @@ module.exports = async (req, res) => {
     // produto Login do Facebook no painel do app.
     if (tipo === 'ads') {
       if (!fbAppId()) return res.status(503).json({ error: 'Meta não configurada' });
+      // App do tipo EMPRESA não aceita o login clássico com `scope`: usa o "Login do Facebook para
+      // Empresas", em que as permissões vêm de uma CONFIGURAÇÃO criada no painel (Login do Facebook
+      // para Empresas → Configurações → criar configuração com ads_read) e o diálogo recebe só o
+      // config_id. Com META_FB_LOGIN_CONFIG_ID definida, usa esse modo; sem ela, o clássico.
+      const configId = String(process.env.META_FB_LOGIN_CONFIG_ID || '').trim();
       const url = `https://www.facebook.com/${ADS_GRAPH_V}/dialog/oauth`
         + `?client_id=${fbAppId()}`
         + `&redirect_uri=${encodeURIComponent(REDIRECT)}`
-        + `&scope=${encodeURIComponent('ads_read')}`
+        + (configId
+          ? `&config_id=${encodeURIComponent(configId)}&override_default_response_type=true`
+          : `&scope=${encodeURIComponent('ads_read')}&auth_type=rerequest`)
         + `&state=${state}`
-        + `&response_type=code`
-        + `&auth_type=rerequest`;
+        + `&response_type=code`;
       return res.status(200).json({ url });
     }
 
