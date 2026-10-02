@@ -151,6 +151,11 @@ window.JUMP=(function(){
       }
     }
 
+    // TRIAL SEMPRE NO BÁSICO (02/out/2026): durante o teste a conta funciona como Básico em todas as
+    // telas (o plano assinado fica em plano_assinado). Regra em assets/classificacao.js
+    // (aplicarPlanoDoTrial); fallback idêntico para páginas que não carregam aquele arquivo.
+    const _planoTrial=(window.JUMP_CLASS&&window.JUMP_CLASS.aplicarPlanoDoTrial)||(c=>{if(c&&c.tipo_cortesia==='trial'&&c.cortesia_ate&&new Date(c.cortesia_ate).getTime()>Date.now()&&!c.plano_assinado){c.plano_assinado=c.plano||'basico';c.plano='basico';}return c;});
+    _planoTrial(cliente);
     // IMPERSONAÇÃO GLOBAL: supervisor/admin visualizando outra conta via ?ver=ID
     let viewing=null, viewId=user.id, viewCliente=cliente;
     const verParam=new URLSearchParams(location.search).get('ver');
@@ -158,7 +163,7 @@ window.JUMP=(function(){
       try{
         const{data:alvo}=await sb.from('clientes').select('*').eq('id',verParam).limit(1);
         if(alvo&&alvo.length){
-          viewing=alvo[0];viewId=viewing.id;viewCliente=viewing;
+          viewing=_planoTrial(alvo[0]);viewId=viewing.id;viewCliente=viewing;
           window.JUMP._viewBanner=viewing; // sinaliza p/ mostrar banner
         }
       }catch(e){console.error('impersonate:',e)}

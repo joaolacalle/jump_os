@@ -584,8 +584,9 @@ function wCasar(texto, regras, gatilho) {
   });
 }
 async function wCota(uid) {
-  const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${uid}&select=id,plano,limites,uso`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
+  const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${uid}&select=id,plano,limites,uso,tipo_cortesia,cortesia_ate`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
   if (!cli) return { ok: false };
+  JC.aplicarPlanoDoTrial(cli); // trial sempre no Básico (02/out/2026)
   const lim = Number((cli.limites && cli.limites.dm_envios) != null ? cli.limites.dm_envios : (LIMS_DM[cli.plano] || 0));
   const usados = Number((cli.uso && cli.uso.dm_envios) || 0);
   return { ok: usados < lim, cli };

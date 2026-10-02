@@ -189,6 +189,19 @@
     return Object.prototype.hasOwnProperty.call(CAPACIDADE_SEMANAL, n) ? CAPACIDADE_SEMANAL[n] : null;
   }
 
+  // TRIAL SEMPRE NO BÁSICO (02/out/2026, decisão do João): durante o teste grátis a conta funciona como
+  // Básico, qualquer que seja o plano assinado. FONTE ÚNICA — aplicada onde o cliente é carregado
+  // (front: JUMP.guard; servidor: agente-chat, gerar-imagem, cron), para nenhum dos ~20 pontos que
+  // leem `cliente.plano` precisar saber do trial. O plano assinado fica em `plano_assinado` (só em
+  // memória, nunca gravado de volta), para as telas que mostram o plano contratado.
+  function emTrial(cli) {
+    return !!(cli && cli.tipo_cortesia === 'trial' && cli.cortesia_ate && new Date(cli.cortesia_ate).getTime() > Date.now());
+  }
+  function aplicarPlanoDoTrial(cli) {
+    if (cli && emTrial(cli) && !cli.plano_assinado) { cli.plano_assinado = cli.plano || 'basico'; cli.plano = 'basico'; }
+    return cli;
+  }
+
   function ehVertical(conteudoOuFormato) {
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_VERTICAL);
   }
@@ -425,6 +438,8 @@
     PISO_SEMANA1_DIAS: PISO_SEMANA1_DIAS,
     STATUS_AGUARDANDO_MATERIAL: STATUS_AGUARDANDO_MATERIAL,
     STATUS_EXPIRADO: STATUS_EXPIRADO,
+    emTrial: emTrial,
+    aplicarPlanoDoTrial: aplicarPlanoDoTrial,
     STATUS_RASCUNHO: STATUS_RASCUNHO,
     STATUS_PROPOSTO: STATUS_PROPOSTO,
     STATUS_AGUARDANDO_APROVACAO: STATUS_AGUARDANDO_APROVACAO,

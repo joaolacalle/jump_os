@@ -1388,6 +1388,7 @@ module.exports = async (req, res) => {
     const [cli] = await cRes.json();
     if (!cli) return res.status(403).json({ error: 'Conta não encontrada' });
     if (cli.bloqueado) return res.status(403).json({ error: 'Conta bloqueada' });
+    JC.aplicarPlanoDoTrial(cli); // trial sempre no Básico (02/out/2026, decisão do João) — cota do teste = a do Básico
     // COMPOSIÇÃO — INTERRUPTOR (22/set/2026, Fase 1): lido de clientes.preferencias, desligado por
     // padrão. Clientes sem o interruptor seguem o caminho atual sem mudança nenhuma. A decisão
     // FINAL de compor esta peça específica (composicaoAtivaEfetiva) ainda depende do modo

@@ -1756,6 +1756,7 @@ const handler = async (req, res) => {
     const [cli]=await sbGet(`clientes?id=eq.${targetId}&select=*`);
     if(!cli) return res.status(403).json({error:'Conta não encontrada'});
     if(cli.bloqueado) return res.status(403).json({error:'Conta bloqueada'});
+    JC.aplicarPlanoDoTrial(cli); // trial sempre no Básico (02/out/2026) — plano assinado em cli.plano_assinado
     const nivel=LV[cli.plano]||1;
     if(NIVEL[agente]>nivel){
       const need=NIVEL[agente]===2?'Plus':'Pro';
