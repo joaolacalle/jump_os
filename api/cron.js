@@ -561,6 +561,41 @@ function wNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replac
 // manda no webhook é o id da conta profissional (ig_id, a partir desta rodada); conexões feitas
 // antes dela só tinham esse mesmo id gravado sob a chave ig_id (semântica antiga) — o OR garante
 // que o webhook continua encontrando as duas gerações de conexão sem precisar migrar dado nenhum.
+// Refaz a inscrição do webhook (comments,messages) da conta do usuário e confere o que a Meta
+// devolve como inscrito. Grava o resultado em meta.webhook_check (diagnóstico) sem mexer no resto.
+async function wReinscrever(uid) {
+  const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${encodeURIComponent(uid)}&tipo=eq.instagram&select=id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
+  const c = Array.isArray(arr) && arr[0];
+  if (!c || !c.token) return { ok: false, motivo: 'sem_conta' };
+  const V = 'v23.0', CAMPOS = 'comments,messages';
+  let erro = '', campos = [];
+  try {
+    const p = await fetch(`https://graph.instagram.com/${V}/me/subscribed_apps`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ subscribed_fields: CAMPOS, access_token: c.token }),
+    });
+    if (!p.ok) erro = 'inscrever: ' + (await p.text()).slice(0, 200);
+  } catch (e) { erro = 'inscrever: ' + String(e.message || e).slice(0, 200); }
+  try {
+    const g = await fetch(`https://graph.instagram.com/${V}/me/subscribed_apps?access_token=${encodeURIComponent(c.token)}`).then(r => r.json());
+    if (g && g.error) erro = (erro ? erro + ' | ' : '') + 'conferir: ' + String(g.error.message || '').slice(0, 200);
+    for (const app of ((g && g.data) || [])) {
+      const f = app.subscribed_fields || [];
+      for (const x of (Array.isArray(f) ? f : String(f).split(','))) {
+        const nome = typeof x === 'string' ? x : (x && (x.name || x.field)) || '';
+        if (nome && !campos.includes(nome)) campos.push(nome);
+      }
+    }
+  } catch (e) { erro = (erro ? erro + ' | ' : '') + 'conferir: ' + String(e.message || e).slice(0, 200); }
+  const comentarios = campos.includes('comments');
+  const check = { em: new Date().toISOString(), campos, comentarios, ...(erro ? { erro } : {}) };
+  await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?id=eq.${c.id}`, {
+    method: 'PATCH', headers: SBH(),
+    body: JSON.stringify({ meta: { ...(c.meta || {}), webhook_check: check } }),
+  }).catch(() => {});
+  return { ok: comentarios, comentarios, campos, ...(erro ? { erro } : {}) };
+}
+
 async function wContaPorIg(igId) {
   const id = encodeURIComponent(igId);
   const arr = await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?tipo=eq.instagram&or=(meta->>ig_id.eq.${id},meta->>ig_app_id.eq.${id})&select=user_id,token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []);
@@ -798,6 +833,25 @@ module.exports = async (req, res) => {
       if (!uid) return res.status(401).json({ error: 'token inválido' });
       const r = await jobDetalharSemana(uid);
       return res.status(200).json({ ok: true, job: 'detalhar_meu', ...r });
+    } catch (e) {
+      return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
+    }
+  }
+  // INSCRIÇÃO DO WEBHOOK PELO PRÓPRIO USUÁRIO (02/out/2026, João: "a DM por comentário funcionava
+  // e parou"). As DMs continuavam chegando, mas nenhum comentário chegava desde 28/set — a inscrição
+  // de 'comments' na Meta tinha caído sem o sistema saber (o callback só inscreve na conexão).
+  // Agora, ao abrir a tela de automações ou criar uma, o servidor refaz a inscrição
+  // (comments,messages — idempotente na Meta) e LÊ de volta o que ficou inscrito, gravando o
+  // resultado em meta.webhook_check. A tela avisa se 'comments' não estiver confirmado.
+  if (job0 === 'webhook_meu') {
+    try {
+      const tkUser = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (!tkUser) return res.status(401).json({ error: 'sem token' });
+      const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: KEY(), Authorization: `Bearer ${tkUser}` } }).then(r => r.json()).catch(() => null);
+      const uid = u && u.id;
+      if (!uid) return res.status(401).json({ error: 'token inválido' });
+      const r = await wReinscrever(uid);
+      return res.status(200).json({ job: 'webhook_meu', ...r });
     } catch (e) {
       return res.status(200).json({ ok: false, erro: String(e.message || e).slice(0, 160) });
     }
