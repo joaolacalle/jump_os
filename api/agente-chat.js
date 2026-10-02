@@ -2216,6 +2216,11 @@ const handler = async (req, res) => {
           if(_prox) semanaAtualCliente=_prox;
         }
       }catch(e){ console.error('[semana-de-trabalho] leitura falhou — seguindo com a semana do calendário. user='+targetId+' '+(e&&e.message)); }
+      // DETALHAMENTO AUTOMÁTICO ADIANTADO (02/out/2026): a ordem detalhar_semana do cron diz QUAL
+      // semana detalhar (payload.inicio) — pode ser a próxima, 3 dias antes. Quem decide é o cron
+      // (jobDetalharSemana); aqui só seguimos, para a lista e a trava "fora da semana" baterem.
+      const _pl=(_ordemInternaInfo&&_ordemInternaInfo.tarefa==='detalhar_semana'&&_ordemInternaInfo.payload)||null;
+      if(_intOk&&_pl&&_pl.inicio){ const _jo=janelasCliente.find(j=>j.inicio===_pl.inicio); if(_jo) semanaAtualCliente=_jo; }
     }
     // JANELA DE PLANEJAMENTO COMO DADO, NÃO TEXTO (28/ago/2026 — ver APRENDIZADOS.md, "JANELA
     // DE PLANEJAMENTO — parâmetro de sistema, não texto"): as 5 janelas concretas do plano vêm

@@ -36,12 +36,18 @@ async function garantirCardAprovarSemana(serviceKey, userId, ids, deAgente, extr
   }
   const headers = H(serviceKey);
   try {
+    // DEDUP POR POSTS (02/out/2026): antes QUALQUER card aberto (de qualquer semana) bloqueava o
+    // card de outra semana — a Semana 2 detalhada 3 dias antes ficava sem card enquanto o da
+    // Semana 1 esperava aprovação. Agora só bloqueia card/produção aberta que já cubra algum
+    // destes posts (o que impede duplicar a MESMA semana, motivo original desta checagem).
     const ja = await fetch(
-      `${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${userId}&or=(and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao))&select=id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/ordens_servico?user_id=eq.${userId}&or=(and(tarefa.eq.criar_post,status.eq.pendente),and(tarefa.eq.aprovar_semana,status.eq.aguardando_aprovacao))&select=id,payload&limit=50`,
       { headers }
     ).then(r => r.json());
-    if (Array.isArray(ja) && ja.length) {
-      return { criado: false, jaExistia: true, ordemId: ja[0].id };
+    const _set = new Set(ids.map(String));
+    const _cobre = (Array.isArray(ja) ? ja : []).find(o => ((o.payload && o.payload.ids) || []).some(x => _set.has(String(x))));
+    if (_cobre) {
+      return { criado: false, jaExistia: true, ordemId: _cobre.id };
     }
   } catch (e) {
     console.error('[garantirCardAprovarSemana] checagem de dedup falhou (rede) — user=' + userId + ' erro=' + (e && e.message));
