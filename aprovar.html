@@ -379,6 +379,19 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],P
     }catch(e){}
     render();
     document.getElementById('loading').classList.add('hide');
+// Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
+    // Pendências (posts sem copy/arte) saíram do Aprovar — vivem em Tarefas de Serviço.
+    { const b=document.getElementById('fila-bar'); if(b)b.style.display='none'; }
+    // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
+    // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
+    // Pendências (posts esperando arte) saíram do Aprovar — elas vivem em Tarefas de Serviço,
+    // onde o processo é acompanhado. O Aprovar mostra só o que já está PRONTO para aprovar.
+  }catch(e){}
+})();
+// ESCOPO CORRIGIDO (02/out/2026): este bloco estava DENTRO da função de carregamento da página
+// (colado antes do fechamento dela) — GERANDO, loadingArte, regerarSlide, regerarCarrossel e
+// recarregar ficavam invisíveis para os botões e para aprovar() ("GERANDO is not defined"). Movido
+// para cá sem alterar nenhuma linha.
     // Regerar UM slide (1 imagem) — o João pediu unitário e inteiro separados.
 let GERANDO=false;
 function confirmarRecriacao(){
@@ -466,15 +479,6 @@ async function recarregar(){
   const{data}=await JUMP.sb.from('conteudos').select('*').eq('user_id',CTX.viewId||CTX.user.id).eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
   ITENS=data||[]; render();
 }
-// Geração automática em fila dos rascunhos (uma a uma, respeitando o limite de 60s)
-    // Pendências (posts sem copy/arte) saíram do Aprovar — vivem em Tarefas de Serviço.
-    { const b=document.getElementById('fila-bar'); if(b)b.style.display='none'; }
-    // ❌ REMOVIDO: gerarFila() automático — abrir a Aprovação DISPARAVA a geração e
-    // consumia a cota sem o usuário pedir nada. Agora é um convite com botão.
-    // Pendências (posts esperando arte) saíram do Aprovar — elas vivem em Tarefas de Serviço,
-    // onde o processo é acompanhado. O Aprovar mostra só o que já está PRONTO para aprovar.
-  }catch(e){}
-})();
 // C3: chegou do calendário com ?id= — abre no card certo em vez de largar o usuário na lista.
 function focarCard(){
   const id=new URLSearchParams(location.search).get('id'); if(!id)return;
@@ -484,8 +488,8 @@ function focarCard(){
   el.style.outline='2px solid var(--g)'; el.style.outlineOffset='3px';
   setTimeout(()=>{el.style.outline='';el.style.outlineOffset=''},2600);
 }
-function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
-function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
+function _inp(cid,k,label,val,tipo){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><input class="pv-f" data-cid="${cid}" data-k="${k}" data-orig="${JUMP.esc(val==null?'':String(val))}" type="${tipo||'text'}" value="${JUMP.esc(val==null?'':String(val))}"></label>`}
+function _txt(cid,k,label,val){return `<label class="ec-fld ec-edit"><span class="ec-lab">${label}</span><textarea class="pv-f" data-cid="${cid}" data-k="${k}" data-orig="${JUMP.esc(val==null?'':String(val))}" rows="4">${JUMP.esc(val==null?'':String(val))}</textarea></label>`}
 function _postsOrdenados(ps){return (ps||[]).slice().sort((a,b)=>String(a.data_agendada||a.data_sugerida||'').localeCompare(String(b.data_agendada||b.data_sugerida||'')));}
 function _linhaPost(c,semanal){
   // LINHA NO ESTILO PLANNER (01/out/2026, inspiração: Planner da Meta Business Suite): data/hora à
@@ -649,22 +653,45 @@ function abrirEstrategia(id){
 }
 async function salvarEdicoesProposta(){
   // Salva os campos editáveis (data, horário, headline, copy, CTA, tema) — nunca a estrutura.
+  // SÓ O QUE MUDOU, EM PARALELO (02/out/2026, "o card fica esperando o salvar terminar"): antes
+  // regravava todos os campos de todos os posts, um a um (plano de 11 posts = ~22 gravações em
+  // fila). Agora cada campo compara com o valor com que o card abriu (data-orig) e os posts
+  // alterados são gravados juntos. Data e hora andam juntas (data_agendada depende das duas).
   const porPost={};
-  document.querySelectorAll('.pv-f').forEach(el=>{const id=el.dataset.cid;(porPost[id]=porPost[id]||{})[el.dataset.k]=el.value;});
+  document.querySelectorAll('.pv-f').forEach(el=>{const id=el.dataset.cid;(porPost[id]=porPost[id]||{v:{},mud:{}});porPost[id].v[el.dataset.k]=el.value;if(el.value!==(el.dataset.orig==null?el.value:el.dataset.orig))porPost[id].mud[el.dataset.k]=true;});
+  const gravacoes=[];
   for(const id in porPost){
-    const f=porPost[id], patch={}, meta={};
-    if(f.tema!=null)patch.tema=f.tema;
-    if(f.copy!=null)patch.copy=f.copy;
-    if(f.roteiro!=null)patch.roteiro=f.roteiro;
-    if(f.headline!=null)meta.headline=f.headline;
-    if(f.cta!=null)meta.cta_arte=f.cta;
-    if(f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
-    if(Object.keys(meta).length){
-      const{data:atual}=await JUMP.sb.from('conteudos').select('meta').eq('id',id).single();
-      patch.meta=Object.assign({},(atual&&atual.meta)||{},meta);
-    }
-    if(Object.keys(patch).length)await JUMP.sb.from('conteudos').update(patch).eq('id',id);
+    const f=porPost[id].v, mud=porPost[id].mud, patch={}, meta={};
+    if(!Object.keys(mud).length)continue;
+    if(mud.tema&&f.tema!=null)patch.tema=f.tema;
+    if(mud.copy&&f.copy!=null)patch.copy=f.copy;
+    if(mud.roteiro&&f.roteiro!=null)patch.roteiro=f.roteiro;
+    if(mud.headline&&f.headline!=null)meta.headline=f.headline;
+    if(mud.cta&&f.cta!=null)meta.cta_arte=f.cta;
+    if((mud.dia||mud.hora)&&f.dia){patch.data_sugerida=f.dia;patch.data_agendada=JUMP_CLASS.agendaSP(f.dia,f.hora);}
+    gravacoes.push((async()=>{
+      if(Object.keys(meta).length){
+        const{data:atual}=await JUMP.sb.from('conteudos').select('meta').eq('id',id).single();
+        patch.meta=Object.assign({},(atual&&atual.meta)||{},meta);
+      }
+      if(Object.keys(patch).length){
+        const{error}=await JUMP.sb.from('conteudos').update(patch).eq('id',id);
+        if(error)throw new Error('não consegui salvar a edição de um post ('+(error.message||'erro')+')');
+      }
+    })());
   }
+  await Promise.all(gravacoes);
+}
+// AVISO DE ANDAMENTO (02/out/2026): o card fecha na hora ao aprovar e o trabalho continua por trás —
+// esta pílula no canto mostra que está salvando. _progresso(null) some com ela.
+function _progresso(txt){
+  let el=document.getElementById('ap-progresso');
+  if(!txt){ if(el)el.remove(); return; }
+  if(!el){el=document.createElement('div');el.id='ap-progresso';el.setAttribute('role','status');
+    el.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:var(--card,#16161a);border:1px solid color-mix(in srgb,var(--g) 40%,transparent);color:var(--t1);font-family:var(--M);font-size:12px;letter-spacing:.04em;box-shadow:0 10px 30px rgba(0,0,0,.4)';
+    document.body.appendChild(el);}
+  const fim=/✓/.test(txt);
+  el.innerHTML=(fim?'':'<span class="spin-i" style="border-color:color-mix(in srgb,var(--t1) 25%,transparent);border-top-color:var(--g)"></span>')+JUMP.esc(txt);
 }
 // DESPACHANTE GENÉRICO: cada tipo de proposta tem sua ação. Novos agentes (Tráfego, Vídeo...)
 // só precisam registrar o seu 'aprovar_<tipo>' aqui — o card e a edição já funcionam sozinhos.
@@ -673,6 +700,9 @@ async function aprovarProposta(id,tarefa,btn){
   if(!confirm(semanal?'Aprovar esta semana?\n\nOs agentes vão produzir as artes destes posts. Depois você aprova cada conteúdo aqui no Aprovar.':'Aprovar o planejamento do mês?\n\nO plano entra no calendário e a Semana 1 é liberada. Nenhuma arte é gerada agora.'))return;
   const uid=CTX.viewId||CTX.user.id;
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  // o card fecha na hora — o trabalho segue por trás, com a pílula de andamento no canto
+  document.getElementById('modal-estr').classList.remove('show');
+  _progresso(semanal?'Aprovando a semana…':'Aprovando o plano do mês…');
   try{
     await salvarEdicoesProposta();
     if(semanal){
@@ -752,7 +782,10 @@ async function aprovarProposta(id,tarefa,btn){
       // dispara o worker imediatamente (mesmo padrão validado nos Criativos): o usuário não
       // precisa abrir nada — se a página cair, o cron retoma a mesma ordem. Só faz sentido se a
       // ordem realmente nasceu.
-      if(!erroProducao){ try{await JUMP.dispararFila()}catch(e){} }
+      // NÃO ESPERA A PRODUÇÃO (02/out/2026): antes o card ficava aberto até o worker gerar as artes
+      // (minutos). keepalive: o pedido sobrevive ao recarregar da página; se falhar, o cron de 5 min
+      // pega a mesma ordem pendente.
+      if(!erroProducao){ try{ JUMP.authFetch('/api/cron?job=produzir_meu',{method:'POST',keepalive:true}).catch(e=>console.error('[aprovar_semana] disparo da produção falhou — o cron de 5 min cobre:',e&&e.message)); }catch(e){} }
       // ORDEM FANTASMA (27/ago/2026 — ver APRENDIZADOS.md): este UPDATE fechava a própria ordem
       // sem preencher concluida_em — o único ponto do sistema com esse comportamento. Corrigido
       // (item 8 do gate). Serve também de instrumento: se esta ordem aparecer 'concluida' sem
@@ -876,8 +909,9 @@ async function aprovarProposta(id,tarefa,btn){
         JUMP.toast(ids.length?'✓ Planejamento aprovado! A primeira semana está pronta para sua aprovação.':'✓ Planejamento aprovado! A Estratégia já está preparando os textos da primeira semana — o card aparece aqui em Aprovações em cerca de 1 minuto (atualize a página).');
       }
     }
-    location.reload();
-  }catch(e){JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}}
+    _progresso('Pronto ✓');
+    setTimeout(()=>location.reload(),1200); // dá tempo de ler a confirmação
+  }catch(e){_progresso(null);JUMP.toast(e.message||'Erro ao aprovar','err');if(btn){btn.disabled=false;btn.textContent='✓ Aprovar';}try{recarregar()}catch(_){}}
 }
 // ETAPA 1 — DESCARTE REAL (25/ago/2026): antes, fechar o card de proposta (mensal/semanal) só
 // escondia o modal — os conteúdos ficavam em 'rascunho' pra sempre, competindo pela janela da
@@ -1414,11 +1448,15 @@ async function aprovar(id){
       const diaBase=String((c&&(c.data_sugerida))||'').slice(0,10);
       if(/^\d{4}-\d{2}-\d{2}$/.test(diaBase))patchAprovar.data_agendada=JUMP_CLASS.agendaSP(diaBase,'09:00');
     }
-    await JUMP.sb.from('conteudos').update(patchAprovar).eq('id',id);
-    // dispara a publicação do próprio usuário (se já estiver na data/hora, publica agora; futuro espera o cron)
-    loadingArte(true,'Enviando para publicação...');
-    try{await JUMP.authFetch('/api/cron?job=publicar_meu',{method:'POST'})}catch(e){
-    loadingArte(false); GERANDO=false;}
+    const{error:errAprov}=await JUMP.sb.from('conteudos').update(patchAprovar).eq('id',id);
+    if(errAprov)throw errAprov;
+    // dispara a publicação do próprio usuário (se já estiver na data/hora, publica agora; futuro espera o cron).
+    // NÃO ESPERA (02/out/2026): antes a tela ficava presa em "Enviando para publicação..." — e
+    // GERANDO continuava true depois do sucesso, bloqueando a próxima aprovação com "Aguarde a
+    // geração terminar". keepalive: o pedido segue mesmo se a página mudar; o cron cobre se falhar.
+    try{ JUMP.authFetch('/api/cron?job=publicar_meu',{method:'POST',keepalive:true}).catch(e=>console.error('[aprovar] disparo da publicação falhou — o cron cobre:',e&&e.message)); }catch(e){}
+    loadingArte(false); GERANDO=false;
+    if(EDIT_ID===id)fecharEdicao();
     // Designer aprende: este tipo/tema foi aprovado. "O sistema aprende o gosto do cliente"
     // (25/set/2026) — escrita agora é SÓ no backend (api/admin-users.js, registrar_gosto), que
     // monta o descritor a partir da linha real do banco e faz upsert (nunca insert puro — a
@@ -1427,7 +1465,7 @@ async function aprovar(id){
     if(c)JUMP.apiSilencioso('registrar_gosto',{conteudo_id:id,tipo:'aprovado'});
     JUMP.toast('✓ Aprovado! Será publicado no horário ideal.');
     ITENS=ITENS.filter(i=>i.id!==id);render();
-  }catch(e){JUMP.toast('Erro ao aprovar','err')}
+  }catch(e){loadingArte(false);GERANDO=false;JUMP.toast('Erro ao aprovar','err')}
 }
 async function baixar(id){
   const c=ITENS.find(i=>i.id===id);if(!c)return;
