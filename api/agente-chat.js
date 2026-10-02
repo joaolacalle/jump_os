@@ -2950,7 +2950,10 @@ const handler = async (req, res) => {
     // "nada foi salvo" fazem sentido para eles, e os dois ficam de fora, não só o reparo.
     let avisoNadaRegistrado=null;
     const _declarouAcao=declarouAcaoSemRegistro(texto);
-    if(agente==='estrategia' && _declarouAcao && conteudos.length===0){
+    // resposta de DETALHAMENTO (<detalhe>) não registra <conteudo> por definição: "aprove o card em
+    // Aprovações" ali é verdade, não ação sem registro. Antes disparava este reparo (mais uma chamada,
+    // risco de post avulso indevido) e o aviso falso "🔴 nada foi salvo" (02/out/2026, caso real).
+    if(agente==='estrategia' && _declarouAcao && conteudos.length===0 && !_ehDetalhamento){
       // REPARO DE SEGUNDA CHAMADA — AVULSO (03/set/2026, autorizado após confirmação em produção
       // de que as duas condições abaixo — conteudos.length===0 e declarouAcaoSemRegistro — são
       // exatamente o sinal certo): a causa raiz comprovada NÃO é o agente desobedecendo a

@@ -267,7 +267,7 @@ textarea.edt{resize:vertical;line-height:1.5}
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:16px">🎨</span>
       <span id="rascunhos-txt" style="font-family:var(--M);font-size:13px;color:var(--t2)"></span>
-      <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="gerarFila()">🎨 Gerar artes agora</button>
+      <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="gerarFila()">🎨 Tentar de novo</button>
     </div>
   </div>
   <div id="fila-bar" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:16px">
@@ -364,6 +364,16 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],P
       const _uid=CTX.viewId||CTX.user.id;
       const{data:estr}=await JUMP.sb.from('ordens_servico').select('*').eq('user_id',_uid).like('tarefa','aprovar_%').eq('status','aguardando_aprovacao').order('created_at',{ascending:false});
       ESTRATEGIAS=estr||[];
+      // BARRA "ESPERANDO ARTE" SÓ PARA PRODUÇÃO TRAVADA (02/out/2026): antes contava todo rascunho com
+      // texto — inclusive de semanas AINDA NÃO APROVADAS — e o botão "Gerar artes" produzia sem
+      // aprovação, gastando cota (e aparecia enquanto a produção já rodava). Agora só entra post que
+      // já foi aprovado (está numa ordem criar_post) e não tem produção pendente/rodando cobrindo ele.
+      try{
+        const{data:_cp}=await JUMP.sb.from('ordens_servico').select('status,payload').eq('user_id',_uid).eq('tarefa','criar_post').gte('created_at',new Date(Date.now()-30*864e5).toISOString());
+        const _aprov=new Set(), _ativos=new Set();
+        (_cp||[]).forEach(o=>{((o.payload&&o.payload.ids)||[]).forEach(x=>{_aprov.add(String(x));if(o.status==='pendente'||o.status==='processando')_ativos.add(String(x));});});
+        RASCUNHOS=RASCUNHOS.filter(c=>_aprov.has(String(c.id))&&!_ativos.has(String(c.id)));
+      }catch(e){ RASCUNHOS=[]; console.error('[aprovar] produção travada: leitura falhou — barra oculta',e&&e.message); }
       // carrega os posts vinculados a cada proposta (para os campos editáveis)
       for(const _p of ESTRATEGIAS){
         const _ids=(_p.payload&&_p.payload.ids)||[];
@@ -1046,7 +1056,7 @@ function render(){
   if(rb){
     const filaRodando=document.getElementById('fila-bar')&&document.getElementById('fila-bar').style.display!=='none';
     if(RASCUNHOS.length&&!filaRodando){
-      document.getElementById('rascunhos-txt').textContent=RASCUNHOS.length+' post(s) prontos, esperando arte.';
+      document.getElementById('rascunhos-txt').textContent=RASCUNHOS.length+' post(s) aprovado(s) ficaram sem arte.';
       rb.style.display='block';
     }else rb.style.display='none';
   }
