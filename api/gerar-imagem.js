@@ -131,7 +131,9 @@ function validarTextoDaPeca(o, permitirHeadlineVazia) {
   if (nH > 8) throw new Error('headline com ' + nH + ' palavras (limite do Engine: 8) — "' + h + '"');
   if (o.subheadline) {
     const nS = contarPalavras(o.subheadline);
-    if (nS > 6) throw new Error('subheadline com ' + nS + ' palavras (limite do Engine: 6) — "' + o.subheadline + '"');
+    // 6 → 12 palavras (02/out/2026, autorizado pelo João): o texto de apoio precisa explicar a
+    // headline; 12 é o limite que o próprio prompt do Engine já declara para SUPPORT COPY (seção 2).
+    if (nS > 12) throw new Error('subheadline com ' + nS + ' palavras (limite do Engine: 12) — "' + o.subheadline + '"');
   }
   if (o.cta_arte) {
     const nC = contarPalavras(o.cta_arte);
@@ -154,7 +156,11 @@ function validarTextoDaPeca(o, permitirHeadlineVazia) {
 // {w,h} e a MESMA saída desta função — nunca dois números divergentes pra mesma peça.
 const MARGENS_BASE_SAFE_ZONE = {
   feed:  { top: 0.09, sides: 0.08, bottom: 0.10 }, // FEED/CAROUSEL — números originais do Engine
-  reels: { top: 0.13, sides: 0.08, bottom: 0.17 }, // REELS/STORY — números originais do Engine
+  // REELS/STORY 1080x1920 (02/out/2026, conferência das medidas da Meta pedida pelo João): a Meta
+  // pede ~14% livres no topo e na base do story (barra de progresso/perfil e resposta) e, no reels,
+  // a legenda/áudio cobrem ~20% da base; a grade do perfil (3:4) ainda corta 12,5% em cima e em baixo
+  // da capa. Era top 0.13 / bottom 0.17 — texto podia cair sob a interface. Feed 4:5 já atendia.
+  reels: { top: 0.14, sides: 0.08, bottom: 0.20 },
 };
 
 // Reproduz a matemática do `fit:'cover'` do sharp: escala a imagem gerada (genW x genH) até
@@ -221,7 +227,9 @@ function mapearRetParaGerado(genW, genH, alvoW, alvoH, ret) {
 // em risco da ordem: "as coordenadas das zonas reservadas e as do compositor são a MESMA fonte").
 async function calcularZonasPills(vert, M6, pilar, ctaArte, total, targetId) {
   const seloTexto = String(pilar || M6.marca || '').trim();
-  const ctaTexto = String(ctaArte || '').trim() || (Number(total) > 1 ? 'SWIPE →' : '');
+  // SEM "SWIPE →" AUTOMÁTICO (02/out/2026, autorizado pelo João): slide sem cta_arte fica sem CTA.
+  // O carrossel ganhou roteiro por slide (api/_carrossel-lib.js) — a chamada vai só no último slide.
+  const ctaTexto = String(ctaArte || '').trim();
   if (!seloTexto && !ctaTexto) return null;
   const tpl = obterTemplate(vert);
   const corCtaDna = M6.cor_cta && String(M6.cor_cta).trim();
@@ -592,8 +600,8 @@ function engine6(M, o) {
     (o.prova && !o.composicaoAtiva) ? ('PROOF POINT, max 6 words, prefer a NUMBER + NOUN shape over a full sentence (e.g. "10 usuários no Pro", not a long sentence with accents — a real figure/fact, render as a small highlighted stat or badge, NOT invented): "' + cortarFrase(o.prova, 90) + '"') : '',
     o.copy ? ('INSTAGRAM CAPTION (context only — do NOT render this on the image): "' + cortarFrase(o.copy, 90) + '"') : '',
     // CTA E SELO POR CÓDIGO (decisão 4): idem — o CTA sai do CONTEÚDO pedido ao modelo. O texto
-    // exato (cta_arte, ou "SWIPE →" no carrossel) é composto depois, por código.
-    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : ((o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA (max 2 words): "SWIPE →"' : '')),
+    // exato (cta_arte; sem cta_arte, nenhum — 02/out/2026) é composto depois, por código.
+    (o.composicaoAtiva || o.ctaSeloPorCodigo) ? '' : ((o.cta_arte || o.cta) ? ('CTA (max 2 words): "' + (o.cta_arte || o.cta) + '"') : (o.total > 1 ? 'CTA: none on this slide — do NOT render any button, arrow or call-to-action text.' : '')),
     o.composicaoAtiva ? '' : (o.oferta ? ('OFFER BADGE: "' + o.oferta + '"') : ''),
     '',
     // densidade_visual (23/set/2026): estas duas linhas de checklist final também citavam o
@@ -833,7 +841,7 @@ async function diretorDeArte(M, o, ctx) {
     '7. ALWAYS bake in explicitly: the depth layers, the safe zones, the label prominence, the eye-flow. These are exactly the rules weak prompts drop.',
     o.composicaoAtiva
       ? 'THERE IS NO TEXT TO RENDER IN THIS PIECE. Any headline/subheadline/proof/CTA mentioned below is SCENE CONTEXT ONLY — what the post is about, so you can build a relevant photograph — never a string to letter, stencil or write anywhere in the image.'
-      : 'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤6, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
+      : 'THE TEXT LIST IS CLOSED AND YOU MAY NOT CHANGE ONE CHARACTER OF IT. The headline, subheadline, proof point and CTA below already passed a word-count gate in code (Etapa 1: headline ≤8 words, subheadline ≤12, CTA ≤2) — if it reached you, it is valid text, decided by someone else. Your only authority is placement, weight, material and light. If a string looks wrong to you, render it exactly as given anyway — you are not the editor of it.',
     '',
     '=== SPECIFICS ===',
     // MATERIAL REAL MANDA NA POSE (24/set/2026, "Foto travada de verdade, CTA e selo por código,
@@ -2215,7 +2223,7 @@ module.exports = async (req, res) => {
       // senão a marca) — sem o passo final de "derivar uma palavra do tema", que exige raciocínio
       // que só o modelo tinha; se pilar e marca vierem vazios, o selo simplesmente não é desenhado
       // (desvio documentado, sinalizado no relatório desta entrega). CTA cai no mesmo fallback de
-      // "SWIPE →" no carrossel sem cta_arte, mesma regra que engine6() já tinha.
+      // sem cta_arte não há CTA (02/out/2026 — o "SWIPE →" automático saiu, autorizado pelo João).
       // FONTE ÚNICA (24/set/2026, "Trocar o motor de imagem e reservar as zonas das pílulas",
       // decisão 5, autorizado pelo João): reaproveita _zonasPills, já calculado CEDO (antes de
       // montar o prompt) pela MESMA função (calcularZonasPills, acima de engine6) que também
