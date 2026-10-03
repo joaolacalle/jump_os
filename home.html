@@ -407,6 +407,51 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .pf-gift{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:rgba(74,222,128,.14);color:#4ade80;font-size:12px;font-weight:800;vertical-align:middle}
 .pf-sem{font-family:var(--M);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:14px}
 .pf-ver-sec{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--t2);font-size:12.5px;text-decoration:underline;cursor:pointer}
+/* ══ COMO FUNCIONA — bento (cada passo com um visual próprio) ══ */
+.how-bento{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:clamp(36px,6vw,60px)}
+.hb{position:relative;background:linear-gradient(160deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border:1px solid var(--bd);border-radius:18px;padding:clamp(20px,2.6vw,28px);display:flex;flex-direction:column;overflow:hidden;transition:border-color .3s,transform .3s}
+.hb:hover{border-color:rgba(168,85,247,.45);transform:translateY(-3px)}
+.hb-1{grid-column:span 2}.hb-4{grid-column:span 2}
+.hb-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.hb-n{font-family:var(--M);font-size:13px;font-weight:700;color:#160A24;background:var(--g);border-radius:8px;padding:4px 9px}
+.hb-tag{font-family:var(--M);font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--g2);opacity:.8}
+.hb-t{font-size:clamp(18px,2vw,22px);font-weight:800;text-transform:uppercase;color:var(--t1);margin-bottom:8px}
+.hb-b{font-size:clamp(14px,1.5vw,15.5px);color:var(--t2);line-height:1.6;max-width:520px}
+.hb-vis{margin-top:auto;padding-top:20px}
+.hb-chat{display:flex;flex-direction:column;gap:8px}
+.hc{max-width:78%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.4}
+.hc-ag{background:rgba(168,85,247,.14);color:var(--t1);border-bottom-left-radius:4px}
+.hc-eu{align-self:flex-end;background:rgba(255,255,255,.07);color:var(--t2);border-bottom-right-radius:4px}
+.hb-bars{display:flex;align-items:flex-end;gap:8px;height:120px;position:relative}
+.hb-bars i{flex:1;height:var(--h);border-radius:6px 6px 2px 2px;background:rgba(168,85,247,.22)}
+.hb-bars i.on{background:linear-gradient(180deg,var(--g2),var(--g3));box-shadow:0 0 22px rgba(168,85,247,.45)}
+.hb-bars span{position:absolute;top:0;right:0;font-family:var(--M);font-size:10.5px;letter-spacing:1px;color:#4ade80;text-transform:uppercase}
+.hb-post{display:flex;flex-direction:column;gap:10px}
+.hp-img{aspect-ratio:16/9;border-radius:12px;background:radial-gradient(circle at 70% 30%,rgba(255,107,26,.55),transparent 55%),linear-gradient(140deg,#2a1608,#0d0d0d);display:flex;flex-direction:column;justify-content:flex-end;padding:14px}
+.hp-img b{font-family:var(--D);font-size:24px;letter-spacing:.5px;color:#fff;line-height:1}
+.hp-img small{font-size:12px;color:rgba(255,255,255,.7)}
+.hp-ok{align-self:flex-start;background:#4ade80;color:#06240f;font-weight:800;font-size:13px;padding:7px 14px;border-radius:8px}
+.hb-feed{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hf{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--bd);border-radius:12px;font-family:var(--M);font-size:12px;color:var(--t2)}
+.hf b{margin-left:auto;font-weight:700;color:var(--t3);text-transform:uppercase;font-size:10.5px;letter-spacing:1px}
+.hf-d{width:8px;height:8px;border-radius:50%;background:#fbbf24}.hf-d.ok{background:#4ade80;box-shadow:0 0 8px #4ade80}
+.hf .hf-d.ok~b{color:#4ade80}
+.hf-dm{grid-column:1/-1;font-family:var(--B);font-size:13.5px;color:var(--t1);background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3)}
+.hf-dm span{color:var(--t2)}
+@media(max-width:900px){.how-bento{grid-template-columns:1fr}.hb-1,.hb-4{grid-column:auto}.hb-feed{grid-template-columns:1fr}}
+/* ══ AGENTES — faixa rolando (mesmo comportamento da galeria de exemplos) ══ */
+.ag-track{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 16px;-webkit-overflow-scrolling:touch}
+.ag-track::-webkit-scrollbar{height:6px}.ag-track::-webkit-scrollbar-thumb{background:rgba(168,85,247,.35);border-radius:6px}
+.agc{flex:0 0 clamp(250px,24vw,300px);border-radius:18px;padding:22px;background:linear-gradient(170deg,rgba(var(--nr),.13),rgba(20,19,18,.9) 55%);border:1px solid rgba(var(--nr),.35);display:flex;flex-direction:column;gap:10px}
+.agc-top{display:flex;align-items:center;justify-content:space-between}
+.agc-ico svg{width:40px;height:40px}
+.agc-n{font-family:var(--M);font-size:11px;letter-spacing:2px;color:rgba(var(--nr),.9)}
+.agc-name{font-family:var(--D);font-size:30px;letter-spacing:.6px;color:var(--t1);line-height:1}
+.agc-role{font-family:var(--M);font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(var(--nr),.85)}
+.agc-func{font-size:14px;color:var(--t2);line-height:1.55}
+.agc ul{list-style:none;margin:4px 0 0;padding:10px 0 0;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:6px}
+.agc li{font-size:12.5px;color:var(--t2)}.agc li:before{content:'→ ';color:rgba(var(--nr),.9)}
+.agc-plano{margin-top:auto;font-family:var(--M);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
 /* ══ BENEFÍCIOS CAROUSEL ══ */
 
 
@@ -947,13 +992,41 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <div class="si">
     <div class="tg-d rv">Como funciona</div>
     <h2 class="sh-d rv">Simples. Rápido.<br><em>Eficiente.</em></h2>
-    <div class="how-g">
-      <div class="how-ph rvl"><img src="assets/foto-work.jpg" alt="JUMP OS"></div>
-      <div class="steps">
-        <div class="step rv"><div class="sn">01</div><div><div class="st">Check-in único</div><div class="sb">Uma conversa com nosso agente. Você conta sobre o negócio — ele entende tudo. Nunca mais repete.</div><div class="sa">Agente de Identidade · Agente de Mercado</div></div></div>
-        <div class="step rv"><div class="sn">02</div><div><div class="st">Diagnóstico real</div><div class="sb">O sistema analisa seu Instagram e seus concorrentes. Estratégia baseada em dado, não em achismo.</div><div class="sa">Agente de Diagnóstico</div></div></div>
-        <div class="step rv"><div class="sn">03</div><div><div class="st">Conteúdo pronto</div><div class="sb">Posts completos — arte, legenda e horário — criados para a sua marca. Você aprova com um clique.</div><div class="sa">Agente de Estratégia · Agente Criativo</div></div></div>
-        <div class="step rv"><div class="sn">04</div><div><div class="st">Publicado sozinho</div><div class="sb">Em todos os planos, o sistema publica nos horários certos. No Plus e no Pro, ainda responde automaticamente quem comenta ou chama no Direct.</div><div class="sa">Agente Social Media</div></div></div>
+    <div class="how-bento">
+      <div class="hb hb-1 rv">
+        <div class="hb-top"><span class="hb-n">01</span><span class="hb-tag">Agente de Identidade · Mercado</span></div>
+        <div class="hb-t">Check-in único</div>
+        <div class="hb-b">Uma conversa com o agente. Você conta sobre o negócio uma vez — ele aprende sua marca, seu público e seu jeito de falar.</div>
+        <div class="hb-vis hb-chat">
+          <div class="hc hc-ag">Me conta: o que você vende e pra quem?</div>
+          <div class="hc hc-eu">Hambúrguer artesanal, delivery no bairro 🍔</div>
+          <div class="hc hc-ag">Perfeito. Já registrei tom, cores e público. ✓</div>
+        </div>
+      </div>
+      <div class="hb hb-2 rv">
+        <div class="hb-top"><span class="hb-n">02</span><span class="hb-tag">Agente de Diagnóstico</span></div>
+        <div class="hb-t">Diagnóstico real</div>
+        <div class="hb-b">Lê os números do seu Instagram e dos concorrentes. Estratégia com dado, não achismo.</div>
+        <div class="hb-vis hb-bars"><i style="--h:38%"></i><i style="--h:55%"></i><i style="--h:47%"></i><i style="--h:72%"></i><i style="--h:91%" class="on"></i><span>melhor horário: 19h</span></div>
+      </div>
+      <div class="hb hb-3 rv">
+        <div class="hb-top"><span class="hb-n">03</span><span class="hb-tag">Estratégia · Criativo</span></div>
+        <div class="hb-t">Posts prontos</div>
+        <div class="hb-b">Arte com a sua marca, legenda e horário. Você aprova com um clique.</div>
+        <div class="hb-vis hb-post"><div class="hp-img"><b>O SMASH QUE FALTAVA</b><small>na sua semana</small></div><div class="hp-ok">✓ Aprovar</div></div>
+      </div>
+      <div class="hb hb-4 rv">
+        <div class="hb-top"><span class="hb-n">04</span><span class="hb-tag">Agente Social Media</span></div>
+        <div class="hb-t">Publicado sozinho</div>
+        <div class="hb-b">Em todos os planos, publica no melhor horário. No Plus e no Pro, ainda responde quem comenta ou chama no Direct.</div>
+        <div class="hb-vis hb-feed">
+          <div class="hf"><span class="hf-d ok"></span>Ter · 19:00<b>publicado</b></div>
+          <div class="hf"><span class="hf-d ok"></span>Qua · 18:30<b>publicado</b></div>
+          <div class="hf"><span class="hf-d"></span>Qui · 12:30<b>agendado</b></div>
+          <div class="hf"><span class="hf-d"></span>Sáb · 10:00<b>agendado</b></div>
+          <div class="hf hf-dm">💬 "QUERO" <span>→ link enviado no Direct</span></div>
+          <div class="hf hf-dm">💬 "PREÇO" <span>→ tabela enviada no Direct</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -979,7 +1052,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <section class="sec sec-agents" id="agentes">
   <div class="si">
     <!-- STATUS BAR DOS AGENTES -->
-    <div class="ag-status-bar rv" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(168,85,247,.15);border-radius:12px">
+    <div class="ag-status-bar rv" style="display:none;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(168,85,247,.15);border-radius:12px">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:hpulse 2s infinite"></div>
         <span style="font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g)">Sistema neural ativo</span>
@@ -996,14 +1069,15 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
         <h2 class="sh-d rv">8 especialistas.<br>1 sistema <em>integrado.</em></h2>
       </div>
       <div>
-        <p class="ss-d rv" style="margin:0 0 14px">Clique nos agentes ao lado para navegar. Cada um tem função e 3 operações específicas.</p>
+        <p class="ss-d rv" style="margin:0 0 14px">Cada agente cuida de uma parte do seu marketing — e todos trabalham juntos, sem você precisar coordenar ninguém.</p>
         <a href="agentes-detalhes.html" class="car-detail-link rv">Entender cada agente em detalhe →</a>
       </div>
     </div>
-    <div class="car-wrap">
+    <div class="ag-track" id="ag-track"></div>
+    <div class="car-wrap" style="display:none">
       <div class="car-track" id="car-track"></div>
     </div>
-    <div class="car-nav">
+    <div class="car-nav" style="display:none">
       <button class="car-arr" onclick="carMove(-1)">←</button>
       <div class="car-dots" id="car-dots"></div>
       <button class="car-arr" onclick="carMove(1)">→</button>
@@ -1719,9 +1793,13 @@ const EXEMPLOS=[
     const cap=document.createElement('div');cap.className='ex-cap';cap.innerHTML='Nicho · <b></b>';cap.querySelector('b').textContent=e.nicho;
     c.appendChild(im);c.appendChild(cap);tr.appendChild(c);
   });
-  // "FICAM PASSANDO": rolagem contínua e lenta; para enquanto a pessoa passa o mouse ou toca.
-  // Quem prefere menos movimento (prefers-reduced-motion) fica só com a rolagem manual.
-  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  autoRolar(tr);
+})();
+
+// "FICAM PASSANDO": rolagem contínua e lenta para as faixas (exemplos e agentes); para enquanto a
+// pessoa passa o mouse ou toca. Quem prefere menos movimento (prefers-reduced-motion) só rola na mão.
+function autoRolar(tr){
+  if(!tr||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))return;
   let parado=false,ultimo=0,pos=0;
   ['mouseenter','touchstart','focusin'].forEach(ev=>tr.addEventListener(ev,()=>{parado=true;},{passive:true}));
   ['mouseleave','touchend','focusout'].forEach(ev=>tr.addEventListener(ev,()=>{pos=tr.scrollLeft;setTimeout(()=>{parado=false;},1500);},{passive:true}));
@@ -1735,6 +1813,26 @@ const EXEMPLOS=[
     requestAnimationFrame(passo);
   }
   requestAnimationFrame(passo);
+}
+
+/* ══ AGENTES — faixa rolando (dados de AGENTS/AGENT_SVGS, definidos no script principal) ══ */
+(function(){
+  const tr=document.getElementById('ag-track');if(!tr)return;
+  let lista=null;try{lista=AGENTS;}catch(e){} // AGENTS vem do script principal; se ele falhou, a faixa só fica vazia
+  if(!Array.isArray(lista))return;
+  let icones=[];try{icones=AGENT_SVGS;}catch(e){}
+  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  lista.forEach((a,i)=>{
+    const c=document.createElement('div');c.className='agc';c.style.setProperty('--nr',a.nr||'168,85,247');
+    const svg=(icones&&icones[i])||'<span style="font-size:32px">'+esc(a.ico)+'</span>';
+    c.innerHTML='<div class="agc-top"><div class="agc-ico">'+svg+'</div><div class="agc-n">AGENTE '+esc(a.id)+'</div></div>'
+      +'<div><div class="agc-name">'+esc(a.name)+'</div><div class="agc-role">'+esc(a.role)+'</div></div>'
+      +'<div class="agc-func">'+esc(a.func)+'</div>'
+      +'<ul>'+(a.tasks||[]).slice(0,3).map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>'
+      +'<div class="agc-plano">'+(i<6?'Todos os planos':'Plano Pro')+'</div>';
+    tr.appendChild(c);
+  });
+  autoRolar(tr);
 })();
 
 </script>
