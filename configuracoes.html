@@ -399,13 +399,13 @@ async function carregarConexoes(){
     // admin e o próprio dono continuam sem mudança.
     const escondeDesc=CTX.role==='supervisor'&&CTX.viewId&&CTX.viewId!==CTX.user.id;
     if(igOn){
-      const st=document.getElementById('cx-ig-s');st.textContent='● Conectado';st.style.color='var(--g)';
+      const st=document.getElementById('cx-ig-s');st.textContent='● Conectado';st.style.color='var(--ok)';
       const b=document.getElementById('cx-ig-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
       if(igMeta&&igMeta.ig_picture){document.getElementById('cx-ig-ico').innerHTML='<img src="'+igMeta.ig_picture+'" style="width:38px;height:38px;border-radius:10px;object-fit:cover" alt="">';}
       if(!escondeDesc){const d=document.getElementById('cx-ig-desc');d.dataset.id=igId;d.style.display='';}
     }
     if(adsOn){
-      const st=document.getElementById('cx-ads-s');st.textContent='● Conectado';st.style.color='var(--g)';
+      const st=document.getElementById('cx-ads-s');st.textContent='● Conectado';st.style.color='var(--ok)';
       const b=document.getElementById('cx-ads-btn');b.textContent='Gerenciar';b.className='btn btn-o btn-sm';
       if(!escondeDesc){const d=document.getElementById('cx-ads-desc');d.dataset.id=adsId;d.style.display='';}
     }

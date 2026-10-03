@@ -2,9 +2,11 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{overflow-x:hidden}
 :root{
-  --ch:#0E0E13;--ch2:#1C1A18;--ch3:#252220;--card:#191922;
-  --g:#24E0A0;--g2:#4DE9B3;--g-rgb:36,224,160;--glow:rgba(var(--g-rgb),.22);
-  --violet:#8B5CF6;--violet-rgb:139,92,246;--grad:linear-gradient(120deg,#24E0A0 0%,#31C9C0 45%,#8B5CF6 100%);
+  --ch:#141312;--ch2:#1C1A18;--ch3:#252220;--card:#1C1A18;
+  --g:#A855F7;--g2:#B975F9;--g-rgb:168,85,247;--glow:rgba(var(--g-rgb),.22);
+  /* MESMA LINGUAGEM DA HOME (03/out/2026): roxo é a cor da marca; verde ficou só para "ok/sucesso" (--ok) */
+  --ok:#4ade80;--ok-rgb:74,222,128;
+  --violet:#8B5CF6;--violet-rgb:139,92,246;--grad:linear-gradient(120deg,#B975F9 0%,#A855F7 50%,#8B3FE0 100%);
   --a2:#B975F9;--a3:#FFFFFF;
   --t1:#F5F2EC;--t2:#A09890;--t3:#5A5248;
   --bd:rgba(245,242,236,.08);
@@ -23,7 +25,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 .sidebar{
   /* variáveis BLINDADAS — o tema do usuário não altera o menu lateral (evita fonte invisível) */
   --t1:#F5F2EC; --t2:rgba(245,242,236,.68); --t3:rgba(245,242,236,.45);
-  --g:#24E0A0; --g-rgb:36,224,160; --bd:rgba(245,242,236,.09); --red:#f87171;
+  --g:#A855F7; --g-rgb:168,85,247; --bd:rgba(245,242,236,.09); --red:#f87171;
   background:#0F0E0D;border-right:1px solid rgba(245,242,236,.09);padding:22px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .sb-logo{padding:0 8px 20px;border-bottom:1px solid var(--bd);margin-bottom:16px}
 .sb-logo img{height:30px;object-fit:contain}
@@ -76,7 +78,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--t1)}
 @keyframes dotp{0%,100%{opacity:1}50%{opacity:.4}}
 /* BOTÕES */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:9px;font-size:14px;font-weight:800;transition:.22s;letter-spacing:.2px}
-.btn-g{background:var(--grad,var(--g));color:#04120c}.btn-g:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 8px 24px var(--glow)}
+.btn-g{background:var(--grad,var(--g));color:#160A24}.btn-g:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 8px 24px var(--glow)}
 .btn-o{border:1px solid var(--bd);color:var(--t1)}.btn-o:hover{border-color:var(--g);color:var(--g)}
 .btn-r{background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.35);color:var(--red)}.btn-r:hover{background:rgba(255,107,107,.2)}
 .btn-sm{padding:7px 13px;font-size:12px;border-radius:7px}
@@ -187,7 +189,7 @@ td strong{color:var(--t1)}
    ficariam invisíveis sobre o menu branco do modo claro. */
 [data-theme="light"] .sidebar{
   --t1:#1A1916; --t2:rgba(26,25,22,.72); --t3:rgba(26,25,22,.45);
-  --g:#0E9E73; --g-rgb:14,158,115; --bd:rgba(20,25,22,.12); --red:#dc2626;
+  --g:#8B3FE0; --g-rgb:139,63,224; --bd:rgba(20,25,22,.12); --red:#dc2626;
   border-right:1px solid rgba(20,25,22,.10)}
 [data-theme="light"] .sb-link:hover{background:rgba(20,25,22,.05)}
 [data-theme="light"] .fs-b{background:#F7F4EE}

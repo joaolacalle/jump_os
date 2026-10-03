@@ -578,7 +578,7 @@ function _fotoDoPost(c){
     return `<div class="ec-fld" style="margin-top:10px;display:flex;align-items:center;gap:10px"><img src="${JUMP.esc(m.material_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px" alt=""><span style="font-size:12px;color:var(--t2)">📎 Foto do seu acervo escolhida para este post — o Designer usa esta foto na arte.</span></div>`;
   }
   const mat=JUMP_CLASS.materialDoUsuario(c); if(!mat||mat==='video')return '';
-  const status=m.material_url?'<span style="color:var(--g)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>':'<span style="color:var(--t3)">Opcional — se não enviar, o Designer usa as fotos do seu acervo.</span>';
+  const status=m.material_url?'<span style="color:var(--ok)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>':'<span style="color:var(--t3)">Opcional — se não enviar, o Designer usa as fotos do seu acervo.</span>';
   return `<div class="ec-fld" style="margin-top:10px;padding:10px 12px;border:1px dashed color-mix(in srgb,var(--g) 45%,transparent);border-radius:10px">
       <span class="ec-lab">📎 Sua foto para este post${m.material_pedido?(': '+JUMP.esc(m.material_pedido)):''}</span>
       <div id="foto-st-${c.id}" style="font-size:12px;margin:6px 0">${status}</div>
@@ -603,7 +603,7 @@ async function enviarFotoDoPost(cid,inp){
     const{error:errSet}=await JUMP.sb.from('conteudos').update({meta}).eq('id',cid);
     if(errSet)throw errSet;
     ESTRATEGIAS.forEach(o=>(o._posts||[]).forEach(p=>{if(p.id===cid)p.meta=meta;}));
-    if(st)st.innerHTML='<span style="color:var(--g)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>';
+    if(st)st.innerHTML='<span style="color:var(--ok)">✓ Sua foto foi recebida — o Designer vai usar esta foto na arte.</span>';
     JUMP.toast('✓ Foto recebida para este post.');
   }catch(e){
     if(st)st.innerHTML='<span style="color:#f87171">Não foi possível enviar: '+JUMP.esc(e.message||'erro')+'. Tente de novo.</span>';

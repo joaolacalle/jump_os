@@ -150,8 +150,8 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
 .empty-chat{justify-content:center;gap:6px}
 .ec-t{font-size:30px}
 .orb-wrap{position:relative;width:168px;height:168px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
-.orb-glow{position:absolute;inset:-20px;border-radius:50%;background:conic-gradient(from 200deg,#24E0A0,#31C9C0,#8b5cf6,#e0559b,#24E0A0);filter:blur(30px);opacity:.5;animation:orbspin 14s linear infinite}
-.orb-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 210deg,#24E0A0,#31C9C0,#8b5cf6,#24E0A0);padding:4px;animation:orbspin 22s linear infinite reverse}
+.orb-glow{position:absolute;inset:-20px;border-radius:50%;background:conic-gradient(from 200deg,#B975F9,#A855F7,#8B3FE0,#e0559b,#B975F9);filter:blur(30px);opacity:.5;animation:orbspin 14s linear infinite}
+.orb-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 210deg,#B975F9,#A855F7,#8B3FE0,#B975F9);padding:4px;animation:orbspin 22s linear infinite reverse}
 .orb-ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--card)}
 .orb-core{position:relative;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#141824,#08090e 75%);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 32px rgba(36,224,160,.18)}
 .face{position:relative;width:66px;height:36px}
@@ -1057,7 +1057,7 @@ async function gerarPorOrdem(prompt,tamanho,tipo,titulo,semEngine,txt,vinc){
     }catch(e){}
   }
   lbl.innerHTML='🎨 <b>'+titulo+'</b><br><img src="'+dOut.url+'" style="width:100%;border-radius:10px;margin-top:6px">'
-    +(_cid?'<div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:7px">✓ enviado para Aprovações e agendado no calendário</div>':'')
+    +(_cid?'<div style="font-family:var(--M);font-size:10px;color:var(--ok);margin-top:7px">✓ enviado para Aprovações e agendado no calendário</div>':'')
     +'<button class="btn btn-o btn-sm" style="margin-top:6px" onclick="baixarImg(\''+dOut.url+'\',this)">⬇ Baixar</button>';
   w.scrollTop=w.scrollHeight;
 }
@@ -1258,7 +1258,7 @@ async function vmUpload(inp,tipo){
     if(tipo==='video'){vmVideoUrl=url;document.getElementById('vm-editar').disabled=false;}
     else if(tipo==='trilha')vmTrilhaUrl=url;
     else vmLogoUrl=url;
-    statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--g)';
+    statusEl.textContent='✓ '+f.name;statusEl.style.color='var(--ok)';
   }catch(e){
     const msg=(e&&e.message)||String(e)||'erro desconhecido';
     mostrarErroVideo('Erro: '+msg, e);
@@ -1893,7 +1893,7 @@ async function enviarConteudo(){
       criativo_url:ctCriativoUrl, criativo_tipo:ctCriativoTipo,
       tema, data_sugerida:data||null, formato
     },CTX.token);
-    res.innerHTML='<span style="color:var(--g)">✓ Enviado! O Estrategista vai criar a legenda e ela aparece em Aprovar.</span>';
+    res.innerHTML='<span style="color:var(--ok)">✓ Enviado! O Estrategista vai criar a legenda e ela aparece em Aprovar.</span>';
     JUMP.toast('📨 Conteúdo enviado ao Estrategista');
     setTimeout(()=>{
       fecharEnviarConteudo();
@@ -2107,7 +2107,7 @@ async function checarWebhookDm(){
   el.innerHTML='<span style="color:var(--t3)">Conferindo a ligação com o Instagram…</span>';
   try{
     const r=await JUMP.authFetch('/api/cron?job=webhook_meu',{method:'POST'}).then(x=>x.json());
-    if(r&&r.comentarios){el.innerHTML='<span style="color:var(--g)">✓ Instagram ligado: comentários e DMs chegando ao JUMP.</span>';}
+    if(r&&r.comentarios){el.innerHTML='<span style="color:var(--ok)">✓ Instagram ligado: comentários e DMs chegando ao JUMP.</span>';}
     else if(r&&r.motivo==='sem_conta'){el.innerHTML='<span style="color:var(--red)">Conecte seu Instagram para a automação funcionar.</span>';}
     else{el.innerHTML='<span style="color:var(--red)">O Instagram não confirmou o envio de comentários. Reconecte sua conta em Conectar conta.</span>';}
   }catch(e){el.innerHTML='';}
@@ -2142,7 +2142,7 @@ async function salvarPromo(){
       user_id:uid,palavra_chave:kw,mensagem,objetivo:obj,gatilho,origem,ativo:true
     });
     if(error)throw error;
-    res.innerHTML='<span style="color:var(--g)">✓ Automação criada! Responde automaticamente quem '+({comentario:'comentar',dm:'mandar no Direct',ambos:'comentar ou mandar no Direct'}[gatilho]||'comentar')+' "'+kw+'".</span>';
+    res.innerHTML='<span style="color:var(--ok)">✓ Automação criada! Responde automaticamente quem '+({comentario:'comentar',dm:'mandar no Direct',ambos:'comentar ou mandar no Direct'}[gatilho]||'comentar')+' "'+kw+'".</span>';
     document.getElementById('promo-kw').value='';
     document.getElementById('promo-msg').value='';
     document.getElementById('promo-link').value='';
