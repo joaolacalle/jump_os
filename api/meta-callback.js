@@ -256,6 +256,40 @@ module.exports = async (req, res) => {
         }
       } catch (e) { /* falha de checagem não pode impedir uma conexão legítima */ }
     }
+    // ── VÍNCULO PERMANENTE (03/out/2026) ─────────────────────────────────────────
+    // A checagem acima só enxerga conexões ATIVAS: desconectar o Instagram ou excluir a conta
+    // liberava o @ para um e-mail novo. instagram_vinculos guarda o primeiro dono para sempre
+    // (não é apagada na desconexão nem na exclusão). Só o suporte libera (liberado_em).
+    if (igId || igAppId) {
+      let vinculos = null;
+      try {
+        const condicoes = [];
+        if (igId) condicoes.push(`ig_id.eq.${encodeURIComponent(igId)}`, `ig_app_id.eq.${encodeURIComponent(igId)}`);
+        if (igAppId) condicoes.push(`ig_id.eq.${encodeURIComponent(igAppId)}`, `ig_app_id.eq.${encodeURIComponent(igAppId)}`);
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/instagram_vinculos?or=(${condicoes.join(',')})&select=id,user_id,liberado_em`, { headers: SBH() });
+        if (r.ok) vinculos = await r.json();
+        else console.error('[meta-callback] vínculo: leitura falhou status=' + r.status);
+      } catch (e) { console.error('[meta-callback] vínculo: leitura exceção', e && e.message); }
+      if (Array.isArray(vinculos)) {
+        const deOutro = vinculos.find(v => v.user_id !== uid && !v.liberado_em);
+        if (deOutro) {
+          console.warn('ig com vínculo permanente de outra conta:', igId || igAppId, '->', deOutro.user_id);
+          return volta('erro=instagram_ja_vinculado');
+        }
+        if (!vinculos.some(v => v.user_id === uid && !v.liberado_em)) {
+          let email = null;
+          try {
+            const cl = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${uid}&select=email`, { headers: SBH() }).then(x => x.json());
+            email = (Array.isArray(cl) && cl[0] && cl[0].email) || null;
+          } catch (e) {}
+          const w = await fetch(`${SUPABASE_URL}/rest/v1/instagram_vinculos`, {
+            method: 'POST', headers: SBH(),
+            body: JSON.stringify({ ig_id: igId || null, ig_app_id: igAppId || null, ig_username: meta.ig_username || null, user_id: uid, email }),
+          }).catch(e => ({ ok: false, status: String(e && e.message) }));
+          if (!w.ok) console.error('[meta-callback] vínculo: gravação falhou status=' + w.status);
+        }
+      }
+    }
 
     // 4. Salvar conexão
     await sbDel('contas_conectadas', `user_id=eq.${uid}&tipo=eq.instagram`);
