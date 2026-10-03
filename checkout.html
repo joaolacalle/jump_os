@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JUMP OS — Finalizar assinatura</title>
-<meta name="description" content="Finalize a ativação dos seus agentes de IA. 7 dias de garantia.">
+<meta name="description" content="Finalize a ativação dos seus agentes de IA. Garantia de 7 dias.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -169,11 +169,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <div class="sum-card">
       <div class="sc-lbl">Resumo da ativação</div>
       <div class="sc-title">Plano <em id="sum-plan">Plus</em></div>
-      <div class="sc-sub" id="sum-desc">6 agentes + publicação automática trabalhando por você.</div>
+      <div class="sc-sub" id="sum-desc">Seus posts do mês prontos e publicados no automático.</div>
       <div class="ma-lbl" id="sum-agents-lbl">6 agentes incluídos</div>
       <div class="ma-grid" id="sum-agents"></div>
       <div class="trust">
-        <div class="tr-item"><div class="tr-ico">✓</div><div><strong>7 dias de garantia</strong> — teste sem cobrança. Cancele dentro do prazo e nada é cobrado (CDC Art. 49).</div></div>
+        <div class="tr-item"><div class="tr-ico">✓</div><div><strong>Garantia de 7 dias</strong> — não gostou? Peça o cancelamento em até 7 dias e devolvemos 100% do valor (CDC Art. 49).</div></div>
         <div class="tr-item"><div class="tr-ico">✓</div><div><strong>Sem fidelidade</strong> — cancele quando quiser, direto no painel.</div></div>
         <div class="tr-item"><div class="tr-ico">✓</div><div><strong>Ativação em 48h</strong> — seus agentes começam a operar após o check-in.</div></div>
       </div>
@@ -205,7 +205,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
       <!-- Fallback: se o SDK não carregar, usa o redirect -->
       <button class="pay-btn" id="pay-btn" onclick="goCheckout()" style="display:none">Ir para pagamento →</button>
       <div class="pay-secure"><span class="lock">🔒</span> Pagamento seguro · PayPal</div>
-      <div class="pay-note">Pague sem sair do site — cartão ou conta PayPal.<br>Primeiros 7 dias sem cobrança.</div>
+      <div class="pay-note">Pague sem sair do site — cartão ou conta PayPal.<br>Garantia de 7 dias: na primeira semana fica liberada metade da cota do mês; o restante libera no 8º dia.</div>
       <div class="pay-msg" id="pay-msg"></div>
     </div>
   </div>
@@ -220,38 +220,39 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 /* ══ PLANOS ══ */
 const PLANOS={
   basico:{
-    nome:'Básico',preco:'R$129',cents:',90',
-    desc:'Eu crio, você posta. Seu conteúdo do mês pronto para baixar e publicar.',
+    nome:'Básico',preco:'R$149',cents:',90',
+    desc:'5 posts por mês + 1 de brinde (até 2 por semana), criados e publicados no automático.',
     agentes:[
       {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
       {n:'Mercado',f:'Análise nicho',c:'rgba(185,117,249,.8)'},
       {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
       {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
       {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
+      {n:'Social Media',f:'Publica automático',c:'rgba(157,111,245,.9)'},
     ]
   },
   plus:{
-    nome:'Plus',preco:'R$399',cents:',90',
-    desc:'O sistema roda sozinho. Cria e publica no automático, no seu lugar.',
+    nome:'Plus',preco:'R$259',cents:',90',
+    desc:'8 posts por mês + 2 de brinde (até 3 por semana), publicados no automático, com resposta automática no Direct.',
     agentes:[
       {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
       {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
       {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
       {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
       {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
-      {n:'Publicação',f:'Publica automático',c:'rgba(157,111,245,.9)'},
+      {n:'Social Media',f:'Publica e responde DMs',c:'rgba(157,111,245,.9)'},
     ]
   },
   pro:{
-    nome:'Pro',preco:'R$799',cents:',90',
-    desc:'Inteligência de crescimento. Um consultor que lê seus anúncios reais e diz como crescer, mais edição de vídeo.',
+    nome:'Pro',preco:'R$599',cents:',90',
+    desc:'14 posts por mês + 2 de brinde (até 4 por semana), 10 vídeos editados ou criados por IA e consultor de anúncios.',
     agentes:[
       {n:'Identidade',f:'DNA da marca',c:'rgba(168,85,247,.8)'},
       {n:'Mercado',f:'Análise nicho',c:'rgba(101,225,124,.8)'},
       {n:'Diagnóstico',f:'Instagram real',c:'rgba(192,132,252,.8)'},
       {n:'Estratégia',f:'Plano mensal',c:'rgba(168,85,247,.8)'},
       {n:'Criativo',f:'Gera criativos',c:'rgba(157,111,245,.8)'},
-      {n:'Publicação',f:'Publica automático',c:'rgba(157,111,245,.9)'},
+      {n:'Social Media',f:'Publica e responde DMs',c:'rgba(157,111,245,.9)'},
       {n:'Tráfego',f:'Consultor de Ads',c:'rgba(168,85,247,.9)'},
       {n:'Editor de Vídeo',f:'Edita seus reels',c:'rgba(157,111,245,.9)'},
     ]

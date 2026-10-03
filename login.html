@@ -205,7 +205,7 @@ input{font-family:inherit;outline:none}
       <!-- FORM SIGNUP -->
       <div id="form-signup" style="display:none">
         <div class="f-title">Criar sua conta</div>
-        <div class="f-sub">7 dias grátis para testar — CDC Art. 49</div>
+        <div class="f-sub">Garantia de 7 dias — CDC Art. 49</div>
         <div class="f-group">
           <label class="f-label" for="signup-name">Nome completo</label>
           <input class="f-input" type="text" id="signup-name" placeholder="Seu nome" autocomplete="name">
@@ -218,7 +218,7 @@ input{font-family:inherit;outline:none}
           <label class="f-label" for="signup-pass">Senha (mín. 6 caracteres)</label>
           <input class="f-input" type="password" id="signup-pass" placeholder="••••••••" autocomplete="new-password">
         </div>
-        <button class="f-btn" id="btn-signup" onclick="doSignup()">Criar conta grátis →</button>
+        <button class="f-btn" id="btn-signup" onclick="doSignup()">Criar minha conta →</button>
         <div class="f-msg" id="msg-signup"></div>
         <div class="f-extra">Já tem conta? <a href="#" onclick="switchTab('login');return false">Entrar</a></div>
       </div>
@@ -236,9 +236,9 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const params=new URLSearchParams(location.search);
 const plano=params.get('plano');
 const PLANOS={
-  basico:{nome:'Básico',preco:'R$129,90/mês'},
-  plus:{nome:'Plus',preco:'R$399,90/mês'},
-  pro:{nome:'Pro',preco:'R$799,90/mês'},
+  basico:{nome:'Básico',preco:'R$149,90/mês'},
+  plus:{nome:'Plus',preco:'R$259,90/mês'},
+  pro:{nome:'Pro',preco:'R$599,90/mês'},
 };
 // plano escolhido (muda com o seletor, sem recarregar a página)
 let planoSel=plano&&PLANOS[plano]?plano:null;
@@ -362,7 +362,7 @@ async function doSignup(){
         body:JSON.stringify({action:'checar_email',email})}).then(r=>r.json());
       if(ck&&ck.duplicado){
         showMsg('msg-signup','Já existe uma conta com este e-mail. Faça login ou use "Esqueci a senha".','err');
-        btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+        btn.disabled=false;btn.innerHTML='Criar minha conta →';
         return;
       }
     }catch(e){}
@@ -383,7 +383,7 @@ async function doSignup(){
     // Supabase retorna SUCESSO (sem erro) mesmo p/ e-mail já existente, com identities:[] — detecta e avisa.
     if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){
       showMsg('msg-signup','Este e-mail já está cadastrado. Faça login (ou use "Esqueci a senha").','err');
-      btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+      btn.disabled=false;btn.innerHTML='Criar minha conta →';
       return;
     }
     showMsg('msg-signup','✅ Conta criada! Enviamos um e-mail de confirmação para '+email+'. Clique no link para ativar e adicionar seu pagamento.','ok');
@@ -393,7 +393,7 @@ async function doSignup(){
     if(e.message&&e.message.includes('already registered'))msg='Este e-mail já está cadastrado. Tente entrar.';
     if(e.message&&e.message.includes('rate limit'))msg='Muitas tentativas. Aguarde alguns minutos.';
     showMsg('msg-signup',msg,'err');
-    btn.disabled=false;btn.innerHTML='Criar conta grátis →';
+    btn.disabled=false;btn.innerHTML='Criar minha conta →';
   }
 }
 
