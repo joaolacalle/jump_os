@@ -66,7 +66,7 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 @media(max-width:760px){.wa-float{width:52px;height:52px;bottom:16px;right:16px}.wa-float svg{width:27px;height:27px}}
 .n-in{padding:9px 20px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-weight:700;color:var(--t2);transition:.2s}
 .n-in:hover{border-color:var(--g);color:var(--g)}
-.n-g{padding:9px 22px;background:#FBBF24;border-radius:8px;font-size:13px;font-weight:800;color:#3D2A00;transition:.2s;white-space:nowrap}
+.n-g{padding:9px 22px;background:var(--g);border-radius:8px;font-size:13px;font-weight:800;color:#160A24;transition:.2s;white-space:nowrap}
 .n-g:hover{background:var(--g2)}
 .ham{display:none;flex-direction:column;gap:5px;padding:4px}
 .ham span{display:block;width:22px;height:2px;background:var(--t2);border-radius:2px;transition:.3s}
@@ -350,7 +350,7 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .pl-custom-cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(168,85,247,.4)}
 @media(max-width:900px){.pl-custom{flex-direction:column;align-items:flex-start}}
 /* Flip container */
-.pf-wrap{perspective:1100px;height:clamp(575px,74vw,645px);isolation:isolate}
+.pf-wrap{perspective:1100px;height:clamp(700px,80vw,760px);isolation:isolate}
 .pf-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.22,1,.36,1)}
 .pf-wrap.flipped .pf-inner{transform:rotateY(180deg)}
 .pf-front,.pf-back{
@@ -392,6 +392,21 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .car-card[data-pos="0"] .cc-ico-svg svg{transform:scale(1.1)}
 
 
+/* ══ EXEMPLOS (galeria de posts reais) ══ */
+.sec-ex{background:var(--ch);}
+.ex-head{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(20px,4vw,56px);align-items:end;margin-bottom:clamp(26px,4vw,44px)}
+.ex-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:14px;-webkit-overflow-scrolling:touch}
+.ex-track::-webkit-scrollbar{height:6px}.ex-track::-webkit-scrollbar-thumb{background:rgba(168,85,247,.35);border-radius:6px}
+.ex-card{flex:0 0 clamp(220px,26vw,300px);scroll-snap-align:start;background:#0f0f0f;border:1px solid rgba(168,85,247,.18);border-radius:16px;overflow:hidden}
+.ex-card img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#1a1a1a}
+.ex-cap{padding:12px 14px;font-family:var(--M);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+.ex-cap b{color:var(--g);font-weight:700}
+@media(max-width:760px){.ex-head{grid-template-columns:1fr}}
+.pf-posts{font-family:var(--B);font-size:clamp(17px,1.6vw,20px);color:var(--t1);margin:-4px 0 4px}
+.pf-posts b{font-weight:800}
+.pf-gift{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:rgba(74,222,128,.14);color:#4ade80;font-size:12px;font-weight:800;vertical-align:middle}
+.pf-sem{font-family:var(--M);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:14px}
+.pf-ver-sec{display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--t2);font-size:12.5px;text-decoration:underline;cursor:pointer}
 /* ══ BENEFÍCIOS CAROUSEL ══ */
 
 
@@ -840,6 +855,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   </div>
   <div class="nv">
     <a href="#como-funciona" class="na">Como funciona</a>
+    <a href="#exemplos" class="na">Exemplos</a>
     <a href="#agentes" class="na">Agentes</a>
     <a href="#planos" class="na">Planos</a>
     <a href="mentoria.html" class="na">Mentorias</a>
@@ -848,16 +864,17 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <div class="nbs">
     <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" class="n-wa"><svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2z"/></svg>WhatsApp</a>
     <a href="login.html" class="n-in">Entrar</a>
-    <a href="login.html?plano=plus" class="n-g">Começar grátis →</a>
+    <a href="#planos" class="n-g">Ver planos →</a>
   </div>
   <button class="ham" id="ham" onclick="tmob()" aria-label="Menu"><span></span><span></span><span></span></button>
 </nav>
 <div class="mob" id="mob">
   <a href="#como-funciona" onclick="tmob()">Como funciona</a>
+  <a href="#exemplos" onclick="tmob()">Exemplos</a>
   <a href="#agentes" onclick="tmob()">Agentes</a>
   <a href="#planos" onclick="tmob()">Planos</a>
   <a href="mentoria.html" onclick="tmob()">Mentorias</a>
-  <a href="login.html?plano=plus" onclick="tmob()">Começar 7 dias grátis →</a>
+  <a href="#planos" onclick="tmob()">Ver planos →</a>
   <a href="https://wa.me/5517997243699?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20JUMP%20OS" target="_blank" rel="noopener" onclick="tmob()" style="color:#25D366">💬 Falar no WhatsApp</a>
 </div>
 
@@ -866,19 +883,19 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <div class="hero-lines" id="hero-lines"></div>
   <div class="h-wrap">
     <div>
-      <div class="h-pill"><div class="h-dot"></div><div class="h-pill-t" id="hero-tw">Sistema ativo — 8 agentes operando agora</div></div>
+      <div class="h-pill"><div class="h-dot"></div><div class="h-pill-t" id="hero-tw">Posts prontos — e publicados — no automático</div></div>
       <h1 class="h1">
-        <div class="l"><span>O sistema de</span></div>
-        <div class="l"><span>marketing que</span></div>
-        <div class="l"><span>você não tinha</span></div>
-        <div class="l"><span>que <em>montar.</em></span></div>
+        <div class="l"><span>Seus posts</span></div>
+        <div class="l"><span>do mês prontos.</span></div>
+        <div class="l"><span>E publicados</span></div>
+        <div class="l"><span><em>sozinhos.</em></span></div>
       </h1>
-      <p class="h-sub">8 agentes de IA que analisam, planejam, criam e publicam no seu Instagram. Você aprova. Os resultados aparecem.</p>
+      <p class="h-sub">O JUMP OS cria a estratégia, as artes e as legendas do seu Instagram e publica no melhor horário. Você só aprova — sem agência, sem designer, sem perder o dia no celular.</p>
       <div class="h-btns">
-        <a href="login.html?plano=plus" class="btn-mg">Começar 7 dias grátis →</a>
-        <a href="#como-funciona" class="btn-ol">Ver como funciona</a>
+        <a href="#planos" class="btn-mg">Ver planos — a partir de R$ 149,90 →</a>
+        <a href="#exemplos" class="btn-ol">Ver posts reais</a>
       </div>
-      <div class="h-assure"><b>✓</b> 7 dias grátis em todos os planos &nbsp;·&nbsp; cancele quando quiser</div>
+      <div class="h-assure"><b>✓</b> Garantia de 7 dias &nbsp;·&nbsp; sem fidelidade &nbsp;·&nbsp; cancele quando quiser</div>
 
       <div class="h-os" id="h-os">
         <div class="os-win">
@@ -904,8 +921,8 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <div class="mb-glow"></div>
   <!-- Stat display -->
   <div class="mb-stat-side">
-    <div class="mb-stat-num" id="mb-num">8</div>
-    <div class="mb-stat-lbl" id="mb-lbl">Agentes ativos</div>
+    <div class="mb-stat-num" id="mb-num">16</div>
+    <div class="mb-stat-lbl" id="mb-lbl">Posts por mês no Pro</div>
   </div>
   <!-- Divider -->
   <div class="mb-div"></div>
@@ -920,7 +937,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
   <!-- Dots + CTA -->
   <div class="mb-right-side">
     <div class="mb-dots" id="mb-dots"></div>
-    <a href="login.html?plano=plus" class="mb-cta">7 dias grátis →</a>
+    <a href="#planos" class="mb-cta">Ver planos →</a>
   </div>
 </div>
 
@@ -935,10 +952,25 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       <div class="steps">
         <div class="step rv"><div class="sn">01</div><div><div class="st">Check-in único</div><div class="sb">Uma conversa com nosso agente. Você conta sobre o negócio — ele entende tudo. Nunca mais repete.</div><div class="sa">Agente de Identidade · Agente de Mercado</div></div></div>
         <div class="step rv"><div class="sn">02</div><div><div class="st">Diagnóstico real</div><div class="sb">O sistema analisa seu Instagram e seus concorrentes. Estratégia baseada em dado, não em achismo.</div><div class="sa">Agente de Diagnóstico</div></div></div>
-        <div class="step rv"><div class="sn">03</div><div><div class="st">Conteúdo pronto</div><div class="sb">Calendário, copies e roteiros de Reels criados. Você aprova com um clique.</div><div class="sa">Agente de Estratégia · Agente Criativo</div></div></div>
-        <div class="step rv"><div class="sn">04</div><div><div class="st">Publicação automática</div><div class="sb">No plano Plus, o sistema publica nos horários certos. Você acompanha os resultados chegando.</div><div class="sa">Agente de Publicação — Plano Plus</div></div></div>
+        <div class="step rv"><div class="sn">03</div><div><div class="st">Conteúdo pronto</div><div class="sb">Posts completos — arte, legenda e horário — criados para a sua marca. Você aprova com um clique.</div><div class="sa">Agente de Estratégia · Agente Criativo</div></div></div>
+        <div class="step rv"><div class="sn">04</div><div><div class="st">Publicado sozinho</div><div class="sb">Em todos os planos, o sistema publica nos horários certos. No Plus e no Pro, ainda responde automaticamente quem comenta ou chama no Direct.</div><div class="sa">Agente Social Media</div></div></div>
       </div>
     </div>
+  </div>
+</section>
+<div class="ln-d"></div>
+
+<!-- EXEMPLOS — posts reais criados pelo sistema (imagens em assets/home/exemplos/) -->
+<section class="sec sec-ex" id="exemplos">
+  <div class="si">
+    <div class="ex-head">
+      <div>
+        <div class="tg-d rv">Exemplos</div>
+        <h2 class="sh-d rv">Posts de verdade.<br>Para <em>qualquer nicho.</em></h2>
+      </div>
+      <p class="ss-d rv" style="margin:0">Cada post sai com a identidade da marca do cliente — cores, logo e tom de voz — e uma legenda pronta. Arraste para ver.</p>
+    </div>
+    <div class="ex-track" id="ex-track"></div>
   </div>
 </section>
 <div class="ln-d"></div>
@@ -986,53 +1018,57 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <div class="pl-head">
       <div>
         <div class="tg-l rv">Planos</div>
-        <h2 class="sh-l rv">Simples assim.</h2>
+        <h2 class="sh-l rv">Planos por post.<br>Sem surpresa.</h2>
       </div>
-      <p class="ss-l rv" style="margin:0"><b style="color:#4ade80">Todos os planos começam com 7 dias grátis</b> — você só é cobrado depois. Sem contrato, sem surpresa; cancele quando quiser. Clique em "Ver mais" para ver tudo que está incluso.</p>
-    </div>
-    <div class="pl-grid">
+      <p class="ss-l rv" style="margin:0">Você paga por <b>posts completos</b> — arte com a sua marca, legenda pronta e publicação no melhor horário. <b style="color:var(--g3)">Garantia de 7 dias</b> em todos os planos: não gostou, devolvemos seu dinheiro.</p>
+      </div>
+      <div class="pl-grid">
       <!-- BÁSICO -->
       <div class="pf-wrap" id="pfw-0">
         <div class="pf-inner">
           <div class="pf-front basico-card">
             <div class="pf-lbl">Plano</div>
             <div class="pf-name">Básico</div>
+            <div class="pf-posts"><b>5 posts</b> por mês <span class="pf-gift">+1 de brinde</span></div>
+            <div class="pf-sem">Até 2 posts por semana · 6 posts no total</div>
             <div class="pf-price-b">
-              <div class="pf-price-row"><div class="pf-val" id="preco-basico"><span class="pf-sup">R$</span>129<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-basico"><span class="pf-sup">R$</span>149<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
-              <div class="pf-recorr">Cobrança recorrente mensal</div>
+              <div class="pf-recorr">Garantia de 7 dias</div>
             </div>
             <ul class="pf-deliv">
-              <li><b>Identidade + mercado</b> analisados todo mês</li>
-              <li><b>Estratégia mensal</b> completa</li>
-              <li><b>15 imagens</b> prontas por mês</li>
-              <li><b>Infográficos</b> profissionais</li>
-              <li><b>Social media</b> (postagem manual)</li>
+                <li><b>5 posts completos</b> + 1 de brinde</li>
+                <li><b>Publicação automática</b> no Instagram</li>
+                <li><b>Estratégia do mês</b> feita para o seu nicho</li>
+                <li><b>Identidade da marca</b> aplicada em cada arte</li>
+                <li>Até <b>15 imagens</b> no mês (feed e carrossel)</li>
             </ul>
-            <button class="pf-ver" onclick="flipPlan(0)">Ver o que inclui →</button>
+            <a href="login.html?plano=basico" class="pf-ver" style="text-align:center;text-decoration:none">Assinar o Básico →</a>
+            <button class="pf-ver-sec" onclick="flipPlan(0)">Ver os agentes incluídos</button>
           </div>
           <div class="pf-back">
-            <div class="pfb-title">Básico — 5 Agentes</div>
+            <div class="pfb-title">Básico — 6 agentes</div>
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise competitiva</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Análise Instagram</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano editorial</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(244,114,182,.9);grid-column:1/-1"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos visuais</div></div></div>
+<div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise do nicho</div></div></div>
+<div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+<div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Artes com sua marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Social Media</div><div class="mini-ag-func">Publica sozinho</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
               <div class="pfb-lbl">O que você faz</div>
               <ul class="pfb-list pfb-user">
-                <li>Check-in uma única vez</li>
-                <li>Aprova o conteúdo gerado</li>
-                <li>Baixa e publica manualmente</li>
+                <li>Conta sobre o seu negócio uma única vez</li>
+                <li>Aprova os posts com 1 clique</li>
+                <li>Acompanha os resultados</li>
               </ul>
             </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=basico" class="pfb-cta pfb-g">Testar Básico grátis →</a>
+              <a href="login.html?plano=basico" class="pfb-cta pfb-g">Assinar o Básico →</a>
               <button class="pfb-back" onclick="flipPlan(0)">← Voltar</button>
             </div>
           </div>
@@ -1042,46 +1078,48 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       <div class="pf-wrap" id="pfw-1">
         <div class="pf-inner">
           <div class="pf-front feat">
-            <div class="pf-badge">Mais popular</div>
-            <div class="pf-lbl">Plano</div>
+            <div class="pf-badge">Mais escolhido</div><div class="pf-lbl">Plano</div>
             <div class="pf-name">Plus</div>
+            <div class="pf-posts"><b>8 posts</b> por mês <span class="pf-gift">+2 de brinde</span></div>
+            <div class="pf-sem">Até 3 posts por semana · 10 posts no total</div>
             <div class="pf-price-b">
-              <div class="pf-price-row"><div class="pf-val" id="preco-plus"><span class="pf-sup">R$</span>399<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-plus"><span class="pf-sup">R$</span>259<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
-              <div class="pf-recorr">Cobrança recorrente mensal</div>
+              <div class="pf-recorr">Garantia de 7 dias</div>
             </div>
             <ul class="pf-deliv">
-              <li class="plus-all">Tudo do Básico</li>
-              <li><b>20 imagens</b> prontas por mês</li>
-              <li><b>Publicação automática</b> no Instagram</li>
-              <li><b>100 DMs automáticas</b> por mês</li>
-              <li><b>2 vídeos editados por IA</b> por mês</li>
+                <li><b>8 posts completos</b> + 2 de brinde</li>
+                <li><b>Resposta automática</b> no Direct e nos comentários</li>
+                <li><b>Publicação automática</b> no Instagram</li>
+                <li><b>Estratégia do mês</b> + identidade da marca</li>
+                <li>Até <b>25 imagens</b> no mês</li>
             </ul>
-            <button class="pf-ver feat" onclick="flipPlan(1)">Ver o que inclui →</button>
+            <a href="login.html?plano=plus" class="pf-ver feat" style="text-align:center;text-decoration:none">Assinar o Plus →</a>
+            <button class="pf-ver-sec" onclick="flipPlan(1)">Ver os agentes incluídos</button>
           </div>
           <div class="pf-back">
-            <div class="pfb-title" style="color:var(--g)">Plus — 6 Agentes</div>
+            <div class="pfb-title">Plus — 6 agentes</div>
             <div class="pfb-section">
               <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Publica automático</div></div></div>
+<div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise do nicho</div></div></div>
+<div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+<div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Artes com sua marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Social Media</div><div class="mini-ag-func">Publica + responde DMs</div></div></div>
               </div>
             </div>
             <div class="pfb-section">
               <div class="pfb-lbl">O que você faz</div>
               <ul class="pfb-list pfb-user">
-                <li>Check-in uma única vez</li>
-                <li>Aprova com 1 clique</li>
+                <li>Conta sobre o seu negócio uma única vez</li>
+                <li>Aprova os posts com 1 clique</li>
                 <li>Acompanha os resultados</li>
               </ul>
             </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=plus" class="pfb-cta pfb-g">Testar Plus grátis →</a>
+              <a href="login.html?plano=plus" class="pfb-cta pfb-g">Assinar o Plus →</a>
               <button class="pfb-back" onclick="flipPlan(1)">← Voltar</button>
             </div>
           </div>
@@ -1091,47 +1129,58 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       <div class="pf-wrap" id="pfw-2">
         <div class="pf-inner">
           <div class="pf-front pro-card">
-            <div class="pf-lbl" style="color:rgba(168,85,247,.7)">Em breve</div>
-            <div class="pf-name" style="color:rgba(168,85,247,.8)">Pro</div>
-            <div class="pf-price-b" style="background:rgba(168,85,247,.06)">
-              <div class="pf-price-row"><div class="pf-val" id="preco-pro" style="color:rgba(168,85,247,.8)"><span class="pf-sup">R$</span>799<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+            <div class="pf-lbl">Plano</div>
+            <div class="pf-name">Pro</div>
+            <div class="pf-posts"><b>14 posts</b> por mês <span class="pf-gift">+2 de brinde</span></div>
+            <div class="pf-sem">Até 4 posts por semana · 16 posts no total</div>
+            <div class="pf-price-b">
+              <div class="pf-price-row"><div class="pf-val" id="preco-pro"><span class="pf-sup">R$</span>599<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
-              <div class="pf-recorr" style="color:rgba(168,85,247,.5)">Cobrança recorrente mensal</div>
+              <div class="pf-recorr">Garantia de 7 dias</div>
             </div>
             <ul class="pf-deliv">
-              <li class="plus-all">Tudo do Plus</li>
-              <li><b>30 imagens + 10 vídeos</b> por mês</li>
-              <li><b>Tráfego</b>: estratégia pronta, você executa</li>
-              <li><b>300 DMs automáticas</b> por mês</li>
-              <li><b>Análises semanais</b> de campanha</li>
+                <li><b>14 posts completos</b> + 2 de brinde</li>
+                <li><b>10 vídeos</b> editados ou criados por IA</li>
+                <li><b>Consultor de anúncios</b> (Meta Ads)</li>
+                <li><b>Resposta automática no Direct</b></li>
+                <li>Até <b>40 imagens</b> no mês</li>
             </ul>
-            <button class="pf-ver" style="border-color:rgba(168,85,247,.3);color:rgba(168,85,247,.8)" onclick="flipPlan(2)">Ver o que inclui →</button>
+            <a href="login.html?plano=pro" class="pf-ver" style="text-align:center;text-decoration:none">Assinar o Pro →</a>
+            <button class="pf-ver-sec" onclick="flipPlan(2)">Ver os agentes incluídos</button>
           </div>
-          <div class="pf-back" style="border-color:rgba(168,85,247,.2)">
-            <div class="pfb-title" style="color:rgba(168,85,247,.9)">Pro — 8 Agentes</div>
+          <div class="pf-back">
+            <div class="pfb-title">Pro — 8 agentes</div>
             <div class="pfb-section">
-              <div class="pfb-lbl">Todos os 8 agentes</div>
+              <div class="pfb-lbl">Agentes incluídos</div>
               <div class="mini-ag-grid">
-                <div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise nicho</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Gera criativos</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Publicação</div><div class="mini-ag-func">Auto publicação</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(248,113,113,.9)"><span class="mini-ag-ico">📢</span><div><div class="mini-ag-name">Tráfego</div><div class="mini-ag-func">Meta Ads</div></div></div>
-                <div class="mini-ag" style="--nc:rgba(163,230,53,.9)"><span class="mini-ag-ico">🎬</span><div><div class="mini-ag-name">Editor Vídeo</div><div class="mini-ag-func">Edita Reels</div></div></div>
+<div class="mini-ag" style="--nc:rgba(34,211,238,.9)"><span class="mini-ag-ico">🎨</span><div><div class="mini-ag-name">Identidade</div><div class="mini-ag-func">DNA da marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(79,124,255,.9)"><span class="mini-ag-ico">🔍</span><div><div class="mini-ag-name">Mercado</div><div class="mini-ag-func">Análise do nicho</div></div></div>
+<div class="mini-ag" style="--nc:rgba(45,212,191,.9)"><span class="mini-ag-ico">📊</span><div><div class="mini-ag-name">Diagnóstico</div><div class="mini-ag-func">Instagram real</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,191,36,.9)"><span class="mini-ag-ico">📋</span><div><div class="mini-ag-name">Estratégia</div><div class="mini-ag-func">Plano mensal</div></div></div>
+<div class="mini-ag" style="--nc:rgba(244,114,182,.9)"><span class="mini-ag-ico">🖼</span><div><div class="mini-ag-name">Criativo</div><div class="mini-ag-func">Artes com sua marca</div></div></div>
+<div class="mini-ag" style="--nc:rgba(251,146,60,.9)"><span class="mini-ag-ico">📅</span><div><div class="mini-ag-name">Social Media</div><div class="mini-ag-func">Publica + responde DMs</div></div></div>
+<div class="mini-ag" style="--nc:rgba(248,113,113,.9)"><span class="mini-ag-ico">📢</span><div><div class="mini-ag-name">Tráfego</div><div class="mini-ag-func">Consultor Meta Ads</div></div></div>
+<div class="mini-ag" style="--nc:rgba(163,230,53,.9)"><span class="mini-ag-ico">🎬</span><div><div class="mini-ag-name">Editor de Vídeo</div><div class="mini-ag-func">Reels por IA</div></div></div>
               </div>
             </div>
+            <div class="pfb-section">
+              <div class="pfb-lbl">O que você faz</div>
+              <ul class="pfb-list pfb-user">
+                <li>Conta sobre o seu negócio uma única vez</li>
+                <li>Aprova os posts com 1 clique</li>
+                <li>Acompanha os resultados</li>
+              </ul>
+            </div>
             <div class="pfb-actions">
-              <a href="login.html?plano=pro" class="pfb-cta" style="background:rgba(168,85,247,.9);color:#fff">Testar Pro grátis →</a>
+              <a href="login.html?plano=pro" class="pfb-cta pfb-g">Assinar o Pro →</a>
               <button class="pfb-back" onclick="flipPlan(2)">← Voltar</button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      </div>
 
-    <!-- PLANO CUSTOM (agências / multi-contas) -->
+      <!-- PLANO CUSTOM (agências / multi-contas) -->
     <div class="pl-custom rv">
       <div>
         <div class="pl-custom-lbl">Para agências e empresas</div>
@@ -1154,10 +1203,13 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
     <div class="tg-l rv" style="text-align:center">Perguntas</div>
     <h2 class="sh-l rv" style="text-align:center">Respostas diretas.</h2>
     <div class="fq-wr">
-      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Preciso saber de marketing ou IA para usar?</div><span class="fq-ic">+</span></div><div class="fq-a">Não. Você responde um formulário sobre seu negócio uma vez — os agentes fazem o resto. Você só aprova antes de publicar.</div></div>
-      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Qual a diferença entre Básico, Plus e Pro?</div><span class="fq-ic">+</span></div><div class="fq-a">Básico: 5 agentes, você publica manualmente. Plus: 6 agentes + publicação automática. Pro: 8 agentes completos, com Tráfego Pago e Editor de Vídeo.</div></div>
-      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Como funcionam os 7 dias de garantia?</div><span class="fq-ic">+</span></div><div class="fq-a">7 dias corridos após o cadastro para testar sem cobrança. Se cancelar dentro do prazo, nada é cobrado. Garantido pelo CDC (Art. 49 — Lei 8.078/1990).</div></div>
-      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">O Material Didático está incluso nos planos?</div><span class="fq-ic">+</span></div><div class="fq-a">Não. O Material Didático JUMP é exclusivo para as mentorias presencial e digital. Os planos dão acesso completo ao sistema de agentes.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Preciso saber de marketing ou IA para usar?</div><span class="fq-ic">+</span></div><div class="fq-a">Não. Você conta sobre o seu negócio uma única vez, numa conversa com o agente. Daí em diante o sistema planeja, cria e publica — você só aprova.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">O que conta como um post?</div><span class="fq-ic">+</span></div><div class="fq-a">Um post é uma publicação completa no seu Instagram: a arte (imagem única ou carrossel), a legenda e o horário de publicação. O limite de imagens do plano garante o equilíbrio entre posts simples e carrosséis.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Qual a diferença entre Básico, Plus e Pro?</div><span class="fq-ic">+</span></div><div class="fq-a">Básico: 5 posts + 1 de brinde por mês, publicados no automático. Plus: 8 posts + 2 de brinde e resposta automática no Direct por palavra-chave. Pro: 14 posts + 2 de brinde, 10 vídeos por IA e consultor de anúncios (Meta Ads).</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Posso pedir para refazer um post?</div><span class="fq-ic">+</span></div><div class="fq-a">Sim. Antes de aprovar você pode editar o texto ou pedir uma nova arte — as recriações têm cota própria em cada plano.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Como funciona a garantia de 7 dias?</div><span class="fq-ic">+</span></div><div class="fq-a">A cobrança é feita na assinatura. Se não gostar, peça o cancelamento em até 7 dias e devolvemos 100% do valor (CDC Art. 49). Na primeira semana fica liberada metade da cota do mês; o restante libera no 8º dia.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">Tem fidelidade? Como cancelo?</div><span class="fq-ic">+</span></div><div class="fq-a">Não tem fidelidade. Você cancela quando quiser, direto no painel — a assinatura deixa de renovar no próximo ciclo.</div></div>
+      <div class="fq-it" onclick="this.classList.toggle('o')"><div class="fq-r"><div class="fq-q">O Material Didático está incluso nos planos?</div><span class="fq-ic">+</span></div><div class="fq-a">Não. O Material Didático JUMP é exclusivo das mentorias presencial e digital. Os planos dão acesso completo ao sistema de agentes.</div></div>
     </div>
   </div>
 </section>
@@ -1166,12 +1218,12 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <section class="sec sec-cta">
   <div class="si">
     <h2 class="cta-h rv">Seu negócio<br>não <em>espera.</em></h2>
-    <p class="cta-sub rv">Ative o sistema hoje. Em 48h, seus agentes já estão operando.</p>
+    <p class="cta-sub rv">Assine hoje. Em 48h, seus primeiros posts estão prontos para aprovar.</p>
     <div class="cta-bs rv">
-      <a href="login.html?plano=plus" class="btn-mg" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Começar meus 7 dias grátis →</a>
-      <a href="login.html?plano=basico" class="btn-ol" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Ver plano Básico</a>
+      <a href="#planos" class="btn-mg" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Escolher meu plano →</a>
+      <a href="#exemplos" class="btn-ol" style="font-size:clamp(14px,1.8vw,17px);padding:clamp(15px,2.2vw,18px) clamp(32px,5vw,52px)">Ver posts reais</a>
     </div>
-    <div class="cta-note rv">7 dias grátis · Cancele quando quiser · CDC Art. 49</div>
+    <div class="cta-note rv">Garantia de 7 dias · Sem fidelidade · CDC Art. 49</div>
   </div>
 </section>
 
@@ -1313,7 +1365,7 @@ const AGENTS=[
   {id:'03',ico:'📊',name:'Diagnóstico',role:'Agente de Diagnóstico',func:'Analisa seu Instagram — dado real, não achismo.',benefit:'Descobre o que funciona de verdade no seu perfil — sem achismo.',tasks:['Analisa métricas reais de alcance','Identifica melhores horários do público','Classifica formatos por conversão','Detecta posts de maior engajamento','Gera diagnóstico completo do perfil'],nc:'rgba(45,212,191,.9)',nr:'45,212,191'},
   {id:'04',ico:'📋',name:'Estratégia',role:'Agente de Estratégia',func:'Plano editorial mensal completo — do calendário ao roteiro.',benefit:'Todo o planejamento do mês criado em minutos, pronto para executar.',tasks:['Cria calendário editorial completo','Escreve copies e legendas prontas','Roteiriza Reels e vídeos curtos','Define pilares e CTAs do mês','Planeja campanhas e datas especiais'],nc:'rgba(251,191,36,.9)',nr:'251,191,36'},
   {id:'05',ico:'🖼',name:'Criativo',role:'Agente Criativo',func:'Criativos visuais com a sua identidade — não genéricos.',benefit:'Imagens, capas e carrosséis com a cara da sua marca, sem designer.',tasks:['Cria imagens para o feed','Gera thumbnails e capas de Reels','Monta slides de carrossel','Adapta visuais por formato','Aplica identidade visual automaticamente'],nc:'rgba(244,114,182,.9)',nr:'244,114,182'},
-  {id:'06',ico:'📅',name:'Publicação',role:'Agente de Publicação',func:'Publica automaticamente após sua aprovação.',benefit:'Você aprova com 1 clique e o sistema publica no horário certo.',tasks:['Agenda no melhor horário do público','Publica automaticamente via Meta API','Monitora performance pós-publicação','Envia relatório após cada post','Otimiza timing com base nos dados'],nc:'rgba(251,146,60,.9)',nr:'251,146,60'},
+  {id:'06',ico:'📅',name:'Social Media',role:'Agente Social Media',func:'Publica sozinho após sua aprovação e responde quem chama no Direct (Plus e Pro).',benefit:'Você aprova com 1 clique e o sistema publica no horário certo.',tasks:['Agenda no melhor horário do público','Publica automaticamente via Meta API','Monitora performance pós-publicação','Envia relatório após cada post','Otimiza timing com base nos dados'],nc:'rgba(251,146,60,.9)',nr:'251,146,60'},
   {id:'07',ico:'📢',name:'Tráfego',role:'Consultor de Tráfego',func:'Lê os números reais das suas campanhas Meta Ads e diz exatamente o que ajustar.',benefit:'Um consultor de IA que enxerga seu ROAS real e diagnostica — você no controle do investimento.',tasks:['Estrutura de 4 públicos explicada','Analisa seu ROAS, CPL e CTR reais','Diagnostica o que está travando','Sugere ajustes de budget e público','Você executa no seu Gerenciador'],nc:'rgba(248,113,113,.8)',nr:'248,113,113'},
   {id:'08',ico:'🎬',name:'Editor de Vídeo',role:'Agente de Vídeo',func:'Edita Reels automaticamente — cortes, legendas, formatos.',benefit:'Seus vídeos editados e prontos para publicar sem abrir editor.',tasks:['Corta e edita footage automaticamente','Adiciona legendas animadas','Aplica efeitos da marca','Exporta para cada plataforma','Gera thumbnail automaticamente'],nc:'rgba(163,230,53,.8)',nr:'163,230,53'},
 ];
@@ -1428,15 +1480,16 @@ track.addEventListener('mouseleave',()=>{auto=setInterval(()=>carMove(1),4500)})
 /* ══ MAIN BANNER CYCLING ══ */
 (function(){
   const STATS=[
-    {num:'8',lbl:'Agentes ativos'},
-    {num:'7 dias',lbl:'Grátis para testar'},
-    {num:'24h',lbl:'Sistema operando'},
+    {num:'16',lbl:'Posts por mês no Pro'},
+    {num:'7 dias',lbl:'De garantia'},
+    {num:'1 clique',lbl:'Para aprovar'},
     {num:'100%',lbl:'Você aprova antes'},
     {num:'R$0',lbl:'Ferramentas extras'},
   ];
   const BENEFITS=[
     '⚡ Mais tempo para o seu negócio',
-    '🤖 Automação inteligente de tarefas',
+    '🖼 Post completo: arte, legenda e horário certo',
+    '💬 Responde no Direct quem pede o link (Plus e Pro)',
     '📊 Estratégia baseada em dados reais',
     '✅ Você aprova, os agentes executam',
     '💡 Marketing operando 24 horas',
@@ -1487,7 +1540,7 @@ function flipMent(i){
 }
 
 /* ══ TYPEWRITER ══ */
-const msgs=['Sistema ativo — 8 agentes operando agora','Estratégia gerada por inteligência artificial','Conteúdo pronto para sua aprovação','Publicação automática nos melhores horários','119% de alcance — acima da média do nicho'];
+const msgs=['Posts prontos — e publicados — no automático','8 agentes trabalhando pela sua marca','Estratégia gerada por inteligência artificial','Conteúdo pronto para sua aprovação','Publicação automática nos melhores horários','119% de alcance — acima da média do nicho'];
 let ti=0;
 function tw(){const el=document.getElementById('hero-tw');if(!el)return;const t=msgs[ti++%msgs.length];el.textContent='';let j=0;const w=()=>{if(j<t.length){el.textContent+=t[j++];setTimeout(w,44);}else setTimeout(tw,3200);};w();}
 setTimeout(tw,2200);
@@ -1511,6 +1564,19 @@ document.addEventListener('click',e=>{
     const v=brl(valor),p=v.split(',');
     el.innerHTML='<span class="pf-sup">R$</span>'+p[0]+'<span style="font-size:clamp(22px,3vw,30px)">,'+p[1]+'</span>';
   }
+  // PREÇO DOS PLANOS: fonte única = os planos do PayPal (mesma do checkout). precos_home só cobre
+  // a falta do PayPal e as mentorias — assim a home nunca mostra um preço e o checkout cobra outro.
+  let doPayPal={};
+  try{
+    const pp=await fetch('/api/paypal?action=prices').then(r=>r.json());
+    if(pp&&pp.precos)doPayPal=pp.precos;
+  }catch(e){}
+  function setPrecoPP(id,pr){
+    const el=document.getElementById(id);if(!el||!pr||!pr.preco)return false;
+    el.innerHTML='<span class="pf-sup">R$</span>'+String(pr.preco).replace(/^R\$\s*/,'')+'<span style="font-size:clamp(22px,3vw,30px)">'+(pr.cents||',00')+'</span>';
+    return true;
+  }
+  const ppOk={basico:setPrecoPP('preco-basico',doPayPal.basico),plus:setPrecoPP('preco-plus',doPayPal.plus),pro:setPrecoPP('preco-pro',doPayPal.pro)};
   try{
     const r=await fetch(SB+'/rest/v1/config?chave=eq.precos_home&select=valor',{headers:{apikey:AK,Authorization:'Bearer '+AK}});
     const rows=await r.json();
@@ -1519,9 +1585,9 @@ document.addEventListener('click',e=>{
     if(!rows.length||!rows[0].valor){console.warn('[JUMP precos] config precos_home vazia. Salve no painel admin.');return;}
     const pr=rows[0].valor;
     console.log('[JUMP precos] aplicando:',pr);
-    setPreco('preco-basico',pr.basico);
-    setPreco('preco-plus',pr.plus);
-    setPreco('preco-pro',pr.pro);
+    if(!ppOk.basico)setPreco('preco-basico',pr.basico);
+    if(!ppOk.plus)setPreco('preco-plus',pr.plus);
+    if(!ppOk.pro)setPreco('preco-pro',pr.pro);
     // mentorias (meses grátis)
     const nome={basico:'Básico',plus:'Plus',pro:'Pro'};
     if(pr.ment_pres_plano){
@@ -1542,7 +1608,7 @@ document.addEventListener('click',e=>{
 /* ══ JUMP OS AO VIVO (hero) — os agentes se demonstrando ══ */
 const OS_AGENTS=[
   ['Identidade','#22D3EE','🧬'],['Mercado','#4F7CFF','📡'],['Diagnóstico','#2DD4BF','🩺'],['Estratégia','#FBBF24','♟️'],
-  ['Designer','#F472B6','🎨'],['Publicação','#FB923C','📤'],['Tráfego','#F87171','📈'],['Editor','#A3E635','🎬']
+  ['Designer','#F472B6','🎨'],['Social Media','#FB923C','📤'],['Tráfego','#F87171','📈'],['Editor','#A3E635','🎬']
 ];
 const OS_SCRIPT=[
   {a:0,txt:'Check-in concluído — tom de voz e paleta da marca registrados.',ok:'IDENTIDADE PRONTA'},
@@ -1624,6 +1690,35 @@ function osRender(s,inst,done){
 
 // fallback: se o GSAP não disparar, inicia sozinho
 setTimeout(()=>{const el=document.getElementById('h-os');if(el&&!osOn){el.style.opacity='1';osStart();}},3000);
+</script>
+<script>
+// Bloco próprio: não depende do GSAP (se o CDN falhar, a galeria continua funcionando).
+/* ══ EXEMPLOS: posts reais por nicho ══
+   Para trocar/incluir: suba o arquivo em assets/home/exemplos/ com o nome abaixo (formato 4:5,
+   ex. 1080x1350). Arquivo que não existir some sozinho; sem nenhum, a seção inteira fica oculta. */
+const EXEMPLOS=[
+  {src:'assets/home/exemplos/01.png',nicho:'Padaria'},
+  {src:'assets/home/exemplos/02.png',nicho:'Salão de beleza'},
+  {src:'assets/home/exemplos/03.png',nicho:'Academia'},
+  {src:'assets/home/exemplos/04.png',nicho:'Clínica odontológica'},
+  {src:'assets/home/exemplos/05.png',nicho:'Pet shop'},
+  {src:'assets/home/exemplos/06.png',nicho:'Loja de roupas'},
+  {src:'assets/home/exemplos/07.png',nicho:'Corretora de seguros'},
+  {src:'assets/home/exemplos/08.png',nicho:'Restaurante'},
+];
+(function(){
+  const tr=document.getElementById('ex-track'),sec=document.getElementById('exemplos');if(!tr||!sec)return;
+  let vivos=EXEMPLOS.length;
+  const some=()=>{if(--vivos<=0){sec.style.display='none';const l=sec.nextElementSibling;if(l&&l.classList.contains('ln-d'))l.style.display='none';document.querySelectorAll('a[href="#exemplos"]').forEach(a=>a.style.display='none');}};
+  EXEMPLOS.forEach(e=>{
+    const c=document.createElement('div');c.className='ex-card';
+    const im=new Image();im.loading='lazy';im.alt='Post de '+e.nicho+' criado pelo JUMP OS';im.src=e.src;
+    im.onerror=()=>{c.remove();some();};
+    const cap=document.createElement('div');cap.className='ex-cap';cap.innerHTML='Nicho · <b></b>';cap.querySelector('b').textContent=e.nicho;
+    c.appendChild(im);c.appendChild(cap);tr.appendChild(c);
+  });
+})();
+
 </script>
 </body>
 </html>
