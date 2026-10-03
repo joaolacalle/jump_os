@@ -1072,8 +1072,14 @@ const TOOL_VERIFICACAO_TEXTO = {
       // do corte de verdade e já tem regeneração de uma tentativa — reaproveita os dois.
       elemento_em_faixa_descartada: { type: 'boolean', description: 'true se QUALQUER elemento importante (texto, label, CTA, selo, rosto, logo, borda de mockup) estiver total ou parcialmente dentro de alguma das faixas descritas na mensagem como "serão descartadas". false se todos os elementos importantes estão fora dessas faixas.' },
       descricao_faixa_descartada: { type: 'string', description: 'Quais elementos estão na faixa descartada e em qual borda (ex.: "CTA cortado na faixa inferior; label roçando a faixa do topo"). String vazia se elemento_em_faixa_descartada for false.' },
+      // CORTE AJUSTADO (03/out/2026, pedido do João: "cortou novamente o botão"): três rodadas de
+      // prosa (posição em %, área útil, regeneração dirigida) não impediram o gerador de pôr o CTA
+      // na faixa descartada. Em vez de insistir com o gerador, o verificador mede onde o conteúdo
+      // está e o CORTE se ajusta (ver ajusteDeCorte) — mecanismo, não ênfase.
+      topo_elementos_pct: { type: 'number', description: 'Posição vertical, em % da altura da IMAGEM INTEIRA (0 = borda de cima, 100 = borda de baixo), da borda SUPERIOR do elemento importante mais alto (headline, selo, qualquer texto). Ignore fundo e fotografia.' },
+      base_elementos_pct: { type: 'number', description: 'Posição vertical, em % da altura da IMAGEM INTEIRA (0 = borda de cima, 100 = borda de baixo), da borda INFERIOR do elemento importante mais baixo (botão de CTA incluindo a sombra, texto, caixa de prova). Ignore fundo e fotografia.' },
     },
-    required: ['selo', 'headline', 'subheadline', 'prova', 'cta', 'elemento_em_faixa_descartada', 'descricao_faixa_descartada'],
+    required: ['selo', 'headline', 'subheadline', 'prova', 'cta', 'elemento_em_faixa_descartada', 'descricao_faixa_descartada', 'topo_elementos_pct', 'base_elementos_pct'],
   },
 };
 
@@ -1168,6 +1174,25 @@ function montarAlertaDefeito(verificacaoFinal) {
 // regiaoEntregue (23/set/2026, decisão 1 acima): a MESMA geometria que calcularZonaExclusao() já
 // calcula e que engine6() seção 12 já declara ao modelo de IMAGEM — nunca recalculada nem
 // hardcodada aqui de novo, só reaproveitada pra descrever as faixas ao modelo de VISÃO.
+// ajusteDeCorte — escolhe a janela vertical do corte a partir de onde o verificador viu o conteúdo.
+// null = o corte central de sempre já preserva tudo (ou não há dado/corte vertical).
+// { inicio } = desliza a janela (fração da altura gerada) para manter topo e base do conteúdo.
+// { conter: { y0, y1 } } = o conteúdo é mais alto que a janela: entrega a faixa inteira reduzida
+// (fit contain, sobra preenchida com a cor do fundo) — nunca corta texto nem botão.
+function ajusteDeCorte(lidos, regiao) {
+  if (!lidos || !regiao || !(regiao.descarteAltura > 0.001)) return null;
+  const t = Number(lidos.topo_elementos_pct) / 100, b = Number(lidos.base_elementos_pct) / 100;
+  if (!Number.isFinite(t) || !Number.isFinite(b) || t < 0 || b > 1.001 || b <= t) return null;
+  const H = 1 - regiao.descarteAltura, s0 = regiao.descartePorBorda, m = 0.015;
+  if (t >= s0 + m && b <= s0 + H - m) return null;
+  if (b - t + 2 * m <= H) {
+    let ini = Math.min(Math.max(b + m - H, 0), 1 - H);
+    if (t - m < ini) ini = Math.max(0, t - m);
+    return { inicio: ini };
+  }
+  return { conter: { y0: Math.max(0, t - m), y1: Math.min(1, b + m) } };
+}
+
 async function verificarTextoPorVisao(bytesImagem, esperados, mediaType, regiaoEntregue) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('sem ANTHROPIC_API_KEY');
   const b64 = bytesImagem.toString('base64');
@@ -2108,6 +2133,7 @@ module.exports = async (req, res) => {
     const textoEsperado = { selo: '', headline: headline || '', subheadline: subheadline || '', prova: prova || '', cta: '' };
     const _temTextoParaVerificar = engine !== false && !composicaoAtivaEfetiva && Object.values(textoEsperado).some(v => String(v || '').trim());
     let verificacaoTexto = null;
+    let _ajusteCorte = null;
     if (_temTextoParaVerificar) {
       try {
         const v1 = await verificarTextoPorVisao(bytes, textoEsperado, 'image/png', _regiaoEntregue);
@@ -2117,7 +2143,12 @@ module.exports = async (req, res) => {
         // tentativa que já existia pra texto errado — a seção 12 sozinha (prosa) não bastou pra
         // impedir o label do topo e o CTA da base cortados na peça de teste.
         const faixaDescartada1 = { em: !!(v1.lidos && v1.lidos.elemento_em_faixa_descartada), descricao: String((v1.lidos && v1.lidos.descricao_faixa_descartada) || '') };
-        if (!divergentes1.length && !faixaDescartada1.em) {
+        const aj1 = ajusteDeCorte(v1.lidos, _regiaoEntregue);
+        if (!divergentes1.length && faixaDescartada1.em && aj1) {
+          // só o enquadramento estava errado: o corte ajustado resolve sem gastar outra geração
+          _ajusteCorte = aj1;
+          verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], faixa_descartada: { em: false, descricao: faixaDescartada1.descricao, resolvido_pelo_corte: true }, corte_ajustado: aj1, tentativas: 1 };
+        } else if (!divergentes1.length && !faixaDescartada1.em) {
           verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: [], faixa_descartada: faixaDescartada1, tentativas: 1 };
         } else {
           // REGENERAÇÃO DIRIGIDA (24/set/2026, "Regeneração dirigida, defeito visível e cena que
@@ -2157,6 +2188,16 @@ module.exports = async (req, res) => {
             // regeneração de correção falhou (infra) — fica com a única imagem válida em mãos.
             console.error('[verificacao-texto] regeneração de correção falhou, mantendo a 1ª tentativa');
             verificacaoTexto = { modelo: v1.modelo, esperado: textoEsperado, lido: v1.lidos, divergentes: divergentes1, faixa_descartada: faixaDescartada1, tentativas: 1, regeneracao_falhou: true };
+          }
+        }
+        // CORTE AJUSTADO também depois da regeneração: se a peça escolhida ainda tem elemento na
+        // faixa descartada, o corte desliza (ou reduz) para preservá-lo em vez de entregar cortado.
+        if (verificacaoTexto && !_ajusteCorte && verificacaoTexto.faixa_descartada && verificacaoTexto.faixa_descartada.em) {
+          const ajF = ajusteDeCorte(verificacaoTexto.lido, _regiaoEntregue);
+          if (ajF) {
+            _ajusteCorte = ajF;
+            verificacaoTexto.corte_ajustado = ajF;
+            verificacaoTexto.faixa_descartada = { em: false, descricao: verificacaoTexto.faixa_descartada.descricao, resolvido_pelo_corte: true };
           }
         }
       } catch (e) {
@@ -2241,7 +2282,24 @@ module.exports = async (req, res) => {
       // DETERMINÍSTICO pra bater com o que foi prometido. Com 'attention', a região que sobrevive
       // podia não ser a central que o prompt declarou, e a composição saía imprevisível — a causa
       // exata do botão cortado e do elemento decepado que o João relatou.
-      bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'center' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+      if (_ajusteCorte) {
+        // CORTE AJUSTADO (ver ajusteDeCorte): mesma escala do 'cover' (largura cheia), janela
+        // vertical escolhida pelo conteúdo — ou a faixa inteira reduzida quando não cabe.
+        const _mr = await sharp(bytes).metadata();
+        if (_ajusteCorte.inicio != null) {
+          const hEsc = Math.round(_mr.height * (alvo.w / _mr.width));
+          const topo = Math.min(Math.max(0, Math.round(_ajusteCorte.inicio * hEsc)), Math.max(0, hEsc - alvo.h));
+          bytes = await sharp(bytes).resize(alvo.w, hEsc).extract({ left: 0, top: topo, width: alvo.w, height: alvo.h }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+        } else {
+          const y0 = Math.round(_ajusteCorte.conter.y0 * _mr.height), y1 = Math.round(_ajusteCorte.conter.y1 * _mr.height);
+          const { data: px } = await sharp(bytes).extract({ left: 2, top: Math.min(_mr.height - 3, y0 + 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+          bytes = await sharp(bytes).extract({ left: 0, top: y0, width: _mr.width, height: Math.max(1, y1 - y0) })
+            .resize(alvo.w, alvo.h, { fit: 'contain', background: { r: px[0], g: px[1], b: px[2] } })
+            .jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+        }
+      } else {
+        bytes = await sharp(bytes).resize(alvo.w, alvo.h, { fit: 'cover', position: 'center' }).jpeg({ quality: 88, chromaSubsampling: '4:2:0' }).toBuffer();
+      }
       // CTA E SELO POR CÓDIGO (24/set/2026, "Foto travada de verdade, CTA e selo por código, e
       // enxergar o Diretor", decisão 4, autorizado pelo João) — "três tentativas, três falhas"
       // pedindo ao modelo pra reposicionar o CTA (Achado 2 da ordem: o gerador entrega 2:3, o
