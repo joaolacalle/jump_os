@@ -532,7 +532,7 @@ function _slidesDoPost(c){
   return '<div class="pl-lab" style="margin-bottom:8px">Roteiro do carrossel · '+n+' slides</div>'+sl.map((it,i)=>{
     const papel=i===0?'Capa':(i===n-1?'Fechamento':'Slide '+(i+1));
     return '<div style="border-left:2px solid color-mix(in srgb,var(--g) 35%,transparent);padding-left:12px;margin-bottom:6px">'
-      +'<div class="ec-two" style="grid-template-columns:1fr 1.4fr">'+_inp(c.id,'sh_'+(i+1),(i+1)+' · '+papel+' — título',it.headline||'')+_inp(c.id,'st_'+(i+1),'texto de apoio (até 12 palavras)',it.texto||'')+'</div>'
+      +'<div class="ec-two" style="grid-template-columns:1fr 1.4fr">'+_inp(c.id,'sh_'+(i+1),(i+1)+' · '+papel+' — título',it.headline||'')+_inp(c.id,'st_'+(i+1),'texto de apoio (até 18 palavras)',it.texto||'')+'</div>'
       +_inp(c.id,'sv_'+(i+1),'cena — o que aparece na imagem',it.visual||'')+'</div>';
   }).join('');
 }

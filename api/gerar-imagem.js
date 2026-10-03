@@ -131,9 +131,9 @@ function validarTextoDaPeca(o, permitirHeadlineVazia) {
   if (nH > 8) throw new Error('headline com ' + nH + ' palavras (limite do Engine: 8) — "' + h + '"');
   if (o.subheadline) {
     const nS = contarPalavras(o.subheadline);
-    // 6 → 12 palavras (02/out/2026, autorizado pelo João): o texto de apoio precisa explicar a
-    // headline; 12 é o limite que o próprio prompt do Engine já declara para SUPPORT COPY (seção 2).
-    if (nS > 12) throw new Error('subheadline com ' + nS + ' palavras (limite do Engine: 12) — "' + o.subheadline + '"');
+    // 6 → 12 palavras (02/out/2026) → 18 (03/out/2026, pedido do João: "aumente as palavras do post
+    // em 18"): mesmo limite que o prompt do Engine declara para SUPPORT COPY (seção 2).
+    if (nS > 18) throw new Error('subheadline com ' + nS + ' palavras (limite do Engine: 18) — "' + o.subheadline + '"');
   }
   if (o.cta_arte) {
     const nC = contarPalavras(o.cta_arte);
@@ -429,13 +429,13 @@ function engine6(M, o) {
     // Copy de apoio sobe de 6 para 12 (referência aprovada usa 10); headline (8) e CTA (2) ficam.
     // Teto total ajustado de 18 para 22 pra continuar sendo a soma real dos três (8+12+2), não um
     // número solto que já não batia antes (8+6+2=16) nem bateria agora (8+12+2=22 > 18 antigo).
-    o.composicaoAtiva ? '' : '=== 2. WORD LIMIT (MAXIMUM 22 VISIBLE WORDS OF PIECE TEXT) ===',
+    o.composicaoAtiva ? '' : '=== 2. WORD LIMIT (MAXIMUM 28 VISIBLE WORDS OF PIECE TEXT) ===',
     // CTA E SELO POR CÓDIGO (24/set/2026, decisão 4, autorizado pelo João): quando o.ctaSeloPorCodigo,
     // CTA e selo saem da conta do modelo inteiramente — o texto passa a descrever só headline e
     // support copy, nunca menciona um limite de palavras pro CTA (ele não vai desenhar nenhum).
     o.composicaoAtiva ? '' : (o.ctaSeloPorCodigo
-      ? 'This limit is for the PIECE\'S OWN TEXT ONLY — headline and support copy. The CTA button and the category label (selo) are composed separately, by code — do not render them, they are not part of this limit. HEADLINE max 8 words · SUPPORT COPY max 12 words.'
-      : 'This limit is for the PIECE\'S OWN TEXT ONLY — headline, support copy, CTA (label does not count, graphic element). HEADLINE max 8 words · SUPPORT COPY max 12 words · CTA max 2 words.'),
+      ? 'This limit is for the PIECE\'S OWN TEXT ONLY — headline and support copy. The CTA button and the category label (selo) are composed separately, by code — do not render them, they are not part of this limit. HEADLINE max 8 words · SUPPORT COPY max 18 words.'
+      : 'This limit is for the PIECE\'S OWN TEXT ONLY — headline, support copy, CTA (label does not count, graphic element). HEADLINE max 8 words · SUPPORT COPY max 18 words · CTA max 2 words.'),
     o.composicaoAtiva ? '' : 'Text that belongs to an OBJECT represented in the scene — a software screen, a whiteboard, a book spine, a mug, a sign, a handwritten note — is a VISUAL ELEMENT, not piece text: it does NOT count toward this limit. This is exactly what makes a dense, populated scene possible without inflating the copy.',
     o.composicaoAtiva ? '' : 'If the piece text does not fit: 1st remove support copy, 2nd shorten headline. LESS piece text > MORE piece text.',
     '',
@@ -580,7 +580,7 @@ function engine6(M, o) {
       ? 'Zero text, letters, digits, labels, pills, logos or watermarks anywhere in the image — not even the brand name? Only the palette colors above? Photo with controlled contrast? 3 depth layers present? Negative space respected? Left half left calm and uncluttered for the system to cover? Safe zones clear? If any answer is NO, fix the composition BEFORE rendering.'
       // CTA E SELO POR CÓDIGO (decisão 4): checklist não pergunta mais por CTA nem por label —
       // nenhum dos dois é renderizado pelo modelo neste caminho.
-      : ('Headline <=8 words? Support copy <=12 words? ' + (o.ctaSeloPorCodigo ? '' : 'CTA <=2? ') + 'Proof point <=6 words, number+noun shape? Piece text total <=22 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? ' + ((o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : 'Label 8-12% width with 7:1 contrast? ') + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
+      : ('Headline <=8 words? Support copy <=18 words? ' + (o.ctaSeloPorCodigo ? '' : 'CTA <=2? ') + 'Proof point <=6 words, number+noun shape? Piece text total <=28 (text belonging to a scene object correctly excluded from this count)? Spelling 100% correct in Portuguese? Only the palette colors above? ' + ((o.ctaSeloPorCodigo || !SELO_NA_ARTE) ? '' : 'Label 8-12% width with 7:1 contrast? ') + (hierarquiaVS ? 'Reading priority follows the brand\'s own declared hierarchy?' : 'Headline dominant at 50-60% of attention?') + ' Photo with controlled contrast? 3 depth layers present? Negative space respected? Eye-flow defined? Safe zones clear of important text? If any answer is NO, fix the composition BEFORE rendering.'),
     '',
     '=== 13. PARAMETERS ===',
     // densidade_visual (23/set/2026): substitui o PAR intensidade/complexidade (não só a
