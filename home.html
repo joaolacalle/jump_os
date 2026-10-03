@@ -395,7 +395,7 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 /* ══ EXEMPLOS (galeria de posts reais) ══ */
 .sec-ex{background:var(--ch);}
 .ex-head{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(20px,4vw,56px);align-items:end;margin-bottom:clamp(26px,4vw,44px)}
-.ex-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:14px;-webkit-overflow-scrolling:touch}
+.ex-track{display:flex;gap:16px;overflow-x:auto;padding-bottom:14px;-webkit-overflow-scrolling:touch}
 .ex-track::-webkit-scrollbar{height:6px}.ex-track::-webkit-scrollbar-thumb{background:rgba(168,85,247,.35);border-radius:6px}
 .ex-card{flex:0 0 clamp(220px,26vw,300px);scroll-snap-align:start;background:#0f0f0f;border:1px solid rgba(168,85,247,.18);border-radius:16px;overflow:hidden}
 .ex-card img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#1a1a1a}
@@ -892,7 +892,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
       </h1>
       <p class="h-sub">O JUMP OS cria a estratégia, as artes e as legendas do seu Instagram e publica no melhor horário. Você só aprova — sem agência, sem designer, sem perder o dia no celular.</p>
       <div class="h-btns">
-        <a href="#planos" class="btn-mg">Ver planos — a partir de R$ 149,90 →</a>
+        <a href="#planos" class="btn-mg">Ver planos — a partir de R$ 159,90 →</a>
         <a href="#exemplos" class="btn-ol">Ver posts reais</a>
       </div>
       <div class="h-assure"><b>✓</b> Garantia de 7 dias &nbsp;·&nbsp; sem fidelidade &nbsp;·&nbsp; cancele quando quiser</div>
@@ -968,7 +968,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
         <div class="tg-d rv">Exemplos</div>
         <h2 class="sh-d rv">Posts de verdade.<br>Para <em>qualquer nicho.</em></h2>
       </div>
-      <p class="ss-d rv" style="margin:0">Cada post sai com a identidade da marca do cliente — cores, logo e tom de voz — e uma legenda pronta. Arraste para ver.</p>
+      <p class="ss-d rv" style="margin:0">Cada post sai com a identidade da marca do cliente — cores, logo e tom de voz — e uma legenda pronta.</p>
     </div>
     <div class="ex-track" id="ex-track"></div>
   </div>
@@ -1032,7 +1032,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
             <div class="pf-posts"><b>5 posts</b> por mês <span class="pf-gift">+1 de brinde</span></div>
             <div class="pf-sem">Até 2 posts por semana · 6 posts no total</div>
             <div class="pf-price-b">
-              <div class="pf-price-row"><div class="pf-val" id="preco-basico"><span class="pf-sup">R$</span>149<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
+              <div class="pf-price-row"><div class="pf-val" id="preco-basico"><span class="pf-sup">R$</span>159<span style="font-size:clamp(22px,3vw,30px)">,90</span></div></div>
               <div class="pf-period">/mês</div>
               <div class="pf-recorr">Garantia de 7 dias</div>
             </div>
@@ -1697,14 +1697,16 @@ setTimeout(()=>{const el=document.getElementById('h-os');if(el&&!osOn){el.style.
    Para trocar/incluir: suba o arquivo em assets/home/exemplos/ com o nome abaixo (formato 4:5,
    ex. 1080x1350). Arquivo que não existir some sozinho; sem nenhum, a seção inteira fica oculta. */
 const EXEMPLOS=[
-  {src:'assets/home/exemplos/01.png',nicho:'Padaria'},
-  {src:'assets/home/exemplos/02.png',nicho:'Salão de beleza'},
-  {src:'assets/home/exemplos/03.png',nicho:'Academia'},
-  {src:'assets/home/exemplos/04.png',nicho:'Clínica odontológica'},
-  {src:'assets/home/exemplos/05.png',nicho:'Pet shop'},
-  {src:'assets/home/exemplos/06.png',nicho:'Loja de roupas'},
-  {src:'assets/home/exemplos/07.png',nicho:'Corretora de seguros'},
-  {src:'assets/home/exemplos/08.png',nicho:'Restaurante'},
+  {src:'assets/home/exemplos/01.png',nicho:'Hamburgueria'},
+  {src:'assets/home/exemplos/02.png',nicho:'Oficina mecânica'},
+  {src:'assets/home/exemplos/03.png',nicho:'Corretora de seguros'},
+  {src:'assets/home/exemplos/04.png',nicho:'Estúdio de tattoo'},
+  {src:'assets/home/exemplos/05.png',nicho:'Loja de roupas'},
+  {src:'assets/home/exemplos/06.png',nicho:'Salão de beleza'},
+  {src:'assets/home/exemplos/07.png',nicho:'Academia'},
+  {src:'assets/home/exemplos/08.png',nicho:'Clínica odontológica'},
+  {src:'assets/home/exemplos/09.png',nicho:'Pet shop'},
+  {src:'assets/home/exemplos/10.png',nicho:'Padaria'},
 ];
 (function(){
   const tr=document.getElementById('ex-track'),sec=document.getElementById('exemplos');if(!tr||!sec)return;
@@ -1717,6 +1719,22 @@ const EXEMPLOS=[
     const cap=document.createElement('div');cap.className='ex-cap';cap.innerHTML='Nicho · <b></b>';cap.querySelector('b').textContent=e.nicho;
     c.appendChild(im);c.appendChild(cap);tr.appendChild(c);
   });
+  // "FICAM PASSANDO": rolagem contínua e lenta; para enquanto a pessoa passa o mouse ou toca.
+  // Quem prefere menos movimento (prefers-reduced-motion) fica só com a rolagem manual.
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  let parado=false,ultimo=0,pos=0;
+  ['mouseenter','touchstart','focusin'].forEach(ev=>tr.addEventListener(ev,()=>{parado=true;},{passive:true}));
+  ['mouseleave','touchend','focusout'].forEach(ev=>tr.addEventListener(ev,()=>{pos=tr.scrollLeft;setTimeout(()=>{parado=false;},1500);},{passive:true}));
+  function passo(t){
+    const dt=ultimo?Math.min(64,t-ultimo):16;ultimo=t;
+    if(!parado&&tr.scrollWidth>tr.clientWidth+4){
+      pos+=dt*0.04; // ~40px por segundo
+      if(pos>=tr.scrollWidth-tr.clientWidth-1)pos=0; // volta ao começo ao chegar no fim
+      tr.scrollLeft=pos;
+    }
+    requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
 })();
 
 </script>
