@@ -202,6 +202,21 @@
     return cli;
   }
 
+  // GARANTIA DE 7 DIAS SEM TESTE GRÁTIS (03/out/2026, decisão do João): o teste grátis saiu
+  // (config trial.dias = 0) e a cobrança é no dia 1. O CDC (art. 49) garante 7 dias para desistir
+  // com reembolso total — para limitar o que sai nesses 7 dias, metade da cota de imagens e de
+  // recriações fica liberada até o 8º dia após a ativação (clientes.ativado_em). Depois, cota cheia.
+  const DIAS_GARANTIA = 7;
+  function emGarantia(cli) {
+    if (!cli || !cli.ativado_em || emTrial(cli)) return false;
+    const t = new Date(cli.ativado_em).getTime();
+    return Number.isFinite(t) && Date.now() - t < DIAS_GARANTIA * 864e5;
+  }
+  function cotaDaGarantia(n) {
+    const v = Number(n);
+    return Number.isFinite(v) ? Math.ceil(v / 2) : v;
+  }
+
   function ehVertical(conteudoOuFormato) {
     return _bateAlguma(_fmt(conteudoOuFormato), FORMATOS_VERTICAL);
   }
@@ -440,6 +455,8 @@
     STATUS_EXPIRADO: STATUS_EXPIRADO,
     emTrial: emTrial,
     aplicarPlanoDoTrial: aplicarPlanoDoTrial,
+    emGarantia: emGarantia,
+    cotaDaGarantia: cotaDaGarantia,
     STATUS_RASCUNHO: STATUS_RASCUNHO,
     STATUS_PROPOSTO: STATUS_PROPOSTO,
     STATUS_AGUARDANDO_APROVACAO: STATUS_AGUARDANDO_APROVACAO,

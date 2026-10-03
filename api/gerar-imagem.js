@@ -1432,6 +1432,16 @@ module.exports = async (req, res) => {
         };
       }
     } catch (e) {}
+    // ── GARANTIA DE 7 DIAS (03/out/2026): metade da cota até o 8º dia após a ativação ──
+    const emGarantia = !emTrial && cli.role === 'usuario' && JC.emGarantia(cli);
+    if (emGarantia) {
+      lim = {
+        ...lim,
+        ...(lim.imagens != null ? { imagens: JC.cotaDaGarantia(lim.imagens) } : {}),
+        ...(lim.reloads != null ? { reloads: JC.cotaDaGarantia(lim.reloads) } : {}),
+      };
+    }
+    const _msgGarantia = ' Na primeira semana fica liberada metade da cota do mês; o restante libera no 8º dia da assinatura.';
 
     // ── RESERVA DA VIA EXPRESSA (80/20) ──
     // O lote da semana NUNCA pode comer a cota inteira: 20% fica reservado ao pedido de
@@ -1458,11 +1468,11 @@ module.exports = async (req, res) => {
     const ehReload = !!reload;
     if (ehReload) {
       if (lim.reloads != null && Number(uso.reloads || 0) >= Number(lim.reloads)) {
-        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de recriações do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de recriações (reloads) atingido.', limite: true, tipo_limite: 'reload', trial: emTrial });
+        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de recriações do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de recriações (reloads) atingido.' + (emGarantia ? _msgGarantia : ''), limite: true, tipo_limite: 'reload', trial: emTrial, garantia: emGarantia });
       }
     } else {
       if (lim.imagens != null && Number(uso.imagens || 0) >= Number(lim.imagens)) {
-        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de imagens do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de criações de imagem atingido.', limite: true, tipo_limite: 'imagem', trial: emTrial });
+        return res.status(403).json({ error: emTrial ? 'Você atingiu a cota de imagens do período de teste. Sua cota completa será liberada após os 7 dias.' : 'Limite mensal de criações de imagem atingido.' + (emGarantia ? _msgGarantia : ''), limite: true, tipo_limite: 'imagem', trial: emTrial, garantia: emGarantia });
       }
     }
 

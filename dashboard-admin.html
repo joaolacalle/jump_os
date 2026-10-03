@@ -1034,7 +1034,7 @@ async function salvarCfgTokens(){
       plus:+document.getElementById('ct-plus').value||0,
       pro:+document.getElementById('ct-pro').value||0,
     }},CTX.token);
-    await JUMP.api('set_config',{chave:'trial',valor:{dias:7,tokens:+document.getElementById('ct-trial').value||0}},CTX.token);
+    await JUMP.api('set_config',{chave:'trial',valor:{dias:(_cfg.trial&&_cfg.trial.dias!=null)?Number(_cfg.trial.dias):0,tokens:+document.getElementById('ct-trial').value||0}},CTX.token);
     JUMP.toast('✓ Tokens por plano salvos');fechar('modal-cfgtok');
   }catch(e){JUMP.toast(e.message,'err')}
 }

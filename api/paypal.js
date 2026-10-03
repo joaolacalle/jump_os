@@ -242,7 +242,7 @@ module.exports = async (req, res) => {
       const planoOk = (plano && PLAN_IDS[plano]) ? plano : 'basico';
 
       // 2) Lê a conta atual (se existir)
-      const cr = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}&select=id,plano,cortesia_ate&limit=1`, { headers: SBH() });
+      const cr = await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}&select=id,plano,cortesia_ate,ativado_em&limit=1`, { headers: SBH() });
       const cj = await cr.json();
       const cli = Array.isArray(cj) && cj[0] ? cj[0] : null;
 
@@ -251,15 +251,18 @@ module.exports = async (req, res) => {
       try {
         const tr = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: SBH() });
         const tj = await tr.json();
-        if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias) dias = Number(tj[0].valor.dias);
+        // dias = 0 → SEM teste grátis (03/out/2026): cobra no dia 1, vale a garantia de 7 dias
+        if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias != null) dias = Number(tj[0].valor.dias) || 0;
       } catch (e) {}
-      const cortesiaAte = new Date(Date.now() + dias * 864e5).toISOString();
+      const comTrial = dias > 0;
+      const cortesiaAte = comTrial ? new Date(Date.now() + dias * 864e5).toISOString() : null;
 
       if (cli) {
         // atualiza a conta existente
         const patch = { assinatura_id: subscriptionID, status: 'ativo' };
         if (!cli.plano || cli.plano === 'nenhum') patch.plano = planoOk;
-        if (!cli.cortesia_ate) { patch.cortesia_ate = cortesiaAte; patch.tipo_cortesia = 'trial'; }
+        if (comTrial && !cli.cortesia_ate) { patch.cortesia_ate = cortesiaAte; patch.tipo_cortesia = 'trial'; }
+        if (!comTrial && !cli.ativado_em) patch.ativado_em = new Date().toISOString(); // início da garantia
         await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${user.id}`, {
           method: 'PATCH', headers: { ...SBH(), 'Prefer': 'return=minimal' }, body: JSON.stringify(patch),
         });
@@ -269,7 +272,8 @@ module.exports = async (req, res) => {
         const row = {
           id: user.id, email: user.email, nome, role: 'usuario',
           plano: planoOk, status: 'ativo', bloqueado: false,
-          assinatura_id: subscriptionID, cortesia_ate: cortesiaAte, tipo_cortesia: 'trial',
+          assinatura_id: subscriptionID,
+          ...(comTrial ? { cortesia_ate: cortesiaAte, tipo_cortesia: 'trial' } : { ativado_em: new Date().toISOString() }),
           limites: { imagens: 100, videos: 20, trafego_sugestoes: 10, tokens: 500 },
         };
         await fetch(`${SUPABASE_URL}/rest/v1/clientes`, {
