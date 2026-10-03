@@ -30,7 +30,7 @@
 .ev-job{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--bd);border-radius:11px;margin-bottom:10px}
 .ev-badge{font-size:10px;font-family:var(--M);text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:10px}
 .b-proc{background:rgba(251,191,36,.15);color:var(--yel)}
-.b-pronto{background:rgba(var(--g-rgb),.15);color:var(--g)}
+.b-pronto{background:rgba(var(--ok-rgb),.15);color:var(--ok)}
 .b-erro{background:rgba(248,113,113,.15);color:var(--red)}
 .ev-fmt{display:flex;gap:8px;margin-top:6px}
 .ev-fmt button{flex:1;padding:9px;border:1px solid var(--bd);border-radius:9px;background:transparent;color:var(--t2);font-family:var(--B);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
@@ -59,7 +59,7 @@
           <div id="drop-has" style="display:none">
             <div style="font-size:30px;margin-bottom:8px">✅</div>
             <div id="file-nome" style="font-size:14px;color:var(--t1);font-weight:700"></div>
-            <div style="font-size:12px;color:var(--g);margin-top:4px">Pronto para editar</div>
+            <div style="font-size:12px;color:var(--ok);margin-top:4px">Pronto para editar</div>
           </div>
         </div>
       </div>
@@ -171,7 +171,7 @@ async function selecionou(inp){
     const{data:pub}=JUMP.sb.storage.from('videos-crus').getPublicUrl(path);
     videoUrl=pub.publicUrl;
     document.getElementById('btn-editar').disabled=false;
-    document.getElementById('ev-msg').innerHTML='<span style="color:var(--g)">✓ Vídeo pronto para editar</span>';
+    document.getElementById('ev-msg').innerHTML='<span style="color:var(--ok)">✓ Vídeo pronto para editar</span>';
   }catch(e){
     document.getElementById('ev-msg').innerHTML='<span style="color:var(--red)">Erro ao enviar. Tente de novo.</span>';
   }
@@ -224,7 +224,7 @@ async function editar(){
     });
     const d=await r.json();
     if(r.ok&&d.ok){
-      document.getElementById('ev-msg').innerHTML='<span style="color:var(--g)">✓ Vídeo em processamento! Acompanhe ao lado.</span>';
+      document.getElementById('ev-msg').innerHTML='<span style="color:var(--ok)">✓ Vídeo em processamento! Acompanhe ao lado.</span>';
       // reset
       videoUrl=null;trilhaUrl=null;logoUrl=null;
       document.getElementById('drop-empty').style.display='block';

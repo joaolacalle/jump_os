@@ -125,7 +125,7 @@ let CTX=null,ESCONDER_DESCONECTAR=false;
         document.getElementById('conexoes-ativas').innerHTML=cc.map(c=>`
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)">
             <span style="font-size:18px">${(c.tipo||'').includes('ads')?'📢':'📸'}</span>
-            <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(c.nome||c.tipo||'Conta')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--g)">● conectado</div></div>
+            <div style="flex:1"><strong style="font-size:14px">${JUMP.esc(c.nome||c.tipo||'Conta')}</strong><div style="font-family:var(--M);font-size:10px;color:var(--ok)">● conectado</div></div>
             ${ESCONDER_DESCONECTAR?'':`<button class="btn btn-r btn-sm" onclick="desconectar('${c.id}')">Desconectar</button>`}
           </div>`).join('');
         cc.forEach(c=>{

@@ -18,7 +18,7 @@
 .ord-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .ord-badge{font-size:10px;font-family:var(--M);text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:10px}
 .b-pend{background:rgba(251,191,36,.15);color:var(--yel)}
-.b-feito{background:rgba(var(--g-rgb),.15);color:var(--g)}
+.b-feito{background:rgba(var(--ok-rgb),.15);color:var(--ok)}
 .b-rec{background:rgba(139,92,246,.15);color:var(--lil,#C084FC)}
 .b-proc{background:rgba(79,124,255,.15);color:#7c9cff}
 .b-erro{background:rgba(248,113,113,.15);color:var(--red,#f87171)}
@@ -416,7 +416,7 @@ function checarSaldoOrdem(){
     el.innerHTML=`<span style="color:var(--red)">⚠️ Você pediu ${qtd} ${nome}, mas só tem ${s.resta} de saldo este mês (${s.usado}/${s.total} usados). Reduza a quantidade ou peça mais ao seu gestor.</span>`;
     return false;
   }
-  el.innerHTML=`<span style="color:var(--g)">✓ Você tem saldo (${s.resta} ${nome} disponíveis).</span>`;
+  el.innerHTML=`<span style="color:var(--ok)">✓ Você tem saldo (${s.resta} ${nome} disponíveis).</span>`;
   return true;
 }
 async function salvarIncluirOrdem(){
@@ -438,7 +438,7 @@ async function salvarIncluirOrdem(){
     // Entrega 2 (29/set/2026): em "ver como", a tarefa é criada na conta do CLIENTE (CTX.viewId)
     // — fora desse modo, CTX.viewId já é igual a CTX.user.id, então isto não muda nada de hoje.
     await JUMP.api('criar_ordem_usuario',{para_agente:para,tarefa,recorrencia,recurso:recurso||null,quantidade:qtd||null,user_id:CTX.viewId},CTX.token);
-    res.innerHTML='<span style="color:var(--g)">✓ Tarefa criada! Você acompanha em Tarefas de Serviço.</span>';
+    res.innerHTML='<span style="color:var(--ok)">✓ Tarefa criada! Você acompanha em Tarefas de Serviço.</span>';
     JUMP.toast('📋 Ordem registrada');
     setTimeout(()=>{fecharIncluirOrdem();document.getElementById('ordem-tarefa').value='';document.getElementById('ordem-qtd').value='';document.getElementById('ordem-saldo').innerHTML='';if(typeof carregar==='function')carregar();},1400);
   }catch(e){res.innerHTML='<span style="color:var(--red)">'+(e.message||'Erro')+'</span>';btn.disabled=false;btn.textContent='Criar ordem';}
