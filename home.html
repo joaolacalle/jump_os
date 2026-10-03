@@ -439,19 +439,6 @@ nav.sc{background:linear-gradient(180deg,rgba(38,16,62,.82),rgba(26,10,44,.85));
 .hf-dm{grid-column:1/-1;font-family:var(--B);font-size:13.5px;color:var(--t1);background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3)}
 .hf-dm span{color:var(--t2)}
 @media(max-width:900px){.how-bento{grid-template-columns:1fr}.hb-1,.hb-4{grid-column:auto}.hb-feed{grid-template-columns:1fr}}
-/* ══ AGENTES — faixa rolando (mesmo comportamento da galeria de exemplos) ══ */
-.ag-track{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 16px;-webkit-overflow-scrolling:touch}
-.ag-track::-webkit-scrollbar{height:6px}.ag-track::-webkit-scrollbar-thumb{background:rgba(168,85,247,.35);border-radius:6px}
-.agc{flex:0 0 clamp(250px,24vw,300px);border-radius:18px;padding:22px;background:linear-gradient(170deg,rgba(var(--nr),.13),rgba(20,19,18,.9) 55%);border:1px solid rgba(var(--nr),.35);display:flex;flex-direction:column;gap:10px}
-.agc-top{display:flex;align-items:center;justify-content:space-between}
-.agc-ico svg{width:40px;height:40px}
-.agc-n{font-family:var(--M);font-size:11px;letter-spacing:2px;color:rgba(var(--nr),.9)}
-.agc-name{font-family:var(--D);font-size:30px;letter-spacing:.6px;color:var(--t1);line-height:1}
-.agc-role{font-family:var(--M);font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(var(--nr),.85)}
-.agc-func{font-size:14px;color:var(--t2);line-height:1.55}
-.agc ul{list-style:none;margin:4px 0 0;padding:10px 0 0;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:6px}
-.agc li{font-size:12.5px;color:var(--t2)}.agc li:before{content:'→ ';color:rgba(var(--nr),.9)}
-.agc-plano{margin-top:auto;font-family:var(--M);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
 /* ══ BENEFÍCIOS CAROUSEL ══ */
 
 
@@ -1052,7 +1039,7 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
 <section class="sec sec-agents" id="agentes">
   <div class="si">
     <!-- STATUS BAR DOS AGENTES -->
-    <div class="ag-status-bar rv" style="display:none;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(168,85,247,.15);border-radius:12px">
+    <div class="ag-status-bar rv" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:clamp(28px,4vw,44px);padding:clamp(14px,2vw,20px) clamp(16px,2.5vw,24px);background:rgba(0,0,0,.3);border:1px solid rgba(168,85,247,.15);border-radius:12px">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:hpulse 2s infinite"></div>
         <span style="font-family:var(--M);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g)">Sistema neural ativo</span>
@@ -1073,11 +1060,10 @@ footer{background:var(--ch2);border-top:1px solid var(--bd);padding:clamp(44px,7
         <a href="agentes-detalhes.html" class="car-detail-link rv">Entender cada agente em detalhe →</a>
       </div>
     </div>
-    <div class="ag-track" id="ag-track"></div>
-    <div class="car-wrap" style="display:none">
+    <div class="car-wrap">
       <div class="car-track" id="car-track"></div>
     </div>
-    <div class="car-nav" style="display:none">
+    <div class="car-nav">
       <button class="car-arr" onclick="carMove(-1)">←</button>
       <div class="car-dots" id="car-dots"></div>
       <button class="car-arr" onclick="carMove(1)">→</button>
@@ -1529,7 +1515,7 @@ document.addEventListener('keydown',e=>{
 /* Auto */
 let auto=setInterval(()=>carMove(1),2800);
 track.addEventListener('mouseenter',()=>clearInterval(auto));
-track.addEventListener('mouseleave',()=>{auto=setInterval(()=>carMove(1),4500)});
+track.addEventListener('mouseleave',()=>{clearInterval(auto);auto=setInterval(()=>carMove(1),2800)});
 
 
 
@@ -1768,19 +1754,20 @@ setTimeout(()=>{const el=document.getElementById('h-os');if(el&&!osOn){el.style.
 <script>
 // Bloco próprio: não depende do GSAP (se o CDN falhar, a galeria continua funcionando).
 /* ══ EXEMPLOS: posts reais por nicho ══
-   Para trocar/incluir: suba o arquivo em assets/home/exemplos/ com o nome abaixo (formato 4:5,
-   ex. 1080x1350). Arquivo que não existir some sozinho; sem nenhum, a seção inteira fica oculta. */
+   Para trocar/incluir: suba o arquivo em assets/home/exemplos/ com o nome abaixo + .jpg ou .png
+   (formato 4:5, ex. 1080x1350; prefira .jpg leve). Arquivo que não existir some sozinho; sem
+   nenhum, a seção inteira fica oculta. */
 const EXEMPLOS=[
-  {src:'assets/home/exemplos/01.png',nicho:'Hamburgueria'},
-  {src:'assets/home/exemplos/02.png',nicho:'Oficina mecânica'},
-  {src:'assets/home/exemplos/03.png',nicho:'Corretora de seguros'},
-  {src:'assets/home/exemplos/04.png',nicho:'Estúdio de tattoo'},
-  {src:'assets/home/exemplos/05.png',nicho:'Loja de roupas'},
-  {src:'assets/home/exemplos/06.png',nicho:'Salão de beleza'},
-  {src:'assets/home/exemplos/07.png',nicho:'Academia'},
-  {src:'assets/home/exemplos/08.png',nicho:'Clínica odontológica'},
-  {src:'assets/home/exemplos/09.png',nicho:'Pet shop'},
-  {src:'assets/home/exemplos/10.png',nicho:'Padaria'},
+  {src:'assets/home/exemplos/hamburgueria',nicho:'Hamburgueria'},
+  {src:'assets/home/exemplos/oficina',nicho:'Oficina mecânica'},
+  {src:'assets/home/exemplos/seguros',nicho:'Corretora de seguros'},
+  {src:'assets/home/exemplos/tattoo',nicho:'Estúdio de tattoo'},
+  {src:'assets/home/exemplos/loja-roupas',nicho:'Loja de roupas'},
+  {src:'assets/home/exemplos/salao',nicho:'Salão de beleza'},
+  {src:'assets/home/exemplos/academia',nicho:'Academia'},
+  {src:'assets/home/exemplos/odonto',nicho:'Clínica odontológica'},
+  {src:'assets/home/exemplos/pet-shop',nicho:'Pet shop'},
+  {src:'assets/home/exemplos/padaria',nicho:'Padaria'},
 ];
 (function(){
   const tr=document.getElementById('ex-track'),sec=document.getElementById('exemplos');if(!tr||!sec)return;
@@ -1788,8 +1775,9 @@ const EXEMPLOS=[
   const some=()=>{if(--vivos<=0){sec.style.display='none';const l=sec.nextElementSibling;if(l&&l.classList.contains('ln-d'))l.style.display='none';document.querySelectorAll('a[href="#exemplos"]').forEach(a=>a.style.display='none');}};
   EXEMPLOS.forEach(e=>{
     const c=document.createElement('div');c.className='ex-card';
-    const im=new Image();im.loading='lazy';im.alt='Post de '+e.nicho+' criado pelo JUMP OS';im.src=e.src;
-    im.onerror=()=>{c.remove();some();};
+    const im=new Image();im.loading='lazy';im.alt='Post de '+e.nicho+' criado pelo JUMP OS';
+    const exts=['.jpg','.png','.jpeg','.webp'];let k=0;im.src=e.src+exts[0];
+    im.onerror=()=>{k++;if(k<exts.length){im.src=e.src+exts[k];return;}c.remove();some();};
     const cap=document.createElement('div');cap.className='ex-cap';cap.innerHTML='Nicho · <b></b>';cap.querySelector('b').textContent=e.nicho;
     c.appendChild(im);c.appendChild(cap);tr.appendChild(c);
   });
@@ -1815,25 +1803,7 @@ function autoRolar(tr){
   requestAnimationFrame(passo);
 }
 
-/* ══ AGENTES — faixa rolando (dados de AGENTS/AGENT_SVGS, definidos no script principal) ══ */
-(function(){
-  const tr=document.getElementById('ag-track');if(!tr)return;
-  let lista=null;try{lista=AGENTS;}catch(e){} // AGENTS vem do script principal; se ele falhou, a faixa só fica vazia
-  if(!Array.isArray(lista))return;
-  let icones=[];try{icones=AGENT_SVGS;}catch(e){}
-  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  lista.forEach((a,i)=>{
-    const c=document.createElement('div');c.className='agc';c.style.setProperty('--nr',a.nr||'168,85,247');
-    const svg=(icones&&icones[i])||'<span style="font-size:32px">'+esc(a.ico)+'</span>';
-    c.innerHTML='<div class="agc-top"><div class="agc-ico">'+svg+'</div><div class="agc-n">AGENTE '+esc(a.id)+'</div></div>'
-      +'<div><div class="agc-name">'+esc(a.name)+'</div><div class="agc-role">'+esc(a.role)+'</div></div>'
-      +'<div class="agc-func">'+esc(a.func)+'</div>'
-      +'<ul>'+(a.tasks||[]).slice(0,3).map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>'
-      +'<div class="agc-plano">'+(i<6?'Todos os planos':'Plano Pro')+'</div>';
-    tr.appendChild(c);
-  });
-  autoRolar(tr);
-})();
+
 
 </script>
 </body>
