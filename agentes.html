@@ -237,10 +237,17 @@ body:has(#agmenu:checked) .chat-layout{grid-template-columns:1fr}
       <div style="font-family:var(--D);font-size:20px;letter-spacing:.5px;color:var(--g)">🎯 Nova Promoção / DM</div>
       <button onclick="fecharPromo()" style="background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="font-size:12.5px;color:var(--t3);line-height:1.55;margin-bottom:16px">Quando alguém comentar a palavra-chave (em posts ou anúncios), o sistema envia automaticamente sua mensagem com o link/oferta no direct.</div>
+    <div style="font-size:12.5px;color:var(--t3);line-height:1.55;margin-bottom:16px">Quando alguém comentar a palavra-chave ou mandá-la no Direct, o sistema envia automaticamente sua mensagem com o link/oferta no direct.</div>
 
     <div class="f-group"><label class="f-label">Palavra-chave (gatilho)</label>
       <input class="f-input" id="promo-kw" placeholder="Ex: EU QUERO" maxlength="40"></div>
+
+    <div class="f-group"><label class="f-label">Responder quando a pessoa</label>
+      <select class="f-input" id="promo-gatilho">
+        <option value="ambos">Comentar ou mandar no Direct</option>
+        <option value="comentario">Comentar a palavra no post</option>
+        <option value="dm">Mandar a palavra no Direct</option>
+      </select></div>
 
     <div class="f-group"><label class="f-label">Mensagem automática no direct</label>
       <textarea class="f-input" id="promo-msg" rows="3" placeholder="Ex: Oi! Aqui está o link da promoção: ..." maxlength="900"></textarea></div>
@@ -480,7 +487,7 @@ const AGS=[
   // "Suas publicações"/"Enviar conteúdo" saem da barra (26/set/2026, autorizado pelo João) — só os
   // botões: abrirPainelPublicacao/abrirEnviarConteudo e tudo que pertence aos dois fluxos seguem
   // no arquivo, dormentes (ver os comentários em cada função). 🎯 Campanha DM (abrirPromo) fica.
-  {id:'publicacao',ico:'📅',n:'Publicação',r:'Agendamento',min:2,nc:'251,146,60',btns:[{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
+  {id:'publicacao',ico:'📅',n:'Social Media',r:'Publica e responde',min:1,nc:'251,146,60',btns:[{i:'🎯',t:'Campanha DM',fn:'abrirPromo'}],sug:['Qual frequência ideal de posts?','Como funciona a fila de aprovação?']},
   {id:'trafego',ico:'📢',n:'Tráfego',r:'Consultor de Ads',min:3,nc:'248,113,113',btns:[{i:'📈',t:'Analisar meus anúncios',fn:'cmdCampanhas'}],sug:['Estruturar campanha com R$600/mês','Meu CPL está alto, o que ajustar?','Como configuro meu Meta Business?']},
   {id:'video',ico:'🎬',n:'Editor de Vídeo',r:'Edição de Reels',min:3,nc:'163,230,53',btns:[{i:'🎬',t:'Subir vídeo',fn:'subirVideoTrigger'}],sug:['Como cortar meu vídeo de 3min em Reel?','Estilo de legenda para meu nicho']},
 ];
@@ -2113,6 +2120,7 @@ async function salvarPromo(){
   const link=document.getElementById('promo-link').value.trim();
   const obj=document.getElementById('promo-obj').value;
   const origem=document.getElementById('promo-origem').value;
+  const gatilho=(document.getElementById('promo-gatilho')||{}).value||'comentario';
   const res=document.getElementById('promo-result');
   if(kw.length<2){res.innerHTML='<span style="color:var(--red)">Digite uma palavra-chave.</span>';return;}
   if(msgBase.length<5){res.innerHTML='<span style="color:var(--red)">Digite a mensagem do direct.</span>';return;}
@@ -2131,10 +2139,10 @@ async function salvarPromo(){
       btn.disabled=false;btn.innerHTML='Criar automação';return;
     }
     const{error}=await JUMP.sb.from('automacoes_dm').insert({
-      user_id:uid,palavra_chave:kw,mensagem,objetivo:obj,gatilho:'comentario',origem,ativo:true
+      user_id:uid,palavra_chave:kw,mensagem,objetivo:obj,gatilho,origem,ativo:true
     });
     if(error)throw error;
-    res.innerHTML='<span style="color:var(--g)">✓ Automação criada! Responde automaticamente quem comentar "'+kw+'".</span>';
+    res.innerHTML='<span style="color:var(--g)">✓ Automação criada! Responde automaticamente quem '+({comentario:'comentar',dm:'mandar no Direct',ambos:'comentar ou mandar no Direct'}[gatilho]||'comentar')+' "'+kw+'".</span>';
     document.getElementById('promo-kw').value='';
     document.getElementById('promo-msg').value='';
     document.getElementById('promo-link').value='';
@@ -2156,7 +2164,7 @@ async function listarPromo(){
       `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--t1)">"${JUMP.esc(d.palavra_chave)}" ${d.ativo?'':'<span style=\'color:var(--t3);font-size:10px\'>(inativa)</span>'}</div>
-          <div style="font-size:11px;color:var(--t3);font-family:var(--M)">${({link:'🔗 Link',cupom:'🎟 Cupom',lead:'📋 Lead',info:'ℹ️ Info'})[d.objetivo]||d.objetivo} · ${({ambos:'Posts e anúncios',organico:'Orgânico',anuncio:'Anúncios'})[d.origem]||d.origem} · ${d.disparos||0} envios</div>
+          <div style="font-size:11px;color:var(--t3);font-family:var(--M)">${({link:'🔗 Link',cupom:'🎟 Cupom',lead:'📋 Lead',info:'ℹ️ Info'})[d.objetivo]||d.objetivo} · ${({ambos:'Comentário e Direct',comentario:'Comentário',dm:'Direct'})[d.gatilho]||'Comentário'} · ${({ambos:'Posts e anúncios',organico:'Orgânico',anuncio:'Anúncios'})[d.origem]||d.origem} · ${d.disparos||0} envios</div>
         </div>
         <button class="btn btn-r btn-sm" onclick="excluirPromo('${d.id}')">Excluir</button>
       </div>`

@@ -340,7 +340,7 @@ let CTX=null,ITENS=[],RASCUNHOS=[],SEM_COPY=[],ESTRATEGIAS=[],MATERIAL_PEND=[],P
     CTX=await JUMP.guard();
     JUMP.setUser(CTX.viewCliente||CTX.cliente,CTX.user);
     PLANO=(CTX.viewCliente||CTX.cliente).plano||'basico';
-    if(PLANO==='basico')document.getElementById('basico-note').style.display='block';
+    // 03/out/2026: Básico também publica sozinho (nova oferta) — o aviso "baixe e publique" saiu.
     try{
       // ETAPA 2 (26/ago/2026): 'aguardando_material' entra na busca — sem isso os cards de
       // material do usuário nem chegariam ao navegador.
@@ -1188,9 +1188,7 @@ function abrirEdicao(id){
   // primeiro (é o que "recuperar" significa aqui). O botão de aprovar some; só reagendar aparece.
   const _expiradoEdicao=(c.status===JUMP_CLASS.STATUS_EXPIRADO);
   const aprovarBtn=_expiradoEdicao?''
-    :(PLANO==='basico'
-      ? `<button class="btn btn-g" style="flex:1" onclick="baixar('${id}')">⬇ Baixar</button>`
-      : `<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`);
+    :`<button class="btn btn-g" style="flex:1" onclick="aprovar('${id}')">✓ Aprovar e publicar</button>`;
   // ── #1 POST VENCIDO: a data sugerida já passou e ninguém aprovou. Antes ficava mudo
   // (o cliente aprovava algo que "publica dia 12" com o dia 12 no passado). Agora avisa e reagenda.
   const dtSug=c.data_sugerida?new Date(c.data_sugerida):null;

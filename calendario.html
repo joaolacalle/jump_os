@@ -126,7 +126,7 @@
 <script src="assets/jump-guia.js"></script>
 <script>
 let CTX=null,EVENTOS=[],ANO,MES,DIA_SEL=null;
-// CHECK-IN: estágio real de cada publicação (ajuda o Agente de Publicação e o usuário)
+// CHECK-IN: estágio real de cada publicação (ajuda o Agente Social Media e o usuário)
 function checkin(e){
   const f=String(e.formato||'').toLowerCase();
   const ehVideo=f.indexOf('reel')>=0||f.indexOf('video')>=0||f.indexOf('vídeo')>=0;
@@ -202,7 +202,7 @@ function verDia(d){
   w.innerHTML=evs.map(e=>{
     const t=JUMP.tipoPeca(e);
     // EXCLUIR NO CALENDÁRIO (Parte 2, 15/set/2026): mesma trava de editarConteudo — aprovado/
-    // publicado não sai daqui (já está na fila do Agente de Publicação ou já foi ao ar).
+    // publicado não sai daqui (já está na fila do Agente Social Media ou já foi ao ar).
     const podeExcluir=(e.status!=='aprovado'&&e.status!=='publicado');
     return `<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="abrirNoAprovar('${e.id}')">
     <span style="font-size:17px">${t.ico}</span>

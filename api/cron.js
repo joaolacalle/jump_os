@@ -304,7 +304,7 @@ async function jobPublicar(soUserId) {
     if (porUser[p.user_id]) continue;
     const cli = (await fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${p.user_id}&select=plano,tipo_cortesia,status,bloqueado`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
     if (!cli || cli.bloqueado || cli.status !== 'ativo') continue;
-    if (!['plus', 'pro'].includes(cli.plano)) continue;   // Básico posta manualmente
+    // Publicação automática em TODOS os planos (03/out/2026, nova oferta: Básico também publica sozinho)
     if (cli.tipo_cortesia === 'trial') continue;          // trial: sem publicação automática
     const conta = (await fetch(`${SUPABASE_URL}/rest/v1/contas_conectadas?user_id=eq.${p.user_id}&tipo=eq.instagram&select=token,meta`, { headers: SBH() }).then(r => r.json()).catch(() => []))[0];
     if (!conta || !conta.token || !(conta.meta && conta.meta.ig_id) || conta.meta.token_status === 'expirado') continue;

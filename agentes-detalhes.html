@@ -255,8 +255,8 @@ const AGENTS=[
    ],
    inputs:['Identidade visual da marca','Calendário e copies (Ag. 04)','Fotos da marca (quando disponível)'],
    outputs:['Imagens de feed prontas','Capas de Reels','Slides de carrossel','Arquivos para publicação']},
-  {id:'06',name:'Publicação',role:'Agente de Publicação',nc:'rgba(157,111,245,.9)',nr:'157,111,245',
-   headline:'Publica automaticamente no seu Instagram após sua aprovação — nos horários ideais do seu público.',
+  {id:'06',name:'Social Media',role:'Agente Social Media',nc:'rgba(157,111,245,.9)',nr:'157,111,245',
+   headline:'Publica no seu Instagram após sua aprovação — nos horários ideais do seu público — e responde automaticamente quem comenta ou chama no Direct (Plus e Pro).',
    ops:[
      {t:'Agendamento inteligente',b:'Agenda cada post para o horário de maior alcance identificado pelo Agente de Diagnóstico, considerando dia da semana, tipo de conteúdo e comportamento do público.'},
      {t:'Publicação automática via Meta API',b:'Após sua aprovação com 1 clique, publica automaticamente usando a API oficial da Meta. Feed, Reels e carrosséis — sem você precisar abrir o app.'},
@@ -287,7 +287,7 @@ const AGENTS=[
 /* RENDER */
 const wrap=document.getElementById('agents-detail');
 AGENTS.forEach((ag,i)=>{
-  const planos = i<5 ? 'Todos os planos' : i===5 ? 'Plano Plus' : 'Plano Pro — Em breve';
+  const planos = i<6 ? 'Todos os planos' : 'Plano Pro';
   const block=document.createElement('div');
   block.className='ag-block rv';
   block.style.cssText=`--nr:${ag.nr}`;
