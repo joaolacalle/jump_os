@@ -266,13 +266,23 @@ function obterTemplate(vertical) { return vertical ? TEMPLATES.story : TEMPLATES
 // story, 4% da base caía dentro dos 17% cobertos pela barra de resposta do Instagram,
 // escondendo o logo. Posição é sempre dentro da margem segura do template (canto inferior
 // direito) — os mesmos 8%/10% (feed) e 8%/17% (story) que o Engine também especifica.
-async function posicaoLogo(tpl, logoBuffer) {
+// LOGO NO CANTO INFERIOR ESQUERDO (03/out/2026, pedido do João: "a logo precisa de realocação no
+// canto inferior esquerdo, o local deve ser preservado para nada ficar sobreposto"). Padrão agora
+// 'esquerda' para a peça tradicional (o Engine reserva esse canto no prompt — ver LOGO_ZONA em
+// gerar-imagem.js). O compositor de composição completa (compor, abaixo) segue na direita: lá a
+// metade ESQUERDA é a coluna de texto desenhada por código, e o logo na esquerda bateria nela.
+async function posicaoLogo(tpl, logoBuffer, lado = 'esquerda') {
   const meta = await sharp(logoBuffer).metadata();
   const lw = Math.round(tpl.w * 0.18);
-  const lh = Math.round(lw * ((meta.height || 1) / (meta.width || 1)));
-  const margemDireita = Math.round(tpl.w * tpl.margens.lados);
+  let lh = Math.round(lw * ((meta.height || 1) / (meta.width || 1)));
+  // logo muito alto (vertical/quadrado) não pode passar da altura reservada (10% da peça)
+  const lhMax = Math.round(tpl.h * 0.10);
+  const lwFinal = lh > lhMax ? Math.round(lw * lhMax / lh) : lw;
+  if (lh > lhMax) lh = lhMax;
+  const margemLado = Math.round(tpl.w * tpl.margens.lados);
   const margemBase = Math.round(tpl.h * tpl.margens.bottom);
-  return { left: tpl.w - lw - margemDireita, top: tpl.h - lh - margemBase, width: lw, height: lh };
+  const left = lado === 'direita' ? tpl.w - lwFinal - margemLado : margemLado;
+  return { left, top: tpl.h - lh - margemBase, width: lwFinal, height: lh };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -614,7 +624,7 @@ async function compor({ imagemBase, vertical, M, conteudo, userId, logoBuffer, m
   const composicoes = [{ input: Buffer.from(svgFinal), left: 0, top: 0 }];
   if (logoBuffer) {
     try {
-      const posLogo = await posicaoLogo(tpl, logoBuffer);
+      const posLogo = await posicaoLogo(tpl, logoBuffer, 'direita');
       const logoRedimensionado = await sharp(logoBuffer).resize(posLogo.width, posLogo.height, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
       composicoes.push({ input: logoRedimensionado, left: posLogo.left, top: posLogo.top });
     } catch (e) { logs.push(`[composicao] logo não pôde ser composto: ${e.message} — peça sai sem logo, nunca trava a entrega`); }

@@ -360,6 +360,16 @@ function engine6(M, o) {
   // Fallback defensivo (sem o.regiaoEntregue — nunca deveria disparar em produção, mesmo padrão já
   // usado no restante da seção 12): mesmos números-base de MARGENS_BASE_SAFE_ZONE, únicos e já
   // existentes, nunca um segundo par hand-typed.
+  // ZONA DO LOGO no canvas GERADO (03/out/2026): mesmo retângulo onde posicaoLogo() cola o logo na
+  // peça entregue (canto inferior esquerdo, 18% da largura + folga, até 10% da altura), traduzido
+  // pela mesma conta do corte (o.regiaoEntregue) — o modelo recebe números, não "um canto".
+  const logoZonaTxt = o.regiaoEntregue ? (() => {
+    const r = o.regiaoEntregue;
+    const fracW = 1 - (r.descarteLargura || 0), fracH = 1 - (r.descarteAltura || 0);
+    const x0 = r.margemLadosGerado, x1 = x0 + 0.20 * fracW;
+    const y1 = 1 - r.margemBaseGerado, y0 = y1 - 0.10 * fracH;
+    return { x0: fmtPct(x0), x1: fmtPct(x1), y0: fmtPct(y0), y1: fmtPct(y1), ctaMax: fmtPct(y1 - 0.02 * fracH) };
+  })() : null;
   const margensBaseFallback = MARGENS_BASE_SAFE_ZONE[reels ? 'reels' : 'feed'];
   const areaUtilFallback = {
     x0: fmtPct(margensBaseFallback.sides), x1: fmtPct(1 - margensBaseFallback.sides),
@@ -371,6 +381,10 @@ function engine6(M, o) {
     reels ? 'FORMAT: vertical 1080x1920 single frame.' : 'FORMAT: Instagram feed/carousel slide.',
     o.total > 1 ? ('CAROUSEL slide ' + (o.slide || 1) + ' of ' + o.total + ': keep grid, composition, lighting, hierarchy, palette, intensity, complexity and temperature IDENTICAL to the other slides. Change ONLY label, headline, specific visual element and support copy.') : '',
     '',
+    // SEM PESSOA INVENTADA (03/out/2026, pedido do João: "não usou minha foto, se for conceito não
+    // use pessoas"): sem foto real do cliente anexada e fora de 'pessoa_conceito', a cena não tem
+    // gente — o DNA pode falar do cliente fotografado, mas sem a foto dele o gerador inventa outro.
+    o.semPessoa ? 'NO PEOPLE IN THIS PIECE: no human figure, face, body, hands or silhouette anywhere. Build the scene with objects, workspace, screens, products, mockups and graphics. Any mention of the client being photographed applies ONLY when a real photo of the client is attached — and none is.' : '',
     '=== 1. LOCKED PALETTE (CRITICAL) ===',
     paleta ? ('Use EXCLUSIVELY these colors: ' + paleta + '. CTA color: ' + CTA + ' with locked saturation.' + (corFundo ? (' Background color: ' + corFundo + ' — dominant background tone and the color of any flat/solid zone. NEVER applied over the photographic layer: a real scene keeps its own real tones.') : '') + ' Validate before rendering: am I using ONLY these colors? If an external color appears, STOP and fix.') : 'Use a restrained, consistent premium palette (max 3 colors).',
     T1 || T2 ? ('Typography: headline in ' + (T1 || 'a bold grotesque') + ' Bold; support copy in ' + (T2 || T1 || 'a clean sans') + '.') : '',
@@ -446,7 +460,14 @@ function engine6(M, o) {
           + (o.ctaSeloPorCodigo ? ' The system also composes the CTA button/pill and the category label (selo) on top of what you generate — BY CODE, not by you, after this image is cropped. Do NOT render, write, letter, stencil or draw any call-to-action button, pill, badge or category label anywhere in the image — leave that space to the system.' : '')),
     o.composicaoAtiva
       ? 'Keep the entire LEFT HALF of the canvas (full height) visually calm and simple — the system will completely cover it with the brand\'s text. Never place a face, product detail or anything important there; treat it as background only. The RIGHT HALF is where the real photographic scene lives.'
-      : 'Keep the BOTTOM-RIGHT corner (about 18% of the width) visually calm — no important text, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.',
+      : (logoZonaTxt
+          ? ('LOGO ZONE — RESERVED AND EMPTY: the real brand logo (a PNG) is composited by the system into the BOTTOM-LEFT corner after generation. On THIS canvas that is the rectangle horizontally ' + logoZonaTxt.x0 + ' to ' + logoZonaTxt.x1 + ' and vertically ' + logoZonaTxt.y0 + ' to ' + logoZonaTxt.y1 + '. Keep it EMPTY background — no text, no CTA button, no icon, no line, no object, no focal element touches it.')
+          : 'Keep the BOTTOM-LEFT corner (about 20% of the width, 10% of the height) EMPTY — no text, no CTA button, no focal element there. The real brand logo (a PNG) is composited into that corner by the system after generation.')
+        // BOTÃO DENTRO DO QUE SOBREVIVE AO CORTE (03/out/2026, pedido do João: "cortou novamente o
+        // botão de CTA"): a peça de 09/out saiu com o botão na faixa descartada duas vezes seguidas.
+        + ((o.cta_arte && !o.ctaSeloPorCodigo && logoZonaTxt)
+          ? (' CTA BUTTON POSITION: the whole button (including its shadow) sits ABOVE ' + logoZonaTxt.ctaMax + ' of the canvas height — never lower — and OUTSIDE the logo zone: centered or right-aligned, never in the bottom-left corner. The button is the last element of the reading flow, not glued to the edge.')
+          : ''),
     // ZONAS RESERVADAS DAS PÍLULAS (24/set/2026, decisão 5, autorizado pelo João) — mesma
     // mecânica da linha do canto do logo, acima: quando o.ctaSeloPorCodigo, o sistema também
     // carimba por código o selo (categoria) e o botão de CTA, em retângulos exatos calculados
@@ -862,6 +883,7 @@ async function diretorDeArte(M, o, ctx) {
     ctx.temFoto ? 'A REAL PHOTO of the client is attached. It is FIXED — the person is transplanted into the scene exactly as they already are in the photo: same pose, same body position, same gesture, same expression, never re-photographed, never re-lit, never repositioned. Their posture, body position, gesture and gaze are NOT yours to direct — they come from the photo exactly as it already is. Describe ONLY: which side of the FRAME they appear on, the crop that keeps them entirely in frame, the environment\'s light around them, the contact shadow they cast into the set. NEVER use a verb that imposes posture ("sits", "leans", "rests", "stands", "poses") — you are describing where in the frame they are, never how their body is arranged. YOU ARE FORBIDDEN from describing the person AT ALL — no face, no hair, no beard, no tattoos, no jewellery, no build, no age, no clothing detail, no pose, no gesture, no gaze direction, not one adjective about them. Every word you write about the subject is a word the generator will use to REDRAW them. Describe the world around them; the photo defines the person, exactly as they already are in it.' : 'No real photo of a person is attached: never invent a generic AI person. Build the piece from the set, objects, materials and light.',
     ctx.temProduto ? 'A REAL PRODUCT photo is attached. It is FIXED and it is a real product a real customer will receive — altering it makes this false advertising. It is the hero of the photographic zone, exactly as lit in the photo, never re-lit. Describe ONLY where it sits, the crop that keeps it entirely in frame, the surface under it, the environment\'s light around it and its contact shadow. YOU ARE FORBIDDEN from describing the product itself — not its shape, colour, label, filling, topping or finish. Every adjective you write about it is permission for the generator to redesign it.' : '',
     'Never include any logo, symbol, emblem, monogram, watermark or invented brand mark. The brand mark is applied later by the system.',
+    (!ctx.temFoto && o.tipo !== 'pessoa_conceito') ? 'NO PEOPLE: no real photo of the client is attached to this piece, so the scene has NO human figure, face, body, hands or silhouette — even if the brand DNA describes the client photographed in context (that applies only when their real photo is attached). Use objects, workspace, screens, products, mockups and graphics.' : '',
     // GOSTO DO CLIENTE (16/set/2026, "unificação das arquiteturas de prompt"): antes esta
     // memória só existia como INSTRUÇÃO na persona do Criativo — que compunha o prompt de
     // imagem ela mesma, então "respeite o gosto do cliente" tinha efeito. Com o Criativo só
@@ -1899,7 +1921,7 @@ module.exports = async (req, res) => {
       // caminhos (tradicional por código, composição completa) ao mesmo tempo — invariante de
       // sempre. Com a chave desligada (padrão atual), byte a byte o mesmo de antes da Rodada de
       // 24/set: CTA e selo voltam a ser pedidos ao modelo.
-      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
+      const oArte = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, semPessoa: !temPessoa && tipo !== 'pessoa_conceito', materialReal: temPessoa || temProduto, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt = (engine === false) ? null : await diretorDeArte(M6, oArte, { temFoto: temPessoa, temProduto, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       // MOLDURA: contrato → cena → contrato. Nunca só no rodapé.
       const instr = cabecalho + (engine === false ? prompt
@@ -1929,7 +1951,7 @@ module.exports = async (req, res) => {
       }
       // ctaSeloPorCodigo (25/set/2026): mesmo raciocínio do ramo image-to-image, acima — gated
       // pela mesma chave única CTA_SELO_POR_CODIGO.
-      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
+      const oArte2 = { tema: prompt, headline, subheadline, prova, cta_arte, copy, oferta, formato, pilar, slide, total, tipo, canvas, modo, semPessoa: tipo !== 'pessoa_conceito', materialReal: false, composicaoAtiva: compAtivaLocal, ctaSeloPorCodigo: CTA_SELO_POR_CODIGO && !compAtivaLocal, alvoRecorte: _alvoRecorte, regiaoEntregue: _regiaoEntregue, zonasPills: _zonasPillsGeradas };
       const dirTxt2 = (engine === false) ? null : await diretorDeArte(M6, oArte2, { temFoto: false, temProduto: false, variacao: Number(variacao) || 0, ajuste, permitirInvencaoHeadline: !!permitir_invencao_headline, cenasRecentes: _cenasRecentes });
       const promptSemLogo = (engine === false ? prompt
         : (engine6(M6, oArte2)
