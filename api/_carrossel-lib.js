@@ -15,7 +15,7 @@
 //   - entre 3 e 8 slides — a Estratégia pode ajustar a quantidade do plano para caber a promessa.
 
 const LIM_HEADLINE = 8;
-const LIM_TEXTO = 12;
+const LIM_TEXTO = 18; // 12 → 18 (03/out/2026, pedido do João)
 const MIN_SLIDES = 3;
 const MAX_SLIDES = 8;
 const NUMEROS = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
