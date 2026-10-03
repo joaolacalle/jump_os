@@ -1184,13 +1184,18 @@ function ajusteDeCorte(lidos, regiao) {
   const t = Number(lidos.topo_elementos_pct) / 100, b = Number(lidos.base_elementos_pct) / 100;
   if (!Number.isFinite(t) || !Number.isFinite(b) || t < 0 || b > 1.001 || b <= t) return null;
   const H = 1 - regiao.descarteAltura, s0 = regiao.descartePorBorda, m = 0.015;
-  if (t >= s0 + m && b <= s0 + H - m) return null;
-  if (b - t + 2 * m <= H) {
-    let ini = Math.min(Math.max(b + m - H, 0), 1 - H);
-    if (t - m < ini) ini = Math.max(0, t - m);
+  // A estimativa do verificador é aproximada (09/out: disse 93,5% e o botão ia além) — a base
+  // ganha folga maior e, perto da borda, o corte vai até o fim da imagem; o topo idem.
+  const mB = 0.03;
+  const top = t - m <= 0.08 ? 0 : t - m;
+  const bot = b + mB >= 0.92 ? 1 : b + mB;
+  if (top >= s0 && bot <= s0 + H) return null;
+  if (bot - top <= H) {
+    let ini = Math.min(Math.max(bot - H, 0), 1 - H);
+    if (top < ini) ini = top;
     return { inicio: ini };
   }
-  return { conter: { y0: Math.max(0, t - m), y1: Math.min(1, b + m) } };
+  return { conter: { y0: top, y1: bot } };
 }
 
 async function verificarTextoPorVisao(bytesImagem, esperados, mediaType, regiaoEntregue) {
@@ -2360,7 +2365,36 @@ module.exports = async (req, res) => {
           const im = await baixarImg(logoUrl);
           if (im) {
             const tpl = obterTemplate(_vert);
-            const pos = await posicaoLogo(tpl, im.buf);
+            // CANTO LIVRE (03/out/2026, pedido do João: "nada ficar sobreposto"): o gerador nem
+            // sempre respeita a reserva do canto inferior esquerdo (09/out: caixa de preço ali).
+            // Mede o quanto cada canto está ocupado (desvio de luminância) e cola onde está livre —
+            // esquerda é a preferência; só vai para a direita se a esquerda estiver ocupada e a
+            // direita mais calma.
+            // ocupação = variação de brilho + distância da cor do fundo (uma caixa de cor LISA tem
+            // pouca variação, mas é bem diferente do fundo — sem o 2º termo ela passava por "livre").
+            const _lumHex = (h) => { const m = String(h || '').match(/#?([0-9a-f]{6})/i); if (!m) return null; const n = parseInt(m[1], 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+            let lumFundo = _lumHex(M6 && M6.cor_fundo);
+            if (lumFundo == null) {
+              try {
+                const _m = await sharp(bytes).metadata();
+                const cantos = [[0, 0], [_m.width - 8, 0]];
+                const ms = [];
+                for (const [x, y] of cantos) ms.push((await sharp(await sharp(bytes).extract({ left: x, top: y, width: 8, height: 8 }).greyscale().png().toBuffer()).stats()).channels[0].mean);
+                lumFundo = ms.reduce((a, b) => a + b, 0) / ms.length;
+              } catch (e) { lumFundo = null; }
+            }
+            const ocupacao = async (r) => {
+              try {
+                // stats() mede a ENTRADA, não o pipeline — o recorte precisa virar buffer antes de medir
+                const st = (await sharp(await sharp(bytes).extract({ left: Math.max(0, r.left - 10), top: Math.max(0, r.top - 10), width: r.width + 20, height: r.height + 20 }).greyscale().png().toBuffer()).stats()).channels[0];
+                return st.stdev + (lumFundo == null ? 0 : Math.abs(st.mean - lumFundo) * 0.8);
+              } catch (e) { return 0; }
+            };
+            const posE = await posicaoLogo(tpl, im.buf, 'esquerda');
+            const posD = await posicaoLogo(tpl, im.buf, 'direita');
+            const ocE = await ocupacao(posE), ocD = await ocupacao(posD);
+            const pos = (ocE > 18 && ocD < ocE * 0.7) ? posD : posE;
+            if (pos === posD) console.warn('[logo-padrao] canto esquerdo ocupado (desvio ' + ocE.toFixed(1) + ') — logo no canto direito (desvio ' + ocD.toFixed(1) + ')');
             bytes = await sharp(bytes)
               .composite([{ input: await sharp(im.buf).resize(pos.width, pos.height, { fit: 'inside' }).toBuffer(), left: pos.left, top: pos.top }])
               .jpeg({ quality: 88, chromaSubsampling: '4:2:0' })
@@ -2416,7 +2450,10 @@ module.exports = async (req, res) => {
         // só é ESCRITO quando há defeito — uma peça que teve defeito e foi corrigida por edição
         // manual não limpa este campo sozinha (mesma limitação read-merge-write de sempre, não
         // nova desta rodada; reportado, não corrigido — fora do escopo pedido).
-        ...(_alertaDefeito ? { alerta_defeito: _alertaDefeito } : {}),
+        // AVISO VELHO (03/out/2026): a peça recriada saiu sem defeito, mas o aviso da geração
+        // anterior continuava na tela ("Revise o enquadramento"). Com verificação rodada e sem
+        // defeito, o aviso é apagado; sem verificação, nada muda (não há como saber).
+        ...(_alertaDefeito ? { alerta_defeito: _alertaDefeito } : (verificacaoTexto ? { alerta_defeito: null } : {})),
         // CENA COM MEMÓRIA (24/set/2026, decisão 3): grava o resumo de UMA linha desta peça pra
         // alimentar ctx.cenasRecentes da PRÓXIMA peça do mesmo cliente (ver busca de
         // _cenasRecentes, acima). Só grava quando o Diretor devolveu um resumo de verdade — nunca
