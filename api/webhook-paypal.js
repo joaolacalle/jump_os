@@ -69,19 +69,21 @@ module.exports = async (req, res) => {
         if (type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
           try {
             const filter0 = userId ? `id=eq.${userId}` : `email=eq.${encodeURIComponent(email)}`;
-            const r0 = await fetch(`${SUPABASE_URL}/rest/v1/clientes?${filter0}&select=cortesia_ate`, { headers: H() });
+            const r0 = await fetch(`${SUPABASE_URL}/rest/v1/clientes?${filter0}&select=cortesia_ate,ativado_em`, { headers: H() });
             const j0 = await r0.json();
             const jaTem = Array.isArray(j0) && j0[0] && j0[0].cortesia_ate;
-            if (!jaTem) {
-              let dias = 7;
-              try {
-                const tr = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: H() });
-                const tj = await tr.json();
-                if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias) dias = Number(tj[0].valor.dias);
-              } catch (e) {}
+            let dias = 7;
+            try {
+              const tr = await fetch(`${SUPABASE_URL}/rest/v1/config?chave=eq.trial&select=valor&limit=1`, { headers: H() });
+              const tj = await tr.json();
+              // dias = 0 → SEM teste grátis (03/out/2026): a garantia de 7 dias conta da ativação
+              if (Array.isArray(tj) && tj[0] && tj[0].valor && tj[0].valor.dias != null) dias = Number(tj[0].valor.dias) || 0;
+            } catch (e) {}
+            if (dias > 0 && !jaTem) {
               patch.cortesia_ate = new Date(Date.now() + dias * 24 * 3600 * 1000).toISOString();
               patch.tipo_cortesia = 'trial';  // assinatura nova entra em período de teste real
             }
+            if (dias <= 0 && !(Array.isArray(j0) && j0[0] && j0[0].ativado_em)) patch.ativado_em = new Date().toISOString();
           } catch (e) {}
         }
         const filter = userId ? `id=eq.${userId}` : `email=eq.${encodeURIComponent(email)}`;
@@ -92,7 +94,7 @@ module.exports = async (req, res) => {
         });
         // EMAILS: início da assinatura (trial) → email dos 7 dias; cobrança real → email de compra
         const nomePlano = plano ? (plano.charAt(0).toUpperCase() + plano.slice(1)) : 'JUMP';
-        if (type === 'BILLING.SUBSCRIPTION.ACTIVATED' && email) {
+        if (type === 'BILLING.SUBSCRIPTION.ACTIVATED' && email && patch.tipo_cortesia === 'trial') { // sem teste grátis não há e-mail de teste
           emailTrialIniciado(email, { plano: nomePlano }).catch(() => {});
         }
         if (type === 'PAYMENT.SALE.COMPLETED' && email) {
